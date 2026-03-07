@@ -1,0 +1,18 @@
+package com.botai.chatbot.domain.repository;
+
+import com.botai.chatbot.domain.model.KnowledgeChunk;
+
+import java.util.List;
+
+/**
+ * Port for RAG knowledge chunks. Implementation in infrastructure (JPA + vector search).
+ */
+public interface KnowledgeRepository {
+
+    List<KnowledgeChunk> findAllActive();
+
+    /**
+     * Búsqueda por similitud (cosine) usando la columna embedding. Solo devuelve chunks con embedding no nulo.
+     */
+    List<KnowledgeChunk> findRelevantBySimilarity(List<Double> queryEmbedding, int limit);
+}

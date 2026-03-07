@@ -1,0 +1,77 @@
+# Lee variables de .env (spring-dotenv). Copia .env.example a .env y configura tus valores.
+spring:
+  application:
+    name: chatbot-engine
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5444}/${DB_NAME:chatbot}
+    username: ${DB_USER:chatbot}
+    password: ${DB_PASSWORD:chatbot}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+  # Spring AI: modelo de chat y de embeddings (Ollama). Embeddings para RAG semántico.
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:llama3}
+      # Modelo de embeddings: local vía Ollama (Hugging Face GGUF: ollama pull hf.co/...)
+      embedding:
+        options:
+          # nomic-embed-text (768 dims); alternativas: mxbai-embed-large (1024), hf.co/.../paraphrase-multilingual-MiniLM-L12-v2
+          model: nomic-embed-text
+    model:
+      chat: ollama
+      embedding: ollama
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force-request: true
+      force-response: true
+
+# Features (FAQ, AI, Actions) se gestionan por tenant en BD (feature_config / bot).
+# Aquí solo config del motor y canales.
+bot:
+  channels:
+    web:
+      base-path: /api/v1/webhook
+    # WhatsApp Cloud API (Meta). Configurar en .env
+    whatsapp:
+      verify-token: ${WHATSAPP_VERIFY_TOKEN:}
+      access-token: ${WHATSAPP_ACCESS_TOKEN:}
+      phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+  # Buffer: espera N ms antes de procesar mensajes (agrupa mensajes rápidos)
+  buffer:
+    debounce-ms: 2500
+  # Memoria: cuántos turnos de conversación recordar (user+assistant)
+  memory:
+    max-history-turns: 10
+  # RAG: fragmentos en knowledge_chunk; máximo de chunks a inyectar en el prompt
+  rag:
+    max-chunks: 5
+
+logging:
+  level:
+    com.botai: DEBUG
+    org.hibernate.SQL: WARN

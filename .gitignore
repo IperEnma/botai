@@ -1,0 +1,19 @@
+# Environment files (NEVER commit these)
+.env
+*.env.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Build outputs
+target/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

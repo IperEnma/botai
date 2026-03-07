@@ -1,0 +1,12 @@
+# Perfil "local": usa usuario postgres (típico en instalación local).
+# Ejecutar desde IDE con: -Dspring.profiles.active=local
+# No hace falta crear usuario/BD; usa la BD "postgres" por defecto.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: postgres
+  sql:
+    init:
+      mode: always

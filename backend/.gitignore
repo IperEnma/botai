@@ -1,0 +1,14 @@
+# Environment
+.env
+
+# Maven
+target/
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+
+# Logs
+*.log

@@ -1,0 +1,2 @@
+# Los .sql deben usar LF para que funcionen en el contenedor Linux (initdb.d).
+*.sql text eol=lf
