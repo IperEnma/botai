@@ -70,6 +70,10 @@ bot:
   # RAG: fragmentos en knowledge_chunk; máximo de chunks a inyectar en el prompt
   rag:
     max-chunks: 5
+  # Guardrails: evitar jailbreak y uso fuera de alcance (patrones + opcional clasificador LLM)
+  guardrails:
+    scope-check-llm: true   # true = clasificar con LLM si la consulta es in-scope (más robusto, más latencia)
+    # out-of-scope-message: "Solo puedo ayudarte con..."  # opcional; si no se define, se usa mensaje por defecto
 
 logging:
   level:

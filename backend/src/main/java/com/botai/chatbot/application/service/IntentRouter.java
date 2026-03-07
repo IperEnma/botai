@@ -25,17 +25,20 @@ public class IntentRouter {
     private final HybridAiService hybridAiService;
     private final ActionDispatcher actionDispatcher;
     private final MenuService menuService;
+    private final ScopeGuard scopeGuard;
 
     public IntentRouter(FeatureFlagService featureFlagService,
                         FaqService faqService,
                         HybridAiService hybridAiService,
                         ActionDispatcher actionDispatcher,
-                        MenuService menuService) {
+                        MenuService menuService,
+                        ScopeGuard scopeGuard) {
         this.featureFlagService = featureFlagService;
         this.faqService = faqService;
         this.hybridAiService = hybridAiService;
         this.actionDispatcher = actionDispatcher;
         this.menuService = menuService;
+        this.scopeGuard = scopeGuard;
     }
 
     /**
@@ -140,6 +143,19 @@ public class IntentRouter {
 
         // 5) IA (si está activa: directo cuando solo hay IA, o tras no hacer match en menú/FAQ cuando hay ambas)
         if (featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId)) {
+            ScopeGuard.ScopeResult scopeResult = scopeGuard.check(text, tenantId);
+            if (!scopeResult.allowed()) {
+                log.info("[ROUTER] Mensaje fuera de alcance o jailbreak detectado -> respondiendo con mensaje fijo");
+                return new RouteResult(
+                    OutboundMessage.builder()
+                        .text(scopeResult.blockMessage())
+                        .conversationId(conversationId)
+                        .tenantId(tenantId)
+                        .build(),
+                    "ai_blocked",
+                    null
+                );
+            }
             log.info("[ROUTER] Routing to AI (Capa 2)");
             var aiResponse = hybridAiService.generateResponse(inbound, state);
             return new RouteResult(aiResponse, "ai", null);
