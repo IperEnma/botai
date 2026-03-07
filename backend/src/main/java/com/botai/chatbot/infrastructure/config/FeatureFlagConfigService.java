@@ -2,7 +2,9 @@ package com.botai.chatbot.infrastructure.config;
 
 import com.botai.chatbot.domain.feature.BotFeatures;
 import com.botai.chatbot.domain.feature.FeatureFlagService;
+import com.botai.chatbot.infrastructure.persistence.jpa.BotJpaRepository;
 import com.botai.chatbot.infrastructure.persistence.jpa.FeatureConfigJpaRepository;
+import com.botai.chatbot.infrastructure.persistence.entity.BotEntity;
 import com.botai.chatbot.infrastructure.persistence.entity.FeatureConfigEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,8 +14,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Feature flags: solo desde la base de datos (por tenant).
- * Si no hay fila para el tenant, la capa está desactivada.
+ * Feature flags: fuente de verdad es la tabla bot (faq_enabled, ai_enabled, actions_enabled).
+ * Así el router respeta lo que el usuario guarda en la web. feature_config se mantiene en sync al actualizar el bot.
  */
 @Service
 public class FeatureFlagConfigService implements FeatureFlagService {
@@ -26,9 +28,11 @@ public class FeatureFlagConfigService implements FeatureFlagService {
         BotFeatures.ACTIONS_ENABLED, "ACTIONS_ENABLED"
     );
 
+    private final BotJpaRepository botRepository;
     private final FeatureConfigJpaRepository featureRepo;
 
-    public FeatureFlagConfigService(FeatureConfigJpaRepository featureRepo) {
+    public FeatureFlagConfigService(BotJpaRepository botRepository, FeatureConfigJpaRepository featureRepo) {
+        this.botRepository = botRepository;
         this.featureRepo = featureRepo;
     }
 
@@ -39,24 +43,30 @@ public class FeatureFlagConfigService implements FeatureFlagService {
 
     @Override
     public boolean isEnabled(BotFeatures feature, String tenantId) {
-        String key = FEATURE_KEYS.get(feature);
-        if (key == null) return false;
         if (tenantId == null || tenantId.isBlank()) {
             log.warn("[FEATURE] tenantId ausente o vacío, se considera feature desactivada");
             return false;
         }
 
-        Optional<FeatureConfigEntity> fromDb = featureRepo.findByTenantIdAndFeatureKey(tenantId, key);
-        if (fromDb.isPresent()) {
-            boolean enabled = fromDb.get().isEnabled();
-            if ("AI_ENABLED".equals(key)) {
-                log.info("[FEATURE] tenant={} AI_ENABLED={} (from DB)", tenantId, enabled);
-            }
+        // Fuente de verdad: tabla bot (lo que el usuario guarda en la web)
+        Optional<BotEntity> botOpt = botRepository.findByTenantId(tenantId);
+        if (botOpt.isPresent()) {
+            BotEntity bot = botOpt.get();
+            boolean enabled = switch (feature) {
+                case FAQ_ENABLED -> bot.isFaqEnabled();
+                case AI_ENABLED -> bot.isAiEnabled();
+                case ACTIONS_ENABLED -> bot.isActionsEnabled();
+            };
+            log.debug("[FEATURE] tenant={} {}={} (from bot)", tenantId, FEATURE_KEYS.get(feature), enabled);
             return enabled;
         }
 
-        if ("AI_ENABLED".equals(key)) {
-            log.info("[FEATURE] tenant={} AI_ENABLED=false (no row in DB)", tenantId);
+        // Fallback: feature_config (por si hubiera tenant sin bot)
+        String key = FEATURE_KEYS.get(feature);
+        if (key == null) return false;
+        Optional<FeatureConfigEntity> fromDb = featureRepo.findByTenantIdAndFeatureKey(tenantId, key);
+        if (fromDb.isPresent()) {
+            return fromDb.get().isEnabled();
         }
         return false;
     }

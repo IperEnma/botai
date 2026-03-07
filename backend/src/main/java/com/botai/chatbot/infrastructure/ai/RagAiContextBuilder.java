@@ -44,7 +44,9 @@ public class RagAiContextBuilder implements HybridAiService.AiContextBuilder {
         lines.add("");
 
         if (chunks.isEmpty()) {
-            return HybridAiService.BuildContextResult.noChunks(lines);
+            // Sin chunks: el LLM decide si es saludo (responder amable) o pregunta sin contexto (decir que no hay información)
+            lines.add("No hay fragmentos de conocimiento para esta consulta. Si el mensaje del usuario es un saludo o conversación breve, responde en primera persona del plural de forma amable (ej: Hola, ¿en qué podemos ayudarte?). Si es una pregunta que no puedes responder sin más datos, indica que no tienes esa información y sugiere contactar por teléfono o email.");
+            return HybridAiService.BuildContextResult.withChunks(lines);
         }
 
         lines.add("--- Información (usa solo esto para responder) ---");
