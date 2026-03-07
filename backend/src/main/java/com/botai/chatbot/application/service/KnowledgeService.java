@@ -27,25 +27,26 @@ public class KnowledgeService {
     }
 
     /**
-     * Devuelve los fragmentos más relevantes para la consulta.
+     * Devuelve los fragmentos más relevantes para la consulta del tenant.
      * Si hay EmbeddingModel y chunks con embedding, usa búsqueda por similitud; si no, por palabras.
+     * tenantId puede ser null para búsqueda global (retrocompatibilidad).
      */
-    public List<KnowledgeChunk> findRelevant(String query, int maxChunks) {
+    public List<KnowledgeChunk> findRelevant(String query, int maxChunks, String tenantId) {
         if (query == null || query.isBlank()) {
             return List.of();
         }
         int limit = maxChunks > 0 ? maxChunks : DEFAULT_MAX_CHUNKS;
 
         if (embeddingModel != null) {
-            List<KnowledgeChunk> bySimilarity = findRelevantByEmbedding(query, limit);
+            List<KnowledgeChunk> bySimilarity = findRelevantByEmbedding(query, limit, tenantId);
             if (!bySimilarity.isEmpty()) {
                 return bySimilarity;
             }
         }
-        return findRelevantByKeywords(query, limit);
+        return findRelevantByKeywords(query, limit, tenantId);
     }
 
-    private List<KnowledgeChunk> findRelevantByEmbedding(String query, int limit) {
+    private List<KnowledgeChunk> findRelevantByEmbedding(String query, int limit, String tenantId) {
         try {
             EmbeddingResponse resp = embeddingModel.embedForResponse(List.of(query));
             if (resp.getResults() == null || resp.getResults().isEmpty()) {
@@ -55,7 +56,7 @@ public class KnowledgeService {
             if (vector.isEmpty()) {
                 return List.of();
             }
-            return knowledgeRepository.findRelevantBySimilarity(vector, limit);
+            return knowledgeRepository.findRelevantBySimilarity(vector, limit, tenantId);
         } catch (Exception e) {
             return List.of();
         }
@@ -74,12 +75,14 @@ public class KnowledgeService {
     /**
      * Búsqueda por palabras clave (fallback cuando no hay embeddings).
      */
-    private List<KnowledgeChunk> findRelevantByKeywords(String query, int limit) {
+    private List<KnowledgeChunk> findRelevantByKeywords(String query, int limit, String tenantId) {
         Set<String> queryWords = toNormalizedWords(query);
         if (queryWords.isEmpty()) {
             return List.of();
         }
-        List<KnowledgeChunk> all = knowledgeRepository.findAllActive();
+        List<KnowledgeChunk> all = tenantId != null && !tenantId.isBlank()
+            ? knowledgeRepository.findAllActiveByTenantId(tenantId)
+            : knowledgeRepository.findAllActive();
         if (all.isEmpty()) {
             return List.of();
         }

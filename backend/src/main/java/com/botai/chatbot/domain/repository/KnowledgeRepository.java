@@ -11,8 +11,11 @@ public interface KnowledgeRepository {
 
     List<KnowledgeChunk> findAllActive();
 
+    List<KnowledgeChunk> findAllActiveByTenantId(String tenantId);
+
     /**
      * Búsqueda por similitud (cosine) usando la columna embedding. Solo devuelve chunks con embedding no nulo.
+     * Filtra por tenantId cuando no es nulo.
      */
-    List<KnowledgeChunk> findRelevantBySimilarity(List<Double> queryEmbedding, int limit);
+    List<KnowledgeChunk> findRelevantBySimilarity(List<Double> queryEmbedding, int limit, String tenantId);
 }

@@ -70,10 +70,10 @@ bot:
   # RAG: fragmentos en knowledge_chunk; máximo de chunks a inyectar en el prompt
   rag:
     max-chunks: 5
-  # Guardrails: evitar jailbreak y uso fuera de alcance (patrones + opcional clasificador LLM)
+  # Guardrails: modelo 1 clasifica si la consulta es del negocio; solo esas pasan a RAG + modelo de respuesta
   guardrails:
-    scope-check-llm: true   # true = clasificar con LLM si la consulta es in-scope (más robusto, más latencia)
-    # out-of-scope-message: "Solo puedo ayudarte con..."  # opcional; si no se define, se usa mensaje por defecto
+    scope-check-llm: true   # true = modelo 1 clasifica (asociada al negocio: SÍ/NO). Si NO -> mensaje fijo; si SÍ -> RAG + modelo 2
+    # out-of-scope-message: "Solo puedo ayudarte con..."  # opcional
 
 logging:
   level:

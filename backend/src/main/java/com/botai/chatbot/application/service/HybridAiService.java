@@ -47,7 +47,18 @@ public class HybridAiService {
         messageHistoryService.saveUserMessage(conversationId, userText);
 
         List<String> history = messageHistoryService.getHistory(conversationId);
-        List<String> systemPrompt = contextBuilder.buildSystemPrompt(state, userText);
+        BuildContextResult contextResult = contextBuilder.buildContext(state, userText);
+        List<String> systemPrompt = contextResult.systemPromptLines();
+
+        if (!contextResult.hasRelevantChunks()) {
+            String noInfoMsg = "No tengo información sobre eso en mi base. Para más detalles puedes contactarnos por teléfono o email.";
+            messageHistoryService.saveAssistantMessage(conversationId, noInfoMsg);
+            return OutboundMessage.builder()
+                .text(noInfoMsg)
+                .conversationId(conversationId)
+                .tenantId(tenantId)
+                .build();
+        }
 
         LlmRequest request = new LlmRequest(userText, systemPrompt, history, MAX_TOKENS);
         LlmResponse response = languageModel.generate(request);
@@ -78,10 +89,23 @@ public class HybridAiService {
     }
 
     /**
-     * Builds system prompt lines (instructions + optional RAG context from user query).
+     * Resultado de construir el contexto para el LLM.
+     * hasRelevantChunks=false significa que el RAG no encontró nada relevante → no llamar al LLM.
+     */
+    public record BuildContextResult(List<String> systemPromptLines, boolean hasRelevantChunks) {
+        public static BuildContextResult withChunks(List<String> lines) {
+            return new BuildContextResult(lines, true);
+        }
+        public static BuildContextResult noChunks(List<String> lines) {
+            return new BuildContextResult(lines, false);
+        }
+    }
+
+    /**
+     * Builds system prompt and signals if there is relevant RAG context (si no hay, no se llama al LLM).
      */
     public interface AiContextBuilder {
-        List<String> buildSystemPrompt(ConversationState state, String userMessage);
+        BuildContextResult buildContext(ConversationState state, String userMessage);
     }
 
     /**
