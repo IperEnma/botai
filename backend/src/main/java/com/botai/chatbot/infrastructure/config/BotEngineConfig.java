@@ -53,8 +53,9 @@ public class BotEngineConfig {
                                      HybridAiService hybridAiService,
                                      ActionDispatcher actionDispatcher,
                                      MenuService menuService,
-                                     ScopeGuard scopeGuard) {
-        return new IntentRouter(featureFlagService, faqService, hybridAiService, actionDispatcher, menuService, scopeGuard);
+                                     ScopeGuard scopeGuard,
+                                     BotReadinessService readinessService) {
+        return new IntentRouter(featureFlagService, faqService, hybridAiService, actionDispatcher, menuService, scopeGuard, readinessService);
     }
 
     @Bean

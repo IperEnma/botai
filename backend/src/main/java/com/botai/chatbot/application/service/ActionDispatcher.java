@@ -40,6 +40,30 @@ public class ActionDispatcher {
     }
 
     /**
+     * Start an action from a menu option (e.g. user pressed "1" and option has actionIntent "book_appointment").
+     */
+    public OutboundMessage startFromMenuOption(ConversationState state, String actionIntent, String userInput) {
+        if (actionIntent == null || actionIntent.isBlank()) return null;
+        Optional<BotAction> action = actions.stream()
+            .filter(a -> actionIntent.equals(a.getActionId()))
+            .findFirst();
+        if (action.isEmpty()) return null;
+        ConversationState newState = ConversationState.builder()
+            .conversationId(state.getConversationId())
+            .userId(state.getUserId())
+            .channelId(state.getChannelId())
+            .currentIntent(actionIntent)
+            .context(state.getContext())
+            .build();
+        conversationRepository.save(newState);
+        OutboundMessage result = action.get().execute(newState, userInput);
+        if (result != null) {
+            conversationRepository.save(newState);
+        }
+        return result;
+    }
+
+    /**
      * Try to start an action by trigger intent (e.g. "crear lead" -> create_lead).
      */
     public OutboundMessage tryDispatchByIntent(InboundMessage inbound, ConversationState state) {

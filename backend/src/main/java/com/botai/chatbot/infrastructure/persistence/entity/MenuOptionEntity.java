@@ -27,6 +27,13 @@ public class MenuOptionEntity {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 
+    /** Si no es nulo, al elegir esta opción se dispara esta acción (ej. book_appointment) en lugar de ir a target_menu_key. */
+    @Column(name = "action_intent", length = 64)
+    private String actionIntent;
+
+    public String getActionIntent() { return actionIntent; }
+    public void setActionIntent(String actionIntent) { this.actionIntent = actionIntent; }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     @JsonIgnore

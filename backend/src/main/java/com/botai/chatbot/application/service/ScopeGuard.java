@@ -38,21 +38,37 @@ public class ScopeGuard {
 
     private final Optional<LanguageModel> languageModel;
     private final boolean scopeCheckLlmEnabled;
+    private final boolean useUnifiedClassifier;
     private final String outOfScopeMessage;
 
     public ScopeGuard(Optional<LanguageModel> languageModel,
                       @Value("${bot.guardrails.scope-check-llm:false}") boolean scopeCheckLlmEnabled,
+                      @Value("${bot.guardrails.use-unified-classifier:true}") boolean useUnifiedClassifier,
                       @Value("${bot.guardrails.out-of-scope-message:}") String outOfScopeMessage) {
         this.languageModel = languageModel;
         this.scopeCheckLlmEnabled = scopeCheckLlmEnabled;
+        this.useUnifiedClassifier = useUnifiedClassifier;
+        // No se carga mensaje por defecto: debe configurarse en bot.guardrails.out-of-scope-message
         this.outOfScopeMessage = outOfScopeMessage != null && !outOfScopeMessage.isBlank()
             ? outOfScopeMessage
-            : "Solo puedo ayudarte con información sobre nuestros servicios, horarios, precios y contacto. Para otros temas, escríbenos por teléfono o email.";
+            : "";
+    }
+
+    /**
+     * Solo revisa patrones de jailbreak (sin LLM). Usado cuando el clasificador unificado hace scope+intent en una llamada.
+     */
+    public boolean isJailbreak(String userMessage) {
+        if (userMessage == null || userMessage.isBlank()) return false;
+        String normalized = userMessage.strip();
+        for (Pattern p : JAILBREAK_PATTERNS) {
+            if (p.matcher(normalized).find()) return true;
+        }
+        return false;
     }
 
     /**
      * Evalúa si el mensaje del usuario está dentro del alcance del asistente.
-     * Si no, devuelve resultado con allowed=false y mensaje para mostrar al usuario.
+     * Si useUnifiedClassifier=true, solo hace regex (el LLM lo hace el clasificador unificado).
      */
     public ScopeResult check(String userMessage, String tenantId) {
         if (userMessage == null || userMessage.isBlank()) {
@@ -68,8 +84,8 @@ public class ScopeGuard {
             }
         }
 
-        // 2) Opcional: clasificación por LLM (in-scope vs out-of-scope)
-        if (scopeCheckLlmEnabled && languageModel.isPresent()) {
+        // 2) Clasificación por LLM solo si no usamos el clasificador unificado (scope+intent en una llamada)
+        if (!useUnifiedClassifier && scopeCheckLlmEnabled && languageModel.isPresent()) {
             if (!isInScopeByLlm(normalized)) {
                 log.info("[GUARDRAIL] Entrada marcada fuera de alcance por clasificador LLM (tenant={})", tenantId);
                 return ScopeResult.block(outOfScopeMessage);

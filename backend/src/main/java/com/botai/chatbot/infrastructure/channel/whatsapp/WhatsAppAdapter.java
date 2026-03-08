@@ -77,20 +77,47 @@ public class WhatsAppAdapter implements ChannelAdapter {
                                 return emptyInbound();
                             }
                             
-                            // Identificar bot por phone_number_id para obtener tenantId
+                            // Identificar bot por phone_number_id para obtener tenantId (value.metadata.phone_number_id en Cloud API)
                             Object metadata = v.get("metadata");
                             if (metadata instanceof Map<?, ?> metaMap) {
                                 Object phoneNumberId = ((Map<String, Object>) metadata).get("phone_number_id");
                                 if (phoneNumberId != null) {
-                                    String phoneIdStr = phoneNumberId.toString();
-                                    Optional<BotEntity> botOpt = botRepository.findFirstByWhatsappPhoneNumberId(phoneIdStr);
-                                    if (botOpt.isPresent()) {
-                                        tenantId = botOpt.get().getTenantId();
-                                        log.info("[WA-ADAPTER] Bot identificado por phone_number_id={} -> tenant={}", phoneIdStr, tenantId);
+                                    String phoneIdStr = phoneNumberId.toString().strip();
+                                    if (!phoneIdStr.isEmpty()) {
+                                        Optional<BotEntity> botOpt = botRepository.findFirstByWhatsappPhoneNumberId(phoneIdStr);
+                                        if (botOpt.isEmpty()) {
+                                            // Fallback: buscar por valor normalizado (trim) por si en BD hay espacios
+                                            List<BotEntity> allBots = botRepository.findAll();
+                                            botOpt = allBots.stream()
+                                                .filter(b -> b.getWhatsappPhoneNumberId() != null
+                                                    && b.getWhatsappPhoneNumberId().strip().equals(phoneIdStr))
+                                                .findFirst();
+                                            if (botOpt.isPresent()) {
+                                                log.info("[WA-ADAPTER] Bot identificado por phone_number_id (match con trim) -> tenant={}", botOpt.get().getTenantId());
+                                            }
+                                        }
+                                        if (botOpt.isPresent()) {
+                                            tenantId = botOpt.get().getTenantId();
+                                            if (tenantId != null) {
+                                                log.info("[WA-ADAPTER] Bot identificado por phone_number_id={} -> tenant={}", phoneIdStr, tenantId);
+                                            }
+                                        } else {
+                                            List<BotEntity> allBots = botRepository.findAll();
+                                            log.warn("[WA-ADAPTER] No hay bot con whatsapp_phone_number_id={}. Meta envió: {}. Bots en BD (id → últimos 4 dígitos): {}",
+                                                phoneIdStr, phoneIdStr,
+                                                allBots.stream()
+                                                    .map(b -> b.getId() + "=" + (b.getWhatsappPhoneNumberId() != null && b.getWhatsappPhoneNumberId().length() >= 4
+                                                        ? "***" + b.getWhatsappPhoneNumberId().substring(b.getWhatsappPhoneNumberId().length() - 4) : (b.getWhatsappPhoneNumberId() != null ? b.getWhatsappPhoneNumberId() : "null")))
+                                                    .toList());
+                                        }
                                     } else {
-                                        log.warn("[WA-ADAPTER] No hay bot con phone_number_id={}. tenantId=null (se responderá con error)", phoneIdStr);
+                                        log.warn("[WA-ADAPTER] metadata.phone_number_id viene vacío.");
                                     }
+                                } else {
+                                    log.warn("[WA-ADAPTER] metadata.phone_number_id ausente en el payload. Claves en value: {}", v.keySet());
                                 }
+                            } else if (tenantId == null) {
+                                log.warn("[WA-ADAPTER] value.metadata no es Map. Claves en value: {}", v.keySet());
                             }
                             
                             Object messages = v.get("messages");

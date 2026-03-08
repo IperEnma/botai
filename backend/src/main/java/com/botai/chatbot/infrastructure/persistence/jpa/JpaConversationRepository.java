@@ -32,6 +32,10 @@ public class JpaConversationRepository implements ConversationRepository {
 
     @Override
     public void save(ConversationState state) {
+        if (state == null || state.getConversationId() == null || state.getConversationId().isBlank()) {
+            log.warn("[REPO] save() omitido: state o conversationId nulo");
+            return;
+        }
         log.info("[REPO] Saving state for {}, context={}", state.getConversationId(), state.getContext());
         ConversationEntity entity = jpaRepository.findById(state.getConversationId())
             .orElse(new ConversationEntity());

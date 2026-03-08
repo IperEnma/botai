@@ -23,11 +23,12 @@ public class DefaultResponseValidator implements HybridAiService.ResponseValidat
 
     private final String outOfScopeFallback;
 
+    /** No se carga mensaje por defecto: debe configurarse en bot.guardrails.out-of-scope-message si se desea. */
     public DefaultResponseValidator(
             @Value("${bot.guardrails.out-of-scope-message:}") String outOfScopeMessage) {
         this.outOfScopeFallback = outOfScopeMessage != null && !outOfScopeMessage.isBlank()
             ? outOfScopeMessage
-            : "Solo puedo ayudarte con información sobre nuestros servicios, horarios, precios y contacto. Para otros temas, escríbenos por teléfono o email.";
+            : "";
     }
 
     @Override

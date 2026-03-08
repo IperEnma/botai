@@ -70,9 +70,13 @@ bot:
   # RAG: fragmentos en knowledge_chunk; máximo de chunks a inyectar en el prompt
   rag:
     max-chunks: 5
-  # Guardrails: modelo 1 clasifica si la consulta es del negocio; solo esas pasan a RAG + modelo de respuesta
+  # Acciones CRM: fallback por palabras clave cuando el clasificador unificado no devuelve acción
+  actions:
+    classifier-enabled: true
+  # Guardrails: jailbreak por regex siempre; scope+intent en 1 LLM con use-unified-classifier
   guardrails:
-    scope-check-llm: true   # true = modelo 1 clasifica (asociada al negocio: SÍ/NO). Si NO -> mensaje fijo; si SÍ -> RAG + modelo 2
+    use-unified-classifier: true   # true = una sola llamada LLM (alcance + intención CRM); false = scope y acción por separado (2 llamadas)
+    scope-check-llm: true          # usado solo si use-unified-classifier=false
     # out-of-scope-message: "Solo puedo ayudarte con..."  # opcional
 
 logging:

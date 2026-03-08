@@ -9,12 +9,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Orquesta el flujo de mensajes según las capas activas por tenant:
+ * Orquesta el flujo de mensajes según las capas activas por tenant.
  *
- * - Solo IA activa: va directo a Acciones (si aplica) e IA. No se evalúa menú/FAQ.
- * - Solo FAQ activa: menú interactivo + FAQ por palabras clave; fallback menú o mensaje.
- * - FAQ + IA: se combinan: primero menú/FAQ (triggers estrictos, ej. "hola" o "menu" solos);
- *   si no hay match (p. ej. una pregunta), se pasa a la IA (RAG/conversación).
+ * - Solo FAQ activa: con cualquier mensaje se muestra el menú (no se exigen triggers).
+ * - FAQ + IA: menú cuando hay trigger/opción/FAQ; si no hay match el mensaje va a la IA. Al mostrar menú se añade hint "También puedes preguntar...".
+ * - Solo IA activa: directo a Acciones (si aplica) e IA, sin evaluar menú/FAQ.
  */
 public class IntentRouter {
 
@@ -26,19 +25,22 @@ public class IntentRouter {
     private final ActionDispatcher actionDispatcher;
     private final MenuService menuService;
     private final ScopeGuard scopeGuard;
+    private final BotReadinessService readinessService;
 
     public IntentRouter(FeatureFlagService featureFlagService,
                         FaqService faqService,
                         HybridAiService hybridAiService,
                         ActionDispatcher actionDispatcher,
                         MenuService menuService,
-                        ScopeGuard scopeGuard) {
+                        ScopeGuard scopeGuard,
+                        BotReadinessService readinessService) {
         this.featureFlagService = featureFlagService;
         this.faqService = faqService;
         this.hybridAiService = hybridAiService;
         this.actionDispatcher = actionDispatcher;
         this.menuService = menuService;
         this.scopeGuard = scopeGuard;
+        this.readinessService = readinessService;
     }
 
     /**
@@ -61,14 +63,36 @@ public class IntentRouter {
             );
         }
 
+        String notReady = readinessService.getNotReadyMessage(tenantId);
+        if (notReady != null) {
+            log.info("[ROUTER] Bot no listo: {}", notReady);
+            return new RouteResult(
+                OutboundMessage.builder()
+                    .text(notReady)
+                    .conversationId(conversationId)
+                    .tenantId(tenantId)
+                    .build(),
+                "bot_not_ready",
+                null
+            );
+        }
+
         // 1) Menú + FAQ solo si la capa FAQ está activa (si solo está la IA, este bloque se salta y va directo a IA)
         if (featureFlagService.isEnabled(BotFeatures.FAQ_ENABLED, tenantId)) {
             // Check if user is selecting a menu option (e.g., "1", "2")
             String currentMenu = state.getContextValue("currentMenu", String.class);
             if (currentMenu != null) {
-                var selected = menuService.findSelectedOption(currentMenu, text, tenantId);
+                var selected = menuService.findSelectedOptionWithAction(currentMenu, text, tenantId);
                 if (selected.isPresent()) {
-                    String targetMenu = selected.get();
+                    var sel = selected.get();
+                    if (sel.actionIntent() != null && !sel.actionIntent().isBlank() && featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId)) {
+                        log.info("[ROUTER] Menu option triggers action: {} -> {}", text, sel.actionIntent());
+                        var actionResult = actionDispatcher.startFromMenuOption(state, sel.actionIntent(), text);
+                        if (actionResult != null) {
+                            return new RouteResult(actionResult, "action", null);
+                        }
+                    }
+                    String targetMenu = sel.targetMenuKey();
                     log.info("[ROUTER] Menu option selected: {} -> {}", text, targetMenu);
                     var menuMsg = menuService.getMenu(targetMenu, conversationId, tenantId);
                     if (menuMsg.isPresent()) {
@@ -87,17 +111,19 @@ public class IntentRouter {
                     }
                 }
                 
-                // Opción no válida -> mostrar menú inicial (main) del mismo tenant
-                if (!featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId)) {
-                    log.info("[ROUTER] Invalid menu option '{}' -> showing main menu", text);
-                    var mainMenuMsg = menuService.getMenu("main", conversationId, tenantId);
-                    if (mainMenuMsg.isPresent()) {
-                        return withMenuAndAiHint(mainMenuMsg.get(), "menu", "main");
+                // Opción no válida: con FAQ activo mostramos el menú de nuevo (o primer menú)
+                if (menuService.hasAnyActiveMenu(tenantId)) {
+                    var firstKey = menuService.getFirstMenuKey(tenantId);
+                    if (firstKey.isPresent()) {
+                        var menuMsg = menuService.getMenu(firstKey.get(), conversationId, tenantId);
+                        if (menuMsg.isPresent()) {
+                            return withMenuAndAiHint(menuMsg.get(), "menu", firstKey.get());
+                        }
                     }
                 }
             }
 
-            // Check if text triggers a menu (e.g., "hola" -> main menu)
+            // Check if text triggers a menu (opcional: "hola", "menu", etc.)
             var menuTrigger = menuService.findMenuTrigger(text, tenantId);
             if (menuTrigger.isPresent()) {
                 String menuId = menuTrigger.get();
@@ -108,7 +134,7 @@ public class IntentRouter {
                 }
             }
 
-            // 2) Traditional FAQ keyword matching (fallback within FAQ layer)
+            // 2) Traditional FAQ keyword matching
             var faqMatch = faqService.findMatch(text);
             if (faqMatch.isPresent()) {
                 var m = faqMatch.get();
@@ -123,6 +149,20 @@ public class IntentRouter {
                     null
                 );
             }
+
+            // 3) Solo FAQ activa (sin IA): con cualquier mensaje se muestra el menú
+            boolean aiOn = featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId);
+            if (!aiOn && menuService.hasAnyActiveMenu(tenantId)) {
+                var firstMenuKey = menuService.getFirstMenuKey(tenantId);
+                if (firstMenuKey.isPresent()) {
+                    var menuMsg = menuService.getMenu(firstMenuKey.get(), conversationId, tenantId);
+                    if (menuMsg.isPresent()) {
+                        log.info("[ROUTER] Solo FAQ: cualquier mensaje muestra menú");
+                        return new RouteResult(menuMsg.get(), "menu", firstMenuKey.get());
+                    }
+                }
+            }
+            // FAQ + IA: sin match aquí; más abajo se enviará a la IA (pueden preguntar libremente)
         }
 
         // 3) Actions (if enabled and we have an active intent in state)
@@ -161,20 +201,14 @@ public class IntentRouter {
             return new RouteResult(aiResponse, "ai", null);
         }
 
-        // 6) Fallback - cuando no es opción válida, mostrar menú inicial si el tenant tiene menú "main"
-        var mainMenu = menuService.getMenu("main", conversationId, tenantId);
-        if (mainMenu.isPresent()) {
-            log.info("[ROUTER] Fallback -> showing main menu");
-            return new RouteResult(mainMenu.get(), "menu", "main");
-        }
-
+        // Sin match: mensaje final (solo FAQ ya mostró menú en el bloque anterior).
         return new RouteResult(
             OutboundMessage.builder()
-                .text("Escribe 'menu' para ver las opciones disponibles, o reformula tu consulta.")
+                .text("No tengo una respuesta para eso. Revisa que menú, servicios, horario y conocimiento estén configurados en el panel.")
                 .conversationId(conversationId)
                 .tenantId(tenantId)
                 .build(),
-            "fallback",
+            "no_match",
             null
         );
     }

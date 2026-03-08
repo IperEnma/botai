@@ -5,6 +5,8 @@ import com.botai.chatbot.infrastructure.persistence.jpa.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -20,18 +22,27 @@ public class AdminController {
     private final KnowledgeChunkJpaRepository knowledgeRepository;
     private final FeatureConfigJpaRepository featureConfigRepository;
     private final BotJpaRepository botRepository;
+    private final BusinessHoursJpaRepository businessHoursRepository;
+    private final ServiceJpaRepository serviceRepository;
+    private final AppointmentJpaRepository appointmentRepository;
 
     public AdminController(
             MenuJpaRepository menuRepository,
             MenuTriggerJpaRepository triggerRepository,
             KnowledgeChunkJpaRepository knowledgeRepository,
             FeatureConfigJpaRepository featureConfigRepository,
-            BotJpaRepository botRepository) {
+            BotJpaRepository botRepository,
+            BusinessHoursJpaRepository businessHoursRepository,
+            ServiceJpaRepository serviceRepository,
+            AppointmentJpaRepository appointmentRepository) {
         this.menuRepository = menuRepository;
         this.triggerRepository = triggerRepository;
         this.knowledgeRepository = knowledgeRepository;
         this.featureConfigRepository = featureConfigRepository;
         this.botRepository = botRepository;
+        this.businessHoursRepository = businessHoursRepository;
+        this.serviceRepository = serviceRepository;
+        this.appointmentRepository = appointmentRepository;
     }
 
     // ============ AUTH ============
@@ -73,65 +84,9 @@ public class AdminController {
         String tenantId = saved.getTenantId();
 
         createDefaultFeatureFlags(tenantId, saved);
-        createDefaultMenusAndTriggers(tenantId);
+        // No se crean menús ni servicios por defecto: el dueño debe configurar todo en el panel.
 
         return ResponseEntity.ok(saved);
-    }
-
-    /**
-     * Crea menú principal y triggers para el tenant del bot, para que "Hola" / "menu" muestren el menú.
-     */
-    private void createDefaultMenusAndTriggers(String tenantId) {
-        if (tenantId == null || tenantId.isBlank()) return;
-
-        if (menuRepository.findByTenantIdAndMenuKeyAndActiveTrue(tenantId, "main").isPresent()) {
-            return;
-        }
-
-        MenuEntity main = new MenuEntity();
-        main.setTenantId(tenantId);
-        main.setMenuKey("main");
-        main.setText("¡Hola! 👋 ¿En qué puedo ayudarte?");
-        main.setActive(true);
-        main = menuRepository.save(main);
-
-        MenuOptionEntity opt1 = new MenuOptionEntity();
-        opt1.setMenu(main);
-        opt1.setOptionKey("1");
-        opt1.setTargetMenuKey("servicios");
-        opt1.setLabel("🦷 Ver servicios");
-        opt1.setSortOrder(1);
-        main.getOptions().add(opt1);
-
-        MenuEntity servicios = new MenuEntity();
-        servicios.setTenantId(tenantId);
-        servicios.setMenuKey("servicios");
-        servicios.setText("🦷 Nuestros servicios. Selecciona una opción o escribe 0 para volver.");
-        servicios.setActive(true);
-        servicios = menuRepository.save(servicios);
-
-        MenuOptionEntity back = new MenuOptionEntity();
-        back.setMenu(servicios);
-        back.setOptionKey("0");
-        back.setTargetMenuKey("main");
-        back.setLabel("⬅️ Volver");
-        back.setSortOrder(1);
-        servicios.getOptions().add(back);
-        menuRepository.save(servicios);
-
-        final MenuEntity mainMenu = main;
-        mainMenu.getOptions().forEach(o -> o.setMenu(mainMenu));
-        menuRepository.save(main);
-
-        for (String word : new String[]{"hola", "menu", "buenas", "inicio", "hey", "empezar"}) {
-            if (triggerRepository.findByTenantId(tenantId).stream()
-                    .anyMatch(t -> word.equalsIgnoreCase(t.getTriggerWord()))) continue;
-            MenuTriggerEntity trigger = new MenuTriggerEntity();
-            trigger.setTenantId(tenantId);
-            trigger.setTriggerWord(word);
-            trigger.setMenuKey("main");
-            triggerRepository.save(trigger);
-        }
     }
 
     @GetMapping("/bots/{botId}")
@@ -145,6 +100,8 @@ public class AdminController {
     public ResponseEntity<BotEntity> updateBot(
             @PathVariable Long botId,
             @RequestBody BotEntity bot) {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
+        log.info("[BOT] PUT /bots/{} recibido: whatsappPhoneNumberId en body={} (vacío={})", botId, bot.getWhatsappPhoneNumberId() != null ? "***" + (bot.getWhatsappPhoneNumberId().length() >= 4 ? bot.getWhatsappPhoneNumberId().substring(bot.getWhatsappPhoneNumberId().length() - 4) : "set") : "null", bot.getWhatsappPhoneNumberId() == null || bot.getWhatsappPhoneNumberId().isEmpty());
         return botRepository.findById(botId)
             .map(existing -> {
                 existing.setName(bot.getName());
@@ -153,13 +110,19 @@ public class AdminController {
                 existing.setFaqEnabled(bot.isFaqEnabled());
                 existing.setAiEnabled(bot.isAiEnabled());
                 existing.setActionsEnabled(bot.isActionsEnabled());
-                existing.setWhatsappPhoneNumberId(bot.getWhatsappPhoneNumberId());
-                existing.setWhatsappAccessToken(bot.getWhatsappAccessToken());
-                existing.setWhatsappVerifyToken(bot.getWhatsappVerifyToken());
-                
+                existing.setWhatsappPhoneNumberId(trimToNull(bot.getWhatsappPhoneNumberId()));
+                existing.setWhatsappAccessToken(trimToNull(bot.getWhatsappAccessToken()));
+                existing.setWhatsappVerifyToken(trimToNull(bot.getWhatsappVerifyToken()));
+                String ph = existing.getWhatsappPhoneNumberId();
+                log.info("[BOT] Update bot id={} tenant={} whatsappPhoneNumberId guardado={}", botId, existing.getTenantId(), ph != null && !ph.isEmpty() ? "***" + (ph.length() >= 4 ? ph.substring(ph.length() - 4) : ph) : "null");
                 updateFeatureFlags(existing.getTenantId(), existing);
-                
-                return ResponseEntity.ok(botRepository.save(existing));
+                BotEntity saved = botRepository.save(existing);
+                BotEntity refetched = botRepository.findById(botId).orElse(null);
+                if (refetched != null) {
+                    String refetchedPh = refetched.getWhatsappPhoneNumberId();
+                    log.info("[BOT] Tras guardar, refetch bot id={}: whatsappPhoneNumberId en BD={}", botId, refetchedPh != null && !refetchedPh.isEmpty() ? "***" + (refetchedPh.length() >= 4 ? refetchedPh.substring(refetchedPh.length() - 4) : refetchedPh) : "null");
+                }
+                return ResponseEntity.ok(saved);
             })
             .orElse(ResponseEntity.notFound().build());
     }
@@ -170,17 +133,10 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Crea menú principal y triggers para un bot ya existente (si aún no tiene).
-     */
-    @PostMapping("/bots/{botId}/seed-menus")
-    public ResponseEntity<?> seedBotMenus(@PathVariable Long botId) {
-        return botRepository.findById(botId)
-            .map(bot -> {
-                createDefaultMenusAndTriggers(bot.getTenantId());
-                return ResponseEntity.ok(Map.of("status", "ok", "message", "Menús y triggers creados para el tenant del bot"));
-            })
-            .orElse(ResponseEntity.notFound().build());
+    private static String trimToNull(String value) {
+        if (value == null) return null;
+        String s = value.strip();
+        return s.isEmpty() ? null : s;
     }
 
     private void createDefaultFeatureFlags(String tenantId, BotEntity bot) {
@@ -227,9 +183,10 @@ public class AdminController {
             @RequestBody MenuEntity menu) {
         menu.setTenantId(tenantId);
         menu.setActive(true);
-        if (menu.getOptions() != null) {
-            menu.getOptions().forEach(opt -> opt.setMenu(menu));
+        if (menu.getOptions() == null) {
+            menu.setOptions(new ArrayList<>());
         }
+        menu.getOptions().forEach(opt -> opt.setMenu(menu));
         MenuEntity saved = menuRepository.save(menu);
         return ResponseEntity.ok(saved);
     }
@@ -244,14 +201,22 @@ public class AdminController {
                 existing.setText(menu.getText());
                 existing.setMenuKey(menu.getMenuKey());
                 existing.setActive(menu.isActive());
-                existing.getOptions().clear();
+                List<MenuOptionEntity> newOptions = new ArrayList<>();
                 if (menu.getOptions() != null) {
-                    menu.getOptions().forEach(opt -> {
-                        opt.setMenu(existing);
-                        existing.getOptions().add(opt);
-                    });
+                    for (MenuOptionEntity opt : menu.getOptions()) {
+                        MenuOptionEntity newOpt = new MenuOptionEntity();
+                        newOpt.setMenu(existing);
+                        newOpt.setOptionKey(opt.getOptionKey());
+                        newOpt.setTargetMenuKey(opt.getTargetMenuKey());
+                        newOpt.setLabel(opt.getLabel());
+                        newOpt.setSortOrder(opt.getSortOrder());
+                        newOpt.setActionIntent(opt.getActionIntent());
+                        newOptions.add(newOpt);
+                    }
                 }
-                return ResponseEntity.ok(menuRepository.save(existing));
+                existing.setOptions(newOptions);
+                MenuEntity saved = menuRepository.save(existing);
+                return ResponseEntity.ok(saved);
             })
             .orElse(ResponseEntity.notFound().build());
     }
@@ -287,6 +252,117 @@ public class AdminController {
             @PathVariable Long triggerId) {
         triggerRepository.deleteById(triggerId);
         return ResponseEntity.noContent().build();
+    }
+
+    // ============ HORARIO DEL NEGOCIO ============
+    // dayOfWeek: 1=Lunes .. 7=Domingo. openTime/closeTime "09:00", "18:00"; null = cerrado
+
+    @GetMapping("/tenants/{tenantId}/business-hours")
+    public ResponseEntity<List<BusinessHoursEntity>> getBusinessHours(@PathVariable String tenantId) {
+        return ResponseEntity.ok(businessHoursRepository.findByTenantIdOrderByDayOfWeek(tenantId));
+    }
+
+    @PutMapping("/tenants/{tenantId}/business-hours")
+    public ResponseEntity<List<BusinessHoursEntity>> saveBusinessHours(
+            @PathVariable String tenantId,
+            @RequestBody List<Map<String, Object>> body) {
+        businessHoursRepository.deleteByTenantId(tenantId);
+        for (Map<String, Object> row : body) {
+            Number dayNum = (Number) row.get("dayOfWeek");
+            if (dayNum == null) continue;
+            int day = dayNum.intValue();
+            if (day < 1 || day > 7) continue;
+            String open = row.get("openTime") != null ? row.get("openTime").toString().trim() : null;
+            String close = row.get("closeTime") != null ? row.get("closeTime").toString().trim() : null;
+            if (open != null && open.isEmpty()) open = null;
+            if (close != null && close.isEmpty()) close = null;
+            BusinessHoursEntity e = new BusinessHoursEntity();
+            e.setTenantId(tenantId);
+            e.setDayOfWeek(day);
+            e.setOpenTime(open);
+            e.setCloseTime(close);
+            businessHoursRepository.save(e);
+        }
+        return ResponseEntity.ok(businessHoursRepository.findByTenantIdOrderByDayOfWeek(tenantId));
+    }
+
+    // ============ SERVICIOS DEL NEGOCIO ============
+
+    @GetMapping("/tenants/{tenantId}/services")
+    public ResponseEntity<List<ServiceEntity>> getServices(@PathVariable String tenantId) {
+        return ResponseEntity.ok(serviceRepository.findByTenantIdOrderBySortOrderAsc(tenantId));
+    }
+
+    @PostMapping("/tenants/{tenantId}/services")
+    public ResponseEntity<ServiceEntity> createService(
+            @PathVariable String tenantId,
+            @RequestBody Map<String, Object> body) {
+        ServiceEntity e = new ServiceEntity();
+        e.setTenantId(tenantId);
+        e.setName(body.get("name") != null ? body.get("name").toString() : "");
+        e.setSortOrder(body.get("sortOrder") != null ? ((Number) body.get("sortOrder")).intValue() : 0);
+        e.setActive(true);
+        return ResponseEntity.ok(serviceRepository.save(e));
+    }
+
+    @PutMapping("/tenants/{tenantId}/services/{serviceId}")
+    public ResponseEntity<ServiceEntity> updateService(
+            @PathVariable String tenantId,
+            @PathVariable Long serviceId,
+            @RequestBody Map<String, Object> body) {
+        return serviceRepository.findById(serviceId)
+            .filter(s -> tenantId.equals(s.getTenantId()))
+            .map(s -> {
+                if (body.get("name") != null) s.setName(body.get("name").toString());
+                if (body.get("sortOrder") != null) s.setSortOrder(((Number) body.get("sortOrder")).intValue());
+                if (body.get("active") != null) s.setActive(Boolean.TRUE.equals(body.get("active")));
+                return ResponseEntity.ok(serviceRepository.save(s));
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/tenants/{tenantId}/services/{serviceId}")
+    public ResponseEntity<Void> deleteService(
+            @PathVariable String tenantId,
+            @PathVariable Long serviceId) {
+        if (serviceRepository.findById(serviceId).filter(s -> tenantId.equals(s.getTenantId())).isPresent()) {
+            serviceRepository.deleteById(serviceId);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // ============ CITAS / AGENDA ============
+
+    @GetMapping("/tenants/{tenantId}/appointments")
+    public ResponseEntity<List<AppointmentEntity>> getAppointments(
+            @PathVariable String tenantId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        LocalDate start = from != null && !from.isBlank() ? LocalDate.parse(from) : LocalDate.now();
+        LocalDate end = to != null && !to.isBlank() ? LocalDate.parse(to) : start.plusMonths(1);
+        List<AppointmentEntity> list = appointmentRepository.findByTenantIdAndAppointmentDateBetweenOrderByAppointmentTimeAsc(tenantId, start, end);
+        return ResponseEntity.ok(list);
+    }
+
+    @PostMapping("/tenants/{tenantId}/appointments")
+    public ResponseEntity<?> createAppointment(
+            @PathVariable String tenantId,
+            @RequestBody Map<String, Object> body) {
+        String customerDocument = body.get("customerDocument") != null ? body.get("customerDocument").toString().strip() : "";
+        if (customerDocument.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                Map.of("error", "customerDocument es obligatorio para mantener el expediente del usuario."));
+        }
+        AppointmentEntity e = new AppointmentEntity();
+        e.setTenantId(tenantId);
+        e.setCustomerName(body.get("customerName") != null ? body.get("customerName").toString().trim() : "");
+        e.setCustomerDocument(customerDocument);
+        e.setServiceName(body.get("serviceName") != null ? body.get("serviceName").toString().trim() : "");
+        e.setAppointmentDate(body.get("appointmentDate") != null ? LocalDate.parse(body.get("appointmentDate").toString()) : LocalDate.now());
+        e.setAppointmentTime(body.get("appointmentTime") != null ? body.get("appointmentTime").toString().trim() : "09:00");
+        e.setStatus("scheduled");
+        return ResponseEntity.ok(appointmentRepository.save(e));
     }
 
     // ============ KNOWLEDGE (RAG) ============

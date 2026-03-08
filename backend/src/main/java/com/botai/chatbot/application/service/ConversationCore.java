@@ -36,7 +36,9 @@ public class ConversationCore {
         Object t = inbound.getMetadata() != null ? inbound.getMetadata().get("tenantId") : null;
         final String tenantId = (t != null && !t.toString().strip().isEmpty()) ? t.toString().strip() : null;
         Map<String, Object> initialContext = new java.util.HashMap<>();
-        initialContext.put("tenantId", tenantId);
+        if (tenantId != null && !tenantId.isBlank()) {
+            initialContext.put("tenantId", tenantId);
+        }
 
         ConversationState state = conversationRepository
             .findByConversationId(conversationId)
@@ -67,15 +69,18 @@ public class ConversationCore {
             state.getContextValue("currentMenu", String.class), state.getContext());
 
         IntentRouter.RouteResult result = intentRouter.route(inbound, state);
+        OutboundMessage outMessage = result != null ? result.message() : null;
+        String intentSource = result != null ? result.intentSource() : null;
 
-        if (result.message() != null) {
-            saveToHistory(conversationId, inbound.getText(), result.message().getText(), result.intentSource());
+        if (outMessage != null && result != null) {
+            String assistantText = outMessage.getText();
+            saveToHistory(conversationId, inbound.getText(), assistantText != null ? assistantText : "", intentSource);
             updateStateWithMenu(state, result, inbound);
         }
 
         return new ProcessMessageResult(
-            result.message(),
-            result.intentSource(),
+            outMessage,
+            intentSource != null ? intentSource : "error",
             conversationId
         );
     }

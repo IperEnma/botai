@@ -120,10 +120,15 @@ public class MessageBufferService {
                 OutboundMessage out = result.outboundMessage();
                 if (out != null && out.getText() != null && !out.getText().isBlank()) {
                     onResponse.accept(out);
-                    log.info("Sent single response for {} buffered messages", toProcess.size());
+                    boolean canSend = out.getTenantId() != null && !out.getTenantId().isBlank();
+                    if (canSend) {
+                        log.info("Response sent for {} buffered messages", toProcess.size());
+                    } else {
+                        log.warn("Response not sent (tenantId ausente): usuario no recibe respuesta. Configura el bot con WhatsApp Phone number ID en el panel.");
+                    }
                 }
             } catch (Exception e) {
-                log.error("Error processing buffered messages for {}: {}", conversationId, e.getMessage());
+                log.error("Error processing buffered messages for {}: {} - {}", conversationId, e.getClass().getSimpleName(), e.getMessage(), e);
             }
         }
     }

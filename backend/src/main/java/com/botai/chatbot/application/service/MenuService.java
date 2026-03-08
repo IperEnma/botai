@@ -40,7 +40,8 @@ public class MenuService {
     }
 
     /**
-     * Comprueba si el texto dispara un menú (ej. "hola" → main).
+     * Comprueba si el texto dispara un menú (ej. "hola" → el menú configurado en el trigger).
+     * No exige que el menú se llame "main"; la clave es la que el negocio definió.
      * Solo hace match cuando el mensaje es básicamente solo esa palabra (no frases que la contengan),
      * para que preguntas como "hola, ¿cuánto cuesta?" vayan a la IA (Capa 2) y no al menú.
      */
@@ -72,6 +73,13 @@ public class MenuService {
      * Comprueba si el texto es una opción del menú actual (ej. "1", "2"). Solo usa datos del tenant del bot.
      */
     public Optional<String> findSelectedOption(String currentMenuKey, String text, String tenantId) {
+        return findSelectedOptionWithAction(currentMenuKey, text, tenantId).map(SelectedOptionResult::targetMenuKey);
+    }
+
+    /**
+     * Igual que findSelectedOption pero devuelve también actionIntent si la opción dispara una acción CRM.
+     */
+    public Optional<SelectedOptionResult> findSelectedOptionWithAction(String currentMenuKey, String text, String tenantId) {
         if (currentMenuKey == null || text == null) return Optional.empty();
         String tenant = requireTenant(tenantId);
         Optional<MenuEntity> menuOpt = menuRepository.findByTenantIdAndMenuKeyAndActiveTrue(tenant, currentMenuKey);
@@ -79,12 +87,15 @@ public class MenuService {
         String normalized = text.trim();
         for (MenuOptionEntity opt : menuOpt.get().getOptions()) {
             if (opt.getOptionKey().equals(normalized)) {
-                log.debug("[MENU] Option selected: '{}' -> menu '{}'", opt.getOptionKey(), opt.getTargetMenuKey());
-                return Optional.of(opt.getTargetMenuKey());
+                String actionIntent = (opt.getActionIntent() != null && !opt.getActionIntent().isBlank()) ? opt.getActionIntent().strip() : null;
+                log.debug("[MENU] Option selected: '{}' -> menu '{}', actionIntent={}", opt.getOptionKey(), opt.getTargetMenuKey(), actionIntent);
+                return Optional.of(new SelectedOptionResult(opt.getTargetMenuKey(), actionIntent));
             }
         }
         return Optional.empty();
     }
+
+    public record SelectedOptionResult(String targetMenuKey, String actionIntent) {}
 
     /**
      * Obtiene un menú por clave para el tenant. Solo datos de ese tenant.
@@ -110,5 +121,21 @@ public class MenuService {
 
     public boolean hasMenu(String menuKey, String tenantId) {
         return menuRepository.findByTenantIdAndMenuKeyAndActiveTrue(requireTenant(tenantId), menuKey).isPresent();
+    }
+
+    /** True si el tenant tiene al menos un menú activo (para considerar la capa FAQ lista). */
+    public boolean hasAnyActiveMenu(String tenantId) {
+        return !menuRepository.findByTenantIdAndActiveTrue(requireTenant(tenantId)).isEmpty();
+    }
+
+    /** Cuenta menús activos del tenant (para diagnóstico). */
+    public int countActiveMenusByTenant(String tenantId) {
+        return menuRepository.findByTenantIdAndActiveTrue(requireTenant(tenantId)).size();
+    }
+
+    /** Devuelve la clave del primer menú activo del tenant (cualquier clave; no se exige "main"). */
+    public Optional<String> getFirstMenuKey(String tenantId) {
+        List<MenuEntity> menus = menuRepository.findByTenantIdAndActiveTrue(requireTenant(tenantId));
+        return menus.isEmpty() ? Optional.empty() : Optional.of(menus.get(0).getMenuKey());
     }
 }

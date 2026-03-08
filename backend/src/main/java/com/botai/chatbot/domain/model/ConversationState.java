@@ -1,6 +1,7 @@
 package com.botai.chatbot.domain.model;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -22,7 +23,7 @@ public final class ConversationState {
         this.userId = userId;
         this.channelId = channelId;
         this.currentIntent = currentIntent;
-        this.context = context != null ? Map.copyOf(context) : Collections.emptyMap();
+        this.context = context != null ? copyContextWithoutNulls(context) : Collections.emptyMap();
         this.updatedAt = updatedAt;
     }
 
@@ -40,6 +41,15 @@ public final class ConversationState {
 
     public String getCurrentIntent() {
         return currentIntent;
+    }
+
+    /** Context copy without null values (Map.copyOf does not allow nulls). */
+    private static Map<String, Object> copyContextWithoutNulls(Map<String, Object> from) {
+        Map<String, Object> copy = new HashMap<>();
+        if (from != null) {
+            from.forEach((k, v) -> { if (k != null && v != null) copy.put(k, v); });
+        }
+        return Collections.unmodifiableMap(copy);
     }
 
     public Map<String, Object> getContext() {
