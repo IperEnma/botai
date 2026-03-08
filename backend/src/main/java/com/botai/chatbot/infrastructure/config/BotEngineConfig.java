@@ -54,8 +54,9 @@ public class BotEngineConfig {
                                      ActionDispatcher actionDispatcher,
                                      MenuService menuService,
                                      ScopeGuard scopeGuard,
-                                     BotReadinessService readinessService) {
-        return new IntentRouter(featureFlagService, faqService, hybridAiService, actionDispatcher, menuService, scopeGuard, readinessService);
+                                     BotReadinessService readinessService,
+                                     IntentClassifierService intentClassifierService) {
+        return new IntentRouter(featureFlagService, faqService, hybridAiService, actionDispatcher, menuService, scopeGuard, readinessService, intentClassifierService);
     }
 
     @Bean

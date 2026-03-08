@@ -44,10 +44,12 @@ public class BotReadinessService {
     public String getNotReadyMessage(String tenantId) {
         if (tenantId == null || tenantId.isBlank()) return null;
 
+        // FAQ activa sin menú: solo exigir menú si la IA no está activa (si hay IA + horario/servicios/knowledge, el bot puede responder por IA)
         if (featureFlagService.isEnabled(BotFeatures.FAQ_ENABLED, tenantId)
-                && !menuService.hasAnyActiveMenu(tenantId)) {
+                && !menuService.hasAnyActiveMenu(tenantId)
+                && !featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId)) {
             int menuCount = menuService.countActiveMenusByTenant(tenantId);
-            log.warn("[READINESS] FAQ activa pero sin menú. tenantId={}, menús activos para ese tenant={}. Comprueba que la tabla 'menu' tenga filas con tenant_id igual al tenant_id del bot.", tenantId, menuCount);
+            log.warn("[READINESS] FAQ activa pero sin menú. tenantId={}, menús activos={}.", tenantId, menuCount);
             return "El bot no está activo. Configura al menos un menú (pestaña Menús) para usar la capa FAQ.";
         }
 

@@ -1,5 +1,6 @@
 package com.botai.chatbot.application.service;
 
+import com.botai.chatbot.application.dto.IntentClassification;
 import com.botai.chatbot.domain.model.ConversationState;
 import com.botai.chatbot.domain.model.InboundMessage;
 import com.botai.chatbot.domain.model.OutboundMessage;
@@ -26,6 +27,7 @@ public class IntentRouter {
     private final MenuService menuService;
     private final ScopeGuard scopeGuard;
     private final BotReadinessService readinessService;
+    private final IntentClassifierService intentClassifierService;
 
     public IntentRouter(FeatureFlagService featureFlagService,
                         FaqService faqService,
@@ -33,7 +35,8 @@ public class IntentRouter {
                         ActionDispatcher actionDispatcher,
                         MenuService menuService,
                         ScopeGuard scopeGuard,
-                        BotReadinessService readinessService) {
+                        BotReadinessService readinessService,
+                        IntentClassifierService intentClassifierService) {
         this.featureFlagService = featureFlagService;
         this.faqService = faqService;
         this.hybridAiService = hybridAiService;
@@ -41,6 +44,7 @@ public class IntentRouter {
         this.menuService = menuService;
         this.scopeGuard = scopeGuard;
         this.readinessService = readinessService;
+        this.intentClassifierService = intentClassifierService;
     }
 
     /**
@@ -77,7 +81,45 @@ public class IntentRouter {
             );
         }
 
+        // Clasificador unificado: saludo, acción CRM, pregunta general, malas intenciones
+        IntentClassification classification = intentClassifierService.classify(text);
+
+        if (classification.isBadIntent()) {
+            log.info("[ROUTER] Mala intención detectada -> bloqueando");
+            return new RouteResult(
+                OutboundMessage.builder()
+                    .text("No puedo responder a eso. ¿En qué puedo ayudarte con el negocio?")
+                    .conversationId(conversationId)
+                    .tenantId(tenantId)
+                    .build(),
+                "bad_intent",
+                null
+            );
+        }
+
+        if (classification.isGreeting() && featureFlagService.isEnabled(BotFeatures.FAQ_ENABLED, tenantId) && menuService.hasAnyActiveMenu(tenantId)) {
+            var firstKey = menuService.getFirstMenuKey(tenantId);
+            if (firstKey.isPresent()) {
+                var menuMsg = menuService.getMenu(firstKey.get(), conversationId, tenantId);
+                if (menuMsg.isPresent()) {
+                    log.info("[ROUTER] Saludo → mostrar primer menú");
+                    return withMenuAndAiHint(menuMsg.get(), "menu", firstKey.get());
+                }
+            }
+        }
+
+        if (classification.isCrmAction() && featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId)) {
+            var actionId = classification.getActionId();
+            if (actionId.isPresent()) {
+                var actionResult = actionDispatcher.startFromMenuOption(state, actionId.get(), text);
+                if (actionResult != null) {
+                    return new RouteResult(actionResult, "action", null);
+                }
+            }
+        }
+
         // 1) Menú + FAQ solo si la capa FAQ está activa (si solo está la IA, este bloque se salta y va directo a IA)
+        boolean aiOn = featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId);
         if (featureFlagService.isEnabled(BotFeatures.FAQ_ENABLED, tenantId)) {
             // Check if user is selecting a menu option (e.g., "1", "2")
             String currentMenu = state.getContextValue("currentMenu", String.class);
@@ -111,8 +153,8 @@ public class IntentRouter {
                     }
                 }
                 
-                // Opción no válida: con FAQ activo mostramos el menú de nuevo (o primer menú)
-                if (menuService.hasAnyActiveMenu(tenantId)) {
+                // Opción no válida: si solo FAQ, mostramos menú de nuevo; si FAQ+IA dejamos pasar a IA
+                if (!aiOn && menuService.hasAnyActiveMenu(tenantId)) {
                     var firstKey = menuService.getFirstMenuKey(tenantId);
                     if (firstKey.isPresent()) {
                         var menuMsg = menuService.getMenu(firstKey.get(), conversationId, tenantId);
@@ -150,19 +192,18 @@ public class IntentRouter {
                 );
             }
 
-            // 3) Solo FAQ activa (sin IA): con cualquier mensaje se muestra el menú
-            boolean aiOn = featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId);
-            if (!aiOn && menuService.hasAnyActiveMenu(tenantId)) {
+            // 3) FAQ activa con menú: con cualquier mensaje *nuevo* (sin estar ya en un menú) se muestra el primer menú
+            // Si ya estábamos en menú y el usuario escribió algo que no es opción (ej. "¿qué horarios manejas?") y hay IA, no devolvemos menú aquí → va a IA
+            if (menuService.hasAnyActiveMenu(tenantId) && currentMenu == null) {
                 var firstMenuKey = menuService.getFirstMenuKey(tenantId);
                 if (firstMenuKey.isPresent()) {
                     var menuMsg = menuService.getMenu(firstMenuKey.get(), conversationId, tenantId);
                     if (menuMsg.isPresent()) {
-                        log.info("[ROUTER] Solo FAQ: cualquier mensaje muestra menú");
-                        return new RouteResult(menuMsg.get(), "menu", firstMenuKey.get());
+                        log.info("[ROUTER] FAQ: cualquier mensaje (sin menú actual) muestra primer menú");
+                        return withMenuAndAiHint(menuMsg.get(), "menu", firstMenuKey.get());
                     }
                 }
             }
-            // FAQ + IA: sin match aquí; más abajo se enviará a la IA (pueden preguntar libremente)
         }
 
         // 3) Actions (if enabled and we have an active intent in state)
@@ -173,15 +214,7 @@ public class IntentRouter {
             }
         }
 
-        // 4) Try to trigger an action by keyword (e.g. "crear lead")
-        if (featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId)) {
-            var actionResult = actionDispatcher.tryDispatchByIntent(inbound, state);
-            if (actionResult != null) {
-                return new RouteResult(actionResult, "action", null);
-            }
-        }
-
-        // 5) IA (si está activa: directo cuando solo hay IA, o tras no hacer match en menú/FAQ cuando hay ambas)
+        // 4) IA (si está activa: directo cuando solo hay IA, o tras no hacer match en menú/FAQ/acción cuando hay ambas)
         if (featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId)) {
             ScopeGuard.ScopeResult scopeResult = scopeGuard.check(text, tenantId);
             if (!scopeResult.allowed()) {

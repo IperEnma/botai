@@ -70,7 +70,10 @@ bot:
   # RAG: fragmentos en knowledge_chunk; máximo de chunks a inyectar en el prompt
   rag:
     max-chunks: 5
-  # Acciones CRM: fallback por palabras clave cuando el clasificador unificado no devuelve acción
+  # Clasificador: una llamada LLM antes del flujo → saludo / acción CRM / pregunta general / mala intención
+  classifier:
+    use-llm: true   # true = clasificar con LLM primero; false = solo keywords/regex (fallback)
+  # Acciones CRM: fallback por palabras clave cuando el clasificador no usa LLM o falla
   actions:
     classifier-enabled: true
   # Guardrails: jailbreak por regex siempre; scope+intent en 1 LLM con use-unified-classifier

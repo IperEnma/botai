@@ -33,6 +33,11 @@ public class ViewAppointmentsAction implements BotAction {
     }
 
     @Override
+    public String getTriggerIntent() {
+        return "ver citas";
+    }
+
+    @Override
     public OutboundMessage execute(ConversationState state, String userInput) {
         String tenantId = state.getContextValue("tenantId", String.class);
         if (tenantId == null || tenantId.isBlank()) {
