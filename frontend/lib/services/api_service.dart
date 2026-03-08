@@ -1,11 +1,12 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../core/config.dart';
 import '../models/user.dart';
 import '../models/bot.dart';
 import '../models/menu.dart';
 import '../models/knowledge.dart';
+import '../models/service.dart';
+import '../models/appointment.dart';
 
 class ApiService {
   final String baseUrl;
@@ -142,6 +143,104 @@ class ApiService {
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Error deleting menu: ${response.body}');
     }
+  }
+
+  // Horario del negocio (dayOfWeek 1=Lunes..7=Domingo; openTime/closeTime "09:00", null = cerrado)
+  Future<List<Map<String, dynamic>>> getBusinessHours(String tenantId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/tenants/$tenantId/business-hours'),
+      headers: _headers,
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    throw Exception('Error fetching business hours: ${response.body}');
+  }
+
+  Future<List<Map<String, dynamic>>> saveBusinessHours(String tenantId, List<Map<String, dynamic>> body) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/tenants/$tenantId/business-hours'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    throw Exception('Error saving business hours: ${response.body}');
+  }
+
+  // Servicios del negocio
+  Future<List<Service>> getServices(String tenantId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/tenants/$tenantId/services'),
+      headers: _headers,
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((e) => Service.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+    }
+    throw Exception('Error fetching services: ${response.body}');
+  }
+
+  Future<Service> createService(String tenantId, Map<String, dynamic> body) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/tenants/$tenantId/services'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Service.fromJson(Map<String, dynamic>.from(jsonDecode(response.body) as Map));
+    }
+    throw Exception('Error creating service: ${response.body}');
+  }
+
+  Future<Service> updateService(String tenantId, String serviceId, Map<String, dynamic> body) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/tenants/$tenantId/services/$serviceId'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    if (response.statusCode == 200) {
+      return Service.fromJson(Map<String, dynamic>.from(jsonDecode(response.body) as Map));
+    }
+    throw Exception('Error updating service: ${response.body}');
+  }
+
+  Future<void> deleteService(String tenantId, String serviceId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/tenants/$tenantId/services/$serviceId'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception('Error deleting service: ${response.body}');
+    }
+  }
+
+  // Citas / Agenda
+  Future<List<Appointment>> getAppointments(String tenantId, {String? from, String? to}) async {
+    var uri = Uri.parse('$baseUrl/tenants/$tenantId/appointments');
+    if (from != null && from.isNotEmpty) uri = uri.replace(queryParameters: {...uri.queryParameters, 'from': from});
+    if (to != null && to.isNotEmpty) uri = uri.replace(queryParameters: {...uri.queryParameters, 'to': to});
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((e) => Appointment.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+    }
+    throw Exception('Error fetching appointments: ${response.body}');
+  }
+
+  Future<Appointment> createAppointment(String tenantId, Map<String, dynamic> body) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/tenants/$tenantId/appointments'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Appointment.fromJson(Map<String, dynamic>.from(jsonDecode(response.body) as Map));
+    }
+    throw Exception('Error creating appointment: ${response.body}');
   }
 
   // Knowledge CRUD (Capa 2 - RAG)

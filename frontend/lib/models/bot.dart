@@ -38,9 +38,9 @@ class Bot {
       name: json['name'] as String? ?? '',
       description: json['description'] as String?,
       tier: _parseTier(json['tier']),
-      whatsappPhoneNumberId: json['whatsappPhoneNumberId'] as String?,
-      whatsappAccessToken: json['whatsappAccessToken'] as String?,
-      whatsappVerifyToken: json['whatsappVerifyToken'] as String?,
+      whatsappPhoneNumberId: _toStringOrNull(json['whatsappPhoneNumberId']),
+      whatsappAccessToken: _toStringOrNull(json['whatsappAccessToken']),
+      whatsappVerifyToken: _toStringOrNull(json['whatsappVerifyToken']),
       faqEnabled: json['faqEnabled'] as bool? ?? true,
       aiEnabled: json['aiEnabled'] as bool? ?? false,
       actionsEnabled: json['actionsEnabled'] as bool? ?? false,
@@ -53,6 +53,13 @@ class Bot {
     if (value == null) return '';
     if (value is int) return value.toString();
     return value.toString();
+  }
+
+  /// Acepta string o número del backend (evita null si viene como número).
+  static String? _toStringOrNull(dynamic value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
   }
 
   static BotTier _parseTier(dynamic value) {

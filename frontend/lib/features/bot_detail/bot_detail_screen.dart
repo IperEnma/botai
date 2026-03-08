@@ -7,6 +7,9 @@ import '../../models/bot.dart';
 import '../../core/theme.dart';
 import '../menus/menus_screen.dart';
 import '../knowledge/knowledge_screen.dart';
+import '../services/services_screen.dart';
+import '../appointments/appointments_screen.dart';
+import '../../widgets/business_hours_card.dart';
 
 class BotDetailScreen extends ConsumerStatefulWidget {
   final String botId;
@@ -24,7 +27,7 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -106,6 +109,9 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
           controller: _tabController,
           tabs: const [
             Tab(icon: Icon(Icons.settings), text: 'Configuración'),
+            Tab(icon: Icon(Icons.schedule), text: 'Horario'),
+            Tab(icon: Icon(Icons.build_circle), text: 'Servicios'),
+            Tab(icon: Icon(Icons.calendar_today), text: 'Citas'),
             Tab(icon: Icon(Icons.menu_book), text: 'Menús'),
             Tab(icon: Icon(Icons.psychology), text: 'Knowledge'),
           ],
@@ -115,6 +121,9 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
         controller: _tabController,
         children: [
           BotConfigContent(bot: bot),
+          HorarioContent(botId: widget.botId, tenantId: bot.tenantId),
+          ServicesScreen(botId: widget.botId, tenantId: bot.tenantId, embedded: true),
+          AppointmentsScreen(botId: widget.botId, tenantId: bot.tenantId, embedded: true),
           MenusContent(botId: widget.botId, tenantId: bot.tenantId),
           KnowledgeContent(botId: widget.botId, tenantId: bot.tenantId),
         ],
@@ -331,9 +340,9 @@ class _BotConfigContentState extends ConsumerState<BotConfigContent> {
     setState(() => _isLoading = true);
 
     final updatedBot = widget.bot.copyWith(
-      whatsappPhoneNumberId: _phoneIdController.text.isEmpty ? null : _phoneIdController.text,
-      whatsappAccessToken: _accessTokenController.text.isEmpty ? null : _accessTokenController.text,
-      whatsappVerifyToken: _verifyTokenController.text.isEmpty ? null : _verifyTokenController.text,
+      whatsappPhoneNumberId: _phoneIdController.text.trim().isEmpty ? null : _phoneIdController.text.trim(),
+      whatsappAccessToken: _accessTokenController.text.trim().isEmpty ? null : _accessTokenController.text.trim(),
+      whatsappVerifyToken: _verifyTokenController.text.trim().isEmpty ? null : _verifyTokenController.text.trim(),
       faqEnabled: _faqEnabled,
       aiEnabled: _aiEnabled,
       actionsEnabled: _actionsEnabled,
@@ -453,6 +462,23 @@ class _WebhookUrlCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ============ HORARIO TAB ============
+
+class HorarioContent extends StatelessWidget {
+  final String botId;
+  final String tenantId;
+
+  const HorarioContent({super.key, required this.botId, required this.tenantId});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: BusinessHoursCard(tenantId: tenantId),
     );
   }
 }

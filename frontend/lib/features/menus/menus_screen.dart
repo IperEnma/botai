@@ -73,17 +73,11 @@ class _MenusScreenState extends ConsumerState<MenusScreen> {
     try {
       final api = ref.read(apiServiceProvider);
       if (isNew || menu.id == null || menu.id!.isEmpty) {
-        final saved = await api.createMenu(menuWithTenant);
-        if (mounted) setState(() => _menus = [..._menus, saved]);
+        await api.createMenu(menuWithTenant);
       } else {
-        final saved = await api.updateMenu(menuWithTenant);
-        if (mounted) {
-          setState(() {
-            final i = _menus.indexWhere((m) => m.id == saved.id);
-            if (i >= 0) _menus = [..._menus]..[i] = saved;
-          });
-        }
+        await api.updateMenu(menuWithTenant);
       }
+      if (mounted) await _loadMenus();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Menú guardado'), backgroundColor: AppTheme.successColor),
@@ -459,6 +453,13 @@ class _MenuEditorState extends State<_MenuEditor> {
               ),
             ],
           ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Se guardan solas al agregar, editar o reordenar.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ),
           const SizedBox(height: 8),
           ReorderableListView.builder(
             shrinkWrap: true,
@@ -470,6 +471,7 @@ class _MenuEditorState extends State<_MenuEditor> {
                 final item = _options.removeAt(oldIndex);
                 _options.insert(newIndex, item);
               });
+              _save();
             },
             itemBuilder: (context, index) {
               final option = _options[index];
@@ -489,7 +491,9 @@ class _MenuEditorState extends State<_MenuEditor> {
                   ),
                   title: Text(option.label),
                   subtitle: Text(
-                    '→ ${option.targetMenuKey}',
+                    option.actionIntent != null && option.actionIntent!.isNotEmpty
+                        ? '▶ ${kMenuActionIntents[option.actionIntent] ?? option.actionIntent}'
+                        : '→ ${option.targetMenuKey}',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   trailing: Row(
@@ -501,7 +505,10 @@ class _MenuEditorState extends State<_MenuEditor> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                        onPressed: () => setState(() => _options.removeAt(index)),
+                        onPressed: () {
+                          setState(() => _options.removeAt(index));
+                          _save();
+                        },
                       ),
                       const Icon(Icons.drag_handle),
                     ],
@@ -554,65 +561,101 @@ class _MenuEditorState extends State<_MenuEditor> {
     final keyController = TextEditingController(text: existingOption?.optionKey ?? '');
     final labelController = TextEditingController(text: existingOption?.label ?? '');
     String targetMenu = existingOption?.targetMenuKey ?? widget.allMenus.first.menuKey;
+    bool useAction = (existingOption?.actionIntent ?? '').isNotEmpty;
+    String? selectedActionId = existingOption?.actionIntent;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(existingOption != null ? 'Editar Opción' : 'Nueva Opción'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: keyController,
-              decoration: const InputDecoration(
-                labelText: 'Tecla (1, 2, 0, etc.)',
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(existingOption != null ? 'Editar Opción' : 'Nueva Opción'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: keyController,
+                      decoration: const InputDecoration(labelText: 'Tecla (1, 2, 0, etc.)'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: labelController,
+                      decoration: const InputDecoration(
+                        labelText: 'Etiqueta',
+                        hintText: 'Ej: 📅 Agendar cita',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<bool>(
+                      value: useAction,
+                      decoration: const InputDecoration(labelText: 'Comportamiento'),
+                      items: const [
+                        DropdownMenuItem(value: false, child: Text('Ir a otro menú')),
+                        DropdownMenuItem(value: true, child: Text('Ejecutar acción CRM')),
+                      ],
+                      onChanged: (v) => setDialogState(() {
+                        useAction = v ?? false;
+                        if (!useAction) selectedActionId = null;
+                        else selectedActionId = selectedActionId ?? kMenuActionIntents.keys.first;
+                      }),
+                    ),
+                    if (useAction) ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedActionId ?? kMenuActionIntents.keys.first,
+                        decoration: const InputDecoration(labelText: 'Acción'),
+                        items: kMenuActionIntents.entries.map((e) {
+                          return DropdownMenuItem(value: e.key, child: Text(e.value));
+                        }).toList(),
+                        onChanged: (v) => setDialogState(() => selectedActionId = v),
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: targetMenu,
+                        decoration: const InputDecoration(labelText: 'Menú destino'),
+                        items: widget.allMenus.map((m) {
+                          return DropdownMenuItem(value: m.menuKey, child: Text(m.menuKey));
+                        }).toList(),
+                        onChanged: (v) => targetMenu = v!,
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: labelController,
-              decoration: const InputDecoration(
-                labelText: 'Etiqueta',
-                hintText: 'Ej: 📅 Ver horarios',
-              ),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: targetMenu,
-              decoration: const InputDecoration(labelText: 'Menú destino'),
-              items: widget.allMenus.map((m) {
-                return DropdownMenuItem(value: m.menuKey, child: Text(m.menuKey));
-              }).toList(),
-              onChanged: (v) => targetMenu = v!,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final option = MenuOption(
-                optionKey: keyController.text,
-                targetMenuKey: targetMenu,
-                label: labelController.text,
-                sortOrder: index ?? _options.length,
-              );
-              setState(() {
-                if (index != null) {
-                  _options[index] = option;
-                } else {
-                  _options.add(option);
-                }
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final option = MenuOption(
+                      optionKey: keyController.text,
+                      targetMenuKey: useAction ? widget.allMenus.first.menuKey : targetMenu,
+                      label: labelController.text,
+                      sortOrder: index ?? _options.length,
+                      actionIntent: useAction ? (selectedActionId ?? kMenuActionIntents.keys.first) : null,
+                    );
+                    setState(() {
+                      if (index != null) {
+                        _options[index] = option;
+                      } else {
+                        _options.add(option);
+                      }
+                    });
+                    Navigator.pop(context);
+                    _save();
+                  },
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -717,7 +760,7 @@ class _CreateMenuDialogState extends State<_CreateMenuDialog> {
             controller: _keyController,
             decoration: const InputDecoration(
               labelText: 'Clave del menú',
-              hintText: 'Ej: main, servicios, contacto',
+              hintText: 'Ej: inicio, servicios, contacto',
             ),
             enabled: widget.existingMenu == null,
           ),
@@ -767,9 +810,9 @@ class _TriggersDialog extends StatefulWidget {
 
 class _TriggersDialogState extends State<_TriggersDialog> {
   final List<MenuTrigger> _triggers = [
-    MenuTrigger(id: '1', tenantId: 'default', triggerWord: 'hola', menuKey: 'main'),
-    MenuTrigger(id: '2', tenantId: 'default', triggerWord: 'menu', menuKey: 'main'),
-    MenuTrigger(id: '3', tenantId: 'default', triggerWord: 'inicio', menuKey: 'main'),
+    MenuTrigger(id: '1', tenantId: 'default', triggerWord: 'hola', menuKey: 'inicio'),
+    MenuTrigger(id: '2', tenantId: 'default', triggerWord: 'menu', menuKey: 'inicio'),
+    MenuTrigger(id: '3', tenantId: 'default', triggerWord: 'inicio', menuKey: 'inicio'),
   ];
 
   @override

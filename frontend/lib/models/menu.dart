@@ -65,6 +65,7 @@ class MenuOption {
   final String targetMenuKey;
   final String label;
   final int sortOrder;
+  final String? actionIntent;
 
   MenuOption({
     this.id,
@@ -72,6 +73,7 @@ class MenuOption {
     required this.targetMenuKey,
     required this.label,
     this.sortOrder = 0,
+    this.actionIntent,
   });
 
   factory MenuOption.fromJson(Map<String, dynamic> json) {
@@ -81,6 +83,7 @@ class MenuOption {
       targetMenuKey: json['targetMenuKey'] as String,
       label: json['label'] as String,
       sortOrder: json['sortOrder'] as int? ?? 0,
+      actionIntent: json['actionIntent'] as String?,
     );
   }
 
@@ -91,9 +94,16 @@ class MenuOption {
       'targetMenuKey': targetMenuKey,
       'label': label,
       'sortOrder': sortOrder,
+      if (actionIntent != null && actionIntent!.isNotEmpty) 'actionIntent': actionIntent,
     };
   }
 }
+
+/// Acciones CRM que se pueden asignar a una opción de menú.
+const Map<String, String> kMenuActionIntents = {
+  'book_appointment': 'Agendar cita',
+  'view_appointments': 'Ver mis citas',
+};
 
 class MenuTrigger {
   final String? id;
