@@ -73,8 +73,14 @@ public class AgendarTools {
         if (nombreCliente == null || nombreCliente.isBlank()) {
             return "Falta el nombre del cliente. Pide al usuario que indique su nombre completo antes de agendar.";
         }
+        if (isPlaceholderName(nombreCliente)) {
+            return "El nombre debe ser el que el usuario indicó, no un valor por defecto. Pregunta: '¿Cuál es tu nombre completo?' y usa la respuesta antes de llamar agendarCita.";
+        }
         if (documento == null || documento.isBlank()) {
             return "Falta el documento o cédula del cliente. Pide al usuario que indique su número de documento antes de agendar.";
+        }
+        if (isPlaceholderDocument(documento)) {
+            return "El documento debe ser el que el usuario indicó, no un valor por defecto. Pregunta: '¿Cuál es tu número de cédula o documento?' y usa la respuesta antes de llamar agendarCita.";
         }
         LocalDate date = parseDate(fecha);
         if (date == null || date.isBefore(LocalDate.now())) {
@@ -106,6 +112,21 @@ public class AgendarTools {
         if (s == null) return "";
         return java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "").strip().toLowerCase();
+    }
+
+    /** Rechaza nombres que son placeholders; el usuario debe dar su nombre real. */
+    private static boolean isPlaceholderName(String name) {
+        if (name == null || name.isBlank()) return true;
+        String n = normalizeForMatch(name);
+        return n.equals("cliente whatsapp") || n.equals("por confirmar") || n.equals("cliente")
+                || n.equals("n/a");
+    }
+
+    /** Rechaza documentos que son placeholders; el usuario debe dar su documento real. */
+    private static boolean isPlaceholderDocument(String doc) {
+        if (doc == null || doc.isBlank()) return true;
+        String d = normalizeForMatch(doc);
+        return d.equals("por confirmar") || d.equals("n/a") || d.equals("pendiente");
     }
 
     private static LocalDate parseDate(String input) {
