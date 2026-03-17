@@ -128,7 +128,16 @@ public class MessageBufferService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error processing buffered messages for {}: {} - {}", conversationId, e.getClass().getSimpleName(), e.getMessage(), e);
+                log.error("[BUFFER] Error processing messages for {}: {} — {}", conversationId, e.getMessage(), e.getClass().getSimpleName(), e);
+                String tenantId = first.getMetadata() != null && first.getMetadata().get("tenantId") != null
+                    ? first.getMetadata().get("tenantId").toString().strip() : null;
+                if (tenantId != null && tenantId.isEmpty()) tenantId = null;
+                OutboundMessage errorOut = OutboundMessage.builder()
+                    .text("Algo no ha ido bien. Por favor, inténtalo en un momento.")
+                    .conversationId(conversationId)
+                    .tenantId(tenantId)
+                    .build();
+                onResponse.accept(errorOut);
             }
         }
     }

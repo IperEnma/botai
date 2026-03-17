@@ -57,9 +57,7 @@ public class ActionDispatcher {
             .build();
         conversationRepository.save(newState);
         OutboundMessage result = action.get().execute(newState, userInput);
-        if (result != null) {
-            conversationRepository.save(newState);
-        }
+        // No volver a guardar newState: la acción ya persiste el estado actualizado (step, etc.)
         return result;
     }
 

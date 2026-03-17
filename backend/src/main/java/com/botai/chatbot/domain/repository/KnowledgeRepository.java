@@ -13,6 +13,9 @@ public interface KnowledgeRepository {
 
     List<KnowledgeChunk> findAllActiveByTenantId(String tenantId);
 
+    /** Cuenta chunks activos del tenant (para diagnóstico cuando RAG devuelve 0). */
+    long countActiveByTenantId(String tenantId);
+
     /**
      * Búsqueda por similitud (cosine) usando la columna embedding. Solo devuelve chunks con embedding no nulo.
      * Filtra por tenantId cuando no es nulo.

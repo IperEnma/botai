@@ -25,18 +25,20 @@ spring:
   sql:
     init:
       mode: always
-  # Spring AI: modelo de chat y de embeddings (Ollama). Embeddings para RAG semántico.
+  # Spring AI: chat + embeddings. RAG siempre usa búsqueda semántica con el modelo de embeddings.
+  # Para un verdadero RAG local: modelo de embeddings local (Hugging Face vía Ollama).
+  # Ej: ollama pull nomic-embed-text | ollama pull hf.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
   ai:
     ollama:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       chat:
         options:
           model: ${OLLAMA_MODEL:llama3}
-      # Modelo de embeddings: local vía Ollama (Hugging Face GGUF: ollama pull hf.co/...)
+      # Embeddings: obligatorio para RAG semántico. Modelo local (Hugging Face GGUF en Ollama).
       embedding:
         options:
-          # nomic-embed-text (768 dims); alternativas: mxbai-embed-large (1024), hf.co/.../paraphrase-multilingual-MiniLM-L12-v2
-          model: nomic-embed-text
+          # nomic-embed-text (768 dims); multilingüe: paraphrase-multilingual-MiniLM-L12-v2
+          model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
     model:
       chat: ollama
       embedding: ollama
@@ -67,20 +69,23 @@ bot:
   # Memoria: cuántos turnos de conversación recordar (user+assistant)
   memory:
     max-history-turns: 10
-  # RAG: fragmentos en knowledge_chunk; máximo de chunks a inyectar en el prompt
+  # RAG: siempre activo. Búsqueda por coincidencia semántica (embedding local) + horario + servicios inyectados en cada request.
   rag:
     max-chunks: 5
-  # Clasificador: una llamada LLM antes del flujo → saludo / acción CRM / pregunta general / mala intención
-  classifier:
-    use-llm: true   # true = clasificar con LLM primero; false = solo keywords/regex (fallback)
-  # Acciones CRM: fallback por palabras clave cuando el clasificador no usa LLM o falla
-  actions:
-    classifier-enabled: true
-  # Guardrails: jailbreak por regex siempre; scope+intent en 1 LLM con use-unified-classifier
+  # Guardrail: si está activo, se bloquean intentos de jailbreak/cambio de rol por regex. Desactivar = no bloquear.
   guardrails:
-    use-unified-classifier: true   # true = una sola llamada LLM (alcance + intención CRM); false = scope y acción por separado (2 llamadas)
-    scope-check-llm: true          # usado solo si use-unified-classifier=false
-    # out-of-scope-message: "Solo puedo ayudarte con..."  # opcional
+    enabled: true
+    # out-of-scope-message: "Solo puedo ayudarte con..."  # opcional; si vacío se usa bot.messages.guardrail-block
+  # Mensajes del bot (personalizables por entorno). Clase BotMessages tiene valores por defecto.
+  messages:
+    # bad-intent: "No puedo responder a eso. ¿En qué puedo ayudarte con el negocio?"
+    # guardrail-block: "Solo puedo ayudarte con temas del negocio. ¿En qué más puedo ayudarte?"
+    # no-match: "No tengo una respuesta para eso. Revisa que menú, servicios, horario y conocimiento estén configurados en el panel."
+    # tenant-unknown: "No se pudo identificar el negocio. Revisa la configuración del bot."
+    # no-rag-info: "No tenemos esa información disponible. ¿En qué más podemos ayudarte?"
+    # ai-error: "No pude conectar con el asistente. Verifica que Ollama esté en marcha."
+    # ai-hint: "💬 También puedes escribir tu pregunta y te responderé."
+    # greeting: "Hola, ¿en qué podemos ayudarte?"   # saludo cuando solo IA (sin menú/FAQ)
 
 logging:
   level:

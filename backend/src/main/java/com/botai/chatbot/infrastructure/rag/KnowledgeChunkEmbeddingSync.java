@@ -7,6 +7,8 @@ import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -36,36 +38,53 @@ public class KnowledgeChunkEmbeddingSync {
         this.embeddingModel = embeddingModel;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void syncEmbeddingsOnStartup() {
+    /**
+     * Rellena embeddings de chunks que tienen embedding IS NULL.
+     * Se llama al arranque y también tras refrescar horario/servicios para que la búsqueda semántica los encuentre.
+     */
+    public int syncPendingEmbeddings() {
         List<Row> rows = jdbcTemplate.query(SELECT_NEEDING_EMBEDDING,
             (rs, rowNum) -> new Row(rs.getLong("id"), rs.getString("topic"), rs.getString("content")));
         if (rows.isEmpty()) {
-            return;
+            log.info("[RAG-EMBED] Ningún chunk pendiente de embedding (todos tienen vector o no hay chunks activos)");
+            return 0;
         }
-        log.info("RAG: generando embeddings para {} chunks sin vector", rows.size());
+        log.info("[RAG-EMBED] Iniciando sync: {} chunks sin vector (ids: {})", rows.size(),
+            rows.stream().map(r -> r.id).toList());
         int updated = 0;
+        int failed = 0;
         for (Row row : rows) {
             try {
                 String textToEmbed = (row.topic + " " + row.content).trim();
                 EmbeddingResponse resp = embeddingModel.embedForResponse(List.of(textToEmbed));
                 if (resp.getResults() == null || resp.getResults().isEmpty()) {
+                    log.warn("[RAG-EMBED] Chunk id={} topic='{}': modelo no devolvió resultado", row.id, row.topic);
+                    failed++;
                     continue;
                 }
                 List<Double> vector = toListOfDouble(resp.getResults().get(0).getOutput());
                 if (vector.isEmpty()) {
+                    log.warn("[RAG-EMBED] Chunk id={} topic='{}': vector vacío", row.id, row.topic);
+                    failed++;
                     continue;
                 }
                 String vectorStr = toVectorString(vector);
                 jdbcTemplate.update(UPDATE_EMBEDDING, vectorStr, row.id);
                 updated++;
+                log.debug("[RAG-EMBED] Chunk id={} topic='{}': embedding guardado", row.id, row.topic);
             } catch (Exception e) {
-                log.warn("Error generando embedding para chunk id={}: {}", row.id, e.getMessage());
+                log.error("[RAG-EMBED] Chunk id={} topic='{}': {} — {}", row.id, row.topic, e.getMessage(), e.getClass().getSimpleName(), e);
+                failed++;
             }
         }
-        if (updated > 0) {
-            log.info("RAG: actualizados {} embeddings", updated);
-        }
+        log.info("[RAG-EMBED] Fin sync: actualizados={} fallidos={} total={}", updated, failed, rows.size());
+        return updated;
+    }
+
+    @Order(Ordered.LOWEST_PRECEDENCE)
+    @EventListener(ApplicationReadyEvent.class)
+    public void syncEmbeddingsOnStartup() {
+        syncPendingEmbeddings();
     }
 
     private static List<Double> toListOfDouble(Object output) {

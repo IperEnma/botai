@@ -1,5 +1,8 @@
 package com.botai.chatbot.infrastructure.api;
 
+import com.botai.chatbot.application.service.BusinessHoursAdminService;
+import com.botai.chatbot.application.service.BusinessServiceAdminService;
+import com.botai.chatbot.application.service.KnowledgeChunkAdminService;
 import com.botai.chatbot.infrastructure.persistence.entity.*;
 import com.botai.chatbot.infrastructure.persistence.jpa.*;
 import org.springframework.http.ResponseEntity;
@@ -19,29 +22,29 @@ public class AdminController {
 
     private final MenuJpaRepository menuRepository;
     private final MenuTriggerJpaRepository triggerRepository;
-    private final KnowledgeChunkJpaRepository knowledgeRepository;
     private final FeatureConfigJpaRepository featureConfigRepository;
     private final BotJpaRepository botRepository;
-    private final BusinessHoursJpaRepository businessHoursRepository;
-    private final ServiceJpaRepository serviceRepository;
+    private final BusinessHoursAdminService businessHoursAdminService;
+    private final BusinessServiceAdminService businessServiceAdminService;
+    private final KnowledgeChunkAdminService knowledgeChunkAdminService;
     private final AppointmentJpaRepository appointmentRepository;
 
     public AdminController(
             MenuJpaRepository menuRepository,
             MenuTriggerJpaRepository triggerRepository,
-            KnowledgeChunkJpaRepository knowledgeRepository,
             FeatureConfigJpaRepository featureConfigRepository,
             BotJpaRepository botRepository,
-            BusinessHoursJpaRepository businessHoursRepository,
-            ServiceJpaRepository serviceRepository,
+            BusinessHoursAdminService businessHoursAdminService,
+            BusinessServiceAdminService businessServiceAdminService,
+            KnowledgeChunkAdminService knowledgeChunkAdminService,
             AppointmentJpaRepository appointmentRepository) {
         this.menuRepository = menuRepository;
         this.triggerRepository = triggerRepository;
-        this.knowledgeRepository = knowledgeRepository;
         this.featureConfigRepository = featureConfigRepository;
         this.botRepository = botRepository;
-        this.businessHoursRepository = businessHoursRepository;
-        this.serviceRepository = serviceRepository;
+        this.businessHoursAdminService = businessHoursAdminService;
+        this.businessServiceAdminService = businessServiceAdminService;
+        this.knowledgeChunkAdminService = knowledgeChunkAdminService;
         this.appointmentRepository = appointmentRepository;
     }
 
@@ -259,50 +262,28 @@ public class AdminController {
 
     @GetMapping("/tenants/{tenantId}/business-hours")
     public ResponseEntity<List<BusinessHoursEntity>> getBusinessHours(@PathVariable String tenantId) {
-        return ResponseEntity.ok(businessHoursRepository.findByTenantIdOrderByDayOfWeek(tenantId));
+        return ResponseEntity.ok(businessHoursAdminService.getByTenant(tenantId));
     }
 
     @PutMapping("/tenants/{tenantId}/business-hours")
     public ResponseEntity<List<BusinessHoursEntity>> saveBusinessHours(
             @PathVariable String tenantId,
             @RequestBody List<Map<String, Object>> body) {
-        businessHoursRepository.deleteByTenantId(tenantId);
-        for (Map<String, Object> row : body) {
-            Number dayNum = (Number) row.get("dayOfWeek");
-            if (dayNum == null) continue;
-            int day = dayNum.intValue();
-            if (day < 1 || day > 7) continue;
-            String open = row.get("openTime") != null ? row.get("openTime").toString().trim() : null;
-            String close = row.get("closeTime") != null ? row.get("closeTime").toString().trim() : null;
-            if (open != null && open.isEmpty()) open = null;
-            if (close != null && close.isEmpty()) close = null;
-            BusinessHoursEntity e = new BusinessHoursEntity();
-            e.setTenantId(tenantId);
-            e.setDayOfWeek(day);
-            e.setOpenTime(open);
-            e.setCloseTime(close);
-            businessHoursRepository.save(e);
-        }
-        return ResponseEntity.ok(businessHoursRepository.findByTenantIdOrderByDayOfWeek(tenantId));
+        return ResponseEntity.ok(businessHoursAdminService.save(tenantId, body));
     }
 
     // ============ SERVICIOS DEL NEGOCIO ============
 
     @GetMapping("/tenants/{tenantId}/services")
     public ResponseEntity<List<ServiceEntity>> getServices(@PathVariable String tenantId) {
-        return ResponseEntity.ok(serviceRepository.findByTenantIdOrderBySortOrderAsc(tenantId));
+        return ResponseEntity.ok(businessServiceAdminService.getByTenant(tenantId));
     }
 
     @PostMapping("/tenants/{tenantId}/services")
     public ResponseEntity<ServiceEntity> createService(
             @PathVariable String tenantId,
             @RequestBody Map<String, Object> body) {
-        ServiceEntity e = new ServiceEntity();
-        e.setTenantId(tenantId);
-        e.setName(body.get("name") != null ? body.get("name").toString() : "");
-        e.setSortOrder(body.get("sortOrder") != null ? ((Number) body.get("sortOrder")).intValue() : 0);
-        e.setActive(true);
-        return ResponseEntity.ok(serviceRepository.save(e));
+        return ResponseEntity.ok(businessServiceAdminService.create(tenantId, body));
     }
 
     @PutMapping("/tenants/{tenantId}/services/{serviceId}")
@@ -310,14 +291,8 @@ public class AdminController {
             @PathVariable String tenantId,
             @PathVariable Long serviceId,
             @RequestBody Map<String, Object> body) {
-        return serviceRepository.findById(serviceId)
-            .filter(s -> tenantId.equals(s.getTenantId()))
-            .map(s -> {
-                if (body.get("name") != null) s.setName(body.get("name").toString());
-                if (body.get("sortOrder") != null) s.setSortOrder(((Number) body.get("sortOrder")).intValue());
-                if (body.get("active") != null) s.setActive(Boolean.TRUE.equals(body.get("active")));
-                return ResponseEntity.ok(serviceRepository.save(s));
-            })
+        return businessServiceAdminService.update(tenantId, serviceId, body)
+            .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
@@ -325,11 +300,9 @@ public class AdminController {
     public ResponseEntity<Void> deleteService(
             @PathVariable String tenantId,
             @PathVariable Long serviceId) {
-        if (serviceRepository.findById(serviceId).filter(s -> tenantId.equals(s.getTenantId())).isPresent()) {
-            serviceRepository.deleteById(serviceId);
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.notFound().build();
+        return businessServiceAdminService.delete(tenantId, serviceId)
+            ? ResponseEntity.noContent().build()
+            : ResponseEntity.notFound().build();
     }
 
     // ============ CITAS / AGENDA ============
@@ -369,18 +342,14 @@ public class AdminController {
 
     @GetMapping("/tenants/{tenantId}/knowledge")
     public ResponseEntity<List<KnowledgeChunkEntity>> getKnowledge(@PathVariable String tenantId) {
-        List<KnowledgeChunkEntity> chunks = knowledgeRepository.findByTenantIdAndActiveTrue(tenantId);
-        return ResponseEntity.ok(chunks);
+        return ResponseEntity.ok(knowledgeChunkAdminService.getByTenant(tenantId));
     }
 
     @PostMapping("/tenants/{tenantId}/knowledge")
     public ResponseEntity<KnowledgeChunkEntity> createKnowledge(
             @PathVariable String tenantId,
             @RequestBody KnowledgeChunkEntity chunk) {
-        chunk.setTenantId(tenantId);
-        chunk.setActive(true);
-        KnowledgeChunkEntity saved = knowledgeRepository.save(chunk);
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(knowledgeChunkAdminService.create(tenantId, chunk));
     }
 
     @PutMapping("/tenants/{tenantId}/knowledge/{chunkId}")
@@ -388,14 +357,8 @@ public class AdminController {
             @PathVariable String tenantId,
             @PathVariable Long chunkId,
             @RequestBody KnowledgeChunkEntity chunk) {
-        return knowledgeRepository.findById(chunkId)
-            .map(existing -> {
-                existing.setTopic(chunk.getTopic());
-                existing.setContent(chunk.getContent());
-                existing.setKeywords(chunk.getKeywords());
-                existing.setActive(chunk.isActive());
-                return ResponseEntity.ok(knowledgeRepository.save(existing));
-            })
+        return knowledgeChunkAdminService.update(tenantId, chunkId, chunk)
+            .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
@@ -403,8 +366,9 @@ public class AdminController {
     public ResponseEntity<Void> deleteKnowledge(
             @PathVariable String tenantId,
             @PathVariable Long chunkId) {
-        knowledgeRepository.deleteById(chunkId);
-        return ResponseEntity.noContent().build();
+        return knowledgeChunkAdminService.delete(tenantId, chunkId)
+            ? ResponseEntity.noContent().build()
+            : ResponseEntity.notFound().build();
     }
 
     // ============ FEATURE FLAGS ============

@@ -110,7 +110,8 @@ public class ConversationCore {
                 .build();
             conversationRepository.save(updated);
             log.info("[CORE] State saved successfully");
-        } else {
+        } else if (!"action".equals(result.intentSource()) && !"actions_disabled".equals(result.intentSource())) {
+            // Acciones ya persisten su estado (step, etc.); no sobrescribir con el state inicial
             log.info("[CORE] No menu change, saving state as-is");
             conversationRepository.save(state);
         }

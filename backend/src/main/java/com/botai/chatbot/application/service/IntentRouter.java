@@ -6,14 +6,18 @@ import com.botai.chatbot.domain.model.InboundMessage;
 import com.botai.chatbot.domain.model.OutboundMessage;
 import com.botai.chatbot.domain.feature.BotFeatures;
 import com.botai.chatbot.domain.feature.FeatureFlagService;
+import com.botai.chatbot.infrastructure.config.BotMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+
 /**
  * Orquesta el flujo de mensajes según las capas activas por tenant.
+ * Cada responsabilidad de enrutado está en un método que devuelve Optional.empty() si no aplica.
  *
- * - Solo FAQ activa: con cualquier mensaje se muestra el menú (no se exigen triggers).
- * - FAQ + IA: menú cuando hay trigger/opción/FAQ; si no hay match el mensaje va a la IA. Al mostrar menú se añade hint "También puedes preguntar...".
+ * - Solo FAQ activa: con cualquier mensaje se muestra el menú.
+ * - FAQ + IA: menú cuando hay trigger/opción/FAQ; si no hay match el mensaje va a la IA.
  * - Solo IA activa: directo a Acciones (si aplica) e IA, sin evaluar menú/FAQ.
  */
 public class IntentRouter {
@@ -28,6 +32,7 @@ public class IntentRouter {
     private final ScopeGuard scopeGuard;
     private final BotReadinessService readinessService;
     private final IntentClassifierService intentClassifierService;
+    private final BotMessages messages;
 
     public IntentRouter(FeatureFlagService featureFlagService,
                         FaqService faqService,
@@ -36,7 +41,8 @@ public class IntentRouter {
                         MenuService menuService,
                         ScopeGuard scopeGuard,
                         BotReadinessService readinessService,
-                        IntentClassifierService intentClassifierService) {
+                        IntentClassifierService intentClassifierService,
+                        BotMessages messages) {
         this.featureFlagService = featureFlagService;
         this.faqService = faqService;
         this.hybridAiService = hybridAiService;
@@ -45,141 +51,179 @@ public class IntentRouter {
         this.scopeGuard = scopeGuard;
         this.readinessService = readinessService;
         this.intentClassifierService = intentClassifierService;
+        this.messages = messages;
     }
 
     /**
-     * Route the message and produce an OutboundMessage and intent source for metrics.
+     * Enruta el mensaje y produce un OutboundMessage e intent source para métricas.
      */
     public RouteResult route(InboundMessage inbound, ConversationState state) {
         String conversationId = inbound.getConversationId();
         String text = inbound.getText();
         String tenantId = getTenantId(inbound);
 
-        if (tenantId == null || tenantId.isBlank()) {
-            log.warn("[ROUTER] tenantId ausente o vacío, respondiendo con error");
-            return new RouteResult(
-                OutboundMessage.builder()
-                    .text("Error: no se pudo identificar el bot. Verifica la configuración del webhook (phone_number_id asociado a un bot).")
-                    .conversationId(conversationId)
-                    .build(),
-                "error",
-                null
-            );
-        }
+        return tryRouteWhenTenantMissing(conversationId, tenantId)
+            .or(() -> tryRouteWhenBotNotReady(conversationId, tenantId))
+            .or(() -> routeAfterClassification(conversationId, tenantId, text, inbound, state))
+            .orElseGet(() -> routeNoMatch(conversationId, tenantId));
+    }
 
+    private Optional<RouteResult> routeAfterClassification(String conversationId, String tenantId, String text,
+                                                          InboundMessage inbound, ConversationState state) {
+        IntentClassification classification = intentClassifierService.classify(text, tenantId);
+        return tryRouteClassifierError(conversationId, tenantId, classification)
+            .or(() -> tryRouteBadIntent(conversationId, tenantId, classification))
+            .or(() -> tryRouteGreetingWithMenu(conversationId, tenantId, text, state, classification))
+            .or(() -> tryRouteCrmAction(tenantId, text, state, classification))
+            .or(() -> tryRouteCrmActionWhenDisabled(conversationId, tenantId, classification))
+            .or(() -> tryRouteMenuAndFaq(conversationId, tenantId, text, state))
+            .or(() -> tryRouteActions(conversationId, tenantId, text, state))
+            .or(() -> tryRouteToAi(conversationId, tenantId, text, inbound, state, classification))
+            .or(() -> Optional.of(routeNoMatch(conversationId, tenantId)));
+    }
+
+    private Optional<RouteResult> tryRouteWhenTenantMissing(String conversationId, String tenantId) {
+        if (tenantId != null && !tenantId.isBlank()) {
+            return Optional.empty();
+        }
+        log.warn("[ROUTER] tenantId ausente o vacío, respondiendo con error");
+        return Optional.of(new RouteResult(
+            OutboundMessage.builder()
+                .text("Error: no se pudo identificar el bot. Verifica la configuración del webhook (phone_number_id asociado a un bot).")
+                .conversationId(conversationId)
+                .build(),
+            "error",
+            null
+        ));
+    }
+
+    private Optional<RouteResult> tryRouteWhenBotNotReady(String conversationId, String tenantId) {
         String notReady = readinessService.getNotReadyMessage(tenantId);
-        if (notReady != null) {
-            log.info("[ROUTER] Bot no listo: {}", notReady);
-            return new RouteResult(
-                OutboundMessage.builder()
-                    .text(notReady)
-                    .conversationId(conversationId)
-                    .tenantId(tenantId)
-                    .build(),
-                "bot_not_ready",
-                null
-            );
+        if (notReady == null) {
+            return Optional.empty();
         }
+        log.info("[ROUTER] Bot no listo: {}", notReady);
+        return Optional.of(new RouteResult(
+            OutboundMessage.builder()
+                .text(notReady)
+                .conversationId(conversationId)
+                .tenantId(tenantId)
+                .build(),
+            "bot_not_ready",
+            null
+        ));
+    }
 
-        // Clasificador unificado: saludo, acción CRM, pregunta general, malas intenciones
-        IntentClassification classification = intentClassifierService.classify(text);
-
-        if (classification.isBadIntent()) {
-            log.info("[ROUTER] Mala intención detectada -> bloqueando");
-            return new RouteResult(
-                OutboundMessage.builder()
-                    .text("No puedo responder a eso. ¿En qué puedo ayudarte con el negocio?")
-                    .conversationId(conversationId)
-                    .tenantId(tenantId)
-                    .build(),
-                "bad_intent",
-                null
-            );
+    private Optional<RouteResult> tryRouteClassifierError(String conversationId, String tenantId, IntentClassification classification) {
+        if (!classification.isServiceError()) {
+            return Optional.empty();
         }
+        log.warn("[ROUTER] Clasificador en error; respondiendo mensaje único al cliente");
+        return Optional.of(new RouteResult(
+            OutboundMessage.builder()
+                .text("Algo no ha ido bien. Por favor, inténtalo en un momento.")
+                .conversationId(conversationId)
+                .tenantId(tenantId)
+                .build(),
+            "classifier_error",
+            null
+        ));
+    }
 
-        if (classification.isGreeting() && featureFlagService.isEnabled(BotFeatures.FAQ_ENABLED, tenantId) && menuService.hasAnyActiveMenu(tenantId)) {
-            var firstKey = menuService.getFirstMenuKey(tenantId);
-            if (firstKey.isPresent()) {
-                var menuMsg = menuService.getMenu(firstKey.get(), conversationId, tenantId);
-                if (menuMsg.isPresent()) {
+    private Optional<RouteResult> tryRouteBadIntent(String conversationId, String tenantId, IntentClassification classification) {
+        if (!classification.isBadIntent()) {
+            return Optional.empty();
+        }
+        log.info("[ROUTER] Mala intención detectada -> bloqueando");
+        return Optional.of(new RouteResult(
+            OutboundMessage.builder()
+                .text(messages.getBadIntent())
+                .conversationId(conversationId)
+                .tenantId(tenantId)
+                .build(),
+            "bad_intent",
+            null
+        ));
+    }
+
+    private Optional<RouteResult> tryRouteGreetingWithMenu(String conversationId, String tenantId, String text,
+                                                            ConversationState state, IntentClassification classification) {
+        if (!classification.isGreeting()
+            || !featureFlagService.isEnabled(BotFeatures.FAQ_ENABLED, tenantId)
+            || !menuService.hasAnyActiveMenu(tenantId)) {
+            return Optional.empty();
+        }
+        return menuService.getFirstMenuKey(tenantId)
+            .flatMap(firstKey -> menuService.getMenu(firstKey, conversationId, tenantId)
+                .map(menuMsg -> {
                     log.info("[ROUTER] Saludo → mostrar primer menú");
-                    return withMenuAndAiHint(menuMsg.get(), "menu", firstKey.get());
-                }
-            }
-        }
+                    return withMenuAndAiHint(menuMsg, "menu", firstKey);
+                }));
+    }
 
-        if (classification.isCrmAction() && featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId)) {
-            var actionId = classification.getActionId();
-            if (actionId.isPresent()) {
-                var actionResult = actionDispatcher.startFromMenuOption(state, actionId.get(), text);
-                if (actionResult != null) {
-                    return new RouteResult(actionResult, "action", null);
-                }
-            }
+    /** Agendar lo maneja la IA con tools (RAG + getSlotsDisponibles/agendarCita). Solo view_appointments/create_lead usan acción. */
+    private Optional<RouteResult> tryRouteCrmAction(String tenantId, String text, ConversationState state,
+                                                    IntentClassification classification) {
+        if (!classification.isCrmAction() || !featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId)) {
+            return Optional.empty();
         }
+        if ("book_appointment".equals(classification.getActionId().orElse(null))) {
+            return Optional.empty();
+        }
+        return classification.getActionId()
+            .map(actionId -> actionDispatcher.startFromMenuOption(state, actionId, text))
+            .filter(r -> r != null)
+            .map(r -> new RouteResult(r, "action", null));
+    }
 
-        // 1) Menú + FAQ solo si la capa FAQ está activa (si solo está la IA, este bloque se salta y va directo a IA)
+    /** Usuario pidió agendar/ver citas pero el tenant tiene acciones desactivadas → mensaje claro sin pasar por IA. */
+    private Optional<RouteResult> tryRouteCrmActionWhenDisabled(String conversationId, String tenantId,
+                                                              IntentClassification classification) {
+        if (!classification.isCrmAction() || featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId)) {
+            return Optional.empty();
+        }
+        log.info("[ROUTER] Acción CRM detectada pero ACTIONS_ENABLED=false -> mensaje actionsDisabled");
+        return Optional.of(new RouteResult(
+            OutboundMessage.builder()
+                .text(messages.getActionsDisabled())
+                .conversationId(conversationId)
+                .tenantId(tenantId)
+                .build(),
+            "actions_disabled",
+            null
+        ));
+    }
+
+    private Optional<RouteResult> tryRouteMenuAndFaq(String conversationId, String tenantId, String text, ConversationState state) {
+        if (!featureFlagService.isEnabled(BotFeatures.FAQ_ENABLED, tenantId)) {
+            return Optional.empty();
+        }
         boolean aiOn = featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId);
-        if (featureFlagService.isEnabled(BotFeatures.FAQ_ENABLED, tenantId)) {
-            // Check if user is selecting a menu option (e.g., "1", "2")
-            String currentMenu = state.getContextValue("currentMenu", String.class);
-            if (currentMenu != null) {
-                var selected = menuService.findSelectedOptionWithAction(currentMenu, text, tenantId);
-                if (selected.isPresent()) {
-                    var sel = selected.get();
-                    if (sel.actionIntent() != null && !sel.actionIntent().isBlank() && featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId)) {
-                        log.info("[ROUTER] Menu option triggers action: {} -> {}", text, sel.actionIntent());
-                        var actionResult = actionDispatcher.startFromMenuOption(state, sel.actionIntent(), text);
-                        if (actionResult != null) {
-                            return new RouteResult(actionResult, "action", null);
-                        }
-                    }
-                    String targetMenu = sel.targetMenuKey();
-                    log.info("[ROUTER] Menu option selected: {} -> {}", text, targetMenu);
-                    var menuMsg = menuService.getMenu(targetMenu, conversationId, tenantId);
-                    if (menuMsg.isPresent()) {
-                        return withMenuAndAiHint(menuMsg.get(), "menu", targetMenu);
-                    }
-                }
-                
-                // User is in a menu but didn't select valid option - check if it's a new trigger
-                var menuTrigger = menuService.findMenuTrigger(text, tenantId);
-                if (menuTrigger.isPresent()) {
-                    String menuId = menuTrigger.get();
-                    log.info("[ROUTER] Menu triggered while in menu: {} -> {}", text, menuId);
-                    var menuMsg = menuService.getMenu(menuId, conversationId, tenantId);
-                    if (menuMsg.isPresent()) {
-                        return withMenuAndAiHint(menuMsg.get(), "menu", menuId);
-                    }
-                }
-                
-                // Opción no válida: si solo FAQ, mostramos menú de nuevo; si FAQ+IA dejamos pasar a IA
-                if (!aiOn && menuService.hasAnyActiveMenu(tenantId)) {
-                    var firstKey = menuService.getFirstMenuKey(tenantId);
-                    if (firstKey.isPresent()) {
-                        var menuMsg = menuService.getMenu(firstKey.get(), conversationId, tenantId);
-                        if (menuMsg.isPresent()) {
-                            return withMenuAndAiHint(menuMsg.get(), "menu", firstKey.get());
-                        }
-                    }
-                }
-            }
+        String currentMenu = state.getContextValue("currentMenu", String.class);
 
-            // Check if text triggers a menu (opcional: "hola", "menu", etc.)
-            var menuTrigger = menuService.findMenuTrigger(text, tenantId);
-            if (menuTrigger.isPresent()) {
-                String menuId = menuTrigger.get();
-                log.info("[ROUTER] Menu triggered: {} -> {}", text, menuId);
-                var menuMsg = menuService.getMenu(menuId, conversationId, tenantId);
-                if (menuMsg.isPresent()) {
-                    return withMenuAndAiHint(menuMsg.get(), "menu", menuId);
-                }
-            }
+        // Opción de menú seleccionada (estando ya en un menú)
+        if (currentMenu != null) {
+            Optional<RouteResult> fromSelection = tryRouteMenuSelection(conversationId, tenantId, text, state, currentMenu);
+            if (fromSelection.isPresent()) return fromSelection;
 
-            // 2) Traditional FAQ keyword matching
-            var faqMatch = faqService.findMatch(text);
-            if (faqMatch.isPresent()) {
-                var m = faqMatch.get();
+            Optional<RouteResult> fromTriggerInMenu = tryRouteMenuTrigger(conversationId, tenantId, text);
+            if (fromTriggerInMenu.isPresent()) return fromTriggerInMenu;
+
+            if (!aiOn && menuService.hasAnyActiveMenu(tenantId)) {
+                Optional<RouteResult> reshow = menuService.getFirstMenuKey(tenantId)
+                    .flatMap(k -> menuService.getMenu(k, conversationId, tenantId)
+                        .map(m -> withMenuAndAiHint(m, "menu", k)));
+                if (reshow.isPresent()) return reshow;
+            }
+        }
+
+        // Trigger de menú desde fuera (ej. "hola", "menu")
+        Optional<RouteResult> fromTrigger = tryRouteMenuTrigger(conversationId, tenantId, text);
+        if (fromTrigger.isPresent()) return fromTrigger;
+
+        // FAQ por keywords
+        Optional<RouteResult> fromFaq = faqService.findMatch(text)
+            .map(m -> {
                 log.info("[ROUTER] FAQ match: {}", m.intent());
                 return new RouteResult(
                     OutboundMessage.builder()
@@ -190,54 +234,93 @@ public class IntentRouter {
                     "faq",
                     null
                 );
-            }
+            });
+        if (fromFaq.isPresent()) return fromFaq;
 
-            // 3) FAQ activa con menú: con cualquier mensaje *nuevo* (sin estar ya en un menú) se muestra el primer menú
-            // Si ya estábamos en menú y el usuario escribió algo que no es opción (ej. "¿qué horarios manejas?") y hay IA, no devolvemos menú aquí → va a IA
-            if (menuService.hasAnyActiveMenu(tenantId) && currentMenu == null) {
-                var firstMenuKey = menuService.getFirstMenuKey(tenantId);
-                if (firstMenuKey.isPresent()) {
-                    var menuMsg = menuService.getMenu(firstMenuKey.get(), conversationId, tenantId);
-                    if (menuMsg.isPresent()) {
+        // Sin menú actual: mostrar primer menú
+        if (menuService.hasAnyActiveMenu(tenantId) && currentMenu == null) {
+            return menuService.getFirstMenuKey(tenantId)
+                .flatMap(k -> menuService.getMenu(k, conversationId, tenantId)
+                    .map(m -> {
                         log.info("[ROUTER] FAQ: cualquier mensaje (sin menú actual) muestra primer menú");
-                        return withMenuAndAiHint(menuMsg.get(), "menu", firstMenuKey.get());
-                    }
-                }
-            }
+                        return withMenuAndAiHint(m, "menu", k);
+                    }));
         }
 
-        // 3) Actions (if enabled and we have an active intent in state)
-        if (featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId) && state.hasIntent()) {
-            var actionResult = actionDispatcher.dispatch(state, text);
+        return Optional.empty();
+    }
+
+    private Optional<RouteResult> tryRouteMenuSelection(String conversationId, String tenantId, String text,
+                                                         ConversationState state, String currentMenu) {
+        var selected = menuService.findSelectedOptionWithAction(currentMenu, text, tenantId);
+        if (selected.isEmpty()) return Optional.empty();
+
+        var sel = selected.get();
+        if (sel.actionIntent() != null && !sel.actionIntent().isBlank()
+            && featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId)) {
+            var actionResult = actionDispatcher.startFromMenuOption(state, sel.actionIntent(), text);
             if (actionResult != null) {
-                return new RouteResult(actionResult, "action", null);
+                log.info("[ROUTER] Menu option triggers action: {} -> {}", text, sel.actionIntent());
+                return Optional.of(new RouteResult(actionResult, "action", null));
             }
         }
+        String targetMenu = sel.targetMenuKey();
+        log.info("[ROUTER] Menu option selected: {} -> {}", text, targetMenu);
+        return menuService.getMenu(targetMenu, conversationId, tenantId)
+            .map(m -> withMenuAndAiHint(m, "menu", targetMenu));
+    }
 
-        // 4) IA (si está activa: directo cuando solo hay IA, o tras no hacer match en menú/FAQ/acción cuando hay ambas)
+    private Optional<RouteResult> tryRouteMenuTrigger(String conversationId, String tenantId, String text) {
+        return menuService.findMenuTrigger(text, tenantId)
+            .flatMap(menuId -> {
+                log.info("[ROUTER] Menu triggered: {} -> {}", text, menuId);
+                return menuService.getMenu(menuId, conversationId, tenantId)
+                    .map(m -> withMenuAndAiHint(m, "menu", menuId));
+            });
+    }
+
+    /** Con solo IA activa no se usa el dispatcher determinista: lo maneja el modelo (RAG/tools). Con FAQ sin IA sí se despacha a acciones. */
+    private Optional<RouteResult> tryRouteActions(String conversationId, String tenantId, String text, ConversationState state) {
+        if (!featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId) || !state.hasIntent()) {
+            return Optional.empty();
+        }
         if (featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId)) {
-            ScopeGuard.ScopeResult scopeResult = scopeGuard.check(text, tenantId);
-            if (!scopeResult.allowed()) {
-                log.info("[ROUTER] Mensaje fuera de alcance o jailbreak detectado -> respondiendo con mensaje fijo");
-                return new RouteResult(
-                    OutboundMessage.builder()
-                        .text(scopeResult.blockMessage())
-                        .conversationId(conversationId)
-                        .tenantId(tenantId)
-                        .build(),
-                    "ai_blocked",
-                    null
-                );
-            }
-            log.info("[ROUTER] Routing to AI (Capa 2)");
-            var aiResponse = hybridAiService.generateResponse(inbound, state);
-            return new RouteResult(aiResponse, "ai", null);
+            return Optional.empty();
         }
+        return Optional.ofNullable(actionDispatcher.dispatch(state, text))
+            .map(r -> new RouteResult(r, "action", null));
+    }
 
-        // Sin match: mensaje final (solo FAQ ya mostró menú en el bloque anterior).
+    private Optional<RouteResult> tryRouteToAi(String conversationId, String tenantId, String text,
+                                               InboundMessage inbound, ConversationState state,
+                                               IntentClassification classification) {
+        if (!featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId)) {
+            return Optional.empty();
+        }
+        ScopeGuard.ScopeResult scopeResult = scopeGuard.check(text, tenantId);
+        if (!scopeResult.allowed()) {
+            log.info("[ROUTER] Mensaje fuera de alcance o jailbreak detectado -> respondiendo con mensaje fijo");
+            String blockMsg = scopeResult.blockMessage();
+            if (blockMsg == null || blockMsg.isBlank()) blockMsg = messages.getGuardrailBlock();
+            return Optional.of(new RouteResult(
+                OutboundMessage.builder()
+                    .text(blockMsg)
+                    .conversationId(conversationId)
+                    .tenantId(tenantId)
+                    .build(),
+                "ai_blocked",
+                null
+            ));
+        }
+        log.info("[ROUTER] Routing to AI (llamado final, con clasificación)");
+        OutboundMessage aiResponse = hybridAiService.generateResponse(inbound, state, classification);
+        return Optional.of(new RouteResult(aiResponse, "ai", null));
+    }
+
+    private RouteResult routeNoMatch(String conversationId, String tenantId) {
         return new RouteResult(
             OutboundMessage.builder()
-                .text("No tengo una respuesta para eso. Revisa que menú, servicios, horario y conocimiento estén configurados en el panel.")
+                .text(messages.getNoMatch())
                 .conversationId(conversationId)
                 .tenantId(tenantId)
                 .build(),
@@ -246,9 +329,6 @@ public class IntentRouter {
         );
     }
 
-    /**
-     * Extrae el tenant ID del mensaje entrante (metadata). Si no viene, retorna null.
-     */
     private String getTenantId(InboundMessage inbound) {
         Object tenant = inbound.getMetadata() != null ? inbound.getMetadata().get("tenantId") : null;
         if (tenant == null) return null;
@@ -256,27 +336,18 @@ public class IntentRouter {
         return s.isEmpty() ? null : s;
     }
 
-    /**
-     * Si la IA está activa, añade debajo del texto del menú (definido por el usuario en BD) la aclaración
-     * de que puede preguntar libremente. El hint va siempre después del contenido del menú.
-     */
     private RouteResult withMenuAndAiHint(OutboundMessage menuMessage, String intentSource, String newMenuId) {
-        if (!featureFlagService.isEnabled(BotFeatures.AI_ENABLED, getTenantIdFromMessage(menuMessage))) {
+        if (!featureFlagService.isEnabled(BotFeatures.AI_ENABLED, menuMessage.getTenantId() != null ? menuMessage.getTenantId() : "")) {
             return new RouteResult(menuMessage, intentSource, newMenuId);
         }
-        String hint = "💬 También puedes escribir tu pregunta y te responderé.";
         OutboundMessage withHint = OutboundMessage.builder()
             .text(menuMessage.getText())
             .options(menuMessage.getOptions())
-            .footerText(hint)
+            .footerText(messages.getAiHint())
             .conversationId(menuMessage.getConversationId())
             .tenantId(menuMessage.getTenantId())
             .build();
         return new RouteResult(withHint, intentSource, newMenuId);
-    }
-
-    private String getTenantIdFromMessage(OutboundMessage msg) {
-        return msg.getTenantId() != null ? msg.getTenantId() : "";
     }
 
     public record RouteResult(OutboundMessage message, String intentSource, String newMenuId) {}

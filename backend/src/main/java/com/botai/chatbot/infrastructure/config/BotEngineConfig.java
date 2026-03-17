@@ -7,7 +7,11 @@ import com.botai.chatbot.domain.repository.ConversationRepository;
 import com.botai.chatbot.domain.repository.FaqRepository;
 import com.botai.chatbot.domain.repository.KnowledgeRepository;
 import com.botai.chatbot.domain.service.BotAction;
-import com.botai.chatbot.domain.service.LanguageModel;
+import com.botai.chatbot.application.service.HybridAiService;
+import com.botai.chatbot.infrastructure.config.BotMessages;
+import com.botai.chatbot.infrastructure.ai.AgendarTools;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,12 +37,21 @@ public class BotEngineConfig {
     }
 
     @Bean
-    public HybridAiService hybridAiService(LanguageModel languageModel,
-                                           ConversationRepository conversationRepository,
-                                           HybridAiService.AiContextBuilder contextBuilder,
+    public ChatClient chatClientWithTools(ChatModel chatModel, AgendarTools agendarTools) {
+        return ChatClient.builder(chatModel)
+            .defaultTools(agendarTools)
+            .build();
+    }
+
+    @Bean
+    public HybridAiService hybridAiService(ChatModel chatModel,
+                                           ChatClient chatClientWithTools,
+                                           HybridAiService.AiContextBuilder aiContextBuilder,
                                            HybridAiService.ResponseValidator responseValidator,
-                                           MessageHistoryService messageHistoryService) {
-        return new HybridAiService(languageModel, conversationRepository, contextBuilder, responseValidator, messageHistoryService);
+                                           MessageHistoryService messageHistoryService,
+                                           BotMessages botMessages) {
+        return new HybridAiService(chatModel, chatClientWithTools, aiContextBuilder, responseValidator, messageHistoryService,
+            botMessages.getTenantUnknown(), botMessages.getNoRagInfo(), botMessages.getAiError());
     }
 
     @Bean
@@ -55,8 +68,9 @@ public class BotEngineConfig {
                                      MenuService menuService,
                                      ScopeGuard scopeGuard,
                                      BotReadinessService readinessService,
-                                     IntentClassifierService intentClassifierService) {
-        return new IntentRouter(featureFlagService, faqService, hybridAiService, actionDispatcher, menuService, scopeGuard, readinessService, intentClassifierService);
+                                     IntentClassifierService intentClassifierService,
+                                     BotMessages botMessages) {
+        return new IntentRouter(featureFlagService, faqService, hybridAiService, actionDispatcher, menuService, scopeGuard, readinessService, intentClassifierService, botMessages);
     }
 
     @Bean

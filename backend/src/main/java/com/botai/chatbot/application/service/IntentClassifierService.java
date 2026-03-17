@@ -1,13 +1,14 @@
 package com.botai.chatbot.application.service;
 
 import com.botai.chatbot.application.dto.IntentClassification;
+import com.botai.chatbot.domain.feature.BotFeatures;
+import com.botai.chatbot.domain.feature.FeatureFlagService;
 import com.botai.chatbot.domain.model.LlmRequest;
 import com.botai.chatbot.domain.model.LlmResponse;
 import com.botai.chatbot.domain.service.BotAction;
 import com.botai.chatbot.domain.service.LanguageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -16,7 +17,8 @@ import java.util.stream.Collectors;
 
 /**
  * Clasificador unificado: saludo, acción CRM, pregunta general, malas intenciones.
- * Capa extra de LLM: una llamada al modelo antes del flujo para clasificar; si está desactivado o falla, fallback a keywords/regex.
+ * Si la capa IA está activa para el tenant → clasificación con LLM (si falla → ServiceError).
+ * Si la capa IA no está activa → solo keywords/regex. Sin propiedad use-llm.
  */
 @Service
 public class IntentClassifierService {
@@ -33,7 +35,7 @@ public class IntentClassifierService {
         "reservar cita", "book_appointment"
     );
 
-    /** Frases que se consideran solo saludo (fallback sin LLM) */
+    /** Frases que se consideran solo saludo (camino keywords) */
     private static final Set<String> GREETING_STARTS = Set.of(
         "hola", "hi", "hello", "hey", "qué tal", "que tal", "saludos", "saludo",
         "buenos días", "buenas tardes", "buenas noches", "buen día", "buena tarde", "buena noche",
@@ -42,7 +44,7 @@ public class IntentClassifierService {
 
     private static final int MAX_GREETING_LENGTH = 45;
 
-    /** Patrones de mala intención (fallback sin LLM); ScopeGuard sigue filtrando jailbreak. */
+    /** Patrones de mala intención (camino keywords); ScopeGuard sigue filtrando jailbreak. */
     private static final List<Pattern> BAD_INTENT_PATTERNS = List.of(
         Pattern.compile("(?i)(idiota|imbécil|imbecil|estúpido|estupido|tonto|maldito|puta|puto|jodete|vete\\s+a\\s+la\\s+mierda)"),
         Pattern.compile("(?i)(fuck\\s+you|damn\\s+you|you\\s+suck|piece\\s+of\\s+shit)"),
@@ -51,12 +53,12 @@ public class IntentClassifierService {
 
     private final List<Map.Entry<String, String>> keywordToAction;
     private final Optional<LanguageModel> languageModel;
-    private final boolean useLlm;
+    private final FeatureFlagService featureFlagService;
     private final Set<String> validActionIds;
 
     public IntentClassifierService(List<BotAction> actions,
                                    Optional<LanguageModel> languageModel,
-                                   @Value("${bot.classifier.use-llm:false}") boolean useLlm) {
+                                   FeatureFlagService featureFlagService) {
         Map<String, String> map = new LinkedHashMap<>();
         if (actions != null) {
             for (BotAction a : actions) {
@@ -74,23 +76,41 @@ public class IntentClassifierService {
             .collect(Collectors.toList());
         validActionIds = new HashSet<>(map.values());
         this.languageModel = languageModel != null ? languageModel : Optional.empty();
-        this.useLlm = useLlm;
-        log.info("[CLASSIFIER] use-llm={}, actions={}", this.useLlm, validActionIds);
+        this.featureFlagService = featureFlagService;
+        log.info("[CLASSIFIER] actions={}", validActionIds);
     }
 
     /**
-     * Clasificación unificada: primero LLM si está activo; si falla o no hay LLM, fallback a keywords/regex.
+     * Clasificación unificada. Capa IA activa para el tenant → LLM (si falla → ServiceError).
+     * Capa IA inactiva o sin tenant → keywords/regex.
      */
-    public IntentClassification classify(String text) {
+    public IntentClassification classify(String text, String tenantId) {
         if (text == null || text.isBlank()) {
             return new IntentClassification.GeneralQuestion();
         }
-        if (useLlm && languageModel.isPresent()) {
-            IntentClassification fromLlm = classifyWithLlm(text);
-            if (fromLlm != null) {
-                return fromLlm;
+        String normalized = text.strip().toLowerCase();
+        // 1) Acción CRM por keyword primero
+        for (Map.Entry<String, String> e : keywordToAction) {
+            if (normalized.contains(e.getKey())) {
+                log.info("[CLASSIFIER] Keyword match: '{}' -> {}", e.getKey(), e.getValue());
+                return new IntentClassification.CrmAction(e.getValue());
             }
-            log.debug("[CLASSIFIER] LLM falló o no devolvió resultado, usando fallback por keywords");
+        }
+        // 2) Malas intenciones por regex
+        for (Pattern p : BAD_INTENT_PATTERNS) {
+            if (p.matcher(normalized).find()) {
+                return new IntentClassification.BadIntent();
+            }
+        }
+        // 3) Si la capa IA está activa para el tenant → LLM; si falla → fallback a keywords (evita "Algo no ha ido bien").
+        boolean useLlmForTenant = tenantId != null && !tenantId.isBlank()
+            && featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId)
+            && languageModel.isPresent();
+        if (useLlmForTenant) {
+            IntentClassification fromLlm = classifyWithLlm(text);
+            if (fromLlm != null) return fromLlm;
+            log.info("[CLASSIFIER] LLM falló o respuesta no parseable -> fallback a keywords");
+            return classifyWithKeywords(text);
         }
         return classifyWithKeywords(text);
     }
@@ -113,14 +133,17 @@ public class IntentClassifierService {
             LlmRequest request = new LlmRequest(prompt, systemLines, List.of(), LLM_MAX_TOKENS);
             LlmResponse response = languageModel.get().generate(request);
             if (!response.isSuccess()) {
-                log.warn("[CLASSIFIER] LLM error: {}", response.getErrorMessage());
+                log.error("[CLASSIFIER] LLM error: {}", response.getErrorMessage());
                 return null;
             }
             String raw = response.getText();
-            if (raw == null || raw.isBlank()) return null;
+            if (raw == null || raw.isBlank()) {
+                log.error("[CLASSIFIER] LLM devolvió respuesta vacía");
+                return null;
+            }
             return parseLlmClassification(raw.strip().toUpperCase());
         } catch (Exception e) {
-            log.warn("[CLASSIFIER] LLM exception, fallback a keywords: {}", e.getMessage());
+            log.error("[CLASSIFIER] LLM exception: {} — {}", e.getMessage(), e.getClass().getSimpleName(), e);
             return null;
         }
     }
@@ -132,7 +155,7 @@ public class IntentClassifierService {
         if (line.contains("SALUDO")) {
             return new IntentClassification.Greeting();
         }
-        if (line.contains("PREGUNTA_GENERAL")) {
+        if (line.contains("PREGUNTA_GENERAL") || (line.contains("PREGUNTA") && line.contains("GENERAL"))) {
             return new IntentClassification.GeneralQuestion();
         }
         if (line.contains("ACCION_CRM")) {
@@ -149,9 +172,7 @@ public class IntentClassifierService {
         return null;
     }
 
-    /**
-     * Fallback sin LLM: regex/keywords en orden malas intenciones → CRM → saludo → pregunta general.
-     */
+    /** Camino sin LLM: regex/keywords (malas intenciones → CRM → saludo → pregunta general). */
     private IntentClassification classifyWithKeywords(String text) {
         String normalized = text.strip().toLowerCase();
 
@@ -185,7 +206,7 @@ public class IntentClassifierService {
     /**
      * Compatibilidad: devuelve action_id solo si la clasificación es CRM_ACTION.
      */
-    public Optional<String> classifyActionIntent(String text) {
-        return classify(text).getActionId();
+    public Optional<String> classifyActionIntent(String text, String tenantId) {
+        return classify(text, tenantId).getActionId();
     }
 }

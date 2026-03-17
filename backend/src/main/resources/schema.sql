@@ -111,6 +111,8 @@ CREATE TABLE IF NOT EXISTS knowledge_chunk (
 CREATE INDEX IF NOT EXISTS idx_knowledge_tenant ON knowledge_chunk(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_topic ON knowledge_chunk(topic);
 CREATE INDEX IF NOT EXISTS idx_knowledge_active ON knowledge_chunk(active);
+-- Por si la tabla fue creada por Hibernate (ddl-auto: update) sin la columna vector
+ALTER TABLE knowledge_chunk ADD COLUMN IF NOT EXISTS embedding vector(768);
 
 -- Bot: configuración de cada bot por usuario
 CREATE TABLE IF NOT EXISTS bot (

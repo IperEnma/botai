@@ -20,10 +20,14 @@ public sealed interface IntentClassification {
     /** Mala intención (insultos, abuso) → bloquear con mensaje fijo */
     record BadIntent() implements IntentClassification {}
 
+    /** Error del clasificador (ej. LLM no disponible) → mensaje único al cliente, sin fallback */
+    record ServiceError() implements IntentClassification {}
+
     default boolean isGreeting() { return this instanceof Greeting; }
     default boolean isCrmAction() { return this instanceof CrmAction; }
     default boolean isGeneralQuestion() { return this instanceof GeneralQuestion; }
     default boolean isBadIntent() { return this instanceof BadIntent; }
+    default boolean isServiceError() { return this instanceof ServiceError; }
 
     default Optional<String> getActionId() {
         return this instanceof CrmAction c ? Optional.of(c.actionId()) : Optional.empty();

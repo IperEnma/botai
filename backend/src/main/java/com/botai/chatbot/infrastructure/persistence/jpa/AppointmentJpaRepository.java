@@ -11,6 +11,9 @@ public interface AppointmentJpaRepository extends JpaRepository<AppointmentEntit
     List<AppointmentEntity> findByTenantIdAndAppointmentDateBetweenOrderByAppointmentTimeAsc(
         String tenantId, LocalDate start, LocalDate end);
 
+    List<AppointmentEntity> findByTenantIdAndAppointmentDateOrderByAppointmentTimeAsc(
+        String tenantId, LocalDate appointmentDate);
+
     List<AppointmentEntity> findByTenantIdAndUserIdOrderByAppointmentDateAscAppointmentTimeAsc(
         String tenantId, String userId);
 }
