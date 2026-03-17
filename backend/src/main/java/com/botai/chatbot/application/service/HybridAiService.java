@@ -16,6 +16,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * IA con RAG siempre activo: en cada request se hace búsqueda semántica (embeddings),
@@ -85,7 +86,78 @@ public class HybridAiService {
             return OutboundMessage.builder().text(messageTenantUnknown).conversationId(conversationId).tenantId(null).build();
         }
 
+        String requiredBookingQuestion = getRequiredBookingQuestion(conversationId, userText, classification, tenantId);
+        if (requiredBookingQuestion != null) {
+            log.info("[AI] Flujo agendar: respondiendo con pregunta obligatoria (nombre/documento) sin LLM");
+            messageHistoryService.saveAssistantMessage(conversationId, requiredBookingQuestion);
+            return OutboundMessage.builder()
+                .text(requiredBookingQuestion)
+                .conversationId(conversationId)
+                .tenantId(tenantId)
+                .build();
+        }
+
         return generateResponseWithRag(conversationId, userText, tenantId, state, classification);
+    }
+
+    private static final Pattern TIME_PATTERN = Pattern.compile("^\\s*(\\d{1,2})(?::(\\d{2}))?\\s*$");
+
+    /**
+     * Si estamos en flujo de agendar y falta pedir nombre o documento, devuelve la pregunta exacta
+     * para no depender del modelo. Así el bot siempre pide nombre y documento.
+     * Se usa el historial (último mensaje del asistente) para saber en qué paso estamos.
+     */
+    private String getRequiredBookingQuestion(String conversationId, String userText, IntentClassification classification, String tenantId) {
+        List<String> history = messageHistoryService.getHistory(conversationId);
+        String lastAssistant = null;
+        for (int i = history.size() - 1; i >= 0; i--) {
+            String line = history.get(i);
+            if (line.startsWith("assistant:")) {
+                lastAssistant = line.substring(9).trim().toLowerCase();
+                break;
+            }
+        }
+        if (lastAssistant == null || lastAssistant.isEmpty()) {
+            return null;
+        }
+        String userTrim = userText != null ? userText.trim() : "";
+        if (userTrim.isEmpty()) return null;
+
+        boolean lastAskedForDocument = lastAssistant.contains("cédula") || lastAssistant.contains("cedula") || lastAssistant.contains("documento");
+        if (lastAskedForDocument) {
+            return null;
+        }
+        boolean lastAskedForName = lastAssistant.contains("nombre completo") || lastAssistant.contains("nombre del cliente");
+        if (lastAskedForName) {
+            return "¿Cuál es tu número de cédula o documento?";
+        }
+        boolean lastOfferedHours = lastAssistant.contains("horas disponibles") || lastAssistant.contains("hora de llegada") || lastAssistant.contains("elige una") || lastAssistant.contains("siguientes horas");
+        boolean userSaidTime = TIME_PATTERN.matcher(userTrim).matches() || userTrim.matches("\\d{1,2}\\s*:\\s*\\d{2}");
+        if (lastOfferedHours && userSaidTime) {
+            return "¿Cuál es tu nombre completo?";
+        }
+        return null;
+    }
+
+    /**
+     * Cuando el último mensaje del bot pidió documento y el usuario acaba de responder,
+     * inyectamos instrucción para que el modelo llame agendarCita con los datos del historial.
+     */
+    private String getBookingConfirmInject(String conversationId, String userText) {
+        if (userText == null || userText.isBlank()) return null;
+        List<String> history = messageHistoryService.getHistory(conversationId);
+        String lastAssistant = null;
+        for (int i = history.size() - 1; i >= 0; i--) {
+            String line = history.get(i);
+            if (line.startsWith("assistant:")) {
+                lastAssistant = line.substring(9).trim().toLowerCase();
+                break;
+            }
+        }
+        if (lastAssistant == null) return null;
+        boolean lastAskedForDocument = lastAssistant.contains("cédula") || lastAssistant.contains("cedula") || lastAssistant.contains("documento");
+        if (!lastAskedForDocument) return null;
+        return "IMPORTANTE: El usuario acaba de responder con su documento/cédula. En la conversación ya están la fecha, hora y nombre (mensaje anterior del usuario). DEBES llamar ahora la herramienta agendarCita con: servicio (ej. Depilación), fecha YYYY-MM-DD, hora HH:mm, nombreCliente = el nombre que el usuario escribió en su mensaje anterior, documento = lo que el usuario acaba de escribir. Luego confirma la cita.";
     }
 
     /**
@@ -112,6 +184,10 @@ public class HybridAiService {
             String classificationLine = formatClassification(classification);
             if (!classificationLine.isEmpty()) {
                 systemLines.add(1, classificationLine);
+            }
+            String bookingInject = getBookingConfirmInject(conversationId, userText);
+            if (bookingInject != null) {
+                systemLines.add(1, bookingInject);
             }
             String systemText = String.join("\n", systemLines);
             if (!StringUtils.hasText(systemText)) {
