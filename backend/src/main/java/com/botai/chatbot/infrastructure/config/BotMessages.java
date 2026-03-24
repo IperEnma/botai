@@ -16,7 +16,7 @@ public class BotMessages {
     /** Guardrail bloqueó (jailbreak/regex); se usa si bot.guardrails.out-of-scope-message está vacío. */
     private String guardrailBlock = "Solo puedo ayudarte con temas del negocio. ¿En qué más puedo ayudarte?";
     /** Sin match en menú/FAQ/acción ni IA. */
-    private String noMatch = "No tengo una respuesta para eso. Revisa que menú, servicios, horario y conocimiento estén configurados en el panel.";
+    private String noMatch = "No tengo una respuesta para eso. Revisa servicios, horario y conocimiento en el panel (y menú si usas FAQ).";
     /** No se pudo identificar el negocio (tenant ausente). */
     private String tenantUnknown = "No se pudo identificar el negocio. Revisa la configuración del bot.";
     /** RAG devolvió 0 chunks; no se llama al LLM. */

@@ -2,11 +2,16 @@ package com.botai.chatbot.infrastructure.channel.whatsapp;
 
 import com.botai.chatbot.domain.model.InboundMessage;
 import com.botai.chatbot.infrastructure.channel.MessageBufferService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -23,13 +28,16 @@ public class WhatsAppWebhookController {
     private final WhatsAppAdapter adapter;
     private final WhatsAppProperties properties;
     private final MessageBufferService bufferService;
+    private final ObjectMapper objectMapper;
 
     public WhatsAppWebhookController(WhatsAppAdapter adapter,
                                      WhatsAppProperties properties,
-                                     MessageBufferService bufferService) {
+                                     MessageBufferService bufferService,
+                                     ObjectMapper objectMapper) {
         this.adapter = adapter;
         this.properties = properties;
         this.bufferService = bufferService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -49,18 +57,22 @@ public class WhatsAppWebhookController {
 
     /**
      * Notificaciones: mensajes entrantes (messages) y estados (statuses).
-     * Solo procesamos cuando hay un mensaje de texto del usuario; ignoramos statuses.
+     * Decodifica el cuerpo como UTF-8 y parsea JSON; el log usa JSON serializado (escapes \\u) para que en consolas
+     * no-UTF-8 se vea legible el texto con tildes.
      */
-    @PostMapping
-    public ResponseEntity<Void> handleWebhook(@RequestBody Map<String, Object> payload) {
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> handleWebhook(@RequestBody byte[] body) throws IOException {
         log.info("========== [WEBHOOK] POST RECIBIDO ==========");
-        log.info("[WEBHOOK] Payload completo: {}", payload);
+        Map<String, Object> payload = objectMapper.readValue(
+            new String(body, StandardCharsets.UTF_8),
+            new TypeReference<Map<String, Object>>() {});
+        log.info("[WEBHOOK] Payload JSON: {}", objectMapper.writeValueAsString(payload));
         
         InboundMessage inbound = adapter.toInboundMessage(payload);
         log.info("[WEBHOOK] Mensaje parseado: userId={}, text='{}'", inbound.getUserId(), inbound.getText());
         
         if (inbound.getText() == null || inbound.getText().isBlank()) {
-            log.info("[WEBHOOK] Texto vacío -> IGNORANDO (status update o mensaje no-texto)");
+            log.info("[WEBHOOK] Texto vacio -> IGNORANDO (status update o mensaje no-texto)");
             log.info("========== [WEBHOOK] FIN (ignorado) ==========");
             return ResponseEntity.ok().build();
         }

@@ -1,6 +1,8 @@
 package com.botai.chatbot.infrastructure.channel;
 
 import com.botai.chatbot.application.dto.ProcessMessageResult;
+import com.botai.chatbot.application.prompt.BotPrompts;
+import com.botai.chatbot.application.support.InboundMetadata;
 import com.botai.chatbot.application.usecase.ProcessInboundMessageUseCase;
 import com.botai.chatbot.domain.model.InboundMessage;
 import com.botai.chatbot.domain.model.OutboundMessage;
@@ -129,11 +131,9 @@ public class MessageBufferService {
                 }
             } catch (Exception e) {
                 log.error("[BUFFER] Error processing messages for {}: {} — {}", conversationId, e.getMessage(), e.getClass().getSimpleName(), e);
-                String tenantId = first.getMetadata() != null && first.getMetadata().get("tenantId") != null
-                    ? first.getMetadata().get("tenantId").toString().strip() : null;
-                if (tenantId != null && tenantId.isEmpty()) tenantId = null;
+                String tenantId = InboundMetadata.tenantId(first);
                 OutboundMessage errorOut = OutboundMessage.builder()
-                    .text("Algo no ha ido bien. Por favor, inténtalo en un momento.")
+                    .text(BotPrompts.UserFacing.RETRY_LATER)
                     .conversationId(conversationId)
                     .tenantId(tenantId)
                     .build();

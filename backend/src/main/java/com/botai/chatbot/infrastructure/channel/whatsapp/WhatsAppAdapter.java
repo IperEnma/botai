@@ -1,5 +1,6 @@
 package com.botai.chatbot.infrastructure.channel.whatsapp;
 
+import com.botai.chatbot.domain.ConversationContextKeys;
 import com.botai.chatbot.domain.model.InboundMessage;
 import com.botai.chatbot.domain.model.OutboundMessage;
 import com.botai.chatbot.infrastructure.channel.ChannelAdapter;
@@ -24,7 +25,8 @@ public class WhatsAppAdapter implements ChannelAdapter {
     private static final Logger log = LoggerFactory.getLogger(WhatsAppAdapter.class);
 
     public static final String CHANNEL_ID = "whatsapp";
-    public static final String METADATA_TENANT_ID = "tenantId";
+    /** Misma clave que {@link ConversationContextKeys#TENANT_ID} en el contexto persistido. */
+    public static final String METADATA_TENANT_ID = ConversationContextKeys.TENANT_ID;
 
     private final WhatsAppCloudApiClient apiClient;
     private final BotJpaRepository botRepository;
@@ -103,7 +105,7 @@ public class WhatsAppAdapter implements ChannelAdapter {
                                             }
                                         } else {
                                             List<BotEntity> allBots = botRepository.findAll();
-                                            log.warn("[WA-ADAPTER] No hay bot con whatsapp_phone_number_id={}. Meta envió: {}. Bots en BD (id → últimos 4 dígitos): {}",
+                                            log.warn("[WA-ADAPTER] No hay bot con whatsapp_phone_number_id={}. Meta envio: {}. Bots en BD (id -> ultimos 4 digitos): {}",
                                                 phoneIdStr, phoneIdStr,
                                                 allBots.stream()
                                                     .map(b -> b.getId() + "=" + (b.getWhatsappPhoneNumberId() != null && b.getWhatsappPhoneNumberId().length() >= 4
@@ -135,6 +137,7 @@ public class WhatsAppAdapter implements ChannelAdapter {
                                         if (textObj instanceof Map<?, ?> textMap) {
                                             Object body = ((Map<?, ?>) textObj).get("body");
                                             text = body != null ? String.valueOf(body) : "";
+                                            text = WhatsAppInboundTextUtf8.tryFix(text);
                                         }
                                     } else {
                                         log.info("[WA-ADAPTER] Mensaje no es texto ({}), ignorando contenido", msgType);
@@ -187,9 +190,14 @@ public class WhatsAppAdapter implements ChannelAdapter {
             return;
         }
         String body = renderMessage(message);
+        body = WhatsAppInboundTextUtf8.tryFix(body != null ? body : "");
         log.info("[WA-ADAPTER] Enviando a {} (tenant={}): {}", to, tenantId, body != null && body.length() > 50 ? body.substring(0,50)+"..." : body);
-        apiClient.sendText(tenantId, to, body != null ? body : "");
-        log.info("[WA-ADAPTER] Mensaje enviado exitosamente a {}", to);
+        boolean sent = apiClient.sendText(tenantId, to, body != null ? body : "");
+        if (sent) {
+            log.info("[WA-ADAPTER] Mensaje enviado exitosamente a {}", to);
+        } else {
+            log.warn("[WA-ADAPTER] No se pudo enviar el mensaje a {} (revisa logs [WA-API] y permisos Meta/WhatsApp)", to);
+        }
     }
 
     /**

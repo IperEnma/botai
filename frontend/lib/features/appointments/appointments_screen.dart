@@ -28,6 +28,8 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   String? _error;
   DateTime _from = DateTime.now();
   DateTime _to = DateTime.now().add(const Duration(days: 30));
+  /// Si es false, el backend no devuelve citas canceladas (desde el chat se marcan `cancelled`).
+  bool _includeCancelled = false;
 
   static String _dateToStr(DateTime d) {
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -42,7 +44,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       final api = ref.read(apiServiceProvider);
       final fromStr = _dateToStr(_from);
       final toStr = _dateToStr(_to);
-      final list = await api.getAppointments(widget.tenantId, from: fromStr, to: toStr);
+      final list = await api.getAppointments(
+        widget.tenantId,
+        from: fromStr,
+        to: toStr,
+        includeCancelled: _includeCancelled,
+      );
       List<Service> svc = [];
       try {
         svc = await api.getServices(widget.tenantId);
@@ -303,6 +310,18 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilterChip(
+                      label: const Text('Ver canceladas'),
+                      selected: _includeCancelled,
+                      onSelected: (v) {
+                        setState(() => _includeCancelled = v);
+                        _load();
+                      },
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   ListView.separated(
                     shrinkWrap: true,
@@ -324,6 +343,9 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                           label: Text(a.status),
                           padding: EdgeInsets.zero,
                           visualDensity: VisualDensity.compact,
+                          backgroundColor: a.status.toLowerCase() == 'cancelled'
+                              ? Colors.grey.shade300
+                              : Colors.green.shade100,
                         ),
                       );
                     },

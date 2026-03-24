@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS message (
 
 CREATE INDEX IF NOT EXISTS idx_message_conversation ON message(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_message_created ON message(created_at);
+ALTER TABLE message ADD COLUMN IF NOT EXISTS session_id VARCHAR(64);
+CREATE INDEX IF NOT EXISTS idx_message_conv_session ON message(conversation_id, session_id);
 
 CREATE TABLE IF NOT EXISTS faq (
     id BIGSERIAL PRIMARY KEY,
@@ -106,13 +108,14 @@ CREATE TABLE IF NOT EXISTS knowledge_chunk (
     keywords TEXT,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    embedding vector(768)
+    embedding vector(384)
 );
 CREATE INDEX IF NOT EXISTS idx_knowledge_tenant ON knowledge_chunk(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_topic ON knowledge_chunk(topic);
 CREATE INDEX IF NOT EXISTS idx_knowledge_active ON knowledge_chunk(active);
 -- Por si la tabla fue creada por Hibernate (ddl-auto: update) sin la columna vector
-ALTER TABLE knowledge_chunk ADD COLUMN IF NOT EXISTS embedding vector(768);
+-- 384 = DJL MiniLM (paraphrase-multilingual-MiniLM-L12-v2). Si usas Ollama nomic-embed-text, usar vector(768).
+ALTER TABLE knowledge_chunk ADD COLUMN IF NOT EXISTS embedding vector(384);
 
 -- Bot: configuración de cada bot por usuario
 CREATE TABLE IF NOT EXISTS bot (

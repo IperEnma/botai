@@ -22,7 +22,7 @@ public class AiToolsConfig {
     }
 
     @Bean
-    @Description("Agendar una cita. Usar cuando tengas: servicio, fecha (YYYY-MM-DD), hora (HH:mm), nombre del cliente y documento. Si falta algún dato, pide al usuario antes de llamar esta herramienta.")
+    @Description("Agendar una cita en BD. Obligatorio: servicio, fecha YYYY-MM-DD, hora HH:mm, nombre completo y cédula que el cliente escribió en el chat (puedes tomarlos de mensajes anteriores del historial). No llames si falta nombre o cédula: pregunta antes.")
     public Function<ToolInputs.AgendarCitaInput, String> agendarCita(AgendarTools agendarTools) {
         return input -> {
             if (input == null) {

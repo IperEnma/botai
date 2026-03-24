@@ -1,4 +1,8 @@
 # Lee variables de .env (spring-dotenv). Copia .env.example a .env y configura tus valores.
+
+# -----------------------------------------------------------------------------
+# Spring: datos, JPA, SQL init
+# -----------------------------------------------------------------------------
 spring:
   application:
     name: chatbot-engine
@@ -22,61 +26,60 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     open-in-view: false
+
   sql:
     init:
       mode: always
-  # Spring AI: chat + embeddings. RAG siempre usa búsqueda semántica con el modelo de embeddings.
-  # Para un verdadero RAG local: modelo de embeddings local (Hugging Face vía Ollama).
-  # Ej: ollama pull nomic-embed-text | ollama pull hf.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+
+  # ---------------------------------------------------------------------------
+  # Spring AI: chat (Ollama) + qué integración de embeddings usa el contenedor
+  # ---------------------------------------------------------------------------
+  # Embeddings reales: bot.embedding.* (abajo). Si provider=djl → model.embedding=none
+  # y NO uses spring.ai.ollama.embedding. Si provider=ollama → model.embedding=ollama
+  # y define spring.ai.ollama.embedding.options.model.
   ai:
     ollama:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       chat:
         options:
-          model: ${OLLAMA_MODEL:llama3}
-      # Embeddings: obligatorio para RAG semántico. Modelo local (Hugging Face GGUF en Ollama).
-      embedding:
-        options:
-          # nomic-embed-text (768 dims); multilingüe: paraphrase-multilingual-MiniLM-L12-v2
-          model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+          model: ${OLLAMA_MODEL:mixtral}
     model:
       chat: ollama
-      embedding: ollama
+      embedding: none
 
-server:
-  port: ${SERVER_PORT:8080}
-  servlet:
-    encoding:
-      charset: UTF-8
-      enabled: true
-      force-request: true
-      force-response: true
-
-# Features (FAQ, AI, Actions) se gestionan por tenant en BD (feature_config / bot).
-# Aquí solo config del motor y canales.
+# -----------------------------------------------------------------------------
+# Bot: motor (orden: IA/RAG → conversación → canales)
+# -----------------------------------------------------------------------------
 bot:
-  channels:
-    web:
-      base-path: /api/v1/webhook
-    # WhatsApp Cloud API (Meta). Configurar en .env
-    whatsapp:
-      verify-token: ${WHATSAPP_VERIFY_TOKEN:}
-      access-token: ${WHATSAPP_ACCESS_TOKEN:}
-      phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
-  # Buffer: espera N ms antes de procesar mensajes (agrupa mensajes rápidos)
-  buffer:
-    debounce-ms: 2500
-  # Memoria: cuántos turnos de conversación recordar (user+assistant)
+  # Embeddings (DJL en JVM o Ollama): va junto a spring.ai.model.embedding / ollama arriba.
+  embedding:
+    provider: djl
+    djl:
+      model-url: djl://ai.djl.huggingface.pytorch/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+
+  # RAG (pgvector): usa el mismo EmbeddingModel que embedding.provider.
+  rag:
+    max-chunks: 3
+    min-similarity: 0.7
+
+  # Memoria del LLM por sesión (turnos user+assistant de la sesión actual).
   memory:
     max-history-turns: 10
-  # RAG: siempre activo. Búsqueda por coincidencia semántica (embedding local) + horario + servicios inyectados en cada request.
-  rag:
-    max-chunks: 5
-  # Guardrail: si está activo, se bloquean intentos de jailbreak/cambio de rol por regex. Desactivar = no bloquear.
+
+  # Tras N minutos sin mensajes, el siguiente abre sesión nueva (historial IA limpio). 0 = solo reinicio explícito o fin de acción.
+  session:
+    idle-minutes: 45
+
+  # Espera N ms antes de procesar (agrupa mensajes rápidos).
+  buffer:
+    debounce-ms: 2500
+
+  # Regex anti–jailbreak / cambio de rol. Desactivar = no bloquear.
   guardrails:
     enabled: true
     # out-of-scope-message: "Solo puedo ayudarte con..."  # opcional; si vacío se usa bot.messages.guardrail-block
-  # Mensajes del bot (personalizables por entorno). Clase BotMessages tiene valores por defecto.
+
+  # Textos del bot (BotMessages tiene defaults).
   messages:
     # bad-intent: "No puedo responder a eso. ¿En qué puedo ayudarte con el negocio?"
     # guardrail-block: "Solo puedo ayudarte con temas del negocio. ¿En qué más puedo ayudarte?"
@@ -87,7 +90,33 @@ bot:
     # ai-hint: "💬 También puedes escribir tu pregunta y te responderé."
     # greeting: "Hola, ¿en qué podemos ayudarte?"   # saludo cuando solo IA (sin menú/FAQ)
 
+  # Features por tenant están en BD (feature_config / bot). Aquí solo canales.
+  channels:
+    web:
+      base-path: /api/v1/webhook
+    whatsapp:
+      verify-token: ${WHATSAPP_VERIFY_TOKEN:}
+      access-token: ${WHATSAPP_ACCESS_TOKEN:}
+      phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+
+# -----------------------------------------------------------------------------
+# HTTP
+# -----------------------------------------------------------------------------
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force-request: true
+      force-response: true
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
 logging:
+  charset:
+    console: UTF-8
   level:
     com.botai: DEBUG
     org.hibernate.SQL: WARN

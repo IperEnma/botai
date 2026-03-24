@@ -219,10 +219,13 @@ class ApiService {
   }
 
   // Citas / Agenda
-  Future<List<Appointment>> getAppointments(String tenantId, {String? from, String? to}) async {
+  Future<List<Appointment>> getAppointments(String tenantId, {String? from, String? to, bool includeCancelled = false}) async {
     var uri = Uri.parse('$baseUrl/tenants/$tenantId/appointments');
-    if (from != null && from.isNotEmpty) uri = uri.replace(queryParameters: {...uri.queryParameters, 'from': from});
-    if (to != null && to.isNotEmpty) uri = uri.replace(queryParameters: {...uri.queryParameters, 'to': to});
+    final qp = <String, String>{...uri.queryParameters};
+    if (from != null && from.isNotEmpty) qp['from'] = from;
+    if (to != null && to.isNotEmpty) qp['to'] = to;
+    qp['includeCancelled'] = includeCancelled ? 'true' : 'false';
+    uri = uri.replace(queryParameters: qp);
     final response = await http.get(uri, headers: _headers);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);

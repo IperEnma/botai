@@ -16,4 +16,8 @@ public interface AppointmentJpaRepository extends JpaRepository<AppointmentEntit
 
     List<AppointmentEntity> findByTenantIdAndUserIdOrderByAppointmentDateAscAppointmentTimeAsc(
         String tenantId, String userId);
+
+    /** Citas futuras o de hoy (scheduled) por documento, para evitar duplicados por cédula. */
+    List<AppointmentEntity> findByTenantIdAndCustomerDocumentAndStatusAndAppointmentDateGreaterThanEqualOrderByAppointmentDateAscAppointmentTimeAsc(
+        String tenantId, String customerDocument, String status, LocalDate fromDate);
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fuerza UTF-8 en appenders (consola/archivo) para evitar mojibake en Windows
+  cuando la consola no interpreta UTF-8. Además: en PowerShell, chcp 65001 ayuda.
+-->
+<configuration>
+    <property name="CONSOLE_LOG_CHARSET" value="UTF-8"/>
+    <property name="FILE_LOG_CHARSET" value="UTF-8"/>
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+</configuration>

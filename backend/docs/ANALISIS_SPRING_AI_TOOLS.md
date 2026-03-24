@@ -28,7 +28,7 @@ Para preguntas generales:
 ```
 Usuario: "¿qué horarios tienen?"
     → Clasificador: PREGUNTA_GENERAL
-    → Router: llega a HybridAiService
+    → Router: llega a RagLlmChatService (turno generativo completo)
     → RagAiContextBuilder construye contexto (horario, servicios, knowledge) en texto
     → Una llamada al LLM con ese contexto
     → Respuesta generada por el modelo
@@ -88,7 +88,7 @@ Encajan sobre todo para:
 
 - **Mantener** el router actual y el clasificador con **keywords primero** para acciones CRM (agendar, ver citas). Así “quiero agendar una cita” sigue siendo robusto aunque el modelo falle o no tenga tools.
 - **Añadir** un camino “IA con tools” para **preguntas generales** cuando la IA esté activa:
-  - Si clasificador → PREGUNTA_GENERAL (o saludo que quieras responder con datos), ir a un **HybridAiService con tools**.
+  - Si clasificador → PREGUNTA_GENERAL (o saludo que quieras responder con datos), ir a **RagLlmChatService** (ChatClient con tools).
   - En esa llamada al LLM: system prompt (rol, instrucciones) + historial + mensaje del usuario + tools `get_horario`, `listar_servicios`, `buscar_conocimiento`.
   - El modelo opcionalmente llama tools y genera la respuesta; vosotros seguís validando (p. ej. no inventar) con la salida del modelo.
 
@@ -120,7 +120,7 @@ Implementación técnica: Spring AI expone esto vía `ChatClient` con `.function
 3. **Crear un camino “IA con tools”** opcional (feature flag o tenant): en vez de `RagAiContextBuilder` + una sola llamada sin tools, hacer una llamada al LLM con esas tools y system prompt mínimo; el modelo llama las tools y responde.
 4. **Mantener** el flujo actual de agendar (router + clasificador + `BookAppointmentAction`) como está.
 
-Si quieres, el siguiente paso puede ser esbozar en código cómo quedaría un `get_horario(tenantId)` como tool y cómo enlazarlo a una variante de `HybridAiService` que use tools solo para la rama de preguntas.
+Si quieres, el siguiente paso puede ser esbozar en código cómo quedaría un `get_horario(tenantId)` como tool y cómo enlazarlo a `RagLlmChatService` (tools ya soportados vía ChatClient).
 
 ---
 

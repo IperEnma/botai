@@ -46,7 +46,7 @@ public class KnowledgeChunkEmbeddingSync {
         List<Row> rows = jdbcTemplate.query(SELECT_NEEDING_EMBEDDING,
             (rs, rowNum) -> new Row(rs.getLong("id"), rs.getString("topic"), rs.getString("content")));
         if (rows.isEmpty()) {
-            log.info("[RAG-EMBED] Ningún chunk pendiente de embedding (todos tienen vector o no hay chunks activos)");
+            log.info("[RAG-EMBED] Sin chunks pendientes de embedding (todos tienen vector o no hay chunks activos)");
             return 0;
         }
         log.info("[RAG-EMBED] Iniciando sync: {} chunks sin vector (ids: {})", rows.size(),

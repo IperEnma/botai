@@ -1,8 +1,9 @@
 package com.botai.chatbot.infrastructure.api;
 
-import com.botai.chatbot.application.service.BusinessHoursAdminService;
-import com.botai.chatbot.application.service.BusinessServiceAdminService;
-import com.botai.chatbot.application.service.KnowledgeChunkAdminService;
+import com.botai.chatbot.application.service.admin.BusinessHoursAdminService;
+import com.botai.chatbot.application.service.admin.BusinessServiceAdminService;
+import com.botai.chatbot.application.service.knowledge.KnowledgeChunkAdminService;
+import com.botai.chatbot.infrastructure.booking.CustomerDocumentNormalizer;
 import com.botai.chatbot.infrastructure.persistence.entity.*;
 import com.botai.chatbot.infrastructure.persistence.jpa.*;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
@@ -307,29 +309,67 @@ public class AdminController {
 
     // ============ CITAS / AGENDA ============
 
+    /**
+     * Lista citas en rango. Por defecto {@code includeCancelled=false}: solo activas ({@code scheduled}),
+     * para que las canceladas desde el chat (status {@code cancelled}) no sigan apareciendo como agenda viva.
+     */
     @GetMapping("/tenants/{tenantId}/appointments")
     public ResponseEntity<List<AppointmentEntity>> getAppointments(
             @PathVariable String tenantId,
             @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to) {
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false, defaultValue = "false") boolean includeCancelled) {
         LocalDate start = from != null && !from.isBlank() ? LocalDate.parse(from) : LocalDate.now();
         LocalDate end = to != null && !to.isBlank() ? LocalDate.parse(to) : start.plusMonths(1);
         List<AppointmentEntity> list = appointmentRepository.findByTenantIdAndAppointmentDateBetweenOrderByAppointmentTimeAsc(tenantId, start, end);
+        if (!includeCancelled) {
+            list = list.stream()
+                .filter(a -> {
+                    String s = a.getStatus();
+                    return s == null || s.isBlank() || !"cancelled".equalsIgnoreCase(s.strip());
+                })
+                .collect(Collectors.toList());
+        }
         return ResponseEntity.ok(list);
+    }
+
+    /** Cancelar / reactivar cita desde el panel (misma semántica que la tool del chatbot). */
+    @PatchMapping("/tenants/{tenantId}/appointments/{appointmentId}")
+    public ResponseEntity<AppointmentEntity> patchAppointmentStatus(
+            @PathVariable String tenantId,
+            @PathVariable Long appointmentId,
+            @RequestBody Map<String, String> body) {
+        String status = body != null && body.get("status") != null ? body.get("status").strip() : "";
+        if (status.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return appointmentRepository.findById(appointmentId)
+            .filter(a -> tenantId.equals(a.getTenantId()))
+            .map(a -> {
+                a.setStatus(status);
+                return ResponseEntity.ok(appointmentRepository.save(a));
+            })
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/tenants/{tenantId}/appointments")
     public ResponseEntity<?> createAppointment(
             @PathVariable String tenantId,
             @RequestBody Map<String, Object> body) {
-        String customerDocument = body.get("customerDocument") != null ? body.get("customerDocument").toString().strip() : "";
+        String customerDocumentRaw = body.get("customerDocument") != null ? body.get("customerDocument").toString().strip() : "";
+        String customerDocument = CustomerDocumentNormalizer.normalize(customerDocumentRaw);
         if (customerDocument.isEmpty()) {
             return ResponseEntity.badRequest().body(
                 Map.of("error", "customerDocument es obligatorio para mantener el expediente del usuario."));
         }
+        String customerName = body.get("customerName") != null ? body.get("customerName").toString().trim() : "";
+        if (customerName.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                Map.of("error", "customerName es obligatorio."));
+        }
         AppointmentEntity e = new AppointmentEntity();
         e.setTenantId(tenantId);
-        e.setCustomerName(body.get("customerName") != null ? body.get("customerName").toString().trim() : "");
+        e.setCustomerName(customerName);
         e.setCustomerDocument(customerDocument);
         e.setServiceName(body.get("serviceName") != null ? body.get("serviceName").toString().trim() : "");
         e.setAppointmentDate(body.get("appointmentDate") != null ? LocalDate.parse(body.get("appointmentDate").toString()) : LocalDate.now());

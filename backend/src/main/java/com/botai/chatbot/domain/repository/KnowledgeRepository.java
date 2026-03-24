@@ -19,6 +19,14 @@ public interface KnowledgeRepository {
     /**
      * Búsqueda por similitud (cosine) usando la columna embedding. Solo devuelve chunks con embedding no nulo.
      * Filtra por tenantId cuando no es nulo.
+     *
+     * @param maxCosineDistance si no es {@code null}, descarta filas con distancia coseno mayor (pgvector {@code <=>});
+     *                          equivale a similitud coseno &ge; {@code 1 - maxCosineDistance} para vectores normalizados.
      */
-    List<KnowledgeChunk> findRelevantBySimilarity(List<Double> queryEmbedding, int limit, String tenantId);
+    default List<KnowledgeChunk> findRelevantBySimilarity(List<Double> queryEmbedding, int limit, String tenantId) {
+        return findRelevantBySimilarity(queryEmbedding, limit, tenantId, null);
+    }
+
+    List<KnowledgeChunk> findRelevantBySimilarity(List<Double> queryEmbedding, int limit, String tenantId,
+                                                  Double maxCosineDistance);
 }

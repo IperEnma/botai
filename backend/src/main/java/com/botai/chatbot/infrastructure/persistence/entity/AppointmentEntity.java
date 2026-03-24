@@ -22,7 +22,7 @@ public class AppointmentEntity {
     @Column(name = "customer_name", nullable = false, length = 255)
     private String customerName;
 
-    @Column(name = "customer_document", length = 64)
+    @Column(name = "customer_document", nullable = false, length = 64)
     private String customerDocument;
 
     @Column(name = "service_name", nullable = false, length = 255)

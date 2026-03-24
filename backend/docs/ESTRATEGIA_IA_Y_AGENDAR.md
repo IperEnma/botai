@@ -5,7 +5,7 @@
 - **Backend:** Java 17 + Spring Boot 3.2
 - **IA/LLM:** **Spring AI** (spring-ai-starter-model-ollama) → Ollama local
 - **RAG:** propio (RagAiContextBuilder + KnowledgeService con pgvector)
-- **Orquestación:** propia (IntentRouter, IntentClassifierService, ScopeGuard, BookAppointmentAction)
+- **Orquestación:** propia (`ConversationModeOrchestrator`, IntentClassifierService, JailbreakInputFilter, BookAppointmentAction)
 
 No usamos LangChain. Spring AI ya ofrece integración con modelos (Ollama, OpenAI, etc.), embeddings y en versiones recientes **function calling / tools**. Si más adelante quieres “tools” tipo LangChain, se puede hacer con Spring AI sin cambiar de stack.
 
@@ -13,7 +13,7 @@ No usamos LangChain. Spring AI ya ofrece integración con modelos (Ollama, OpenA
 
 ## Flujo cuando el usuario escribe "quiero agendar una cita"
 
-1. **Router** recibe el mensaje.
+1. **`ConversationModeOrchestrator`** recibe el mensaje (vía `ConversationCore`).
 2. **Clasificador** (IntentClassifierService):
    - Si `bot.classifier.use-llm: true`: primero llama al **LLM** para clasificar (SALUDO | ACCION_CRM | PREGUNTA_GENERAL | MALA_INTENCION).
    - Si el LLM falla, hace timeout o devuelve algo no parseable → **fallback a keywords** ("agendar", "ver citas", etc.).
@@ -22,7 +22,7 @@ No usamos LangChain. Spring AI ya ofrece integración con modelos (Ollama, OpenA
    - Se llama a **ActionDispatcher.startFromMenuOption** → **BookAppointmentAction.execute**.
    - La respuesta es la del flujo de agendar (servicios, fecha, hora, etc.).
 4. Si la clasificación es **PREGUNTA_GENERAL** (o la acción devuelve `null`):
-   - El mensaje sigue por FAQ/menú y, si no hay match, llega a **HybridAiService** (IA con RAG).
+   - El mensaje sigue por FAQ/menú y, si no hay match, llega a **RagLlmChatService** (feature IA + jailbreak + RAG + LLM + tools).
    - Se construye contexto (horario, servicios, knowledge) y se llama al **LLM**.
    - Si **el LLM falla** (Ollama caído, timeout, error) → se responde: **"Estamos procesando tu consulta. Por favor, intenta de nuevo en un momento."** y ahí se queda.
 
@@ -30,7 +30,7 @@ No usamos LangChain. Spring AI ya ofrece integración con modelos (Ollama, OpenA
 
 ## Por qué a veces ves "Estamos procesando" y se queda ahí
 
-Ese mensaje solo sale cuando **ya se está usando la IA** (HybridAiService) y **Ollama falla** (no responde, timeout o excepción). Eso puede pasar en dos casos:
+Ese mensaje solo sale cuando **ya se está usando la IA** (RagLlmChatService) y **Ollama falla** (no responde, timeout o excepción). Eso puede pasar en dos casos:
 
 1. **El clasificador mandó “agendar” a la IA:**  
    El LLM del clasificador devolvió PREGUNTA_GENERAL en vez de ACCION_CRM (o falló y el fallback por keywords no matcheó). Entonces el mensaje se trata como pregunta general y termina en la IA. Si además Ollama falla → "Estamos procesando".

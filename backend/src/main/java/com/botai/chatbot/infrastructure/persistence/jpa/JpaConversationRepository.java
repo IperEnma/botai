@@ -36,7 +36,8 @@ public class JpaConversationRepository implements ConversationRepository {
             log.warn("[REPO] save() omitido: state o conversationId nulo");
             return;
         }
-        log.info("[REPO] Saving state for {}, context={}", state.getConversationId(), state.getContext());
+        log.info("[REPO] Saving state for {}, currentIntent={}, context={}",
+            state.getConversationId(), state.getCurrentIntent(), state.getContext());
         ConversationEntity entity = jpaRepository.findById(state.getConversationId())
             .orElse(new ConversationEntity());
         entity.setConversationId(state.getConversationId());
@@ -55,7 +56,9 @@ public class JpaConversationRepository implements ConversationRepository {
     public void clearIntent(String conversationId) {
         jpaRepository.findById(conversationId).ifPresent(e -> {
             e.setCurrentIntent(null);
-            e.setContext(new HashMap<>());
+            // Conservar todo el contexto (chatSessionId, nombre, documento, step, etc.). Solo se limpia el intent
+            // para salir del flujo CRM; borrar el mapa rompía continuidad y hacía que el siguiente turno
+            // cargara context={tenantId} y perdiera datos del usuario.
             jpaRepository.save(e);
         });
     }

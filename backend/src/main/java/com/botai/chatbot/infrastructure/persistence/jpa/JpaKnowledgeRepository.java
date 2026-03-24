@@ -24,6 +24,17 @@ public class JpaKnowledgeRepository implements KnowledgeRepository {
         "SELECT topic, content, COALESCE(keywords, '') FROM knowledge_chunk " +
         "WHERE active = true AND embedding IS NOT NULL " +
         "ORDER BY embedding <=> CAST(? AS vector) LIMIT ?";
+    /** Filtro por distancia coseno (pgvector {@code <=>}); solo filas con distancia &le; umbral. */
+    private static final String SIMILARITY_SQL_TENANT_FILTERED =
+        "SELECT topic, content, COALESCE(keywords, '') FROM knowledge_chunk " +
+        "WHERE active = true AND embedding IS NOT NULL AND tenant_id = ? " +
+        "AND (embedding <=> CAST(? AS vector)) <= ? " +
+        "ORDER BY embedding <=> CAST(? AS vector) LIMIT ?";
+    private static final String SIMILARITY_SQL_GLOBAL_FILTERED =
+        "SELECT topic, content, COALESCE(keywords, '') FROM knowledge_chunk " +
+        "WHERE active = true AND embedding IS NOT NULL " +
+        "AND (embedding <=> CAST(? AS vector)) <= ? " +
+        "ORDER BY embedding <=> CAST(? AS vector) LIMIT ?";
 
     private final KnowledgeChunkJpaRepository jpaRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -59,24 +70,38 @@ public class JpaKnowledgeRepository implements KnowledgeRepository {
     }
 
     @Override
-    public List<KnowledgeChunk> findRelevantBySimilarity(List<Double> queryEmbedding, int limit, String tenantId) {
+    public List<KnowledgeChunk> findRelevantBySimilarity(List<Double> queryEmbedding, int limit, String tenantId,
+                                                         Double maxCosineDistance) {
         if (queryEmbedding == null || queryEmbedding.isEmpty() || limit <= 0) {
             log.debug("[RAG-REPO] findRelevantBySimilarity omitido: embedding vacío o limit<=0");
             return List.of();
         }
         String vectorStr = toVectorString(queryEmbedding);
         List<KnowledgeChunk> result;
+        boolean filtered = maxCosineDistance != null && maxCosineDistance > 0;
         if (tenantId != null && !tenantId.isBlank()) {
-            result = jdbcTemplate.query(SIMILARITY_SQL_TENANT,
-                (rs, rowNum) -> new KnowledgeChunk(rs.getString(1), rs.getString(2), rs.getString(3)),
-                tenantId, vectorStr, limit);
+            if (filtered) {
+                result = jdbcTemplate.query(SIMILARITY_SQL_TENANT_FILTERED,
+                    (rs, rowNum) -> new KnowledgeChunk(rs.getString(1), rs.getString(2), rs.getString(3)),
+                    tenantId, vectorStr, maxCosineDistance, vectorStr, limit);
+            } else {
+                result = jdbcTemplate.query(SIMILARITY_SQL_TENANT,
+                    (rs, rowNum) -> new KnowledgeChunk(rs.getString(1), rs.getString(2), rs.getString(3)),
+                    tenantId, vectorStr, limit);
+            }
         } else {
-            result = jdbcTemplate.query(SIMILARITY_SQL_GLOBAL,
-                (rs, rowNum) -> new KnowledgeChunk(rs.getString(1), rs.getString(2), rs.getString(3)),
-                vectorStr, limit);
+            if (filtered) {
+                result = jdbcTemplate.query(SIMILARITY_SQL_GLOBAL_FILTERED,
+                    (rs, rowNum) -> new KnowledgeChunk(rs.getString(1), rs.getString(2), rs.getString(3)),
+                    vectorStr, maxCosineDistance, vectorStr, limit);
+            } else {
+                result = jdbcTemplate.query(SIMILARITY_SQL_GLOBAL,
+                    (rs, rowNum) -> new KnowledgeChunk(rs.getString(1), rs.getString(2), rs.getString(3)),
+                    vectorStr, limit);
+            }
         }
         if (result.isEmpty()) {
-            log.warn("[RAG-REPO] findRelevantBySimilarity: 0 filas para tenantId={} (¿chunks sin embedding o sin datos para ese tenant?)", tenantId);
+            log.warn("[RAG-REPO] findRelevantBySimilarity: 0 filas para tenantId={} (¿chunks sin embedding, umbral muy estricto o sin datos?)", tenantId);
         }
         return result;
     }

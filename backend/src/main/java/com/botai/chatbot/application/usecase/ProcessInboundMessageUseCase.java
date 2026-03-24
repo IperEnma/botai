@@ -1,7 +1,7 @@
 package com.botai.chatbot.application.usecase;
 
 import com.botai.chatbot.application.dto.ProcessMessageResult;
-import com.botai.chatbot.application.service.ConversationCore;
+import com.botai.chatbot.application.service.inbound.ConversationCore;
 import com.botai.chatbot.domain.model.InboundMessage;
 
 /**

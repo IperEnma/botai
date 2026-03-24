@@ -6,7 +6,8 @@ import java.time.Instant;
 @Entity
 @Table(name = "message", indexes = {
     @Index(name = "idx_message_conversation", columnList = "conversation_id"),
-    @Index(name = "idx_message_created", columnList = "created_at")
+    @Index(name = "idx_message_created", columnList = "created_at"),
+    @Index(name = "idx_message_conv_session", columnList = "conversation_id, session_id")
 })
 public class MessageEntity {
 
@@ -16,6 +17,10 @@ public class MessageEntity {
 
     @Column(name = "conversation_id", nullable = false, length = 255)
     private String conversationId;
+
+    /** Sesión de chat: el LLM solo ve mensajes con el mismo session_id (null = legado antes de sesiones). */
+    @Column(name = "session_id", length = 64)
+    private String sessionId;
 
     @Column(name = "role", nullable = false, length = 16)  // user | assistant
     private String role;
@@ -47,6 +52,14 @@ public class MessageEntity {
 
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
     }
 
     public String getRole() {

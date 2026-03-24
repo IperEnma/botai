@@ -1,8 +1,9 @@
 package com.botai.chatbot.infrastructure.ai;
 
+import com.botai.chatbot.application.prompt.BotPrompts;
+import com.botai.chatbot.application.service.knowledge.KnowledgeService;
 import com.botai.chatbot.domain.context.TenantContext;
 import com.botai.chatbot.domain.model.KnowledgeChunk;
-import com.botai.chatbot.application.service.KnowledgeService;
 import com.botai.chatbot.infrastructure.persistence.entity.BusinessHoursEntity;
 import com.botai.chatbot.infrastructure.persistence.entity.ServiceEntity;
 import com.botai.chatbot.infrastructure.persistence.jpa.BusinessHoursJpaRepository;
@@ -37,11 +38,11 @@ public class ConsultaTools {
         this.knowledgeService = knowledgeService;
     }
 
-    @Tool(description = "Obtener el horario de atención del negocio. Usar cuando pregunten por horarios, días abiertos, cuándo abren o cierran.")
+    @Tool(description = BotPrompts.ToolsConsulta.TOOL_GET_HORARIO)
     public String getHorario() {
         String tenantId = TenantContext.get();
         if (tenantId == null || tenantId.isBlank()) {
-            return "No se pudo identificar el negocio.";
+            return BotPrompts.ToolsConsulta.ERR_TENANT_UNKNOWN;
         }
         List<BusinessHoursEntity> hours = businessHoursRepository.findByTenantIdOrderByDayOfWeek(tenantId);
         List<String> daysWithHours = new ArrayList<>();
@@ -57,36 +58,36 @@ public class ConsultaTools {
             }
         }
         if (daysWithHours.isEmpty()) {
-            return "No hay horario configurado.";
+            return BotPrompts.ToolsConsulta.ERR_NO_HORARIO;
         }
         return String.join("\n", daysWithHours);
     }
 
-    @Tool(description = "Listar los servicios que ofrece el negocio. Usar cuando pregunten qué servicios tienen, qué ofrecen, qué hacen.")
+    @Tool(description = BotPrompts.ToolsConsulta.TOOL_LISTAR_SERVICIOS)
     public String listarServicios() {
         String tenantId = TenantContext.get();
         if (tenantId == null || tenantId.isBlank()) {
-            return "No se pudo identificar el negocio.";
+            return BotPrompts.ToolsConsulta.ERR_TENANT_UNKNOWN;
         }
         List<ServiceEntity> services = serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc(tenantId);
         if (services == null || services.isEmpty()) {
-            return "No hay servicios configurados.";
+            return BotPrompts.ToolsConsulta.ERR_NO_SERVICIOS;
         }
         return services.stream().map(ServiceEntity::getName).collect(Collectors.joining(", "));
     }
 
-    @Tool(description = "Buscar en la base de conocimiento del negocio. Usar cuando pregunten algo que no sea solo horario o lista de servicios: precios, ubicación, qué hacen, información general.")
-    public String buscarConocimiento(@ToolParam(description = "Pregunta o tema a buscar") String pregunta) {
+    @Tool(description = BotPrompts.ToolsConsulta.TOOL_BUSCAR_CONOCIMIENTO)
+    public String buscarConocimiento(@ToolParam(description = BotPrompts.ToolsConsulta.PARAM_PREGUNTA) String pregunta) {
         String tenantId = TenantContext.get();
         if (tenantId == null || tenantId.isBlank()) {
-            return "No se pudo identificar el negocio.";
+            return BotPrompts.ToolsConsulta.ERR_TENANT_UNKNOWN;
         }
         if (pregunta == null || pregunta.isBlank()) {
-            return "No hay contenido para esa búsqueda.";
+            return BotPrompts.ToolsConsulta.ERR_BUSQUEDA_VACIA;
         }
         List<KnowledgeChunk> chunks = knowledgeService.findRelevant(pregunta, RAG_MAX_CHUNKS, tenantId);
         if (chunks.isEmpty()) {
-            return "No hay información en la base de conocimiento para esa pregunta.";
+            return BotPrompts.ToolsConsulta.ERR_SIN_RESULTADOS_RAG;
         }
         return chunks.stream()
             .map(c -> "[" + c.getTopic() + "] " + c.getContent())
