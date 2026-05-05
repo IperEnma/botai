@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/Users/jesus/git/botai diff HEAD -- backend/src/main/java/com/botai/chatbot/)",
+      "Bash(mvn test *)",
+      "Bash(AGENDA_IT=true mvn test -Dtest='com.botai.agenda.**')",
+      "Read(//usr/local/**)",
+      "Read(//c/Users/jesus/flutter/bin/**)",
+      "Read(//opt/flutter/bin/**)",
+      "Bash(mvn compile *)"
+    ]
+  }
+}

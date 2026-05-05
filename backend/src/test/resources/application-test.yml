@@ -1,0 +1,74 @@
+# ============================================================================
+# application-test.yml
+# Overrides para los tests de integración del módulo AGENDA.
+# Los valores de datasource se sobrescriben dinámicamente en cada test base
+# con @DynamicPropertySource a partir del PostgreSQLContainer.
+#
+# Nota: mantenemos hibernate.ddl-auto=update porque el bot también tiene
+# entidades JPA (@Entity) y sus tablas NO están en ninguna migración Flyway
+# del módulo AGENDA. Flyway corre primero y crea las tablas "agenda_*";
+# luego Hibernate, con update, crea las tablas del bot sin tocar las nuestras.
+# ============================================================================
+
+spring:
+  # Desactivamos el init de scripts SQL del bot en tests para no pelear con
+  # eventuales data.sql; las tablas de AGENDA se crean con Flyway.
+  sql:
+    init:
+      mode: never
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    # Evita el ciclo 'flyway' ↔ 'entityManagerFactory' de Spring Boot:
+    #   - defer-datasource-initialization=true hace flyway depends-on EMF
+    #   - FlywayJpaDependsOnPostProcessor hace EMF depends-on flyway
+    # En tests no corre ningún data.sql así que el defer no aporta nada.
+    defer-datasource-initialization: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+
+  # Desactivamos Spring AI en tests: no necesitamos el modelo Ollama para
+  # ejercitar endpoints de AGENDA. Al evitar el autoconfigure, el contexto
+  # arranca más rápido y no falla si OLLAMA_BASE_URL no existe.
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.autoconfigure.ollama.OllamaAutoConfiguration
+
+  ai:
+    model:
+      chat: none
+      embedding: none
+
+# Bot: valores mínimos para que el contexto del bot cargue sin errores.
+bot:
+  embedding:
+    provider: none
+  rag:
+    max-chunks: 1
+    min-similarity: 0.7
+  memory:
+    max-history-turns: 1
+  session:
+    idle-minutes: 45
+  buffer:
+    debounce-ms: 2500
+  guardrails:
+    enabled: false
+  channels:
+    web:
+      base-path: /api/v1/webhook
+
+agenda:
+  enabled: true
+
+logging:
+  level:
+    root: WARN
+    com.botai.agenda: INFO
+    org.flywaydb: INFO

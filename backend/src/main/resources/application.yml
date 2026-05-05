@@ -31,6 +31,11 @@ spring:
     init:
       mode: always
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
   # ---------------------------------------------------------------------------
   # Spring AI: chat (Ollama) + qué integración de embeddings usa el contenedor
   # ---------------------------------------------------------------------------
@@ -120,3 +125,49 @@ logging:
   level:
     com.botai: DEBUG
     org.hibernate.SQL: WARN
+
+# ============================================================
+# [AGENDA] — Configuración del módulo AGENDA (aislada del bot).
+# ============================================================
+agenda:
+  enabled: ${AGENDA_ENABLED:true}
+  uploads:
+    dir: ${AGENDA_UPLOADS_DIR:uploads}
+    base-url: ${AGENDA_UPLOADS_BASE_URL:http://localhost:8080/uploads}
+  db:
+    table-prefix: agenda_
+  search:
+    cache-ttl-seconds: 60
+    rate-limit:
+      requests-per-minute: 60
+  booking:
+    default-cancellation-hours: 4
+  loyalty:
+    default-min-attendances: 3
+    default-window-days: 30
+  notifications:
+    scheduled-cron: "0 0 9 * * *"
+  payment:
+    stub:
+      # true: aprueba todo. false: rechaza todo (útil para validar el unhappy path sin cambiar código).
+      auto-approve: ${AGENDA_PAYMENT_STUB_AUTO_APPROVE:true}
+      # Si > 0, rechaza montos mayores a este valor. 0 = sin límite.
+      reject-amount-over: ${AGENDA_PAYMENT_STUB_REJECT_OVER:0}
+  idempotency:
+    # Limpia claves con más de N horas (tarea programada diaria).
+    ttl-hours: 24
+  outbox:
+    # Delay en ms entre corridas del scheduler de outbox.
+    poll-delay-ms: 10000
+
+# -----------------------------------------------------------------------------
+# Actuator — métricas y health (solo expone lo mínimo necesario)
+# -----------------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized

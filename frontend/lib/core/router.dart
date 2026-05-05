@@ -5,17 +5,37 @@ import '../providers/auth_provider.dart';
 import '../features/auth/login_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/bot_detail/bot_detail_screen.dart';
+// Agenda module — paquete paralelo, no toca el bot.
+import '../features/agenda/agenda_landing_screen.dart';
+import '../features/agenda/register/register_screen.dart';
+import '../features/agenda/public/category_businesses_screen.dart';
+import '../features/agenda/public/public_business_detail_screen.dart';
+import '../features/agenda/public/search_screen.dart';
+import '../features/agenda/public/landing_screen.dart';
+import '../features/agenda/platform/categories_admin_screen.dart';
+// Sprint FE-2 — Tenant admin
+import '../features/agenda/tenant/tenant_home_screen.dart';
+import '../features/agenda/tenant/business_detail_screen.dart';
+// Sprint FE-3 — Me
+import '../features/agenda/me/my_subscriptions_screen.dart';
+import '../features/agenda/me/wallet_screen.dart';
+import '../features/agenda/me/my_bookings_screen.dart';
+import '../features/agenda/me/create_booking_screen.dart';
+import '../features/agenda/me/my_notifications_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
   
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/agenda',
     redirect: (context, state) {
       final isLoggedIn = authState.isAuthenticated;
       final isLoggingIn = state.matchedLocation == '/login';
+      // Durante período de testing, toda la sección /agenda es pública.
+      // El bot del dashboard sigue requiriendo auth.
+      final isAgendaRoute = state.matchedLocation.startsWith('/agenda');
 
-      if (!isLoggedIn && !isLoggingIn) {
+      if (!isLoggedIn && !isLoggingIn && !isAgendaRoute) {
         return '/login';
       }
       if (isLoggedIn && isLoggingIn) {
@@ -29,7 +49,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
       ShellRoute(
-        builder: (context, state, child) => AppShell(child: child, currentPath: state.matchedLocation),
+        builder: (context, state, child) => AppShell(currentPath: state.matchedLocation, child: child),
         routes: [
           GoRoute(
             path: '/dashboard',
@@ -43,6 +63,92 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
         ],
+      ),
+      // ----------- AGENDA module -----------
+      // Sin shell propio: cada screen maneja su AppBar. Más adelante (FE-2/3)
+      // puede envolverse en una ShellRoute para mostrar rail lateral en /tenants/**.
+      // Hub público principal — landing marketing
+      GoRoute(
+        path: '/agenda',
+        builder: (context, state) => const PublicLandingScreen(),
+      ),
+      GoRoute(
+        path: '/agenda/search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: '/agenda/register',
+        builder: (context, state) => const RegisterScreen(),
+      ),
+      // Panel de onboarding (acceso post-login)
+      GoRoute(
+        path: '/agenda/onboarding',
+        builder: (context, state) => const AgendaLandingScreen(),
+      ),
+      GoRoute(
+        path: '/agenda/public/categories/:slug',
+        builder: (context, state) {
+          final slug = state.pathParameters['slug']!;
+          final tenantId = state.uri.queryParameters['tenantId'] ?? '';
+          return CategoryBusinessesScreen(slug: slug, tenantId: tenantId);
+        },
+      ),
+      GoRoute(
+        path: '/agenda/public/business/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return PublicBusinessDetailScreen(businessId: id);
+        },
+      ),
+      GoRoute(
+        path: '/agenda/platform/categories',
+        builder: (context, state) => const CategoriesAdminScreen(),
+      ),
+      // ----------- AGENDA — Tenant admin (Sprint FE-2) -----------
+      GoRoute(
+        path: '/agenda/tenants/:tenantId',
+        builder: (context, state) {
+          final tenantId = state.pathParameters['tenantId']!;
+          return TenantHomeScreen(tenantId: tenantId);
+        },
+      ),
+      GoRoute(
+        path: '/agenda/tenants/:tenantId/businesses/:businessId',
+        builder: (context, state) {
+          final tenantId = state.pathParameters['tenantId']!;
+          final businessId = state.pathParameters['businessId']!;
+          return BusinessDetailScreen(
+              tenantId: tenantId, businessId: businessId);
+        },
+      ),
+      // ----------- AGENDA — Me (Sprint FE-3) -----------
+      GoRoute(
+        path: '/agenda/me/subscriptions',
+        builder: (context, state) => const MySubscriptionsScreen(),
+      ),
+      GoRoute(
+        path: '/agenda/me/subscriptions/:id/wallet',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return WalletScreen(subscriptionId: id);
+        },
+      ),
+      GoRoute(
+        path: '/agenda/me/bookings',
+        builder: (context, state) => const MyBookingsScreen(),
+      ),
+      GoRoute(
+        path: '/agenda/me/bookings/new',
+        builder: (context, state) {
+          final tenantId = state.uri.queryParameters['tenantId'] ?? '';
+          final businessId = state.uri.queryParameters['businessId'] ?? '';
+          return CreateBookingScreen(
+              tenantId: tenantId, businessId: businessId);
+        },
+      ),
+      GoRoute(
+        path: '/agenda/me/notifications',
+        builder: (context, state) => const MyNotificationsScreen(),
       ),
     ],
   );

@@ -87,6 +87,60 @@
             <artifactId>spring-dotenv</artifactId>
             <version>4.0.0</version>
         </dependency>
+
+        <!-- [AGENDA] Flyway: migraciones versionadas exclusivas del m\u00f3dulo AGENDA.
+             El bot sigue con hibernate ddl-auto=update; AGENDA usa validate + Flyway.
+             En Spring Boot 3.2.x (Flyway 9.x) el soporte de PostgreSQL est\u00e1 dentro
+             de flyway-core — no hace falta flyway-database-postgresql (ese artefacto
+             aparece en Flyway 10+). -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- [AGENDA] OpenAPI / Swagger para los endpoints /api/agenda/**. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.3.0</version>
+        </dependency>
+
+        <!-- [AGENDA] Spring Cache + Caffeine (cache in-memory del buscador publico). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
+        <!-- [AGENDA] Bucket4j: rate limiting en /public/search. -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.7.0</version>
+        </dependency>
+
+        <!-- [AGENDA] Actuator: expone metricas Micrometer en /actuator/metrics. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- [AGENDA] Testcontainers para tests de integraci\u00f3n con PostgreSQL real. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>1.19.7</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>1.19.7</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Embeddings locales (perfil djl): Hugging Face + PyTorch vía DJL; no usa Ollama para vectores -->
         <dependency>
             <groupId>ai.djl</groupId>
