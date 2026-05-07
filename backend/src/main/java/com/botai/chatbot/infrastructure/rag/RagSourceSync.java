@@ -107,15 +107,22 @@ public class RagSourceSync {
         List<BusinessHoursEntity> hours = businessHoursRepository.findByTenantIdOrderByDayOfWeek(tenantId);
         List<String> lines = new java.util.ArrayList<>();
         for (BusinessHoursEntity h : hours) {
-            String open = h.getOpenTime();
-            String close = h.getCloseTime();
-            boolean hasHours = (open != null && !open.isBlank()) || (close != null && !close.isBlank());
-            if (hasHours) {
-                int day = h.getDayOfWeek();
-                String dayLabel = day >= 1 && day <= 7 ? DAY_NAMES_ES[day - 1] : "Día " + day;
-                String slot = (open != null ? open : "?") + " - " + (close != null ? close : "?");
-                lines.add(dayLabel + ": " + slot);
+            String open = h.getOpenTime() != null ? h.getOpenTime().trim() : "";
+            String close = h.getCloseTime() != null ? h.getCloseTime().trim() : "";
+            int day = h.getDayOfWeek();
+            String dayLabel = day >= 1 && day <= 7 ? DAY_NAMES_ES[day - 1] : "Día " + day;
+
+            // Evitar placeholders tipo "?" porque inducen alucinaciones en el LLM.
+            // Si falta una de las dos puntas, lo tratamos como "Cerrado" (dato incompleto).
+            if (open.isBlank() || close.isBlank()) {
+                // Si ambas están vacías, omitimos el día (no aporta). Si está incompleto, mostramos Cerrado.
+                if (!(open.isBlank() && close.isBlank())) {
+                    lines.add(dayLabel + ": Cerrado");
+                }
+                continue;
             }
+
+            lines.add(dayLabel + ": " + open + " - " + close);
         }
         String content = lines.isEmpty()
             ? "No hay horario configurado."

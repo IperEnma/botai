@@ -76,7 +76,8 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
 
         lines.add(BotPrompts.RagChat.CURRENT_DATE_SECTION_TITLE);
         lines.add("HOY (zona horaria del servidor del bot): " + today.format(DateTimeFormatter.ISO_LOCAL_DATE) + " (" + dayName + ").");
-        lines.add("MAÑANA: " + tomorrowLine + " — si el usuario dice «mañana», la fecha ISO para tools es la de esta línea, NO la de HOY.");
+        // Mantener líneas cortas y no “explicativas”: el modelo tiende a repetir texto literal al usuario.
+        lines.add("MAÑANA: " + tomorrowLine + ".");
         lines.add("PASADO MAÑANA: " + dayAfterLine + ".");
         lines.add(BotPrompts.RagChat.CURRENT_DATE_RULE);
         lines.add("");

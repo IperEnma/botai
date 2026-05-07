@@ -139,12 +139,46 @@ public class RagLlmChatService implements ConversationModeHandler {
                 log.info("[AI] Mala intencion con ruido/encoding en flujo cita -> LLM sin suplemento hostil");
                 return replyWithLlm(AiConversationRequest.of(ctx.inbound(), ctx.state(), ctx.classification()));
             }
+            if (isBookingFlow(ctx.state(), ctx.classification())
+                && looksLikeUserProvidedBookingData(ctx.text())) {
+                // El clasificador a veces marca como "bad intent" un mensaje que en realidad trae datos
+                // (documento y/o nombre) para continuar el flujo de citas. Tratamos esto como continuación normal.
+                log.info("[AI] Mala intencion pero parece dato de usuario en flujo cita -> LLM sin suplemento hostil");
+                return replyWithLlm(AiConversationRequest.of(ctx.inbound(), ctx.state(), ctx.classification()));
+            }
             log.info("[AI] Mala intencion -> LLM");
             return replyWithLlm(new AiConversationRequest(ctx.inbound(), ctx.state(), ctx.classification(),
                 BotPrompts.RouterSupplement.badIntentLines()));
         }
         log.info("[AI] Mala intencion -> mensaje fijo (IA off)");
         return Optional.of(standardRouteResponses.badIntent(ctx.conversationId(), tenantId));
+    }
+
+    private static boolean looksLikeUserProvidedBookingData(String text) {
+        if (text == null) return false;
+        String s = text.strip();
+        if (s.isEmpty()) return false;
+
+        boolean hasLetter = s.chars().anyMatch(Character::isLetter);
+        int digitCount = (int) s.chars().filter(Character::isDigit).count();
+
+        // Caso común: documento (solo dígitos o con separadores) enviado como seguimiento.
+        if (!hasLetter && digitCount >= 5) {
+            return true;
+        }
+
+        // Caso común: nombre completo enviado solo (sin documento) como seguimiento.
+        if (hasLetter && digitCount == 0) {
+            String normalized = s.replaceAll("[^\\p{L}\\s'-]", " ")
+                .replaceAll("\\s{2,}", " ")
+                .strip();
+            int words = normalized.isEmpty() ? 0 : normalized.split("\\s+").length;
+            // Umbral conservador para evitar falsos positivos (ej. "hola", "ok").
+            return words >= 2 && normalized.length() >= 10;
+        }
+
+        // Ejemplo típico mixto: "62995895\nEnmanuel Alejandro Hernández".
+        return hasLetter && digitCount >= 5;
     }
 
     private static String resolveUserIdForTools(InboundMessage inbound, ConversationState state) {

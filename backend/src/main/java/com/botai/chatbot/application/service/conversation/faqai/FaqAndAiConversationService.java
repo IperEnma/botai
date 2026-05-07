@@ -104,12 +104,39 @@ public class FaqAndAiConversationService implements ConversationModeHandler {
                 log.info("[FAQ+AI] Mala intencion con ruido/encoding en flujo cita -> LLM sin suplemento hostil");
                 return ragLlmChatService.replyWithLlm(AiConversationRequest.of(ctx.inbound(), ctx.state(), ctx.classification()));
             }
+            if (ctx.state() != null && ctx.state().hasIntent()
+                && ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID.equals(ctx.state().getCurrentIntent())
+                && looksLikeUserProvidedBookingData(ctx.text())) {
+                log.info("[FAQ+AI] Mala intencion pero parece dato de usuario en flujo cita -> LLM sin suplemento hostil");
+                return ragLlmChatService.replyWithLlm(AiConversationRequest.of(ctx.inbound(), ctx.state(), ctx.classification()));
+            }
             log.info("[FAQ+AI] Mala intencion -> LLM");
             return ragLlmChatService.replyWithLlm(new AiConversationRequest(ctx.inbound(), ctx.state(), ctx.classification(),
                 BotPrompts.RouterSupplement.badIntentLines()));
         }
         log.info("[FAQ+AI] Mala intencion -> mensaje fijo (IA off)");
         return Optional.of(standardRouteResponses.badIntent(ctx.conversationId(), tenantId));
+    }
+
+    private static boolean looksLikeUserProvidedBookingData(String text) {
+        if (text == null) return false;
+        String s = text.strip();
+        if (s.isEmpty()) return false;
+
+        boolean hasLetter = s.chars().anyMatch(Character::isLetter);
+        int digitCount = (int) s.chars().filter(Character::isDigit).count();
+
+        if (!hasLetter && digitCount >= 5) {
+            return true;
+        }
+        if (hasLetter && digitCount == 0) {
+            String normalized = s.replaceAll("[^\\p{L}\\s'-]", " ")
+                .replaceAll("\\s{2,}", " ")
+                .strip();
+            int words = normalized.isEmpty() ? 0 : normalized.split("\\s+").length;
+            return words >= 2 && normalized.length() >= 10;
+        }
+        return hasLetter && digitCount >= 5;
     }
 
     private Optional<ConversationRouteResult> whenGreetingOpenFirstMenu(ConversationHandlingContext ctx) {

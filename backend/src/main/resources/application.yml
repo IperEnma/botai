@@ -65,7 +65,9 @@ bot:
   # RAG (pgvector): usa el mismo EmbeddingModel que embedding.provider.
   rag:
     max-chunks: 3
-    min-similarity: 0.7
+    # Con embeddings tipo MiniLM (384 dims), 0.7 suele ser demasiado estricto y filtra incluso chunks correctos.
+    # 0 = sin filtro (dev); en prod calibrar con logs y subir gradualmente.
+    min-similarity: 0.0
 
   # Memoria del LLM por sesión (turnos user+assistant de la sesión actual).
   memory:

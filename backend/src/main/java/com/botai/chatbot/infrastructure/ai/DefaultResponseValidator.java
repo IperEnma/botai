@@ -52,6 +52,10 @@ public class DefaultResponseValidator implements RagLlmChatService.ResponseValid
             s = s.substring("assistant:".length()).strip();
         }
 
+        // Algunos modelos agregan muletillas/apologías irrelevantes al iniciar. Recortar para mantener foco.
+        s = s.replaceFirst("(?i)^(disculpa\\s+el\\s+retraso\\.?\\s*)+", "").strip();
+        s = s.replaceFirst("(?i)^(disculpa\\.?\\s*)+", "").strip();
+
         s = replaceWhatsappTemplateJsonWithPlainText(s);
 
         // No hablar como administrador: reemplazar frases de "panel/datos cargados" por voz del negocio

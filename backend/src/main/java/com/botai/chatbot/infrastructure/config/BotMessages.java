@@ -21,8 +21,8 @@ public class BotMessages {
     private String tenantUnknown = "No se pudo identificar el negocio. Revisa la configuración del bot.";
     /** RAG devolvió 0 chunks; no se llama al LLM. */
     private String noRagInfo = "No tenemos esa información disponible. ¿En qué más podemos ayudarte?";
-    /** Error al llamar al modelo (ej. Ollama caído). */
-    private String aiError = "No pude conectar con el asistente. Verifica que Ollama esté en marcha.";
+    /** Error al llamar al modelo (detalle técnico solo en logs). */
+    private String aiError = "En este momento estamos fuera de servicio. Por favor, intenta de nuevo más tarde.";
     /** Hint bajo el menú cuando la IA está activa. */
     private String aiHint = "💬 También puedes escribir tu pregunta y te responderé.";
     /** Saludo cuando solo está activa la IA (sin menú/FAQ); ej. usuario dice "Hola". */
