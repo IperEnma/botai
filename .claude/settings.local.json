@@ -7,7 +7,12 @@
       "Read(//usr/local/**)",
       "Read(//c/Users/jesus/flutter/bin/**)",
       "Read(//opt/flutter/bin/**)",
-      "Bash(mvn compile *)"
+      "Bash(mvn compile *)",
+      "Bash(cp -r \"C:/Users/jesus/git/botai/.claude/worktrees/agent-a1b83c48/frontend/lib/features/agenda/register/konecta_tokens.dart\" \"C:/Users/jesus/git/botai/frontend/lib/features/agenda/register/\")",
+      "Bash(cp \"C:/Users/jesus/git/botai/.claude/worktrees/agent-a1b83c48/frontend/lib/features/agenda/register/business_registration_model.dart\" \"C:/Users/jesus/git/botai/frontend/lib/features/agenda/register/\")",
+      "Bash(cp \"C:/Users/jesus/git/botai/.claude/worktrees/agent-a1b83c48/frontend/lib/features/agenda/register/business_register_screen.dart\" \"C:/Users/jesus/git/botai/frontend/lib/features/agenda/register/\")",
+      "Bash(cp \"C:/Users/jesus/git/botai/.claude/worktrees/agent-a1b83c48/frontend/lib/features/agenda/register/register_success_screen.dart\" \"C:/Users/jesus/git/botai/frontend/lib/features/agenda/register/\")",
+      "Bash(dart analyze *)"
     ]
   }
 }

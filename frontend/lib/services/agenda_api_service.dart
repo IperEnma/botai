@@ -46,6 +46,7 @@ class AgendaApiService {
 
   void setAccessToken(String? token) => _accessToken = token;
   void setUserId(String? userId) => _userId = userId;
+  String? get userId => _userId;
 
   // ---------------- Headers / IO helpers ----------------
 
@@ -374,6 +375,7 @@ class AgendaApiService {
     required String nombre,
     String? descripcion,
     List<String> searchTags = const [],
+    String? ownerUserId,
   }) async {
     final r = await _send(() => _client.post(
           _uri('/tenants/$tenantId/businesses'),
@@ -382,6 +384,8 @@ class AgendaApiService {
             'nombre': nombre,
             'descripcion': ?descripcion,
             'searchTags': searchTags,
+            if (ownerUserId != null && ownerUserId.isNotEmpty)
+              'ownerUserId': ownerUserId,
           }),
         ));
     return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));

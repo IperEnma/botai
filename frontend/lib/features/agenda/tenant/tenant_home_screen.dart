@@ -4,14 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/agenda/business.dart';
+import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import 'widgets/business_form_dialog.dart';
 import 'widgets/category_multi_select_dialog.dart';
+import 'widgets/dashboard_section.dart';
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const _kPrimary    = Color(0xFF6366F1);
+const _kAccent     = Color(0xFF8B5CF6);
 const _kText       = Color(0xFF0F172A);
 const _kTextSub    = Color(0xFF64748B);
 const _kSurface    = Color(0xFFF8FAFC);
@@ -38,9 +41,10 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
   final _instagramCtrl = TextEditingController();
   final _tiktokCtrl    = TextEditingController();
   final _facebookCtrl  = TextEditingController();
-  bool _socialChanged  = false;
-  bool _isSavingSocial = false;
+  bool    _socialChanged  = false;
+  bool    _isSavingSocial = false;
   String? _initBusinessId;
+  String? _dashboardBusinessId; // null = all locations
 
   @override
   void dispose() {
@@ -141,28 +145,23 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(businessesProvider(widget.tenantId));
+    final state     = ref.watch(businessesProvider(widget.tenantId));
+    final userAsync = ref.watch(agendaUserProvider);
+    final nombre    = userAsync.valueOrNull?.nombre;
 
     return Scaffold(
       backgroundColor: _kSurface,
-      appBar: AppBar(
-        backgroundColor: _kPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          'Mi negocio',
-          style: GoogleFonts.poppins(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _TenantHeader(
+            nombre: nombre,
+            onBack: () =>
+                context.canPop() ? context.pop() : context.go('/agenda'),
           ),
-        ),
-        leading: BackButton(
-          onPressed: () =>
-              context.canPop() ? context.pop() : context.go('/agenda'),
-        ),
+          Expanded(child: _buildBody(context, state)),
+        ],
       ),
-      body: _buildBody(context, state),
     );
   }
 
@@ -181,17 +180,33 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
 
     return CustomScrollView(
       slivers: [
-        // ── Sucursales (primer bloque) ────────────────────────────────────
+        // ── Sucursales ────────────────────────────────────────────────────
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
           sliver: SliverToBoxAdapter(
             child: _SucursalesSection(
-              tenantId: widget.tenantId,
-              businesses: state.items,
-              onAdd: () => _createBusiness(context),
-              onTap: (b) => context.push(
+              tenantId:           widget.tenantId,
+              businesses:         state.items,
+              selectedBusinessId: _dashboardBusinessId,
+              onAdd:              () => _createBusiness(context),
+              onTap:              (b) => context.push(
                 '/agenda/tenants/${widget.tenantId}/businesses/${b.id}',
               ),
+              onFilterSelect:     (b) => setState(() =>
+                _dashboardBusinessId =
+                    _dashboardBusinessId == b.id ? null : b.id,
+              ),
+            ),
+          ),
+        ),
+
+        // ── Dashboard: filtros + métricas ─────────────────────────────────
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+          sliver: SliverToBoxAdapter(
+            child: DashboardSection(
+              tenantId:   widget.tenantId,
+              businesses: state.items,
             ),
           ),
         ),
@@ -199,7 +214,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
         // ── Info + Categorías ──────────────────────────────────────────────
         if (first != null)
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 28, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             sliver: SliverToBoxAdapter(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,7 +222,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
                   Expanded(
                     child: _InfoCard(
                       business: first,
-                      onEdit: () => _editBusiness(context, first),
+                      onEdit:   () => _editBusiness(context, first),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -228,7 +243,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
             sliver: SliverToBoxAdapter(
               child: _SocialCard(
-                business: first,
+                business:      first,
                 instagramCtrl: _instagramCtrl,
                 tiktokCtrl:    _tiktokCtrl,
                 facebookCtrl:  _facebookCtrl,
@@ -242,6 +257,83 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+// ── Tenant Header ─────────────────────────────────────────────────────────────
+
+class _TenantHeader extends StatelessWidget {
+  const _TenantHeader({required this.nombre, required this.onBack});
+  final String? nombre;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final greeting = nombre != null && nombre!.isNotEmpty
+        ? '¡Bienvenido, $nombre!'
+        : '¡Bienvenido!';
+    final firstName = nombre?.trim().split(' ').first ?? '';
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_kPrimary, _kAccent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        MediaQuery.of(context).padding.top + 14,
+        20,
+        22,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          GestureDetector(
+            onTap: onBack,
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.20),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.arrow_back_rounded,
+                  color: Colors.white, size: 20),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  greeting,
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                if (firstName.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Gestioná tu negocio desde acá',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.80),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -570,27 +662,40 @@ class _SucursalesSection extends StatelessWidget {
   const _SucursalesSection({
     required this.tenantId,
     required this.businesses,
+    required this.selectedBusinessId,
     required this.onAdd,
     required this.onTap,
+    required this.onFilterSelect,
   });
 
-  final String tenantId;
-  final List<Business> businesses;
-  final VoidCallback onAdd;
+  final String              tenantId;
+  final List<Business>      businesses;
+  final String?             selectedBusinessId;
+  final VoidCallback         onAdd;
   final void Function(Business) onTap;
+  final void Function(Business) onFilterSelect;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Sucursales',
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: _kText,
-          ),
+        Row(
+          children: [
+            Text(
+              'Sucursales',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: _kText,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'Toca para filtrar · mantén para ver detalle',
+              style: GoogleFonts.poppins(fontSize: 10, color: _kTextSub),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -600,9 +705,12 @@ class _SucursalesSection extends StatelessWidget {
             itemCount: businesses.length + 1,
             itemBuilder: (ctx, i) {
               if (i < businesses.length) {
+                final b = businesses[i];
                 return _BusinessCircle(
-                  business: businesses[i],
-                  onTap: () => onTap(businesses[i]),
+                  business: b,
+                  selected: selectedBusinessId == b.id,
+                  onTap:    () => onFilterSelect(b),
+                  onLongPress: () => onTap(b),
                 );
               }
               return _NewSucursalButton(onTap: onAdd);
@@ -617,10 +725,17 @@ class _SucursalesSection extends StatelessWidget {
 // ── Business Circle ───────────────────────────────────────────────────────────
 
 class _BusinessCircle extends StatelessWidget {
-  const _BusinessCircle({required this.business, required this.onTap});
+  const _BusinessCircle({
+    required this.business,
+    required this.selected,
+    required this.onTap,
+    required this.onLongPress,
+  });
 
-  final Business business;
+  final Business     business;
+  final bool         selected;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   int get _idx => business.nombre.hashCode.abs() % _palette.length;
   Color get _color => _palette[_idx];
@@ -638,25 +753,32 @@ class _BusinessCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
+      onTap:      onTap,
+      onLongPress: onLongPress,
+      behavior:   HitTestBehavior.opaque,
       child: Container(
-        width: 90,
+        width:  90,
         margin: const EdgeInsets.only(right: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 72,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width:  72,
               height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
+                border: selected
+                    ? Border.all(color: _kPrimary, width: 3)
+                    : null,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    color:      selected
+                        ? _kPrimary.withValues(alpha: 0.25)
+                        : Colors.black.withValues(alpha: 0.08),
+                    blurRadius: selected ? 14 : 10,
+                    offset:     const Offset(0, 3),
                   ),
                 ],
               ),
@@ -667,25 +789,25 @@ class _BusinessCircle extends StatelessWidget {
                         fit: BoxFit.cover,
                         errorBuilder: (_, e, s) => _InitialsCircle(
                           initials: _initials,
-                          color: _color,
+                          color:    _color,
                         ),
                       )
                     : _InitialsCircle(
                         initials: _initials,
-                        color: _color,
+                        color:    _color,
                       ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               business.nombre,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              textAlign:  TextAlign.center,
+              maxLines:   2,
+              overflow:   TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: _kText,
+                fontSize:   11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color:      selected ? _kPrimary : _kText,
               ),
             ),
           ],

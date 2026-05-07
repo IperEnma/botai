@@ -1,24 +1,14 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../models/agenda/register_tenant.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
-import '../../../providers/agenda/agenda_user_provider.dart';
-import '../../../providers/agenda/register_provider.dart';
 import '../../../services/agenda_api_exception.dart';
-
-const _kPrimary = Color(0xFF6366F1);
-const _kAccent  = Color(0xFF8B5CF6);
-const _kSurface = Color(0xFFF8FAFC);
-const _kDark    = Color(0xFF0F172A);
-const _kMuted   = Color(0xFF64748B);
-
-// ── Step enum ─────────────────────────────────────────────────────────────────
-
-enum _RegisterStep { initial, codeSent, verified }
+import 'konecta_tokens.dart';
 
 // ── Country data ──────────────────────────────────────────────────────────────
 
@@ -26,25 +16,27 @@ class Country {
   const Country({
     required this.name,
     required this.dialCode,
-    required this.flag,
+    required this.isoCode,
     required this.minLength,
     required this.maxLength,
   });
   final String name;
   final String dialCode;
-  final String flag;
+  final String isoCode;
   final int minLength;
   final int maxLength;
 }
 
 const _countries = [
-  Country(name: 'Uruguay',   dialCode: '+598', flag: '🇺🇾', minLength: 8,  maxLength: 9),
-  Country(name: 'Argentina', dialCode: '+54',  flag: '🇦🇷', minLength: 10, maxLength: 10),
-  Country(name: 'Colombia',  dialCode: '+57',  flag: '🇨🇴', minLength: 10, maxLength: 10),
-  Country(name: 'Venezuela', dialCode: '+58',  flag: '🇻🇪', minLength: 10, maxLength: 10),
+  Country(name: 'Uruguay',   dialCode: '+598', isoCode: 'UY', minLength: 8,  maxLength: 9),
+  Country(name: 'Argentina', dialCode: '+54',  isoCode: 'AR', minLength: 10, maxLength: 10),
+  Country(name: 'Colombia',  dialCode: '+57',  isoCode: 'CO', minLength: 10, maxLength: 10),
+  Country(name: 'Venezuela', dialCode: '+58',  isoCode: 'VE', minLength: 10, maxLength: 10),
 ];
 
 // ── Screen ────────────────────────────────────────────────────────────────────
+
+enum _Step { phone, code }
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -54,99 +46,98 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _formKey      = GlobalKey<FormState>();
-  final _nombreCtrl   = TextEditingController();
-  final _emailCtrl    = TextEditingController();
-  final _phoneCtrl    = TextEditingController();
-  final _codigoCtrl   = TextEditingController();
-  final _passwordCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _codeCtrl  = TextEditingController();
+  final _nameCtrl  = TextEditingController();
 
-  _RegisterStep _step        = _RegisterStep.initial;
-  Country _selectedCountry   = _countries.first;
-  String _phone              = '';
-  bool _isPhoneValid         = false;
-  String? _phoneError;
+  _Step   _step            = _Step.phone;
+  Country _country         = _countries.first;
+  String  _phone           = '';
+  bool    _isPhoneValid    = false;
+  bool    _loading         = false;
+  String? _error;
+
+  bool get _isFormValid =>
+      _nameCtrl.text.trim().length >= 2 && _isPhoneValid;
 
   @override
   void dispose() {
-    _nombreCtrl.dispose();
-    _emailCtrl.dispose();
     _phoneCtrl.dispose();
-    _codigoCtrl.dispose();
-    _passwordCtrl.dispose();
+    _codeCtrl.dispose();
+    _nameCtrl.dispose();
     super.dispose();
   }
 
   // ── Teléfono ───────────────────────────────────────────────────────────────
 
   void _onPhoneChanged(String value) {
-    final cleaned = value.replaceAll(RegExp(r'\D'), '');
-    final full = '${_selectedCountry.dialCode}$cleaned';
-    final valid = cleaned.length >= _selectedCountry.minLength &&
-        cleaned.length <= _selectedCountry.maxLength;
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    final valid  = digits.length >= _country.minLength &&
+                   digits.length <= _country.maxLength;
     setState(() {
-      _phone = full;
+      _phone        = '${_country.dialCode}$digits';
       _isPhoneValid = valid;
-      _phoneError = valid ? null : 'Número inválido';
     });
   }
 
-  // ── Acciones ───────────────────────────────────────────────────────────────
+  // ── Enviar código ──────────────────────────────────────────────────────────
 
   void _sendCode() {
-    if (!_formKey.currentState!.validate()) return;
-    if (!_isPhoneValid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresá un número válido')),
-      );
-      return;
-    }
-    setState(() => _step = _RegisterStep.codeSent);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Código enviado a $_phone'),
-        backgroundColor: Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    if (!_isFormValid) return;
+    setState(() { _step = _Step.code; _error = null; });
+    // TODO: integrar envío real por WhatsApp
   }
 
-  void _validateCode() {
-    if (!_formKey.currentState!.validate()) return;
-    // Mock: cualquier código no vacío es válido.
-    setState(() => _step = _RegisterStep.verified);
-  }
+  // ── Verificar código ───────────────────────────────────────────────────────
 
-  void _editNumber() {
-    _codigoCtrl.clear();
-    setState(() => _step = _RegisterStep.initial);
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final RegisterTenantResponse? result =
-        await ref.read(registerProvider.notifier).register(
-      nombrePropietario: _nombreCtrl.text.trim(),
-      email:             _emailCtrl.text.trim(),
-      telefono:          _phone,
-      nombreNegocio:     _nombreCtrl.text.trim(),
-      categoriaSlug:     null,
-    );
-    if (result != null && mounted) {
-      await ref
-          .read(agendaUserProvider.notifier)
-          .saveTenantId(result.tenantId);
-      if (mounted) context.go('/agenda/onboarding');
+  Future<void> _verifyCode() async {
+    final code = _codeCtrl.text.trim();
+    if (code.isEmpty) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      // TODO: integrar verificación real con la API
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      if (mounted) context.go('/agenda/intent');
+    } catch (e) {
+      setState(() => _error = 'Código incorrecto. Intentá de nuevo.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _showLoginDialog(BuildContext context) {
+  void _backToPhone() {
+    _codeCtrl.clear();
+    setState(() { _step = _Step.phone; _error = null; });
+  }
+
+  // ── Login con código de acceso ─────────────────────────────────────────────
+
+  Future<void> _loginWithCode(String accessCode) async {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final api      = ref.read(agendaApiServiceProvider);
+      final tenantId = await api.getTenantByCode(accessCode);
+      if (!mounted) return;
+      context.go('/agenda/tenants/$tenantId');
+    } on AgendaApiException catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(e.status == 404
+            ? 'Código no encontrado. Verificá que sea correcto.'
+            : e.message),
+        backgroundColor: KTokens.errorColor,
+      ));
+    }
+  }
+
+  void _showLoginDialog() {
     final ctrl = TextEditingController();
     showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
+        backgroundColor: KTokens.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -154,15 +145,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Ingresar con código',
-                  style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: _kDark)),
-              const SizedBox(height: 12),
+                  style: KTokens.tQuestion.copyWith(fontSize: 18)),
+              const SizedBox(height: 8),
               Text(
                 'Ingresá el código de 8 caracteres que recibiste al registrarte.',
-                style: GoogleFonts.poppins(
-                    fontSize: 13, color: _kMuted, height: 1.5),
+                style: KTokens.tHint,
               ),
               const SizedBox(height: 20),
               TextField(
@@ -170,31 +157,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 autofocus: true,
                 textCapitalization: TextCapitalization.characters,
                 maxLength: 8,
-                style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 4,
-                    color: _kDark),
+                style: KTokens.tInput.copyWith(letterSpacing: 4, fontSize: 18),
+                cursorColor: KTokens.accent,
                 decoration: InputDecoration(
-                  labelText: 'Código de acceso',
                   hintText: 'K7MN2PQX',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                        color: _kPrimary, width: 2),
-                  ),
+                  hintStyle: KTokens.tInput.copyWith(
+                      color: KTokens.inkPlaceholder, letterSpacing: 4, fontSize: 18),
+                  border: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: KTokens.accent)),
+                  focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: KTokens.accent, width: 2)),
+                  enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: KTokens.borderStrong)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -204,26 +178,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   TextButton(
                     onPressed: () => Navigator.of(ctx).pop(),
                     child: Text('Cancelar',
-                        style:
-                            GoogleFonts.poppins(color: _kMuted)),
+                        style: KTokens.tCta.copyWith(color: KTokens.inkMuted)),
                   ),
                   const SizedBox(width: 8),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _kPrimary,
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KTokens.ink,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(KTokens.rMd)),
                     ),
                     onPressed: () {
-                      final code =
-                          ctrl.text.trim().toUpperCase();
+                      final code = ctrl.text.trim().toUpperCase();
                       if (code.length < 8) return;
                       Navigator.of(ctx).pop();
                       _loginWithCode(code);
                     },
                     child: Text('Ingresar',
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600)),
+                        style: KTokens.tCta.copyWith(color: Colors.white)),
                   ),
                 ],
               ),
@@ -234,421 +207,289 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Future<void> _loginWithCode(String accessCode) async {
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
-    try {
-      final api = ref.read(agendaApiServiceProvider);
-      final tenantId = await api.getTenantByCode(accessCode);
-      if (!mounted) return;
-      router.go('/agenda/tenants/$tenantId');
-    } on AgendaApiException catch (e) {
-      if (!mounted) return;
-      final msg = e.status == 404
-          ? 'Código no encontrado. Verificá que sea correcto.'
-          : e.message;
-      messenger.showSnackBar(SnackBar(
-        content: Text(msg),
-        backgroundColor: Colors.red.shade700,
-      ));
-    }
-  }
-
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(registerProvider);
-
     return Scaffold(
-      backgroundColor: _kSurface,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: SingleChildScrollView(
+      backgroundColor: KTokens.bg,
+      body: Stack(
+        children: [
+          const _BackgroundCards(),
+          SafeArea(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _RegisterHero(
+                _NavBar(
                   onBack: () =>
                       context.canPop() ? context.pop() : context.go('/agenda'),
+                  onLogin: _showLoginDialog,
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildStepContent(state),
-
-                        const SizedBox(height: 32),
-
-                        _Divider(),
-                        const SizedBox(height: 20),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                  color: Colors.grey.shade300),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(12)),
-                              backgroundColor: Colors.white,
-                            ),
-                            onPressed: () =>
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(const SnackBar(
-                              content: Text(
-                                  'Google Sign-In próximamente'),
-                            )),
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
-                              children: [
-                                const _GoogleIcon(),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Continuar con Google',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: _kDark,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 20),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          transitionBuilder: (child, anim) =>
+                              FadeTransition(opacity: anim, child: child),
+                          child: _step == _Step.phone
+                              ? _buildPhone()
+                              : _buildCode(),
                         ),
-
-                        const SizedBox(height: 16),
-
-                        Center(
-                          child: GestureDetector(
-                            onTap: () => _showLoginDialog(context),
-                            child: RichText(
-                              text: TextSpan(
-                                style: GoogleFonts.poppins(
-                                    fontSize: 13, color: _kMuted),
-                                children: [
-                                  const TextSpan(
-                                      text: '¿Ya tienes cuenta? '),
-                                  TextSpan(
-                                    text: 'Iniciar sesión',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      color: _kPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // ── Contenido según estado ─────────────────────────────────────────────────
+  // ── PASO TELÉFONO ──────────────────────────────────────────────────────────
 
-  Widget _buildStepContent(RegisterState state) {
-    return switch (_step) {
-      _RegisterStep.initial   => _buildInitial(state),
-      _RegisterStep.codeSent  => _buildCodeSent(state),
-      _RegisterStep.verified  => _buildVerified(state),
-    };
-  }
-
-  // ── INITIAL ────────────────────────────────────────────────────────────────
-
-  Widget _buildInitial(RegisterState state) {
+  Widget _buildPhone() {
     return Column(
+      key: const ValueKey('phone'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 24),
-        _Field(
-          controller: _nombreCtrl,
-          label: 'Nombre',
-          hint: 'Tu nombre completo',
-          icon: Icons.person_outline_rounded,
-          validator: (v) =>
-              (v?.trim().length ?? 0) < 2 ? 'Ingresá tu nombre' : null,
-        ),
-        const SizedBox(height: 14),
-        _Field(
-          controller: _emailCtrl,
-          label: 'Email',
-          hint: 'tu@email.com',
-          icon: Icons.email_outlined,
-          keyboardType: TextInputType.emailAddress,
-          validator: (v) {
-            if (v == null || v.trim().isEmpty) return 'Ingresá tu email';
-            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
-              return 'Email no válido';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 14),
-        PhoneInputField(
-          country: _selectedCountry,
-          controller: _phoneCtrl,
-          onCountrySelected: (c) {
-            setState(() => _selectedCountry = c);
-            _onPhoneChanged(_phoneCtrl.text);
-          },
-          onChanged: _onPhoneChanged,
-          error: _phoneError,
-        ),
-        const SizedBox(height: 24),
-        _PrimaryButton(
-          label: 'Enviar código',
-          loading: false,
-          onPressed: _sendCode,
-        ),
-      ],
-    );
-  }
-
-  // ── CODE_SENT ──────────────────────────────────────────────────────────────
-
-  Widget _buildCodeSent(RegisterState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Ícono + título
-        Center(
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: _kPrimary.withValues(alpha: 0.10),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.sms_outlined,
-                color: _kPrimary, size: 28),
-          ),
-        ),
-        const SizedBox(height: 16),
         Text(
-          'Verifica tu número',
+          'BIENVENIDO',
           textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(
-              fontSize: 20, fontWeight: FontWeight.w700, color: _kDark),
+          style: KTokens.tEyebrow.copyWith(
+              fontSize: 11, letterSpacing: 2.5, color: KTokens.inkSoft),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         RichText(
           textAlign: TextAlign.center,
           text: TextSpan(
-            style: GoogleFonts.poppins(fontSize: 13, color: _kMuted),
             children: [
-              const TextSpan(text: 'Te enviamos un código a '),
               TextSpan(
-                text: _phone,
-                style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _kPrimary),
+                text: 'Empezá en ',
+                style: GoogleFonts.inter(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                  color: KTokens.ink,
+                  letterSpacing: -1,
+                  height: 1.1,
+                ),
+              ),
+              TextSpan(
+                text: '30 segundos.',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 38,
+                  fontStyle: FontStyle.italic,
+                  color: KTokens.accent,
+                  height: 1.1,
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 28),
-        _Field(
-          controller: _codigoCtrl,
-          label: 'Código de verificación',
-          hint: 'Ingresá los dígitos recibidos',
-          icon: Icons.dialpad_rounded,
-          keyboardType: TextInputType.number,
-          validator: (v) =>
-              (v?.trim().isEmpty ?? true) ? 'Ingresá el código' : null,
+        const SizedBox(height: 18),
+        Text(
+          'Te enviamos un código por WhatsApp y listo.\nEl resto lo configurás después.',
+          textAlign: TextAlign.center,
+          style: KTokens.tHint.copyWith(height: 1.6),
         ),
-        const SizedBox(height: 24),
-        _PrimaryButton(
-          label: 'Validar código',
+        const SizedBox(height: 44),
+        // ── Nombre ────────────────────────────────────────────────────────
+        _NameInput(
+          controller: _nameCtrl,
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 32),
+        // ── Teléfono ──────────────────────────────────────────────────────
+        _PhoneInput(
+          country: _country,
+          controller: _phoneCtrl,
+          onCountrySelected: (c) {
+            setState(() => _country = c);
+            _onPhoneChanged(_phoneCtrl.text);
+          },
+          onChanged: _onPhoneChanged,
+          onSubmitted: _isFormValid ? (_) => _sendCode() : null,
+        ),
+        const SizedBox(height: 40),
+        _SendButton(
+          label: 'Enviar código',
+          enabled: _isFormValid,
           loading: false,
-          onPressed: _validateCode,
+          onPressed: _sendCode,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 28),
+        const _WaDivider(label: 'O CON GOOGLE'),
+        const SizedBox(height: 28),
+        _GoogleButton(),
+        const SizedBox(height: 28),
         Center(
-          child: TextButton(
-            onPressed: _editNumber,
-            child: Text(
-              'Editar número',
-              style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: _kMuted,
-                  fontWeight: FontWeight.w500,
-                  decoration: TextDecoration.underline,
-                  decorationColor: _kMuted),
+          child: GestureDetector(
+            onTap: _showLoginDialog,
+            child: RichText(
+              text: TextSpan(
+                style: KTokens.tHint,
+                children: [
+                  const TextSpan(text: '¿Ya tenés cuenta? '),
+                  TextSpan(
+                    text: 'Iniciar sesión',
+                    style: KTokens.tHint.copyWith(
+                      color: KTokens.accent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+        const SizedBox(height: 10),
+        Text(
+          'Al continuar aceptás nuestros Términos y la Política de privacidad.',
+          textAlign: TextAlign.center,
+          style: KTokens.tHint.copyWith(fontSize: 11, color: KTokens.inkSoft),
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }
 
-  // ── VERIFIED ───────────────────────────────────────────────────────────────
+  // ── PASO CÓDIGO ────────────────────────────────────────────────────────────
 
-  Widget _buildVerified(RegisterState state) {
+  Widget _buildCode() {
     return Column(
+      key: const ValueKey('code'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Ícono + título
-        Center(
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.verified_rounded,
-                color: Colors.green.shade500, size: 30),
-          ),
+        Text(
+          'VERIFICACIÓN',
+          textAlign: TextAlign.center,
+          style: KTokens.tEyebrow.copyWith(
+              fontSize: 11, letterSpacing: 2.5, color: KTokens.inkSoft),
         ),
         const SizedBox(height: 16),
-        Text(
-          'Cuenta verificada',
+        RichText(
           textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(
-              fontSize: 20, fontWeight: FontWeight.w700, color: _kDark),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Ahora creá tu contraseña para acceder.',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(fontSize: 13, color: _kMuted),
-        ),
-        const SizedBox(height: 28),
-        _Field(
-          controller: _passwordCtrl,
-          label: 'Contraseña',
-          hint: 'Mínimo 6 caracteres',
-          icon: Icons.lock_outline_rounded,
-          obscureText: true,
-          validator: (v) => (v?.trim().length ?? 0) < 6
-              ? 'Mínimo 6 caracteres'
-              : null,
-        ),
-        const SizedBox(height: 24),
-        if (state.error != null) ...[
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.red.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.error_outline_rounded,
-                    color: Colors.red.shade500, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(state.error!,
-                      style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.red.shade700)),
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: 'Revisá tu ',
+                style: GoogleFonts.inter(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                  color: KTokens.ink,
+                  letterSpacing: -1,
+                  height: 1.1,
                 ),
-              ],
+              ),
+              TextSpan(
+                text: 'WhatsApp.',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 38,
+                  fontStyle: FontStyle.italic,
+                  color: KTokens.accent,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: KTokens.tHint.copyWith(height: 1.5),
+            children: [
+              const TextSpan(text: 'Te enviamos el código a '),
+              TextSpan(
+                text: _phone,
+                style: KTokens.tHint.copyWith(
+                    fontWeight: FontWeight.w600, color: KTokens.ink),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        // Code input
+        _CodeInput(controller: _codeCtrl),
+        if (_error != null) ...[
+          const SizedBox(height: 10),
+          Text(_error!, style: KTokens.tError, textAlign: TextAlign.center),
+        ],
+        const SizedBox(height: 28),
+        _SendButton(
+          label: 'Verificar código',
+          enabled: true,
+          loading: _loading,
+          onPressed: _loading ? null : _verifyCode,
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: GestureDetector(
+            onTap: _backToPhone,
+            child: Text(
+              'Cambiar número',
+              style: KTokens.tHint.copyWith(
+                color: KTokens.inkMuted,
+                decoration: TextDecoration.underline,
+                decorationColor: KTokens.inkMuted,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-        ],
-        _PrimaryButton(
-          label: 'Continuar',
-          loading: state.isLoading,
-          onPressed: state.isLoading ? null : _submit,
         ),
+        const SizedBox(height: 8),
       ],
     );
   }
 }
 
-// ── Hero ──────────────────────────────────────────────────────────────────────
+// ── Nav bar ───────────────────────────────────────────────────────────────────
 
-class _RegisterHero extends StatelessWidget {
-  const _RegisterHero({required this.onBack});
+class _NavBar extends StatelessWidget {
+  const _NavBar({required this.onBack, required this.onLogin});
 
   final VoidCallback onBack;
+  final VoidCallback onLogin;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_kPrimary, _kAccent],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        20,
-        MediaQuery.of(context).padding.top + 14,
-        20,
-        28,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 24, 4),
+      child: Row(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: onBack,
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.20),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.arrow_back_rounded,
-                      color: Colors.white, size: 20),
-                ),
+          GestureDetector(
+            onTap: onBack,
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: KTokens.borderStrong),
               ),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    'Crea tu cuenta',
-                    style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 38),
-            ],
+              child: const Icon(Icons.arrow_back, size: 15, color: KTokens.ink),
+            ),
           ),
-          const SizedBox(height: 8),
-          Center(
+          const SizedBox(width: 12),
+          Text(
+            'konecta',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: KTokens.ink,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: onLogin,
             child: Text(
-              'Accedé a servicios o gestioná tu negocio.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: Colors.white.withValues(alpha: 0.80),
-                  height: 1.5),
+              'CREAR CUENTA',
+              style: KTokens.tEyebrow.copyWith(
+                  letterSpacing: 1.4, color: KTokens.ink),
             ),
           ),
         ],
@@ -657,69 +498,229 @@ class _RegisterHero extends StatelessWidget {
   }
 }
 
-// ── Phone input field (controlled) ───────────────────────────────────────────
+// ── Google button ─────────────────────────────────────────────────────────────
 
-class PhoneInputField extends StatefulWidget {
-  const PhoneInputField({
-    super.key,
+class _GoogleButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          backgroundColor: KTokens.surface,
+          side: const BorderSide(color: KTokens.borderStrong),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(KTokens.rMd)),
+        ),
+        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google Sign-In próximamente')),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const _GoogleG(),
+            const SizedBox(width: 10),
+            Text(
+              'Continuar con Google',
+              style: KTokens.tCta.copyWith(
+                  color: KTokens.ink,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 15),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GoogleG extends StatelessWidget {
+  const _GoogleG();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CustomPaint(painter: _GooglePainter()),
+    );
+  }
+}
+
+class _GooglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r  = math.min(cx, cy);
+    final stroke = r * 0.28;
+    final rect   = Rect.fromCircle(center: Offset(cx, cy), radius: r - stroke / 2);
+
+    void arc(Color color, double start, double sweep) {
+      canvas.drawArc(
+        rect,
+        start,
+        sweep,
+        false,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..strokeCap = StrokeCap.butt,
+      );
+    }
+
+    const pi = math.pi;
+    arc(const Color(0xFF4285F4), -pi / 2,            pi * 0.5);
+    arc(const Color(0xFFEA4335), pi,                 pi * 0.5);
+    arc(const Color(0xFFFBBC05), pi / 2,             pi * 0.5);
+    arc(const Color(0xFF34A853), 0,                  pi * 0.5);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ── "O CON WHATSAPP" divider ──────────────────────────────────────────────────
+
+class _WaDivider extends StatelessWidget {
+  const _WaDivider({this.label = 'O CON WHATSAPP'});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(
+            child: Divider(color: KTokens.borderStrong, thickness: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            label,
+            style: KTokens.tEyebrow.copyWith(
+                letterSpacing: 1.5, color: KTokens.inkSoft),
+          ),
+        ),
+        const Expanded(
+            child: Divider(color: KTokens.borderStrong, thickness: 1)),
+      ],
+    );
+  }
+}
+
+// ── Name input ────────────────────────────────────────────────────────────────
+
+class _NameInput extends StatelessWidget {
+  const _NameInput({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const underline = UnderlineInputBorder(
+        borderSide: BorderSide(color: KTokens.accent, width: 1.5));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Tu nombre', style: KTokens.tHint),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.name,
+          textCapitalization: TextCapitalization.words,
+          onChanged: onChanged,
+          cursorColor: KTokens.accent,
+          cursorWidth: 2,
+          style: KTokens.tInput.copyWith(fontSize: 18),
+          decoration: InputDecoration(
+            hintText: 'Ej: Ana López',
+            hintStyle: KTokens.tInput
+                .copyWith(fontSize: 18, color: KTokens.inkPlaceholder),
+            border: underline,
+            enabledBorder: underline,
+            focusedBorder: underline,
+            contentPadding: const EdgeInsets.only(bottom: 8),
+            isDense: true,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('nombre completo', style: KTokens.tMonoHint),
+            Text('↵ siguiente',     style: KTokens.tMonoHint),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── Phone input ───────────────────────────────────────────────────────────────
+
+class _PhoneInput extends StatefulWidget {
+  const _PhoneInput({
     required this.country,
     required this.controller,
     required this.onCountrySelected,
     required this.onChanged,
-    this.error,
+    this.onSubmitted,
   });
 
   final Country country;
   final TextEditingController controller;
   final void Function(Country) onCountrySelected;
   final void Function(String) onChanged;
-  final String? error;
+  final void Function(String)? onSubmitted;
 
   @override
-  State<PhoneInputField> createState() => _PhoneInputFieldState();
+  State<_PhoneInput> createState() => _PhoneInputState();
 }
 
-class _PhoneInputFieldState extends State<PhoneInputField> {
-  final GlobalKey _selectorKey = GlobalKey();
+class _PhoneInputState extends State<_PhoneInput> {
+  final _selectorKey = GlobalKey();
 
-  void _openDropdown() {
-    final box =
-        _selectorKey.currentContext?.findRenderObject() as RenderBox?;
+  void _openPicker() {
+    final box = _selectorKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-    final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final origin  = box.localToGlobal(Offset.zero, ancestor: overlay);
 
     showMenu<Country>(
       context: context,
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: KTokens.surface,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(KTokens.rMd)),
       position: RelativeRect.fromLTRB(
         origin.dx,
-        origin.dy + box.size.height,
+        origin.dy + box.size.height + 4,
         overlay.size.width - origin.dx - box.size.width,
         0,
       ),
       items: _countries.map((c) {
-        final isSelected = c.dialCode == widget.country.dialCode;
+        final sel = c.isoCode == widget.country.isoCode;
         return PopupMenuItem<Country>(
           value: c,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(c.flag, style: const TextStyle(fontSize: 20)),
-              const SizedBox(width: 6),
+              Text(c.isoCode,
+                  style: KTokens.tEyebrow.copyWith(color: KTokens.inkMuted)),
+              const SizedBox(width: 8),
               Text(c.dialCode,
-                  style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _kDark)),
-              if (isSelected) ...[
+                  style: KTokens.tCta.copyWith(color: KTokens.ink)),
+              const SizedBox(width: 6),
+              Text(c.name,
+                  style: KTokens.tHint.copyWith(color: KTokens.inkMuted)),
+              if (sel) ...[
                 const SizedBox(width: 8),
-                const Icon(Icons.check_rounded,
-                    size: 14, color: _kPrimary),
+                const Icon(Icons.check, size: 14, color: KTokens.accent),
               ],
             ],
           ),
@@ -732,230 +733,232 @@ class _PhoneInputFieldState extends State<PhoneInputField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: widget.controller,
-      keyboardType: TextInputType.phone,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      onChanged: widget.onChanged,
-      style: GoogleFonts.poppins(fontSize: 14, color: _kDark),
-      decoration: InputDecoration(
-        hintText: 'Número de WhatsApp',
-        hintStyle: GoogleFonts.poppins(
-            fontSize: 13, color: _kMuted.withValues(alpha: 0.6)),
-        prefixIcon: GestureDetector(
-          key: _selectorKey,
-          onTap: _openDropdown,
-          behavior: HitTestBehavior.opaque,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(width: 12),
-              Text(widget.country.flag,
-                  style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: 6),
-              Text(
-                widget.country.dialCode,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _kDark,
+    const underline =
+        UnderlineInputBorder(borderSide: BorderSide(color: KTokens.accent, width: 1.5));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Tu número de WhatsApp', style: KTokens.tHint),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            // Country selector
+            GestureDetector(
+              key: _selectorKey,
+              onTap: _openPicker,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(widget.country.isoCode,
+                      style: KTokens.tInput.copyWith(fontSize: 16)),
+                  const SizedBox(width: 4),
+                  Text(widget.country.dialCode,
+                      style: KTokens.tInput.copyWith(fontSize: 16)),
+                  const Icon(Icons.arrow_drop_down,
+                      size: 18, color: KTokens.inkMuted),
+                ],
+              ),
+            ),
+            // Vertical divider
+            Container(
+                width: 1,
+                height: 22,
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                color: KTokens.borderStrong),
+            // Number field
+            Expanded(
+              child: TextField(
+                controller: widget.controller,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                autofocus: true,
+                onChanged: widget.onChanged,
+                onSubmitted: widget.onSubmitted,
+                cursorColor: KTokens.accent,
+                cursorWidth: 2,
+                style: KTokens.tInput.copyWith(fontSize: 18),
+                decoration: InputDecoration(
+                  hintText: '99 123 456',
+                  hintStyle: KTokens.tInput.copyWith(
+                      fontSize: 18, color: KTokens.inkPlaceholder),
+                  border: underline,
+                  enabledBorder: underline,
+                  focusedBorder: underline,
+                  contentPadding: const EdgeInsets.only(bottom: 8),
+                  isDense: true,
                 ),
               ),
-              const Icon(Icons.arrow_drop_down, size: 18, color: _kMuted),
-              const SizedBox(width: 8),
-              Container(width: 1, height: 18, color: Colors.grey.shade300),
-              const SizedBox(width: 4),
-            ],
-          ),
+            ),
+          ],
         ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-        errorText: widget.error,
-        errorStyle:
-            GoogleFonts.poppins(fontSize: 12, color: Colors.red.shade600),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Recibirás un código de 6 dígitos',
+                style: KTokens.tMonoHint),
+            Text('↵ enviar', style: KTokens.tMonoHint),
+          ],
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _kPrimary, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.red.shade400),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.red.shade400, width: 2),
-        ),
-      ),
+      ],
     );
   }
 }
 
-// ── Form field ────────────────────────────────────────────────────────────────
+// ── Code input ────────────────────────────────────────────────────────────────
 
-class _Field extends StatelessWidget {
-  const _Field({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    required this.icon,
-    this.keyboardType,
-    this.validator,
-    this.obscureText = false,
-  });
+class _CodeInput extends StatelessWidget {
+  const _CodeInput({required this.controller});
 
   final TextEditingController controller;
-  final String label;
-  final String hint;
-  final IconData icon;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-  final bool obscureText;
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      obscureText: obscureText,
-      style: GoogleFonts.poppins(fontSize: 14, color: _kDark),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        labelStyle: GoogleFonts.poppins(fontSize: 13, color: _kMuted),
-        hintStyle: GoogleFonts.poppins(
-            fontSize: 13, color: _kMuted.withValues(alpha: 0.6)),
-        prefixIcon: Icon(icon, color: _kMuted, size: 20),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+    const underline =
+        UnderlineInputBorder(borderSide: BorderSide(color: KTokens.accent, width: 1.5));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Código de verificación', style: KTokens.tHint),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          autofocus: true,
+          maxLength: 6,
+          cursorColor: KTokens.accent,
+          cursorWidth: 2,
+          style: KTokens.tInput.copyWith(letterSpacing: 8),
+          decoration: InputDecoration(
+            hintText: '• • • • • •',
+            hintStyle: KTokens.tInput.copyWith(
+                color: KTokens.inkPlaceholder, letterSpacing: 8),
+            border: underline,
+            enabledBorder: underline,
+            focusedBorder: underline,
+            contentPadding: const EdgeInsets.only(bottom: 8),
+            isDense: true,
+            counterText: '',
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('código de 6 dígitos', style: KTokens.tMonoHint),
+            Text('↵ verificar',         style: KTokens.tMonoHint),
+          ],
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _kPrimary, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.red.shade400),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              BorderSide(color: Colors.red.shade400, width: 2),
-        ),
-      ),
+      ],
     );
   }
 }
 
-// ── Primary button ────────────────────────────────────────────────────────────
+// ── Action button ─────────────────────────────────────────────────────────────
 
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({
+class _SendButton extends StatelessWidget {
+  const _SendButton({
     required this.label,
+    required this.enabled,
     required this.loading,
     required this.onPressed,
   });
 
-  final String label;
-  final bool loading;
+  final String    label;
+  final bool      enabled;
+  final bool      loading;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: _kPrimary,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
-        onPressed: onPressed,
-        child: loading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              )
-            : Text(
-                label,
-                style: GoogleFonts.poppins(
-                    fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-      ),
-    );
-  }
-}
-
-// ── Divider ───────────────────────────────────────────────────────────────────
-
-class _Divider extends StatelessWidget {
-  const _Divider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: Colors.grey.shade200)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text('o',
-              style: GoogleFonts.poppins(fontSize: 12, color: _kMuted)),
-        ),
-        Expanded(child: Divider(color: Colors.grey.shade200)),
-      ],
-    );
-  }
-}
-
-// ── Google icon ───────────────────────────────────────────────────────────────
-
-class _GoogleIcon extends StatelessWidget {
-  const _GoogleIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Center(
-        child: Text(
-          'G',
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF4285F4),
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.38,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: KTokens.ink,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(KTokens.rMd)),
           ),
+          onPressed: onPressed,
+          child: loading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              : Text('$label  →',
+                  style: KTokens.tCta.copyWith(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600)),
         ),
       ),
     );
   }
 }
 
+// ── Background decoration ─────────────────────────────────────────────────────
+
+class _BackgroundCards extends StatelessWidget {
+  const _BackgroundCards();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+
+        return Stack(children: [
+          // Left column
+          _card(left: -w * 0.12, top: h * 0.13, width: w * 0.30, height: 72),
+          _card(left: -w * 0.06, top: h * 0.28, width: w * 0.34, height: 56),
+          _card(left: -w * 0.14, top: h * 0.44, width: w * 0.28, height: 72),
+          _card(left: -w * 0.08, top: h * 0.60, width: w * 0.32, height: 56),
+          // Right column
+          _card(right: -w * 0.10, top: h * 0.10, width: w * 0.32, height: 72),
+          _card(right: -w * 0.06, top: h * 0.26, width: w * 0.30, height: 56),
+          _card(right: -w * 0.12, top: h * 0.42, width: w * 0.34, height: 72),
+          _card(right: -w * 0.08, top: h * 0.58, width: w * 0.28, height: 56),
+          // Bottom row
+          _card(left: w * 0.06,  bottom: h * 0.06, width: w * 0.26, height: 44),
+          _card(right: w * 0.06, bottom: h * 0.03, width: w * 0.24, height: 44),
+        ]);
+      },
+    );
+  }
+
+  Widget _card({
+    double? left,
+    double? right,
+    double? top,
+    double? bottom,
+    required double width,
+    required double height,
+  }) {
+    return Positioned(
+      left: left,
+      right: right,
+      top: top,
+      bottom: bottom,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: KTokens.surface.withValues(alpha: 0.75),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: KTokens.border),
+        ),
+      ),
+    );
+  }
+}

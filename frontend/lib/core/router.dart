@@ -6,8 +6,9 @@ import '../features/auth/login_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/bot_detail/bot_detail_screen.dart';
 // Agenda module — paquete paralelo, no toca el bot.
-import '../features/agenda/agenda_landing_screen.dart';
 import '../features/agenda/register/register_screen.dart';
+import '../features/agenda/register/business_register_screen.dart';
+import '../features/agenda/register/intent_screen.dart';
 import '../features/agenda/public/category_businesses_screen.dart';
 import '../features/agenda/public/public_business_detail_screen.dart';
 import '../features/agenda/public/search_screen.dart';
@@ -80,10 +81,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/agenda/register',
         builder: (context, state) => const RegisterScreen(),
       ),
-      // Panel de onboarding (acceso post-login)
       GoRoute(
-        path: '/agenda/onboarding',
-        builder: (context, state) => const AgendaLandingScreen(),
+        path: '/agenda/business-register',
+        builder: (context, state) => const BusinessRegisterScreen(),
+      ),
+      GoRoute(
+        path: '/agenda/intent',
+        builder: (context, state) => const IntentScreen(),
       ),
       GoRoute(
         path: '/agenda/public/categories/:slug',
