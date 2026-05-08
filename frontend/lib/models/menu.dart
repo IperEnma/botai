@@ -102,6 +102,8 @@ class MenuOption {
 /// Acciones CRM que se pueden asignar a una opción de menú.
 const Map<String, String> kMenuActionIntents = {
   'book_appointment': 'Agendar cita',
+  'view_agenda_bookings_by_contact': 'Ver mis citas',
+  // Legacy: el backend normaliza a agenda
   'view_appointments': 'Ver mis citas',
 };
 

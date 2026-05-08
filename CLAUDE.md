@@ -6,22 +6,17 @@ Este archivo es la instrucción maestra para Claude al trabajar sobre `botai`. *
 
 ## 🚧 Regla #1 (INNEGOCIABLE): solo trabajamos sobre AGENDA
 
-Este repo contiene dos módulos:
-
-```
-com.botai
-├── chatbot      ← BOT EXISTENTE — INTOCABLE
-└── agenda       ← NUEVO — toda la actividad vive acá
-```
+El backend es **un solo módulo Maven** (`chatbot-engine`) con **capas** (`application`, `domain`, `infrastructure`), rama **`chatbot`** / **`agenda`**, y la clase **`@SpringBootApplication`** en **`com.botai`** (raíz del código). Lo compartido va **dentro de la capa que corresponda** (p. ej. `infrastructure.common` para detalles técnicos transversales), no en un raíz `common` paralelo a las capas.
 
 **Claude NO debe:**
-- Modificar ningún archivo bajo `backend/src/main/java/com/botai/chatbot/**`.
+- Modificar ningún archivo bajo `backend/src/main/java/com/botai/application/chatbot/**`, `domain/chatbot/**`, `infrastructure/chatbot/**` (salvo autorización explícita del usuario).
 - Modificar ningún archivo bajo `backend/src/main/resources/` que sea exclusivo del bot (salvo añadir claves `agenda.*` al `application.yml`, que se marcan como bloque separado).
 - Tocar tablas existentes del bot (`bot`, `appointment`, `conversation`, `faq`, `knowledge_chunk`, `lead`, `menu`, `menu_option`, `message`, `business_hours`, `service`, `feature_config`, `menu_trigger`).
 - Añadir valores al enum `BotFeatures` ni columnas a `BotEntity`.
 
 **Claude SÍ debe:**
-- Crear y modificar código bajo `backend/src/main/java/com/botai/agenda/**`.
+- Crear y modificar código bajo `backend/src/main/java/com/botai/application/agenda/**`, `domain/agenda/**`, `infrastructure/agenda/**`.
+- Colocar utilidades **realmente comunes** en la capa adecuada: `application/common`, `domain/common` o `infrastructure/common` (p. ej. `ThreadLocal` de request → `infrastructure/common`).
 - Crear tablas nuevas en el schema `public` con **prefijo obligatorio `agenda_`**.
 - Añadir dependencias al `pom.xml` solo si son estrictamente necesarias para AGENDA.
 - Añadir bloques de configuración bajo la key `agenda:` en `application.yml`.
@@ -41,31 +36,27 @@ Si una tarea parece requerir tocar el bot, **Claude debe detenerse y preguntar a
 
 ## 🏗️ Arquitectura del módulo AGENDA
 
-### Estructura de paquetes (simetría con el bot)
+### Estructura de paquetes (por capa, chatbot vs agenda)
 
 ```
-com.botai.agenda
-├── AgendaModuleConfig.java            # @Configuration
-├── domain/
-│   ├── model/                         # POJOs inmutables (Business, Booking, Plan, ...)
-│   ├── repository/                    # Puertos (interfaces *Repository)
-│   ├── service/                       # Servicios de dominio
-│   ├── event/                         # Eventos de dominio (BookingConfirmed, ...)
-│   ├── feature/                       # AgendaFeatures enum + AgendaFeatureFlagService
-│   └── exception/                     # Excepciones de dominio
-├── application/
-│   ├── usecase/                       # Casos de uso (RegisterBusiness, CreateBooking, ...)
-│   ├── dto/                           # Request / Response
-│   └── mapper/                        # DTO ↔ Domain
-└── infrastructure/
-    ├── api/                           # REST controllers (@RestController)
-    ├── persistence/
-    │   ├── entity/                    # JPA entities (@Entity, @Table(name="agenda_..."))
-    │   └── jpa/                       # Jpa*Repository (adapters) + *JpaRepository (Spring Data)
-    ├── event/                         # @EventListener handlers
-    ├── search/                        # SynonymSearchAdapter
-    ├── notification/                  # NotificationPort + impl
-    └── config/                        # JpaAgendaFeatureFlagService, interceptors, security
+com.botai
+└── ChatbotEngineApplication.java      # @SpringBootApplication (escanea com.botai.**)
+
+com.botai.application
+├── chatbot/                           # casos de uso / servicios del bot
+└── agenda/
+    ├── config/AgendaConfiguration.java  # @Configuration + @EnableScheduling (beans dominio)
+    ├── dto/, mapper/, usecase/, …
+
+com.botai.domain
+├── chatbot/
+└── agenda/                            # model, repository (puertos), service, event, feature, exception
+
+com.botai.infrastructure
+├── chatbot/
+├── agenda/                            # api, persistence, event, notification, config, …
+├── common/                            # transversal técnico (p.ej. ThreadTenantContext)
+└── security/                          # transversal (p.ej. JWT /api/**)
 ```
 
 ### Convenciones de nombres
@@ -96,9 +87,9 @@ com.botai.agenda
 
 ## 🚩 Feature flags (aislado del bot)
 
-AGENDA tiene su propio sistema. **Jamás** añadir valores a `com.botai.chatbot.domain.feature.BotFeatures`.
+AGENDA tiene su propio sistema. **Jamás** añadir valores a `com.botai.domain.chatbot.feature.BotFeatures`.
 
-- Enum: `com.botai.agenda.domain.feature.AgendaFeatures`
+- Enum: `com.botai.domain.agenda.feature.AgendaFeatures`
 - Puerto: `AgendaFeatureFlagService.isEnabled(feature, tenantId)`
 - Tabla: `agenda_tenant_config`
 - Guard: interceptor `AgendaFeatureGuard` aplicado a `/api/agenda/tenants/**` y `/api/agenda/me/**`. Si `AGENDA_ENABLED` está off para el tenant → **404 uniforme**.
@@ -129,7 +120,7 @@ Todos documentados con OpenAPI / Swagger (`springdoc-openapi-starter-webmvc-ui`)
 - **Concurrencia:** tests específicos con `ExecutorService` para validar el bloqueo pesimista en `agenda_user_subscriptions`.
 - **Cobertura mínima:** 80% en `domain/`, 60% global del módulo AGENDA.
 
-Ubicación: `backend/src/test/java/com/botai/agenda/**` (espejo de la estructura de `main`).
+Ubicación: `backend/src/test/java/com/botai/**/agenda/**` (espejo por capas de `main`).
 
 ---
 
@@ -143,7 +134,7 @@ cd backend && mvn spring-boot:run
 cd backend && mvn compile
 
 # Correr tests de AGENDA
-cd backend && mvn test -Dtest='com.botai.agenda.**'
+cd backend && mvn test -Dtest='com.botai.application.agenda.**,com.botai.domain.agenda.**,com.botai.infrastructure.agenda.**'
 
 # Correr Flyway manualmente
 cd backend && mvn flyway:migrate -Dflyway.configFiles=flyway-agenda.conf
@@ -180,7 +171,7 @@ Cuando el usuario pide una feature de AGENDA:
 
 ## ✅ Checklist antes de cerrar cualquier cambio
 
-- [ ] No se modificó nada en `com.botai.chatbot.**`.
+- [ ] No se modificó nada en `com.botai.application.chatbot.**`, `domain/chatbot/**`, `infrastructure/chatbot/**`.
 - [ ] No se modificó `BotFeatures`, `BotEntity` ni tablas del bot.
 - [ ] Todas las tablas nuevas tienen prefijo `agenda_`.
 - [ ] Hay migración Flyway `V*__agenda_*.sql` por cada cambio de schema.

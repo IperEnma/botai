@@ -75,5 +75,5 @@ agenda:
 logging:
   level:
     root: WARN
-    com.botai.agenda: INFO
+    com.botai: INFO
     org.flywaydb: INFO

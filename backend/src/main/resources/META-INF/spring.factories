@@ -1,2 +1,2 @@
 org.springframework.boot.env.EnvironmentPostProcessor=\
-  com.botai.agenda.infrastructure.config.AgendaEnvironmentPostProcessor
+  com.botai.infrastructure.agenda.config.AgendaEnvironmentPostProcessor
