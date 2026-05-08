@@ -9,18 +9,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * <p><b>Por qué {@code @Entity(name = "AgendaService")}:</b> el bot tiene una
- * clase con el mismo simple name en
- * {@code com.botai.infrastructure.chatbot.persistence.entity.ServiceEntity}.
- * Hibernate exige que el <i>entity name</i> sea único en el {@code EntityManagerFactory}.
- * Como ambas clases se llaman {@code ServiceEntity} y por default Hibernate usa
- * el simple name, tendríamos un {@code DuplicateMappingException} al arrancar
- * con las dos entidades en el scan. Acá forzamos un entity name distinto
- * ({@code "AgendaService"}) para coexistir con el del bot. No afecta el nombre
- * de la tabla (ya declarado en {@code @Table}) — solo afecta JPQL, y en AGENDA
- * no hay queries JPQL contra {@code ServiceEntity}.</p>
- */
 @Entity(name = "AgendaService")
 @Table(name = "agenda_services")
 public class ServiceEntity extends BaseAuditableEntity {

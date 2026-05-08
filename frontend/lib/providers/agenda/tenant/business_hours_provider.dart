@@ -35,7 +35,7 @@ class BusinessHoursState {
 
 class BusinessHoursNotifier extends StateNotifier<BusinessHoursState> {
   BusinessHoursNotifier(this._ref, this._businessId)
-      : super(const BusinessHoursState()) {
+      : super(const BusinessHoursState(isLoading: true)) {
     load();
   }
 

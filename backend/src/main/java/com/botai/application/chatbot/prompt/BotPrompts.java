@@ -500,6 +500,8 @@ public final class BotPrompts {
         public static final String ERR_FECHA_PASADA = "Fecha no válida o ya pasada.";
         public static final String ERR_SERVICIO_NO_OFRECIDO =
             "No ofrecemos ese servicio. Consulta los servicios disponibles con listarServicios.";
+        public static final String ERR_SIN_NEGOCIO_AGENDA =
+            "No hay negocio activo en la agenda para este cliente. Completá el alta del negocio en Agenda.";
         public static final String ERR_DOC_NORMALIZE_FAIL = "Documento no válido tras normalizar. Pide de nuevo la cédula o documento.";
 
         public static String horasDisponibles(String fecha, String slotsJoined) {

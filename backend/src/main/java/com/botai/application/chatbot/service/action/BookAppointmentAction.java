@@ -9,9 +9,10 @@ import com.botai.domain.chatbot.repository.ConversationRepository;
 import com.botai.infrastructure.chatbot.booking.CustomerDocumentNormalizer;
 import com.botai.infrastructure.chatbot.booking.ServiceNameMatcher;
 import com.botai.infrastructure.chatbot.persistence.entity.AppointmentEntity;
-import com.botai.infrastructure.chatbot.persistence.entity.ServiceEntity;
+import com.botai.infrastructure.agenda.persistence.entity.ServiceEntity;
+import com.botai.infrastructure.agenda.persistence.jpa.ServiceJpaRepository;
+import com.botai.infrastructure.agenda.support.AgendaPrimaryBusinessResolver;
 import com.botai.infrastructure.chatbot.persistence.jpa.AppointmentJpaRepository;
-import com.botai.infrastructure.chatbot.persistence.jpa.ServiceJpaRepository;
 import com.botai.domain.chatbot.service.BotAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,17 +45,26 @@ public class BookAppointmentAction implements BotAction {
 
     private final ConversationRepository conversationRepository;
     private final AppointmentJpaRepository appointmentRepository;
-    private final ServiceJpaRepository serviceRepository;
+    private final ServiceJpaRepository agendaServiceRepository;
+    private final AgendaPrimaryBusinessResolver primaryBusinessResolver;
     private final FeatureFlagService featureFlagService;
 
     public BookAppointmentAction(ConversationRepository conversationRepository,
                                  AppointmentJpaRepository appointmentRepository,
-                                 ServiceJpaRepository serviceRepository,
+                                 ServiceJpaRepository agendaServiceRepository,
+                                 AgendaPrimaryBusinessResolver primaryBusinessResolver,
                                  FeatureFlagService featureFlagService) {
         this.conversationRepository = conversationRepository;
         this.appointmentRepository = appointmentRepository;
-        this.serviceRepository = serviceRepository;
+        this.agendaServiceRepository = agendaServiceRepository;
+        this.primaryBusinessResolver = primaryBusinessResolver;
         this.featureFlagService = featureFlagService;
+    }
+
+    private List<ServiceEntity> activeServices(String tenantId) {
+        return primaryBusinessResolver.findPrimaryBusinessId(tenantId)
+            .map(bid -> agendaServiceRepository.findAllByBusinessIdAndActivoTrueAndDeletedAtIsNull(bid))
+            .orElse(List.of());
     }
 
     @Override
@@ -93,7 +103,7 @@ public class BookAppointmentAction implements BotAction {
         }
 
         if (step == null || step.isBlank()) {
-            List<ServiceEntity> services = serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc(tenantId);
+            List<ServiceEntity> services = activeServices(tenantId);
             if (services.isEmpty()) {
                 conversationRepository.clearIntent(state.getConversationId());
                 return OutboundMessage.builder()
@@ -152,7 +162,7 @@ public class BookAppointmentAction implements BotAction {
                     .build();
             }
             case "document_early" -> {
-                List<ServiceEntity> services = serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc(tenantId);
+                List<ServiceEntity> services = activeServices(tenantId);
                 if (services.isEmpty()) {
                     conversationRepository.clearIntent(state.getConversationId());
                     return OutboundMessage.builder()
@@ -295,7 +305,7 @@ public class BookAppointmentAction implements BotAction {
                     .build();
             }
             case "service" -> {
-                List<ServiceEntity> services = serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc(tenantId);
+                List<ServiceEntity> services = activeServices(tenantId);
                 if (services.isEmpty()) {
                     conversationRepository.clearIntent(state.getConversationId());
                     return OutboundMessage.builder()
@@ -317,7 +327,7 @@ public class BookAppointmentAction implements BotAction {
                     }
                 }
                 if (chosen == null && aiOn) {
-                    chosen = ServiceNameMatcher.bestMatch(rawInput, services).orElse(null);
+                    chosen = ServiceNameMatcher.bestMatch(rawInput, services, ServiceEntity::getNombre).orElse(null);
                     parsedDate = parseDateFromMessage(rawInput);
                     parsedTimeFromMsg = parseTimeFromMessage(rawInput);
                 }
@@ -326,23 +336,23 @@ public class BookAppointmentAction implements BotAction {
                     if (!aiOn) {
                         if (chosen == null) {
                             chosen = services.stream()
-                                .filter(s -> normalizeForMatch(s.getName()).equals(normalizeForMatch(rawInput)))
+                                .filter(s -> normalizeForMatch(s.getNombre()).equals(normalizeForMatch(rawInput)))
                                 .findFirst()
                                 .orElse(null);
                         }
                         if (chosen == null) {
                             chosen = services.stream()
-                                .filter(s -> normalizeForMatch(rawInput).contains(normalizeForMatch(s.getName())))
+                                .filter(s -> normalizeForMatch(rawInput).contains(normalizeForMatch(s.getNombre())))
                                 .findFirst()
                                 .orElse(null);
                         }
                         if (chosen == null) {
-                            chosen = ServiceNameMatcher.bestMatch(rawInput, services).orElse(null);
+                            chosen = ServiceNameMatcher.bestMatch(rawInput, services, ServiceEntity::getNombre).orElse(null);
                         }
                     }
                     if (chosen == null) {
                         String serviceList = aiOn
-                            ? "Puedes escribir el nombre del servicio que deseas. Ofrecemos: " + services.stream().map(ServiceEntity::getName).reduce((a, b) -> a + ", " + b).orElse("") + "."
+                            ? "Puedes escribir el nombre del servicio que deseas. Ofrecemos: " + services.stream().map(ServiceEntity::getNombre).reduce((a, b) -> a + ", " + b).orElse("") + "."
                             : "Nuestros servicios son:\n" + buildNumberedServiceList(services) + "Indica el número o el nombre del servicio que deseas.";
                         return OutboundMessage.builder()
                             .text("No ofrecemos ese servicio. " + serviceList)
@@ -352,7 +362,7 @@ public class BookAppointmentAction implements BotAction {
                     }
                 }
 
-                ctx.put("serviceName", chosen.getName());
+                ctx.put("serviceName", chosen.getNombre());
 
                 if (aiOn && parsedDate != null && !parsedDate.isBefore(LocalDate.now())) {
                     ctx.put("appointmentDate", parsedDate.toString());
@@ -363,7 +373,7 @@ public class BookAppointmentAction implements BotAction {
                         String customerName = (String) ctx.get("customerName");
                         String customerDocument = (String) ctx.get("customerDocument");
                         return OutboundMessage.builder()
-                            .text("Confirma tu cita:\n• Servicio: " + chosen.getName() + "\n• Fecha: " + parsedDate
+                            .text("Confirma tu cita:\n• Servicio: " + chosen.getNombre() + "\n• Fecha: " + parsedDate
                                 + "\n• Hora: " + parsedTimeFromMsg + "\n• Nombre: " + customerName + "\n• Documento: "
                                 + customerDocument + "\n\nResponde SÍ para confirmar o NO para cancelar.")
                             .conversationId(state.getConversationId())
@@ -517,12 +527,12 @@ public class BookAppointmentAction implements BotAction {
         StringBuilder sb = new StringBuilder();
         if (aiOn) {
             sb.append("¿Qué servicio deseas y para qué fecha? Puedes escribirlo en una frase (ej.: \"manicura para mañana\").\nServicios que ofrecemos: ");
-            sb.append(services.stream().map(ServiceEntity::getName).reduce((a, b) -> a + ", " + b).orElse(""));
+            sb.append(services.stream().map(ServiceEntity::getNombre).reduce((a, b) -> a + ", " + b).orElse(""));
             sb.append(".");
         } else {
             sb.append("¿Qué servicio deseas? Opciones:\n");
             for (int i = 0; i < services.size(); i++) {
-                sb.append(i + 1).append(". ").append(services.get(i).getName()).append("\n");
+                sb.append(i + 1).append(". ").append(services.get(i).getNombre()).append("\n");
             }
         }
         return sb.toString().trim();
@@ -652,7 +662,7 @@ public class BookAppointmentAction implements BotAction {
     private static String buildNumberedServiceList(List<ServiceEntity> services) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < services.size(); i++) {
-            sb.append(i + 1).append(". ").append(services.get(i).getName()).append("\n");
+            sb.append(i + 1).append(". ").append(services.get(i).getNombre()).append("\n");
         }
         return sb.toString();
     }

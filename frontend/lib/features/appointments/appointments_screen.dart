@@ -167,14 +167,10 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         includeCancelled: _includeCancelled,
         customerDocument: _docFilterApplied,
       );
-      List<Service> svc = [];
-      try {
-        svc = await api.getServices(widget.tenantId);
-      } catch (_) {}
       if (mounted) {
         setState(() {
           _appointments = list;
-          _services = svc;
+          _services = [];
           _loading = false;
           _error = null;
         });

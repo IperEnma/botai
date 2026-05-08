@@ -1,7 +1,5 @@
 package com.botai.infrastructure.chatbot.api;
 
-import com.botai.application.chatbot.service.admin.BusinessHoursAdminService;
-import com.botai.application.chatbot.service.admin.BusinessServiceAdminService;
 import com.botai.application.chatbot.service.knowledge.KnowledgeChunkAdminService;
 import com.botai.infrastructure.chatbot.booking.CustomerDocumentNormalizer;
 import com.botai.infrastructure.chatbot.persistence.entity.*;
@@ -26,8 +24,6 @@ public class AdminController {
     private final MenuTriggerJpaRepository triggerRepository;
     private final FeatureConfigJpaRepository featureConfigRepository;
     private final BotJpaRepository botRepository;
-    private final BusinessHoursAdminService businessHoursAdminService;
-    private final BusinessServiceAdminService businessServiceAdminService;
     private final KnowledgeChunkAdminService knowledgeChunkAdminService;
     private final AppointmentJpaRepository appointmentRepository;
 
@@ -36,16 +32,12 @@ public class AdminController {
             MenuTriggerJpaRepository triggerRepository,
             FeatureConfigJpaRepository featureConfigRepository,
             BotJpaRepository botRepository,
-            BusinessHoursAdminService businessHoursAdminService,
-            BusinessServiceAdminService businessServiceAdminService,
             KnowledgeChunkAdminService knowledgeChunkAdminService,
             AppointmentJpaRepository appointmentRepository) {
         this.menuRepository = menuRepository;
         this.triggerRepository = triggerRepository;
         this.featureConfigRepository = featureConfigRepository;
         this.botRepository = botRepository;
-        this.businessHoursAdminService = businessHoursAdminService;
-        this.businessServiceAdminService = businessServiceAdminService;
         this.knowledgeChunkAdminService = knowledgeChunkAdminService;
         this.appointmentRepository = appointmentRepository;
     }
@@ -257,54 +249,6 @@ public class AdminController {
             @PathVariable Long triggerId) {
         triggerRepository.deleteById(triggerId);
         return ResponseEntity.noContent().build();
-    }
-
-    // ============ HORARIO DEL NEGOCIO ============
-    // dayOfWeek: 1=Lunes .. 7=Domingo. openTime/closeTime "09:00", "18:00"; null = cerrado
-
-    @GetMapping("/tenants/{tenantId}/business-hours")
-    public ResponseEntity<List<BusinessHoursEntity>> getBusinessHours(@PathVariable String tenantId) {
-        return ResponseEntity.ok(businessHoursAdminService.getByTenant(tenantId));
-    }
-
-    @PutMapping("/tenants/{tenantId}/business-hours")
-    public ResponseEntity<List<BusinessHoursEntity>> saveBusinessHours(
-            @PathVariable String tenantId,
-            @RequestBody List<Map<String, Object>> body) {
-        return ResponseEntity.ok(businessHoursAdminService.save(tenantId, body));
-    }
-
-    // ============ SERVICIOS DEL NEGOCIO ============
-
-    @GetMapping("/tenants/{tenantId}/services")
-    public ResponseEntity<List<ServiceEntity>> getServices(@PathVariable String tenantId) {
-        return ResponseEntity.ok(businessServiceAdminService.getByTenant(tenantId));
-    }
-
-    @PostMapping("/tenants/{tenantId}/services")
-    public ResponseEntity<ServiceEntity> createService(
-            @PathVariable String tenantId,
-            @RequestBody Map<String, Object> body) {
-        return ResponseEntity.ok(businessServiceAdminService.create(tenantId, body));
-    }
-
-    @PutMapping("/tenants/{tenantId}/services/{serviceId}")
-    public ResponseEntity<ServiceEntity> updateService(
-            @PathVariable String tenantId,
-            @PathVariable Long serviceId,
-            @RequestBody Map<String, Object> body) {
-        return businessServiceAdminService.update(tenantId, serviceId, body)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
-    }
-
-    @DeleteMapping("/tenants/{tenantId}/services/{serviceId}")
-    public ResponseEntity<Void> deleteService(
-            @PathVariable String tenantId,
-            @PathVariable Long serviceId) {
-        return businessServiceAdminService.delete(tenantId, serviceId)
-            ? ResponseEntity.noContent().build()
-            : ResponseEntity.notFound().build();
     }
 
     // ============ CITAS / AGENDA ============

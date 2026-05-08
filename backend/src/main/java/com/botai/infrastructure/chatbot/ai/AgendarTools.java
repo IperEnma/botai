@@ -6,12 +6,13 @@ import com.botai.domain.chatbot.repository.ConversationRepository;
 import com.botai.infrastructure.chatbot.booking.BookingContextSanitizer;
 import com.botai.infrastructure.chatbot.booking.CustomerDocumentNormalizer;
 import com.botai.infrastructure.chatbot.booking.ServiceNameMatcher;
-import com.botai.infrastructure.chatbot.persistence.entity.ServiceEntity;
 import com.botai.infrastructure.chatbot.persistence.entity.AppointmentEntity;
-import com.botai.infrastructure.chatbot.persistence.entity.BusinessHoursEntity;
 import com.botai.infrastructure.chatbot.persistence.jpa.AppointmentJpaRepository;
-import com.botai.infrastructure.chatbot.persistence.jpa.BusinessHoursJpaRepository;
-import com.botai.infrastructure.chatbot.persistence.jpa.ServiceJpaRepository;
+import com.botai.infrastructure.agenda.persistence.entity.BusinessHoursEntity;
+import com.botai.infrastructure.agenda.persistence.entity.ServiceEntity;
+import com.botai.infrastructure.agenda.persistence.jpa.AgendaBusinessHoursJpaRepository;
+import com.botai.infrastructure.agenda.persistence.jpa.ServiceJpaRepository;
+import com.botai.infrastructure.agenda.support.AgendaPrimaryBusinessResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
@@ -24,6 +25,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -37,19 +39,22 @@ public class AgendarTools {
 
     private static final Logger log = LoggerFactory.getLogger(AgendarTools.class);
 
-    private final BusinessHoursJpaRepository businessHoursRepository;
+    private final AgendaBusinessHoursJpaRepository agendaBusinessHoursRepository;
     private final AppointmentJpaRepository appointmentRepository;
-    private final ServiceJpaRepository serviceRepository;
+    private final ServiceJpaRepository agendaServiceRepository;
     private final ConversationRepository conversationRepository;
+    private final AgendaPrimaryBusinessResolver primaryBusinessResolver;
 
-    public AgendarTools(BusinessHoursJpaRepository businessHoursRepository,
+    public AgendarTools(AgendaBusinessHoursJpaRepository agendaBusinessHoursRepository,
                        AppointmentJpaRepository appointmentRepository,
-                       ServiceJpaRepository serviceRepository,
-                       ConversationRepository conversationRepository) {
-        this.businessHoursRepository = businessHoursRepository;
+                       ServiceJpaRepository agendaServiceRepository,
+                       ConversationRepository conversationRepository,
+                       AgendaPrimaryBusinessResolver primaryBusinessResolver) {
+        this.agendaBusinessHoursRepository = agendaBusinessHoursRepository;
         this.appointmentRepository = appointmentRepository;
-        this.serviceRepository = serviceRepository;
+        this.agendaServiceRepository = agendaServiceRepository;
         this.conversationRepository = conversationRepository;
+        this.primaryBusinessResolver = primaryBusinessResolver;
     }
 
     @Tool(description = BotPrompts.ToolsAgendar.TOOL_GET_SLOTS)
@@ -304,12 +309,16 @@ public class AgendarTools {
         if (!slots.contains(horaNorm)) {
             return BotPrompts.ToolsAgendar.horaNoDisponible(slots.subList(0, Math.min(10, slots.size())));
         }
-        List<ServiceEntity> activeServices = serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc(tenantId);
-        ServiceEntity resolvedService = ServiceNameMatcher.bestMatch(servicio, activeServices).orElse(null);
+        UUID businessId = primaryBusinessResolver.findPrimaryBusinessId(tenantId).orElse(null);
+        if (businessId == null) {
+            return BotPrompts.ToolsAgendar.ERR_SIN_NEGOCIO_AGENDA;
+        }
+        List<ServiceEntity> activeServices = agendaServiceRepository.findAllByBusinessIdAndActivoTrueAndDeletedAtIsNull(businessId);
+        ServiceEntity resolvedService = ServiceNameMatcher.bestMatch(servicio, activeServices, ServiceEntity::getNombre).orElse(null);
         if (resolvedService == null) {
             return BotPrompts.ToolsAgendar.ERR_SERVICIO_NO_OFRECIDO;
         }
-        String canonicalServiceName = resolvedService.getName();
+        String canonicalServiceName = resolvedService.getNombre();
         String normalizedDoc = CustomerDocumentNormalizer.normalize(documento);
         if (normalizedDoc.isEmpty()) {
             return BotPrompts.ToolsAgendar.ERR_DOC_NORMALIZE_FAIL;
@@ -388,19 +397,26 @@ public class AgendarTools {
         return m >= 0 ? String.format("%02d:%02d", m / 60, m % 60) : time;
     }
 
-    private BusinessHoursEntity getHoursForDay(String tenantId, LocalDate date) {
-        int dayOfWeek = date.getDayOfWeek().getValue();
-        return businessHoursRepository.findByTenantIdOrderByDayOfWeek(tenantId).stream()
-                .filter(h -> h.getDayOfWeek() == dayOfWeek)
+    /** diaSemana Agenda: 0 = lunes … 6 = domingo (alineado con {@code agenda_business_hours}). */
+    private BusinessHoursEntity getAgendaHoursForDay(UUID businessId, LocalDate date) {
+        int diaAgenda = date.getDayOfWeek().getValue() - 1;
+        return agendaBusinessHoursRepository.findByBusinessId(businessId).stream()
+                .filter(h -> h.getDiaSemana() == diaAgenda)
                 .findFirst()
                 .orElse(null);
     }
 
     private List<String> getAvailableTimeSlots(String tenantId, LocalDate date) {
-        BusinessHoursEntity h = getHoursForDay(tenantId, date);
-        if (h == null || h.getOpenTime() == null || h.getCloseTime() == null) return List.of();
-        int openMin = parseTimeToMinutes(h.getOpenTime());
-        int closeMin = parseTimeToMinutes(h.getCloseTime());
+        UUID businessId = primaryBusinessResolver.findPrimaryBusinessId(tenantId).orElse(null);
+        if (businessId == null) {
+            return List.of();
+        }
+        BusinessHoursEntity h = getAgendaHoursForDay(businessId, date);
+        if (h == null || h.isCerrado() || h.getApertura() == null || h.getCierre() == null) {
+            return List.of();
+        }
+        int openMin = h.getApertura().getHour() * 60 + h.getApertura().getMinute();
+        int closeMin = h.getCierre().getHour() * 60 + h.getCierre().getMinute();
         if (openMin < 0 || closeMin <= openMin) return List.of();
         // Solo citas activas ocupan hueco; horas normalizadas para coincidir con BD (p. ej. 9:00 vs 09:00).
         List<String> booked = appointmentRepository.findByTenantIdAndAppointmentDateOrderByAppointmentTimeAsc(tenantId, date)

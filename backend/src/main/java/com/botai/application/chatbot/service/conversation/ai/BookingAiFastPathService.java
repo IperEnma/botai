@@ -5,8 +5,9 @@ import com.botai.infrastructure.chatbot.ai.AgendarTools;
 import com.botai.infrastructure.chatbot.booking.BookingContextSanitizer;
 import com.botai.infrastructure.chatbot.booking.CustomerDocumentNormalizer;
 import com.botai.infrastructure.chatbot.booking.ServiceNameMatcher;
-import com.botai.infrastructure.chatbot.persistence.entity.ServiceEntity;
-import com.botai.infrastructure.chatbot.persistence.jpa.ServiceJpaRepository;
+import com.botai.infrastructure.agenda.persistence.entity.ServiceEntity;
+import com.botai.infrastructure.agenda.persistence.jpa.ServiceJpaRepository;
+import com.botai.infrastructure.agenda.support.AgendaPrimaryBusinessResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -47,14 +48,17 @@ public class BookingAiFastPathService {
 
     private final AgendarTools agendarTools;
     private final MessageHistoryService messageHistoryService;
-    private final ServiceJpaRepository serviceRepository;
+    private final ServiceJpaRepository agendaServiceRepository;
+    private final AgendaPrimaryBusinessResolver primaryBusinessResolver;
 
     public BookingAiFastPathService(AgendarTools agendarTools,
                                     MessageHistoryService messageHistoryService,
-                                    ServiceJpaRepository serviceRepository) {
+                                    ServiceJpaRepository agendaServiceRepository,
+                                    AgendaPrimaryBusinessResolver primaryBusinessResolver) {
         this.agendarTools = agendarTools;
         this.messageHistoryService = messageHistoryService;
-        this.serviceRepository = serviceRepository;
+        this.agendaServiceRepository = agendaServiceRepository;
+        this.primaryBusinessResolver = primaryBusinessResolver;
     }
 
     /**
@@ -73,11 +77,14 @@ public class BookingAiFastPathService {
             return Optional.empty();
         }
         String blob = String.join("\n", userLines);
-        List<ServiceEntity> services = serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc(tenantId);
+        List<ServiceEntity> services = primaryBusinessResolver.findPrimaryBusinessId(tenantId)
+            .map(bid -> agendaServiceRepository.findAllByBusinessIdAndActivoTrueAndDeletedAtIsNull(bid))
+            .orElse(List.of());
         if (services.isEmpty()) {
             return Optional.empty();
         }
-        Optional<String> serviceGuess = ServiceNameMatcher.bestMatch(blob, services).map(ServiceEntity::getName);
+        Optional<String> serviceGuess = ServiceNameMatcher.bestMatch(blob, services, ServiceEntity::getNombre)
+            .map(ServiceEntity::getNombre);
         if (serviceGuess.isEmpty()) {
             return Optional.empty();
         }

@@ -1,7 +1,5 @@
 package com.botai.infrastructure.chatbot.booking;
 
-import com.botai.infrastructure.chatbot.persistence.entity.ServiceEntity;
-
 import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -9,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -60,18 +59,21 @@ public final class ServiceNameMatcher {
     }
 
     /**
-     * Mejor servicio del catálogo para el texto del usuario: prioriza coincidencia por tokens, luego subcadena,
+     * Mejor ítem del catálogo para el texto del usuario: prioriza coincidencia por tokens, luego subcadena,
      * y en empate el nombre de catálogo más largo (más específico).
      */
-    public static Optional<ServiceEntity> bestMatch(String userMessage, List<ServiceEntity> services) {
+    public static <T> Optional<T> bestMatch(String userMessage, List<T> services, Function<T, String> nameGetter) {
         if (userMessage == null || userMessage.isBlank() || services == null || services.isEmpty()) {
             return Optional.empty();
         }
         String normMsg = normalizeKey(userMessage);
         return services.stream()
-            .filter(s -> s.getName() != null && !s.getName().isBlank())
-            .filter(s -> matches(normMsg, userMessage, s.getName()))
-            .max(Comparator.comparingInt(se -> se.getName().length()));
+            .filter(s -> {
+                String n = nameGetter.apply(s);
+                return n != null && !n.isBlank();
+            })
+            .filter(s -> matches(normMsg, userMessage, nameGetter.apply(s)))
+            .max(Comparator.comparingInt(se -> nameGetter.apply(se).length()));
     }
 
     private static boolean matches(String normMsg, String rawUserMessage, String catalogName) {
@@ -80,11 +82,9 @@ public final class ServiceNameMatcher {
         if (catalogTokensContainedInMessage(catalogName, rawUserMessage)) {
             return true;
         }
-        // Coincidencia clásica: el mensaje incluye el nombre del catálogo tal cual (normalizado)
         if (normMsg.contains(sn)) {
             return true;
         }
-        // Usuario escribió una forma más corta que el catálogo (ej. "manicura" vs "Manicura uñas gel")
         if (sn.contains(normMsg) && normMsg.length() >= 4) {
             return true;
         }
@@ -94,7 +94,7 @@ public final class ServiceNameMatcher {
     /**
      * Resuelve el nombre canónico en catálogo para guardar en BD / validar tools.
      */
-    public static Optional<String> canonicalName(String userOrLlmGuess, List<ServiceEntity> services) {
-        return bestMatch(userOrLlmGuess, services).map(ServiceEntity::getName);
+    public static <T> Optional<String> canonicalName(String userOrLlmGuess, List<T> services, Function<T, String> nameGetter) {
+        return bestMatch(userOrLlmGuess, services, nameGetter).map(nameGetter);
     }
 }

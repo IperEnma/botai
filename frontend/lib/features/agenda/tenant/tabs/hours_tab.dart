@@ -30,9 +30,10 @@ class _HoursTabState extends ConsumerState<HoursTab> {
   @override
   void initState() {
     super.initState();
+    // Placeholder hasta el primer GET: no fingir días “abiertos” (evita parecer mock).
     _days = List.generate(
       7,
-      (i) => _DayEdit(diaSemana: i, cerrado: false, apertura: '09:00', cierre: '18:00'),
+      (i) => _DayEdit(diaSemana: i, cerrado: true, apertura: '09:00', cierre: '18:00'),
     );
   }
 
@@ -43,7 +44,8 @@ class _HoursTabState extends ConsumerState<HoursTab> {
     _days = List.generate(7, (i) {
       final h = map[i];
       if (h == null) {
-        return _DayEdit(diaSemana: i, cerrado: false, apertura: '09:00', cierre: '18:00');
+        // Sin fila en backend = ese día no está configurado → cerrado, no 9–18 encendido.
+        return _DayEdit(diaSemana: i, cerrado: true, apertura: '09:00', cierre: '18:00');
       }
       return _DayEdit(
         diaSemana: i,
@@ -99,20 +101,20 @@ class _HoursTabState extends ConsumerState<HoursTab> {
     final state = ref.watch(businessHoursProvider(_key));
 
     if (state.isLoading) return const AgendaLoadingView(message: 'Cargando horarios…');
-    if (state.error != null && _days.isEmpty) {
+    if (state.error != null) {
       return AgendaErrorView(
         message: state.error!,
         onRetry: () => ref.read(businessHoursProvider(_key).notifier).load(),
       );
     }
 
-    // Sync once when data arrives
-    if (!_initialized && state.hours.isNotEmpty) {
+    // Un solo sync tras respuesta OK (vacía o con filas): lista vacía => todos cerrados.
+    if (!_initialized) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         setState(() => _syncFromProvider(state.hours));
       });
     }
-    _syncFromProvider(state.hours);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

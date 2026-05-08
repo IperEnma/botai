@@ -2,7 +2,7 @@ package com.botai.application.chatbot.service.knowledge;
 
 import com.botai.infrastructure.chatbot.persistence.entity.KnowledgeChunkEntity;
 import com.botai.infrastructure.chatbot.persistence.jpa.KnowledgeChunkJpaRepository;
-import com.botai.infrastructure.chatbot.rag.RagSourceSync;
+import com.botai.infrastructure.chatbot.rag.KnowledgeChunkEmbeddingClearer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,12 +17,12 @@ import java.util.Optional;
 public class KnowledgeChunkAdminService {
 
     private final KnowledgeChunkJpaRepository knowledgeRepository;
-    private final RagSourceSync ragSourceSync;
+    private final KnowledgeChunkEmbeddingClearer embeddingClearer;
 
     public KnowledgeChunkAdminService(KnowledgeChunkJpaRepository knowledgeRepository,
-                                       RagSourceSync ragSourceSync) {
+                                       KnowledgeChunkEmbeddingClearer embeddingClearer) {
         this.knowledgeRepository = knowledgeRepository;
-        this.ragSourceSync = ragSourceSync;
+        this.embeddingClearer = embeddingClearer;
     }
 
     public List<KnowledgeChunkEntity> getByTenant(String tenantId) {
@@ -34,7 +34,7 @@ public class KnowledgeChunkAdminService {
         chunk.setTenantId(tenantId);
         chunk.setActive(true);
         KnowledgeChunkEntity saved = knowledgeRepository.save(chunk);
-        ragSourceSync.clearEmbeddingForChunk(saved.getId());
+        embeddingClearer.clearEmbeddingForChunk(saved.getId());
         return saved;
     }
 
@@ -48,7 +48,7 @@ public class KnowledgeChunkAdminService {
                 existing.setKeywords(chunk.getKeywords());
                 existing.setActive(chunk.isActive());
                 KnowledgeChunkEntity saved = knowledgeRepository.save(existing);
-                ragSourceSync.clearEmbeddingForChunk(saved.getId());
+                embeddingClearer.clearEmbeddingForChunk(saved.getId());
                 return saved;
             });
     }

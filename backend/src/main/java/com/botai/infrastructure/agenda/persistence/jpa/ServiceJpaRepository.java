@@ -11,17 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * <p><b>Por qué {@code @Repository("agendaServiceJpaRepository")}:</b> el bot
- * tiene un interface con el mismo simple name en
- * {@code com.botai.infrastructure.chatbot.persistence.jpa.ServiceJpaRepository}.
- * Spring Data genera el bean name a partir del simple name (decapitalizado),
- * así que ambos se llamarían {@code serviceJpaRepository} y colisionarían al
- * arrancar el contexto con {@code BeanDefinitionOverrideException}. Nombramos
- * explícitamente el bean de AGENDA para evitar el choque sin tocar código del
- * bot. La inyección en los adapters es por tipo, así que el bean name explícito
- * no afecta el wiring.</p>
- */
+/** Spring Data: bean explícito por si en el futuro hay otro repo con el mismo simple name. */
 @Repository("agendaServiceJpaRepository")
 public interface ServiceJpaRepository extends JpaRepository<ServiceEntity, UUID> {
 

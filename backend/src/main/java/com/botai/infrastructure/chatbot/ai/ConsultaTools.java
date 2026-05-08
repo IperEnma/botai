@@ -4,15 +4,17 @@ import com.botai.application.chatbot.prompt.BotPrompts;
 import com.botai.application.chatbot.service.knowledge.KnowledgeService;
 import com.botai.infrastructure.security.context.ThreadTenantContext;
 import com.botai.domain.chatbot.model.KnowledgeChunk;
-import com.botai.infrastructure.chatbot.persistence.entity.BusinessHoursEntity;
-import com.botai.infrastructure.chatbot.persistence.entity.ServiceEntity;
-import com.botai.infrastructure.chatbot.persistence.jpa.BusinessHoursJpaRepository;
-import com.botai.infrastructure.chatbot.persistence.jpa.ServiceJpaRepository;
+import com.botai.infrastructure.agenda.persistence.entity.BusinessHoursEntity;
+import com.botai.infrastructure.agenda.persistence.entity.ServiceEntity;
+import com.botai.infrastructure.agenda.persistence.jpa.AgendaBusinessHoursJpaRepository;
+import com.botai.infrastructure.agenda.persistence.jpa.ServiceJpaRepository;
+import com.botai.infrastructure.agenda.support.AgendaPrimaryBusinessResolver;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,15 +28,18 @@ public class ConsultaTools {
     private static final String[] DAY_NAMES_ES = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
     private static final int RAG_MAX_CHUNKS = 5;
 
-    private final BusinessHoursJpaRepository businessHoursRepository;
-    private final ServiceJpaRepository serviceRepository;
+    private final AgendaBusinessHoursJpaRepository agendaBusinessHoursRepository;
+    private final ServiceJpaRepository agendaServiceRepository;
+    private final AgendaPrimaryBusinessResolver primaryBusinessResolver;
     private final KnowledgeService knowledgeService;
 
-    public ConsultaTools(BusinessHoursJpaRepository businessHoursRepository,
-                         ServiceJpaRepository serviceRepository,
+    public ConsultaTools(AgendaBusinessHoursJpaRepository agendaBusinessHoursRepository,
+                         ServiceJpaRepository agendaServiceRepository,
+                         AgendaPrimaryBusinessResolver primaryBusinessResolver,
                          KnowledgeService knowledgeService) {
-        this.businessHoursRepository = businessHoursRepository;
-        this.serviceRepository = serviceRepository;
+        this.agendaBusinessHoursRepository = agendaBusinessHoursRepository;
+        this.agendaServiceRepository = agendaServiceRepository;
+        this.primaryBusinessResolver = primaryBusinessResolver;
         this.knowledgeService = knowledgeService;
     }
 
@@ -44,23 +49,30 @@ public class ConsultaTools {
         if (tenantId == null || tenantId.isBlank()) {
             return BotPrompts.ToolsConsulta.ERR_TENANT_UNKNOWN;
         }
-        List<BusinessHoursEntity> hours = businessHoursRepository.findByTenantIdOrderByDayOfWeek(tenantId);
-        List<String> daysWithHours = new ArrayList<>();
-        for (BusinessHoursEntity h : hours) {
-            String open = h.getOpenTime();
-            String close = h.getCloseTime();
-            boolean hasHours = (open != null && !open.isBlank()) || (close != null && !close.isBlank());
-            if (hasHours) {
-                int day = h.getDayOfWeek();
-                String dayLabel = day >= 1 && day <= 7 ? DAY_NAMES_ES[day - 1] : "Día " + day;
-                String slot = (open != null ? open : "?") + " - " + (close != null ? close : "?");
-                daysWithHours.add(dayLabel + ": " + slot);
-            }
-        }
-        if (daysWithHours.isEmpty()) {
+        var businessId = primaryBusinessResolver.findPrimaryBusinessId(tenantId);
+        if (businessId.isEmpty()) {
             return BotPrompts.ToolsConsulta.ERR_NO_HORARIO;
         }
-        return String.join("\n", daysWithHours);
+        List<BusinessHoursEntity> hours = agendaBusinessHoursRepository.findByBusinessId(businessId.get());
+        hours = hours.stream().sorted(Comparator.comparingInt(BusinessHoursEntity::getDiaSemana)).toList();
+        List<String> lines = new ArrayList<>();
+        for (BusinessHoursEntity h : hours) {
+            int d = h.getDiaSemana();
+            String dayLabel = (d >= 0 && d <= 6) ? DAY_NAMES_ES[d] : "Día " + d;
+            if (h.isCerrado()) {
+                lines.add(dayLabel + ": Cerrado");
+                continue;
+            }
+            if (h.getApertura() == null || h.getCierre() == null) {
+                lines.add(dayLabel + ": Cerrado");
+                continue;
+            }
+            lines.add(dayLabel + ": " + h.getApertura() + " - " + h.getCierre());
+        }
+        if (lines.isEmpty()) {
+            return BotPrompts.ToolsConsulta.ERR_NO_HORARIO;
+        }
+        return String.join("\n", lines);
     }
 
     @Tool(description = BotPrompts.ToolsConsulta.TOOL_LISTAR_SERVICIOS)
@@ -69,11 +81,15 @@ public class ConsultaTools {
         if (tenantId == null || tenantId.isBlank()) {
             return BotPrompts.ToolsConsulta.ERR_TENANT_UNKNOWN;
         }
-        List<ServiceEntity> services = serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc(tenantId);
+        var businessId = primaryBusinessResolver.findPrimaryBusinessId(tenantId);
+        if (businessId.isEmpty()) {
+            return BotPrompts.ToolsConsulta.ERR_NO_SERVICIOS;
+        }
+        List<ServiceEntity> services = agendaServiceRepository.findAllByBusinessIdAndActivoTrueAndDeletedAtIsNull(businessId.get());
         if (services == null || services.isEmpty()) {
             return BotPrompts.ToolsConsulta.ERR_NO_SERVICIOS;
         }
-        return services.stream().map(ServiceEntity::getName).collect(Collectors.joining(", "));
+        return services.stream().map(ServiceEntity::getNombre).collect(Collectors.joining(", "));
     }
 
     @Tool(description = BotPrompts.ToolsConsulta.TOOL_BUSCAR_CONOCIMIENTO)

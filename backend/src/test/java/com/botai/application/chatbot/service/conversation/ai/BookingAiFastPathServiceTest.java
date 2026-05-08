@@ -3,8 +3,9 @@ package com.botai.application.chatbot.service.conversation.ai;
 import com.botai.application.chatbot.prompt.BotPrompts;
 import com.botai.application.chatbot.service.inbound.MessageHistoryService;
 import com.botai.infrastructure.chatbot.ai.AgendarTools;
-import com.botai.infrastructure.chatbot.persistence.entity.ServiceEntity;
-import com.botai.infrastructure.chatbot.persistence.jpa.ServiceJpaRepository;
+import com.botai.infrastructure.agenda.persistence.entity.ServiceEntity;
+import com.botai.infrastructure.agenda.persistence.jpa.ServiceJpaRepository;
+import com.botai.infrastructure.agenda.support.AgendaPrimaryBusinessResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +17,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -32,22 +34,26 @@ class BookingAiFastPathServiceTest {
     @Mock
     private MessageHistoryService messageHistoryService;
     @Mock
-    private ServiceJpaRepository serviceRepository;
+    private ServiceJpaRepository agendaServiceRepository;
+    @Mock
+    private AgendaPrimaryBusinessResolver primaryBusinessResolver;
 
     private BookingAiFastPathService service;
 
     @BeforeEach
     void setUp() {
-        service = new BookingAiFastPathService(agendarTools, messageHistoryService, serviceRepository);
+        service = new BookingAiFastPathService(agendarTools, messageHistoryService, agendaServiceRepository, primaryBusinessResolver);
     }
 
     @Test
     void tryExecute_whenAllFieldsPresent_callsAgendarCita() {
         String tenant = "t1";
+        UUID bid = UUID.randomUUID();
+        when(primaryBusinessResolver.findPrimaryBusinessId(tenant)).thenReturn(Optional.of(bid));
         ServiceEntity s = new ServiceEntity();
-        s.setName("Corte cabellos");
-        s.setActive(true);
-        when(serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc(tenant)).thenReturn(List.of(s));
+        s.setNombre("Corte cabellos");
+        s.setActivo(true);
+        when(agendaServiceRepository.findAllByBusinessIdAndActivoTrueAndDeletedAtIsNull(bid)).thenReturn(List.of(s));
 
         String fecha = LocalDate.now().plusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE);
         when(messageHistoryService.getHistory("c1", "sess")).thenReturn(List.of(
@@ -78,7 +84,7 @@ class BookingAiFastPathServiceTest {
 
     @Test
     void tryExecute_whenServiceUnknown_returnsEmpty() {
-        when(serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc("t1")).thenReturn(List.of());
+        when(primaryBusinessResolver.findPrimaryBusinessId("t1")).thenReturn(Optional.empty());
         Optional<String> out = service.tryExecute("t1", "c1", "sess", "manicura mañana");
         assertThat(out).isEmpty();
         verify(agendarTools, never()).agendarCita(anyString(), anyString(), anyString(), anyString(), anyString());
@@ -87,10 +93,12 @@ class BookingAiFastPathServiceTest {
     @Test
     void tryExecute_whenExistingAppointment_prependsVerification() {
         String tenant = "t1";
+        UUID bid = UUID.randomUUID();
+        when(primaryBusinessResolver.findPrimaryBusinessId(tenant)).thenReturn(Optional.of(bid));
         ServiceEntity s = new ServiceEntity();
-        s.setName("Limpieza bucal");
-        s.setActive(true);
-        when(serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc(tenant)).thenReturn(List.of(s));
+        s.setNombre("Limpieza bucal");
+        s.setActivo(true);
+        when(agendaServiceRepository.findAllByBusinessIdAndActivoTrueAndDeletedAtIsNull(bid)).thenReturn(List.of(s));
         String fecha = LocalDate.now().plusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE);
         when(messageHistoryService.getHistory("c1", "sess")).thenReturn(List.of(
             "user: 62995895",
@@ -126,10 +134,12 @@ class BookingAiFastPathServiceTest {
 
     @Test
     void tryExecute_whenNameMissing_returnsEmpty() {
+        UUID bid = UUID.randomUUID();
+        when(primaryBusinessResolver.findPrimaryBusinessId("t1")).thenReturn(Optional.of(bid));
         ServiceEntity s = new ServiceEntity();
-        s.setName("Corte");
-        s.setActive(true);
-        when(serviceRepository.findByTenantIdAndActiveTrueOrderBySortOrderAsc("t1")).thenReturn(List.of(s));
+        s.setNombre("Corte");
+        s.setActivo(true);
+        when(agendaServiceRepository.findAllByBusinessIdAndActivoTrueAndDeletedAtIsNull(bid)).thenReturn(List.of(s));
         String fecha = LocalDate.now().plusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE);
         when(messageHistoryService.getHistory("c1", "sess")).thenReturn(List.of(
             "user: Corte " + fecha + " 09:00 doc 12345678"
