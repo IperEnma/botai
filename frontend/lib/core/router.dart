@@ -119,10 +119,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/agenda/tenants/:tenantId/businesses/:businessId',
         builder: (context, state) {
-          final tenantId = state.pathParameters['tenantId']!;
-          final businessId = state.pathParameters['businessId']!;
+          final tenantId    = state.pathParameters['tenantId']!;
+          final businessId  = state.pathParameters['businessId']!;
+          final tab         = int.tryParse(
+                state.uri.queryParameters['tab'] ?? '') ?? 0;
           return BusinessDetailScreen(
-              tenantId: tenantId, businessId: businessId);
+              tenantId: tenantId, businessId: businessId, initialTabIndex: tab);
         },
       ),
       // ----------- AGENDA — Me (Sprint FE-3) -----------

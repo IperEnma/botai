@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../providers/agenda/agenda_api_provider.dart';
+import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../services/agenda_api_exception.dart';
 import 'konecta_tokens.dart';
 
@@ -97,6 +98,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     try {
       // TODO: integrar verificación real con la API
       await Future<void>.delayed(const Duration(milliseconds: 600));
+      await ref.read(agendaUserProvider.notifier).saveRegistrationData(
+        nombre: _nameCtrl.text.trim(),
+        phone: _phone,
+      );
       if (mounted) context.go('/agenda/intent');
     } catch (e) {
       setState(() => _error = 'Código incorrecto. Intentá de nuevo.');

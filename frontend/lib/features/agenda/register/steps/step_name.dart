@@ -48,6 +48,7 @@ class _StepNameState extends State<StepName> {
         controller: _ctrl,
         hintText: 'Ej: Estudio Norte, Ana López…',
         metaLeft: 'nombre del negocio o profesión',
+        autofocus: true,
         onChanged: widget.onChanged,
         onSubmitted: (_) => widget.onSubmitted(),
         showError: widget.showError,

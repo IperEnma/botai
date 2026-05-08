@@ -122,10 +122,15 @@ class DashboardFilter {
 
 final dashboardStatsProvider = FutureProvider.autoDispose
     .family<DashboardStats, DashboardFilter>((ref, filter) async {
-  final api      = ref.read(agendaApiServiceProvider);
-  final bookings = await api.myBookings(
-    tenantId:   filter.tenantId,
-    businessId: filter.businessId,
-  );
-  return DashboardStats.fromBookings(bookings, filter.from, filter.to);
+  try {
+    final api      = ref.read(agendaApiServiceProvider);
+    final bookings = await api.myBookings(
+      tenantId:   filter.tenantId,
+      businessId: filter.businessId,
+    );
+    return DashboardStats.fromBookings(bookings, filter.from, filter.to);
+  } catch (_) {
+    // Stats endpoint requires user auth not yet wired — return empty counts.
+    return DashboardStats(from: filter.from, to: filter.to);
+  }
 });

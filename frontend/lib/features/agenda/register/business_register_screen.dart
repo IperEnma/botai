@@ -37,7 +37,6 @@ class _BusinessRegisterScreenState
   final _reg = BusinessRegistration();
   int _step = 0;
   bool _loading = false;
-  String? _error;
   bool _showValidationError = false;
   late final ValueNotifier<bool> _canContinueNotifier;
 
@@ -266,18 +265,17 @@ class _BusinessRegisterScreenState
   // ── Submit ───────────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
 
     try {
       final userState = await ref.read(agendaUserProvider.future);
-      final tenantId = userState.tenantId;
-      if (tenantId == null) {
-        setState(() => _error = 'No encontramos tu cuenta');
-        return;
-      }
+      final phone = userState.phone ?? '';
+      final nombre = userState.nombre ?? _reg.name!.trim();
+
+      // Derive a stable identifier from the WhatsApp phone number.
+      // The backend requires email format; we use {digits}@wa.konecta.app.
+      final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+      final derivedEmail = '${digits.isNotEmpty ? digits : _reg.name!.trim().replaceAll(' ', '').toLowerCase()}@wa.konecta.app';
 
       final api = ref.read(agendaApiServiceProvider);
 
@@ -299,21 +297,39 @@ class _BusinessRegisterScreenState
       ];
       final descripcion = parts.join('\n');
 
-      final business = await api.createBusiness(
+      // Step 1: create tenant + initial business
+      final registration = await api.registerTenant(
+        nombrePropietario: nombre,
+        email: derivedEmail,
+        telefono: phone.isNotEmpty ? phone : null,
+        nombreNegocio: _reg.name!.trim(),
+        categoriaSlug: _reg.categories.isNotEmpty
+            ? _reg.categories.first.slug
+            : null,
+      );
+
+      final tenantId = registration.tenantId;
+      final businessId = registration.businessId;
+
+      // Step 2: enrich the business with full form data
+      await api.updateBusiness(
         tenantId: tenantId,
+        businessId: businessId,
         nombre: _reg.name!.trim(),
         descripcion: descripcion.isEmpty ? null : descripcion,
         searchTags: tags,
       );
 
+      // Step 3: associate all selected categories
       if (_reg.categories.isNotEmpty) {
         await api.associateCategories(
           tenantId: tenantId,
-          businessId: business.id,
+          businessId: businessId,
           categoryIds: _reg.categories.map((c) => c.id).toList(),
         );
       }
 
+      await ref.read(agendaUserProvider.notifier).saveTenantId(tenantId);
       await _clearDraft();
 
       if (!mounted) return;
@@ -323,8 +339,16 @@ class _BusinessRegisterScreenState
           builder: (_) => RegisterSuccessScreen(tenantId: tenantId),
         ),
       );
-    } catch (e) {
-      setState(() => _error = 'Error al registrar: $e');
+    } on Exception catch (e) {
+      if (mounted) {
+        final msg = e.toString().contains('409')
+            ? 'Este número de WhatsApp ya tiene una cuenta registrada.'
+            : 'Error al registrar: $e';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg),
+          backgroundColor: KTokens.errorColor,
+        ));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -399,70 +423,11 @@ class _BusinessRegisterScreenState
     }
   }
 
-  Widget _buildErrorBanner() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: KTokens.errorColor.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(KTokens.rSm),
-          border:
-              Border.all(color: KTokens.errorColor.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline,
-                color: KTokens.errorColor, size: 16),
-            const SizedBox(width: 8),
-            Expanded(child: Text(_error!, style: KTokens.tError)),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= 1024;
-
-        // Mobile-only bottom bar (desktop builds its own inside ConstrainedBox)
-        final mobileBottomBar = ValueListenableBuilder<bool>(
-          valueListenable: _canContinueNotifier,
-          builder: (_, canCont, __) => BottomBar(
-            onSkip: _isRequired ? null : _skip,
-            onNext: _tryNext,
-            canContinue: canCont,
-            isLast: _step == _kTotalSteps - 1,
-          ),
-        );
-
-        final stepBody = SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              TopBar(
-                step: _step,
-                total: _kTotalSteps,
-                onBack: _back,
-                showBrand: isDesktop,
-              ),
-              if (_error != null) _buildErrorBanner(),
-              Expanded(
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        transitionBuilder: (child, anim) =>
-                            FadeTransition(opacity: anim, child: child),
-                        child: _buildCurrentStep(),
-                      ),
-              ),
-            ],
-          ),
-        );
 
         if (isDesktop) {
           final desktopStep = _loading
@@ -489,8 +454,7 @@ class _BusinessRegisterScreenState
                     onBack: _back,
                     showBrand: true,
                   ),
-                  if (_error != null) _buildErrorBanner(),
-                  Expanded(
+                      Expanded(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -532,8 +496,39 @@ class _BusinessRegisterScreenState
 
         return Scaffold(
           backgroundColor: KTokens.bg,
-          body: stepBody,
-          bottomNavigationBar: mobileBottomBar,
+          resizeToAvoidBottomInset: true,
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                TopBar(
+                  step: _step,
+                  total: _kTotalSteps,
+                  onBack: _back,
+                  showBrand: false,
+                ),
+                Expanded(
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          transitionBuilder: (child, anim) =>
+                              FadeTransition(opacity: anim, child: child),
+                          child: _buildCurrentStep(),
+                        ),
+                ),
+                ValueListenableBuilder<bool>(
+                  valueListenable: _canContinueNotifier,
+                  builder: (_, canCont, __) => BottomBar(
+                    onSkip: _isRequired ? null : _skip,
+                    onNext: _tryNext,
+                    canContinue: canCont,
+                    isLast: _step == _kTotalSteps - 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );

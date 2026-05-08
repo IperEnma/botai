@@ -19,10 +19,12 @@ class BusinessDetailScreen extends ConsumerWidget {
     super.key,
     required this.tenantId,
     required this.businessId,
+    this.initialTabIndex = 0,
   });
 
   final String tenantId;
   final String businessId;
+  final int    initialTabIndex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,8 +54,9 @@ class BusinessDetailScreen extends ConsumerWidget {
     }
 
     return _BusinessDetailView(
-      tenantId: tenantId,
-      business: business,
+      tenantId:        tenantId,
+      business:        business,
+      initialTabIndex: initialTabIndex,
     );
   }
 }
@@ -62,15 +65,18 @@ class _BusinessDetailView extends StatelessWidget {
   const _BusinessDetailView({
     required this.tenantId,
     required this.business,
+    required this.initialTabIndex,
   });
 
-  final String tenantId;
+  final String   tenantId;
   final Business business;
+  final int      initialTabIndex;
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 7,
+      initialIndex: initialTabIndex,
       child: Scaffold(
         backgroundColor: AgendaTokens.surface,
         appBar: AppBar(
