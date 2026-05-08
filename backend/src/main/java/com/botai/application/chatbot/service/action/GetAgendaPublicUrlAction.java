@@ -64,8 +64,8 @@ public class GetAgendaPublicUrlAction implements BotAction {
                 .build();
         }
         String url = buildPublicUrl(slugOpt.get());
-        String text = "¡Claro! Podés elegir día y horario y dejar tus datos en nuestra agenda online:\n" + url
-            + "\n\nSi tenés alguna duda antes de reservar, escribime.";
+        String text = "¡Genial! Para elegir día, horario disponible y dejar tus datos con calma, entrá acá:\n" + url
+            + "\n\nAhí ves la disponibilidad al día. Si antes querés info del negocio (servicios, horarios, etc.), escribime.";
         return OutboundMessage.builder()
             .text(text)
             .conversationId(state.getConversationId())

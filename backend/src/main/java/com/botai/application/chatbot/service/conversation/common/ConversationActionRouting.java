@@ -9,7 +9,6 @@ import com.botai.domain.chatbot.feature.BotFeatures;
 import com.botai.domain.chatbot.feature.FeatureFlagService;
 import com.botai.domain.chatbot.model.ConversationState;
 import com.botai.domain.chatbot.model.OutboundMessage;
-import com.botai.domain.chatbot.repository.ConversationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,22 +24,21 @@ public class ConversationActionRouting {
 
     private static final Logger log = LoggerFactory.getLogger(ConversationActionRouting.class);
 
-    /** Mismo id que {@link com.botai.application.chatbot.service.action.BookAppointmentAction}. */
+    /**
+     * Id legacy en menús/BD; el dispatcher lo traduce a {@link com.botai.application.chatbot.service.action.GetAgendaPublicUrlAction}.
+     */
     public static final String BOOK_APPOINTMENT_ACTION_ID = "book_appointment";
 
     private final FeatureFlagService featureFlagService;
     private final ActionDispatcher actionDispatcher;
     private final StandardRouteResponses standardRouteResponses;
-    private final ConversationRepository conversationRepository;
 
     public ConversationActionRouting(FeatureFlagService featureFlagService,
                                      ActionDispatcher actionDispatcher,
-                                     StandardRouteResponses standardRouteResponses,
-                                     ConversationRepository conversationRepository) {
+                                     StandardRouteResponses standardRouteResponses) {
         this.featureFlagService = featureFlagService;
         this.actionDispatcher = actionDispatcher;
         this.standardRouteResponses = standardRouteResponses;
-        this.conversationRepository = conversationRepository;
     }
 
     /** Si hay intent activo y acciones habilitadas, delega el input al paso actual de la acción. */
@@ -48,11 +46,6 @@ public class ConversationActionRouting {
         ConversationState state = ctx.state();
         String tenantId = ctx.tenantId();
         if (!featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId) || !state.hasIntent()) {
-            return Optional.empty();
-        }
-        if (BOOK_APPOINTMENT_ACTION_ID.equals(state.getCurrentIntent())
-            && featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId)) {
-            log.info("[CRM-ACTION] {} + IA activa -> flujo conversacional (LLM/tools), sin wizard", BOOK_APPOINTMENT_ACTION_ID);
             return Optional.empty();
         }
         return Optional.ofNullable(actionDispatcher.dispatch(state, ctx.text()))
@@ -69,41 +62,11 @@ public class ConversationActionRouting {
             return Optional.empty();
         }
         String actionId = actionIdOpt.get();
-        if (BOOK_APPOINTMENT_ACTION_ID.equals(actionId)
-            && featureFlagService.isEnabled(BotFeatures.AI_ENABLED, ctx.tenantId())) {
-            persistBookAppointmentIntent(ctx.state());
-            log.info("[CRM-ACTION] Inicio {} + IA: solo se marca intent; responde el LLM con tools", BOOK_APPOINTMENT_ACTION_ID);
-            return Optional.empty();
-        }
         OutboundMessage started = actionDispatcher.startFromMenuOption(ctx.state(), actionId, ctx.text());
         if (started == null) {
             return Optional.empty();
         }
         return Optional.of(new ConversationRouteResult(started, ConversationIntentSource.ACTION, null));
-    }
-
-    /**
-     * Menú (u otro flujo) con opción book_appointment: si IA está activa, solo persiste el intent
-     * para que responda el LLM con tools (sin wizard). Acciones deben estar habilitadas (quien llama ya lo comprobó).
-     */
-    public boolean armBookAppointmentForFluidAiIfApplicable(ConversationState state, String tenantId) {
-        if (!featureFlagService.isEnabled(BotFeatures.AI_ENABLED, tenantId)) {
-            return false;
-        }
-        persistBookAppointmentIntent(state);
-        log.info("[CRM-ACTION] Intent {} armado para conversación fluida (menú u otro atajo)", BOOK_APPOINTMENT_ACTION_ID);
-        return true;
-    }
-
-    private void persistBookAppointmentIntent(ConversationState state) {
-        ConversationState armed = ConversationState.builder()
-            .conversationId(state.getConversationId())
-            .userId(state.getUserId())
-            .channelId(state.getChannelId())
-            .currentIntent(BOOK_APPOINTMENT_ACTION_ID)
-            .context(state.getContext())
-            .build();
-        conversationRepository.save(armed);
     }
 
     /** Intención CRM pero acciones deshabilitadas para el tenant. */

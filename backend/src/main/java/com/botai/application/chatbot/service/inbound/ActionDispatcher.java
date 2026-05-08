@@ -1,5 +1,6 @@
 package com.botai.application.chatbot.service.inbound;
 
+import com.botai.application.chatbot.service.action.GetAgendaPublicUrlAction;
 import com.botai.application.chatbot.service.action.ViewAgendaBookingsByContactAction;
 import com.botai.domain.chatbot.model.ConversationState;
 import com.botai.domain.chatbot.model.InboundMessage;
@@ -98,6 +99,10 @@ public class ActionDispatcher {
         }
         if ("view_appointments".equals(actionIntent)) {
             return ViewAgendaBookingsByContactAction.ACTION_ID;
+        }
+        // Reserva nueva: el producto Agenda usa autogestión web; menús/legacy siguen pudiendo decir book_appointment.
+        if ("book_appointment".equals(actionIntent)) {
+            return GetAgendaPublicUrlAction.ACTION_ID;
         }
         return actionIntent;
     }

@@ -1,5 +1,6 @@
 package com.botai.application.agenda.usecase.business;
 
+import com.botai.application.agenda.support.AgendaPublicSlug;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessSettings;
 import com.botai.domain.agenda.repository.BotWorkspaceRegistry;
@@ -14,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -64,6 +66,11 @@ class RegisterBusinessUseCaseTest {
                 "El Business persistido debe tener el tenantId recibido");
         assertEquals("Peluquería Centro", savedBusiness.getNombre());
         assertEquals(ownerId, savedBusiness.getOwnerUserId());
+        assertNotNull(savedBusiness.getPublicSlug());
+        assertEquals(
+                AgendaPublicSlug.forNewBusiness(savedBusiness.getId(), "Peluquería Centro"),
+                savedBusiness.getPublicSlug(),
+                "Al registrar el negocio debe asignarse public_slug para URL pública");
 
         // Captura de los settings: deben ser los defaults del business recién creado.
         ArgumentCaptor<BusinessSettings> settingsCaptor = ArgumentCaptor.forClass(BusinessSettings.class);

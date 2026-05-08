@@ -2,6 +2,18 @@
 
 Este documento es la referencia del **flujo que queremos como modelo mental**: primero la respuesta generativa con contexto, luego una pasada de **razonamiento / auto-revisión** que usa los mismos hechos (RAG) y el hilo reciente, y recién entonces el mensaje al cliente. También cubre cómo encaja Agenda (RAG + SQL) **sin imports** `chatbot` ↔ `agenda`.
 
+## Tres intenciones de producto (clasificador + rutas)
+
+El mini-LLM (`IntentClassifierService` + `BotPrompts.IntentClassifier`) debe distinguir sobre todo estas tres rutas cuando el usuario escribe en español:
+
+| Ruta | Etiqueta / acción | Comportamiento |
+|------|-------------------|----------------|
+| **Información del negocio** | `PREGUNTA_GENERAL` (y a veces `SALUDO`) | Entra al pipeline generativo: RAG (`knowledge_chunk` + Agenda sync) + LLM + auto-revisión si está activa. **Horarios:** el prompt prioriza la herramienta `getHorario` frente a solo fragmentos RAG, para reducir horarios desactualizados. |
+| **Mis citas (Agenda)** | `ACCION_CRM view_agenda_bookings_by_contact` | Atajo: `ActionDispatcher` → `ViewAgendaBookingsByContactAction` (JDBC sobre `agenda_bookings` / contacto). Sin RAG + primer LLM en ese turno. |
+| **Agendar / reservar nueva cita** | `ACCION_CRM get_agenda_public_url` | Atajo: `GetAgendaPublicUrlAction` → mensaje amistoso + URL pública `{agenda.public.base-url}/#/agenda/{slug}`. **No** se pide cédula ni se completa la reserva en el chat. Es la única ruta de producto para una reserva nueva. |
+
+Otras acciones CRM (p. ej. `create_lead`) siguen el mismo patrón de atajo por dispatcher cuando el clasificador las devuelve.
+
 ## Flujo canónico (respuestas generativas)
 
 ```mermaid
@@ -16,15 +28,10 @@ flowchart LR
   H --> G
 ```
 
-1. **Intención** — Mini-LLM (`IntentClassifierService` + `BotPrompts.IntentClassifier`): saludo, pregunta general, mala intención, o `ACCION_CRM <action_id>`.
-2. **RAG** — Para turnos que entran al chat generativo (`RagAiContextBuilder`): embeddings + `knowledge_chunk` por `tenant_id`, incluyendo chunks **Agenda** mantenidos por `AgendaRagSourceSync` (negocio, servicios, horarios, políticas).
-3. **LLM principal** — `chatClientWithTools`: mensaje actual, system con fragmentos + fecha + reglas, **memoria** (`PromptChatMemoryAdvisor`), y herramientas cuando el flujo lo requiere.
-4. **Razonamiento / auto-revisión** — Si `bot.rag.self-review-enabled=true` y **no** es el flujo `book_appointment` (muchas tool-calls): segunda llamada con `chatClientPlain` y `BotPrompts.RagChat.buildSelfReviewSystemPrompt`, que recibe:
-   - **FACTS (RAG)** del turno,
-   - **RECENT THREAD** (historial persistido `user`/`assistant` de la sesión),
-   - **mensaje actual**,
-   - **borrador** del paso 3.  
-   El modelo debe devolver **solo** el texto final en español, sin meta-comentarios. Guardrails en código: no aceptar refinados vacíos o demasiado recortados (`RagLlmChatService.wouldDiscardRefinement`).
+1. **Intención** — Mini-LLM: saludo, pregunta general, mala intención, o `ACCION_CRM <action_id>`.
+2. **RAG** — Para turnos generativos (`RagAiContextBuilder`): embeddings + `knowledge_chunk` por `tenant_id`, incluyendo chunks **Agenda** mantenidos por `AgendaRagSourceSync` (negocio, servicios, horarios, políticas).
+3. **LLM principal** — `chatClientWithTools`: mensaje actual, system con fragmentos + fecha + reglas, **memoria** (`PromptChatMemoryAdvisor`), y herramientas cuando aplica (p. ej. `getHorario`, consultas de citas existentes, cancelación).
+4. **Razonamiento / auto-revisión** — Si `bot.rag.self-review-enabled=true`: segunda llamada con `chatClientPlain` y `BotPrompts.RagChat.buildSelfReviewSystemPrompt`, con FACTS (RAG), hilo reciente, mensaje actual y borrador.
 5. **Respuesta al cliente** — Texto validado (`ResponseValidator`) y envío por el canal.
 
 ### Mejoras posibles (recomendaciones)
@@ -39,42 +46,20 @@ flowchart LR
 
 ## Qué queda fuera del pipeline generativo (atajos CRM)
 
-Hoy el **modelo mental** del producto es el pipeline de cinco pasos de arriba. Para **dos** intenciones la implementación actual **acorta** el camino: no hay RAG + primer LLM + auto-revisión; el `ActionDispatcher` ejecuta lógica directa (JDBC) y la respuesta sale al cliente. Motivos: menor latencia, menos costo de tokens y flujos muy acotados (un dato estructurado o un listado SQL).
-
 | Intención | Comportamiento |
 |-----------|----------------|
-| `get_agenda_public_url` | URL pública `{agenda.public.base-url}/#/agenda/{slug}` vía JDBC a `agenda_businesses`. |
-| `view_agenda_bookings_by_contact` | Pide email o teléfono; consulta `agenda_bookings` / `agenda_users` (futuras, `PENDING`/`CONFIRMED`, tope 20). Sin OTP (ver riesgos). |
-
-### Evolución posible: un solo pipeline para todo
-
-Si en el futuro se exige que **ningún** turno salte RAG + LLM + revisión (incluso link y “mis citas”), la dirección sería:
-
-1. **Tools** (Spring AI) que lean lo mismo que hoy los actions (slug público, bookings por contacto) y devuelvan texto o JSON al modelo.
-2. El **primer LLM** arma la respuesta amigable usando tool output + RAG + historial.
-3. La **auto-revisión** (paso 4) recibe FACTS (RAG + extracto del output de tools en el mismo turno) + hilo + borrador, igual que hoy.
-
-Trade-offs: más latencia, más complejidad y que el revisor tenga acceso explícito a lo que devolvieron las tools (hoy la tabla de mejoras ya menciona “incluir resultado de tools en FACTS”).
-
-### Legacy `view_appointments`
-
-Los menús o clasificadores que aún digan `view_appointments` se **normalizan** a `view_agenda_bookings_by_contact` en `ActionDispatcher` y `IntentClassifierService`. **No** se usa la tabla `appointment` del bot para listar citas del cliente; ese flujo fue retirado.
-
-## Flujo `book_appointment` (este chat, con tools)
-
-Sigue siendo **LLM + herramientas** de citas del bot (`AgendarTools`, etc.). La auto-revisión del paso 4 está **desactivada** en ese flujo para evitar doble latencia y estados inconsistentes con tools; el “razonamiento” queda en el propio modelo + tools en el primer paso.
+| `get_agenda_public_url` | URL pública + texto fijo amistoso; JDBC a `agenda_businesses.public_slug`. |
+| `view_agenda_bookings_by_contact` | Pide email o teléfono; consulta reservas futuras en Agenda. Sin OTP (ver riesgos). |
 
 ## Sincronización Agenda → RAG
 
-- `AgendaRagSourceSync` al arranque: JDBC sobre `agenda_*`, upsert en `knowledge_chunk`, `embedding = NULL` si cambia el texto.
-- Primer negocio activo del tenant (`created_at ASC`), alineado a **un negocio por tenant** en el bot.
+- `AgendaRagSourceSync` al arranque y tras cambios: JDBC sobre `agenda_*`, upsert en `knowledge_chunk`, `embedding = NULL` si cambia el texto.
+- Chunks por sucursal cuando aplica (`business_id`).
 
 ## Configuración
 
-Definido en [`application.yml`](../src/main/resources/application.yml) (y variables de entorno donde aplique):
-
-- `agenda.public.base-url` — Base del **frontend** para armar el link público de agenda (no el backend).
-- `bot.rag.self-review-enabled` — Activa el paso 4 (razonamiento post-borrador con RAG + hilo). `true` alinea con el pipeline canónico en preguntas generales; implica **segunda llamada** al modelo (más latencia). Comentario en YAML: referencia a este documento.
+- `agenda.public.base-url` — Base del **frontend** para el link público de agenda.
+- `bot.rag.self-review-enabled` — Activa el paso 4 de auto-revisión en turnos generativos.
 
 ## Riesgos: “mis citas” sin verificación
 
@@ -86,4 +71,8 @@ Quien conozca el email o teléfono puede listar turnos futuros. Mitigaciones act
 - RAG: `RagAiContextBuilder`, `KnowledgeService`, `AgendaRagSourceSync`
 - LLM + revisión: `RagLlmChatService`, `BotEngineConfig` (`chatClientPlain`, `chatClientWithTools`)
 - Acciones cortas: `GetAgendaPublicUrlAction`, `ViewAgendaBookingsByContactAction`
-- Compat menú legacy: `ActionDispatcher.canonicalActionIntent`
+- Enrutado CRM: `ConversationActionRouting`, `ActionDispatcher`.
+
+## Citas en el chat (distinto de reservar nueva)
+
+Nueva reserva: solo enlace de agenda (`get_agenda_public_url`). Para **citas ya existentes**, el asistente puede usar herramientas del motor de chat (listado / cancelación, etc.) según el system prompt y lo que pregunte el usuario.

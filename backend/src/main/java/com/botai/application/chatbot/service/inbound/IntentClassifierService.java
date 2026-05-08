@@ -2,6 +2,7 @@ package com.botai.application.chatbot.service.inbound;
 
 import com.botai.application.chatbot.dto.IntentClassification;
 import com.botai.application.chatbot.prompt.BotPrompts;
+import com.botai.application.chatbot.service.action.GetAgendaPublicUrlAction;
 import com.botai.application.chatbot.service.action.ViewAgendaBookingsByContactAction;
 import com.botai.application.chatbot.support.InboundTextHeuristics;
 import com.botai.application.chatbot.service.conversation.common.ConversationActionRouting;
@@ -17,20 +18,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
  * Clasificador unificado: con {@link BotFeatures#AI_ENABLED} y modelo → mini-LLM (sin fallback a keywords);
- * si el mini-LLM falla → {@link IntentClassification.ServiceError}, salvo si hay cita activa (se usa
- * {@link IntentClassification.GeneralQuestion} para no cortar el hilo). Sin IA: regex de abuso y
+ * si el mini-LLM falla → {@link IntentClassification.ServiceError}. Sin IA: regex de abuso y
  * {@link IntentClassification.GeneralQuestion} para FAQ/menú.
- * Con {@code book_appointment} activo: solo documento (dígitos), fricción benigna y texto ruido/encoding ({@code ???}, U+FFFD) no dejan MALA_INTENCION cortar el hilo.
+ * Tres rutas CRM frecuentes: información general ({@code PREGUNTA_GENERAL}), mis citas Agenda
+ * ({@code view_agenda_bookings_by_contact}), reservar nueva cita ({@code get_agenda_public_url}; el id
+ * legacy {@code book_appointment} se normaliza a esta acción).
  */
 @Service
 public class IntentClassifierService {
@@ -102,107 +104,38 @@ public class IntentClassifierService {
             return new IntentClassification.GeneralQuestion();
         }
 
-        if (isActiveBookAppointment(conversationState) && looksLikeSoloDocumentoOCedula(text)) {
-            log.info("[CLASSIFIER] Cita activa + solo documento/cédula -> ACCION_CRM book_appointment (sin mini-LLM)");
-            return new IntentClassification.CrmAction(ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID);
-        }
-
-        if (isActiveBookAppointment(conversationState) && looksLikeBookingContinuationHeuristic(text)) {
-            log.info("[CLASSIFIER] Cita activa + heurística de agendamiento -> ACCION_CRM book_appointment (sin mini-LLM)");
-            return new IntentClassification.CrmAction(ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID);
-        }
-
         IntentClassification fromLlm = classifyWithLlm(text, conversationState);
         if (fromLlm != null) {
             if (fromLlm.isBadIntent() && InboundTextHeuristics.looksLikeNoiseOrCorruptedContent(text)) {
-                if (isActiveBookAppointment(conversationState)) {
-                    log.info("[CLASSIFIER] MALA_INTENCION anulada (ruido/encoding) -> ACCION_CRM book_appointment");
-                    return new IntentClassification.CrmAction(ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID);
-                }
                 log.info("[CLASSIFIER] MALA_INTENCION anulada (ruido/encoding) -> PREGUNTA_GENERAL");
                 return new IntentClassification.GeneralQuestion();
             }
-            if (fromLlm.isBadIntent() && isActiveBookAppointment(conversationState)
-                && looksLikeBenignBookingFriction(text)) {
-                log.info("[CLASSIFIER] MALA_INTENCION anulada (fricción agendamiento) -> PREGUNTA_GENERAL");
-                return new IntentClassification.GeneralQuestion();
-            }
-            return fromLlm;
-        }
-        if (isActiveBookAppointment(conversationState)) {
-            log.warn("[CLASSIFIER] Mini-LLM no clasificó con cita activa -> PREGUNTA_GENERAL (mantiene hilo)");
-            return new IntentClassification.GeneralQuestion();
+            return normalizeAgendaBookingIntent(fromLlm);
         }
         log.warn("[CLASSIFIER] Mini-LLM no clasificó -> ServiceError (sin fallback a keywords)");
         return new IntentClassification.ServiceError();
     }
 
-    private static boolean isActiveBookAppointment(ConversationState state) {
-        return state != null && state.hasIntent()
-            && ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID.equals(state.getCurrentIntent());
-    }
-
     /**
-     * Evita que typos ("Quwornagendar…") o frases claras de reserva disparen PREGUNTA_GENERAL en el mini-LLM
-     * y desconecten el flujo mientras {@code book_appointment} sigue activo en BD.
+     * Unifica reservas nuevas en la acción que devuelve el enlace público de Agenda (menús legacy pueden seguir
+     * etiquetando {@code book_appointment}).
      */
-    private static boolean looksLikeBookingContinuationHeuristic(String text) {
-        if (text == null || text.isBlank()) {
-            return false;
+    private static IntentClassification normalizeAgendaBookingIntent(IntentClassification c) {
+        if (!c.isCrmAction()) {
+            return c;
         }
-        String n = text.strip().toLowerCase(Locale.ROOT);
-        if (n.length() > 220) {
-            return false;
+        Optional<String> id = c.getActionId();
+        if (id.isPresent() && ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID.equals(id.get())) {
+            return new IntentClassification.CrmAction(GetAgendaPublicUrlAction.ACTION_ID);
         }
-        if (n.contains("agendar") || n.contains("reserv")) {
-            return true;
-        }
-        if (n.contains("cita")) {
-            return true;
-        }
-        if (n.contains("cancel")) {
-            return true;
-        }
-        if (n.contains("turno")
-            && (n.contains("quiero") || n.contains("sacar") || n.contains("pedir") || n.contains("un turno"))) {
-            return true;
-        }
-        boolean hasHoraWord = n.contains("hora") || n.contains(" a las") || n.contains("a las ");
-        boolean hasClock = Pattern.compile("\\b\\d{1,2}[:.]\\d{2}\\b").matcher(n).find();
-        if ((hasHoraWord || hasClock)
-            && (n.contains("mañana") || n.contains("manana") || n.contains("hoy")
-            || n.contains("disponib") || n.contains("libre"))) {
-            return true;
-        }
-        return false;
+        return c;
     }
 
-    /** Respuesta típica con solo documento o cédula (sin letras). */
-    private static boolean looksLikeSoloDocumentoOCedula(String text) {
-        if (text == null || text.isBlank()) {
-            return false;
-        }
-        String compact = text.strip().replaceAll("[\\s.\\-]", "");
-        if (compact.length() < 5 || compact.length() > 14) {
-            return false;
-        }
-        return compact.chars().allMatch(Character::isDigit);
-    }
-
-    /** Reclamos o correcciones leves durante el agendamiento; no deben ir a mala intención. */
-    private static boolean looksLikeBenignBookingFriction(String text) {
-        if (text == null || text.isBlank()) {
-            return false;
-        }
-        String n = text.strip().toLowerCase();
-        if (n.length() > 160) {
-            return false;
-        }
-        return n.contains("no me llamo") || n.contains("no me llamó") || n.contains("no me llamas")
-            || n.contains("no dije") || n.contains("no dijiste") || n.contains("ya dije") || n.contains("te dije")
-            || n.contains("pero ") || n.startsWith("pero ") || n.contains("ya te") || n.contains("sinya")
-            || n.contains("equivoc") || n.contains("nombre") || n.contains("repite") || n.contains("preguntaste")
-            || n.contains("fecha y el servicio") || n.contains("fecha y servicio");
+    private String classifierActionListForPrompt() {
+        List<String> ids = new ArrayList<>(validActionIds);
+        ids.remove(ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID);
+        Collections.sort(ids);
+        return String.join(", ", ids);
     }
 
     private static boolean matchesBadIntentRegex(String normalized) {
@@ -216,13 +149,8 @@ public class IntentClassifierService {
 
     private IntentClassification classifyWithLlm(String text, ConversationState state) {
         try {
-            String actionList = String.join(", ", validActionIds);
+            String actionList = classifierActionListForPrompt();
             List<String> systemLines = new ArrayList<>(BotPrompts.IntentClassifier.llmSystemLines(actionList));
-            if (state != null && state.hasIntent()
-                && ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID.equals(state.getCurrentIntent())) {
-                systemLines.addAll(BotPrompts.IntentClassifier.activeBookAppointmentClassifierContextLines());
-                log.debug("[CLASSIFIER] Mini-LLM con contexto de continuación book_appointment");
-            }
             String prompt = BotPrompts.IntentClassifier.llmUserPrompt(text);
             LlmRequest request = new LlmRequest(prompt, systemLines, List.of(), LLM_MAX_TOKENS);
             LlmResponse response = languageModel.get().generate(request);
@@ -289,6 +217,9 @@ public class IntentClassifierService {
     private static String normalizeCrmActionId(String actionId) {
         if ("view_appointments".equals(actionId)) {
             return ViewAgendaBookingsByContactAction.ACTION_ID;
+        }
+        if (ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID.equals(actionId)) {
+            return GetAgendaPublicUrlAction.ACTION_ID;
         }
         return actionId;
     }

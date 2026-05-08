@@ -146,7 +146,7 @@ public class DefaultResponseValidator implements RagLlmChatService.ResponseValid
         out = out.replaceAll("(?i)\\.?\\s*\\(?Todos los servicios que tenemos cargados\\.?\\)?", "");
         out = out.replaceAll("(?i)no se ha indicado cómo realizarlo", "");
         out = out.replaceAll("(?i)datos cargados que puedan ayudarte con tu cita", BotPrompts.ResponseSanitize.INFO_CITAS);
-        // No sugerir llamar para agendar: las citas se hacen por este chat
+        // Evitar “llamá para agendar”: la reserva nueva es por enlace web
         out = out.replaceAll("(?i)por favor,? llam(a|e|en|as) a nuestro número de teléfono[^.]*\\.?", BotPrompts.ResponseSanitize.AGENDAR_EN_CHAT);
         out = out.replaceAll("(?i)llam(a|e|en|as) a nuestro (número de )?teléfono o envía[^.]*\\.?", BotPrompts.ResponseSanitize.AGENDAR_EN_CHAT_CORTO);
         // Limpiar espacios dobles o frases vacías entre paréntesis

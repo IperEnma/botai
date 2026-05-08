@@ -2,6 +2,7 @@ package com.botai.application.agenda.usecase.tenant;
 
 import com.botai.application.agenda.dto.RegisterTenantRequest;
 import com.botai.application.agenda.dto.RegisterTenantResponse;
+import com.botai.application.agenda.support.AgendaPublicSlug;
 import com.botai.domain.agenda.exception.DuplicateTenantEmailException;
 import com.botai.domain.agenda.exception.DuplicateTenantNumeroException;
 import com.botai.domain.agenda.model.Business;
@@ -167,10 +168,12 @@ public class RegisterTenantUseCase {
         tenantConfigRepository.save(config);
 
         UUID businessId = UUID.randomUUID();
+        String nombreNegocio = request.nombreNegocio().trim();
+        String publicSlug = AgendaPublicSlug.forNewBusiness(businessId, nombreNegocio);
         Business business = new Business(
                 businessId,
                 tenantId,
-                request.nombreNegocio().trim(),
+                nombreNegocio,
                 null,
                 userId,
                 List.of(),
@@ -182,7 +185,7 @@ public class RegisterTenantUseCase {
                 null,
                 null,
                 null,
-                null,
+                publicSlug,
                 linkedBotId,
                 null,
                 null,

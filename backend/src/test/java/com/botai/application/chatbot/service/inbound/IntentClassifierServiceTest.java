@@ -40,43 +40,13 @@ class IntentClassifierServiceTest {
         service = new IntentClassifierService(List.of(), Optional.of(languageModel), featureFlagService);
     }
 
-    private static ConversationState activeBookingState() {
-        return ConversationState.builder()
-            .currentIntent("book_appointment")
-            .build();
-    }
-
     @Test
-    void classify_activeBooking_typoContainingAgendar_skipsMiniLlm() {
-        IntentClassification r = service.classify("Quwornagendar una cita", "1", activeBookingState());
-        assertThat(r).isInstanceOf(IntentClassification.CrmAction.class);
-        assertThat(r.getActionId()).contains("book_appointment");
-        verifyNoInteractions(languageModel);
-    }
-
-    @Test
-    void classify_activeBooking_horasDisponibles_skipsMiniLlm() {
-        IntentClassification r = service.classify("Que horas tienes disponible?", "1", activeBookingState());
-        assertThat(r).isInstanceOf(IntentClassification.CrmAction.class);
-        assertThat(r.getActionId()).contains("book_appointment");
-        verifyNoInteractions(languageModel);
-    }
-
-    @Test
-    void classify_activeBooking_longText_usesMiniLlm() {
-        String longText = "x".repeat(250);
-        when(languageModel.generate(any(LlmRequest.class))).thenReturn(LlmResponse.ok("PREGUNTA_GENERAL"));
-        IntentClassification r = service.classify(longText, "1", activeBookingState());
-        assertThat(r).isInstanceOf(IntentClassification.GeneralQuestion.class);
-        verify(languageModel).generate(any(LlmRequest.class));
-    }
-
-    @Test
-    void classify_withoutActiveBooking_typoCallsMiniLlm() {
+    void classify_miniLlm_legacyBookAppointment_normalizedToPublicUrl() {
         when(languageModel.generate(any(LlmRequest.class))).thenReturn(LlmResponse.ok("ACCION_CRM book_appointment"));
         ConversationState noIntent = ConversationState.builder().build();
-        IntentClassification r = service.classify("Quwornagendar una cita", "1", noIntent);
+        IntentClassification r = service.classify("Quiero agendar una cita", "1", noIntent);
         assertThat(r).isInstanceOf(IntentClassification.CrmAction.class);
+        assertThat(r.getActionId()).contains("get_agenda_public_url");
         verify(languageModel).generate(any(LlmRequest.class));
     }
 

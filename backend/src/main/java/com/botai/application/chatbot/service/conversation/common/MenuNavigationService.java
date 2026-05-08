@@ -27,18 +27,15 @@ public class MenuNavigationService {
     private final FeatureFlagService featureFlagService;
     private final MenuService menuService;
     private final ActionDispatcher actionDispatcher;
-    private final ConversationActionRouting conversationActionRouting;
     private final BotMessages messages;
 
     public MenuNavigationService(FeatureFlagService featureFlagService,
                                  MenuService menuService,
                                  ActionDispatcher actionDispatcher,
-                                 ConversationActionRouting conversationActionRouting,
                                  BotMessages messages) {
         this.featureFlagService = featureFlagService;
         this.menuService = menuService;
         this.actionDispatcher = actionDispatcher;
-        this.conversationActionRouting = conversationActionRouting;
         this.messages = messages;
     }
 
@@ -93,11 +90,6 @@ public class MenuNavigationService {
         var sel = selected.get();
         if (sel.actionIntent() != null && !sel.actionIntent().isBlank()
             && featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, tenantId)) {
-            if (ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID.equals(sel.actionIntent())
-                && conversationActionRouting.armBookAppointmentForFluidAiIfApplicable(state, tenantId)) {
-                log.info("[MENU-NAV] Opcion agendar + IA -> sin wizard; sigue el LLM con tools");
-                return Optional.empty();
-            }
             var actionResult = actionDispatcher.startFromMenuOption(state, sel.actionIntent(), text);
             if (actionResult != null) {
                 log.info("[MENU-NAV] Opcion -> accion: {} -> {}", text, sel.actionIntent());
