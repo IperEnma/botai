@@ -1,6 +1,7 @@
 package com.botai.agenda.infrastructure.api;
 
 import com.botai.agenda.application.dto.AvailabilitySlotResponse;
+import com.botai.agenda.application.dto.BusinessHoursResponse;
 import com.botai.agenda.application.dto.BusinessResponse;
 import com.botai.agenda.application.dto.ServiceResponse;
 import com.botai.agenda.application.dto.StaffMemberResponse;
@@ -102,6 +103,22 @@ public class PublicBusinessBySlugController {
                 .toList();
     }
 
+    @GetMapping("/hours")
+    @Operation(summary = "Horarios de atención publicados (por slug)")
+    public List<BusinessHoursResponse> hours(@PathVariable("slug") String slug) {
+        Business b = requireBusiness(slug);
+        return hoursRepository.findByBusinessId(b.getId()).stream()
+                .map(h -> new BusinessHoursResponse(
+                        h.getId(),
+                        h.getBusinessId(),
+                        h.getDiaSemana(),
+                        h.getApertura(),
+                        h.getCierre(),
+                        h.isCerrado()
+                ))
+                .toList();
+    }
+
     @GetMapping("/availability")
     @Operation(summary = "Turnos disponibles para un servicio en una fecha (por slug)")
     public List<AvailabilitySlotResponse> availability(
@@ -123,11 +140,15 @@ public class PublicBusinessBySlugController {
                 .filter(h -> h.getDiaSemana() == diaSemana)
                 .findFirst();
 
-        if (hoursOpt.isEmpty() || hoursOpt.get().isCerrado()) {
-            return List.of();
+        final BusinessHours hours;
+        if (hoursOpt.isPresent()) {
+            if (hoursOpt.get().isCerrado()) return List.of();
+            hours = hoursOpt.get();
+        } else {
+            hours = defaultHours(b.getId(), diaSemana).orElse(null);
+            if (hours == null || hours.isCerrado()) return List.of();
         }
 
-        BusinessHours hours = hoursOpt.get();
         LocalTime apertura = hours.getApertura();
         LocalTime cierre = hours.getCierre();
 
@@ -161,6 +182,19 @@ public class PublicBusinessBySlugController {
             cursor = slotEnd;
         }
         return slots;
+    }
+
+    private Optional<BusinessHours> defaultHours(UUID businessId, int diaSemana) {
+        if (diaSemana == 6) {
+            return Optional.of(new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
+                    LocalTime.of(9, 0), LocalTime.of(13, 0), true));
+        }
+        if (diaSemana == 5) {
+            return Optional.of(new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
+                    LocalTime.of(9, 0), LocalTime.of(13, 0), false));
+        }
+        return Optional.of(new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
+                LocalTime.of(9, 0), LocalTime.of(18, 0), false));
     }
 }
 

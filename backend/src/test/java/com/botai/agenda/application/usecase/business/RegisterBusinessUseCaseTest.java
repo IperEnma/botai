@@ -21,13 +21,15 @@ class RegisterBusinessUseCaseTest {
 
     private BusinessRepository businessRepo;
     private BusinessSettingsRepository settingsRepo;
+    private SaveBusinessHoursUseCase saveHours;
     private RegisterBusinessUseCase useCase;
 
     @BeforeEach
     void setUp() {
         businessRepo = mock(BusinessRepository.class);
         settingsRepo = mock(BusinessSettingsRepository.class);
-        useCase = new RegisterBusinessUseCase(businessRepo, settingsRepo);
+        saveHours = mock(SaveBusinessHoursUseCase.class);
+        useCase = new RegisterBusinessUseCase(businessRepo, settingsRepo, saveHours);
     }
 
     @Test
@@ -37,6 +39,7 @@ class RegisterBusinessUseCaseTest {
 
         when(businessRepo.save(any(Business.class))).thenAnswer(inv -> inv.getArgument(0));
         when(settingsRepo.save(any(BusinessSettings.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(saveHours.execute(any(), any(), any())).thenAnswer(inv -> inv.getArgument(2));
 
         Business result = useCase.execute(
                 tenantId,
@@ -79,6 +82,7 @@ class RegisterBusinessUseCaseTest {
     void searchTagsNullSeTraducenEnListaVacia() {
         when(businessRepo.save(any(Business.class))).thenAnswer(inv -> inv.getArgument(0));
         when(settingsRepo.save(any(BusinessSettings.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(saveHours.execute(any(), any(), any())).thenAnswer(inv -> inv.getArgument(2));
 
         useCase.execute("tenant-1", "Sin tags", null, null, null);
 

@@ -3,7 +3,10 @@ package com.botai.agenda.infrastructure.api;
 import com.botai.agenda.application.dto.BookingResponse;
 import com.botai.agenda.application.mapper.BookingDtoMapper;
 import com.botai.agenda.application.usecase.booking.ListBusinessBookingsUseCase;
+import com.botai.agenda.domain.model.User;
 import com.botai.agenda.domain.repository.BusinessRepository;
+import com.botai.agenda.domain.repository.ServiceRepository;
+import com.botai.agenda.domain.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -32,11 +35,17 @@ public class TenantAgendaBookingsController {
 
     private final ListBusinessBookingsUseCase listBusinessBookings;
     private final BusinessRepository businessRepository;
+    private final ServiceRepository serviceRepository;
+    private final UserRepository userRepository;
 
     public TenantAgendaBookingsController(ListBusinessBookingsUseCase listBusinessBookings,
-                                          BusinessRepository businessRepository) {
+                                          BusinessRepository businessRepository,
+                                          ServiceRepository serviceRepository,
+                                          UserRepository userRepository) {
         this.listBusinessBookings = listBusinessBookings;
         this.businessRepository = businessRepository;
+        this.serviceRepository = serviceRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/bookings")
@@ -54,7 +63,13 @@ public class TenantAgendaBookingsController {
 
         List<BookingResponse> responses = listBusinessBookings.execute(tenantId, businessId, from, to)
                 .stream()
-                .map(BookingDtoMapper::toResponse)
+                .map(b -> {
+                    String serviceName = serviceRepository.findById(b.getServiceId())
+                            .map(s -> s.getNombre())
+                            .orElse(null);
+                    User user = userRepository.findById(b.getUserId()).orElse(null);
+                    return BookingDtoMapper.toResponse(b, serviceName, user);
+                })
                 .toList();
         return ResponseEntity.ok(responses);
     }

@@ -23,6 +23,11 @@ public record BookingResponse(
         LocalDateTime canceladaAt,
         LocalDateTime completadaAt,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        // Enriquecimiento para UI (opcional)
+        String servicioNombre,
+        String clienteNombre,
+        String clienteEmail,
+        String clienteTelefono
 ) {
 }

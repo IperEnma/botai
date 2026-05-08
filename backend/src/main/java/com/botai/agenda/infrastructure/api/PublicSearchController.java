@@ -158,11 +158,17 @@ public class PublicSearchController {
                 .filter(h -> h.getDiaSemana() == diaSemana)
                 .findFirst();
 
-        if (hoursOpt.isEmpty() || hoursOpt.get().isCerrado()) {
-            return List.of();
+        final BusinessHours hours;
+        if (hoursOpt.isPresent()) {
+            if (hoursOpt.get().isCerrado()) return List.of();
+            hours = hoursOpt.get();
+        } else {
+            // Fallback: si el negocio no configuró horarios, asumimos defaults para no bloquear el onboarding.
+            // (lun-vie 09-18, sáb 09-13, dom cerrado)
+            hours = defaultHours(businessId, diaSemana).orElse(null);
+            if (hours == null || hours.isCerrado()) return List.of();
         }
 
-        BusinessHours hours = hoursOpt.get();
         LocalTime apertura = hours.getApertura();
         LocalTime cierre = hours.getCierre();
 
@@ -199,5 +205,18 @@ public class PublicSearchController {
             cursor = slotEnd;
         }
         return slots;
+    }
+
+    private Optional<BusinessHours> defaultHours(UUID businessId, int diaSemana) {
+        if (diaSemana == 6) {
+            return Optional.of(new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
+                    LocalTime.of(9, 0), LocalTime.of(13, 0), true));
+        }
+        if (diaSemana == 5) {
+            return Optional.of(new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
+                    LocalTime.of(9, 0), LocalTime.of(13, 0), false));
+        }
+        return Optional.of(new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
+                LocalTime.of(9, 0), LocalTime.of(18, 0), false));
     }
 }

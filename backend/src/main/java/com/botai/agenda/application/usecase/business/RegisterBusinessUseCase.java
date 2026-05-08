@@ -1,6 +1,7 @@
 package com.botai.agenda.application.usecase.business;
 
 import com.botai.agenda.domain.model.Business;
+import com.botai.agenda.domain.model.BusinessHours;
 import com.botai.agenda.domain.model.BusinessSettings;
 import com.botai.agenda.domain.repository.BusinessRepository;
 import com.botai.agenda.domain.repository.BusinessSettingsRepository;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,11 +25,14 @@ public class RegisterBusinessUseCase {
 
     private final BusinessRepository businessRepository;
     private final BusinessSettingsRepository settingsRepository;
+    private final SaveBusinessHoursUseCase saveBusinessHours;
 
     public RegisterBusinessUseCase(BusinessRepository businessRepository,
-                                   BusinessSettingsRepository settingsRepository) {
+                                   BusinessSettingsRepository settingsRepository,
+                                   SaveBusinessHoursUseCase saveBusinessHours) {
         this.businessRepository = businessRepository;
         this.settingsRepository = settingsRepository;
+        this.saveBusinessHours = saveBusinessHours;
     }
 
     @Transactional
@@ -59,6 +64,23 @@ public class RegisterBusinessUseCase {
         );
         Business saved = businessRepository.save(business);
         settingsRepository.save(BusinessSettings.defaults(saved.getId()));
+
+        // Horarios default para que el negocio tenga disponibilidad pública inicial.
+        // El admin puede reemplazarlos desde el panel privado.
+        List<BusinessHours> defaultHours = List.of(
+                // lun-vie 09:00-18:00
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 0, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 1, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 2, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 3, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 4, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
+                // sábado 09:00-13:00
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 5, LocalTime.of(9, 0), LocalTime.of(13, 0), false),
+                // domingo cerrado
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 6, LocalTime.of(9, 0), LocalTime.of(13, 0), true)
+        );
+        saveBusinessHours.execute(tenantId, saved.getId(), defaultHours);
+
         log.info("AGENDA: negocio registrado id={} tenantId={}", saved.getId(), tenantId);
         return saved;
     }
