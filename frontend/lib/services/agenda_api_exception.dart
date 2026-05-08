@@ -14,11 +14,21 @@ class AgendaApiException implements Exception {
   /// Status HTTP. `0` cuando es error de transporte.
   final int status;
 
+  /// Detalle extra (cuerpo recortado, cabeceras OAuth, etc.) para depuración en pantalla.
+  final String? detail;
+
   const AgendaApiException({
     required this.message,
     required this.status,
     this.code,
+    this.detail,
   });
+
+  /// Mensaje + detalle para diálogos / SnackBars largos.
+  String get userVisibleFull {
+    if (detail == null || detail!.trim().isEmpty) return message;
+    return '$message\n\n$detail';
+  }
 
   /// Atajo: `true` si el endpoint protegido devolvió 404 por
   /// `AGENDA_ENABLED=false` en el tenant. La UI puede mostrar
@@ -31,5 +41,5 @@ class AgendaApiException implements Exception {
 
   @override
   String toString() =>
-      'AgendaApiException(status=$status, code=$code, message=$message)';
+      'AgendaApiException(status=$status, code=$code, message=$message, detail=$detail)';
 }

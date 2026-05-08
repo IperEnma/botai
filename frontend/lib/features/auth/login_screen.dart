@@ -1,9 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/api_error_presenter.dart';
+import '../../core/google_identity_button_stub.dart'
+    if (dart.library.html) '../../core/google_identity_button_web.dart';
+import '../../core/theme.dart';
 import '../../providers/agenda/agenda_nav_after_google_auth.dart';
 import '../../providers/auth_provider.dart';
-import '../../core/theme.dart';
+import '../../widgets/web_google_sign_in_scope.dart';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
@@ -123,18 +128,55 @@ class LoginScreen extends ConsumerWidget {
                             ],
                           ),
                         ),
-                      _GoogleSignInButton(
-                        isLoading: authState.isLoading,
-                        onPressed: () async {
-                          await ref
-                              .read(authStateProvider.notifier)
-                              .signInWithGoogle();
-                          if (!context.mounted) return;
-                          if (ref.read(authStateProvider).isAuthenticated) {
-                            await agendaNavigateAfterGoogleSignIn(ref, context);
-                          }
-                        },
-                      ),
+                      if (kIsWeb)
+                        WebGoogleSignInScope(
+                          onSignedIn: (ctx) =>
+                              agendaNavigateAfterGoogleSignIn(ref, ctx),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: buildGoogleIdentitySignInButton(),
+                              ),
+                              if (authState.isLoading) ...[
+                                const SizedBox(height: 12),
+                                const Center(
+                                  child: SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child:
+                                        CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        )
+                      else
+                        _GoogleSignInButton(
+                          isLoading: authState.isLoading,
+                          onPressed: () async {
+                            await ref
+                                .read(authStateProvider.notifier)
+                                .signInWithGoogle();
+                            if (!context.mounted) return;
+                            final auth = ref.read(authStateProvider);
+                            if (auth.error != null) {
+                              await showApiErrorDialog(
+                                context,
+                                Exception(auth.error!),
+                                title: 'Inicio de sesión con Google',
+                              );
+                              return;
+                            }
+                            if (auth.isAuthenticated) {
+                              await agendaNavigateAfterGoogleSignIn(
+                                  ref, context);
+                            }
+                          },
+                        ),
                       if (kIsWeb) ...[
                         const SizedBox(height: 16),
                         Text(
@@ -225,7 +267,7 @@ class _GoogleSignInButton extends StatelessWidget {
                 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
                 width: 24,
                 height: 24,
-                errorBuilder: (_, __, ___) => Container(
+                errorBuilder: (_, _, _) => Container(
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(

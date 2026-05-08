@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../core/api_error_presenter.dart';
+import '../core/auth_bearer_token.dart';
 import '../core/config.dart';
 import '../models/agenda/agenda_notification.dart';
 import '../models/agenda/agenda_service.dart';
@@ -45,7 +47,8 @@ class AgendaApiService {
   String? _accessToken;
   String? _userId;
 
-  void setAccessToken(String? token) => _accessToken = token;
+  void setAccessToken(String? token) =>
+      _accessToken = normalizeGoogleBearer(token);
   void setUserId(String? userId) => _userId = userId;
   String? get userId => _userId;
 
@@ -91,20 +94,59 @@ class AgendaApiService {
 
   /// Lanza [AgendaApiException] si la respuesta no es 2xx.
   void _ensureOk(http.Response r) {
-    if (r.statusCode >= 200 && r.statusCode < 300) { return; }
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return;
+    }
     String? code;
-    String message = 'Error ${r.statusCode}';
+    var message = 'Error ${r.statusCode}';
     if (r.body.isNotEmpty) {
       try {
         final body = jsonDecode(r.body);
         if (body is Map<String, dynamic>) {
           code = body['code']?.toString();
           final m = body['message']?.toString();
-          if (m != null && m.isNotEmpty) { message = m; }
+          if (m != null && m.isNotEmpty) {
+            message = m;
+          }
         }
-      } catch (_) {/* body no es JSON, ignorar */}
+      } catch (_) {/* body no es JSON */}
     }
     throw AgendaApiException(message: message, status: r.statusCode, code: code);
+  }
+
+  /// Respuesta enriquecida (OAuth2 / `WWW-Authenticate`) solo para el probe JWT tras iniciar sesión.
+  Never _throwTenantAdminProbeFailure(http.Response r) {
+    final diagnostic = parseHttpErrorBody(
+      r.statusCode,
+      r.body,
+      headers: r.headers,
+    );
+    String? code;
+    var message = diagnostic;
+    if (r.body.isNotEmpty) {
+      try {
+        final body = jsonDecode(r.body);
+        if (body is Map<String, dynamic>) {
+          code = body['code']?.toString();
+          final m = body['message']?.toString();
+          final err = body['error']?.toString();
+          final desc = body['error_description']?.toString();
+          if (m != null && m.isNotEmpty) {
+            message = m;
+          } else if (err != null && err.isNotEmpty) {
+            message =
+                desc != null && desc.isNotEmpty ? '$err: $desc' : err;
+          }
+        }
+      } catch (_) {/* seguir con diagnostic */}
+    }
+    final detail = (diagnostic != message) ? diagnostic : null;
+    throw AgendaApiException(
+      message: message,
+      status: r.statusCode,
+      code: code,
+      detail: detail,
+    );
   }
 
   T _decode<T>(http.Response r, T Function(dynamic body) map) {
@@ -165,10 +207,12 @@ class AgendaApiService {
           _uri('/me/tenant-admin'),
           headers: _headers(),
         ));
-    return _decode(
-      r,
-      (b) => TenantAdminContext.fromJson(b as Map<String, dynamic>),
-    );
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return TenantAdminContext.fromJson(
+        jsonDecode(r.body) as Map<String, dynamic>,
+      );
+    }
+    _throwTenantAdminProbeFailure(r);
   }
 
   /// `POST /me/tenant-admin/link` — asocia la sesión Google a la cuenta Agenda identificada por teléfono

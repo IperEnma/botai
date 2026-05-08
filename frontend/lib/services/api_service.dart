@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../core/auth_bearer_token.dart';
 import '../core/config.dart';
 import '../models/user.dart';
 import '../models/bot.dart';
@@ -15,7 +16,7 @@ class ApiService {
   ApiService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   void setAccessToken(String? token) {
-    _accessToken = token;
+    _accessToken = normalizeGoogleBearer(token);
   }
 
   Map<String, String> get _headers => {

@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import '../models/user.dart';
-import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
@@ -76,6 +78,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _authService.signInWithGoogle();
+      if (user != null) {
+        _apiService.setAccessToken(user.accessToken);
+        state = state.copyWith(
+          user: user,
+          isAuthenticated: true,
+          isLoading: false,
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'No se pudo iniciar sesión',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  /// Web: after GIS [renderButton] signs the user in, the platform updates [GoogleSignIn.currentUser].
+  Future<void> completeGoogleSignInFromAccount(GoogleSignInAccount account) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final user = await _authService.handleGoogleSignInAccount(account);
       if (user != null) {
         _apiService.setAccessToken(user.accessToken);
         state = state.copyWith(

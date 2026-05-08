@@ -79,10 +79,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
       ShellRoute(
-        builder: (context, state, child) => AgendaHomeShell(
-          currentPath: state.matchedLocation,
-          child: child,
-        ),
+        builder: (context, state, child) => AgendaHomeShell(child: child),
         routes: [
           GoRoute(
             path: '/home',

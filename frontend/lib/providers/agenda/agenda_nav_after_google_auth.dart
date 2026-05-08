@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api_error_presenter.dart';
 import '../../services/agenda_api_exception.dart';
 import '../auth_provider.dart';
 import 'agenda_api_provider.dart';
@@ -21,7 +22,6 @@ Future<void> agendaNavigateAfterGoogleSignIn(
   final user = auth.user;
   if (user == null || user.email.isEmpty) return;
 
-  final messenger = ScaffoldMessenger.maybeOf(context);
   final api = ref.read(agendaApiServiceProvider);
   api.setAccessToken(user.accessToken);
 
@@ -32,10 +32,11 @@ Future<void> agendaNavigateAfterGoogleSignIn(
   } on AgendaApiException catch (e) {
     if (!context.mounted) return;
     if (!e.isNotFound) {
-      messenger?.showSnackBar(SnackBar(
-        content: Text(e.message),
-        backgroundColor: const Color(0xFFB91C1C),
-      ));
+      await showApiErrorDialog(
+        context,
+        e,
+        title: 'No se pudo verificar tu cuenta Agenda',
+      );
       return;
     }
     final trimmedName = user.name?.trim();
@@ -48,5 +49,12 @@ Future<void> agendaNavigateAfterGoogleSignIn(
         );
     if (!context.mounted) return;
     context.go('/agenda/intent');
+  } catch (e) {
+    if (!context.mounted) return;
+    await showApiErrorDialog(
+      context,
+      e is Exception ? e : Exception(e.toString()),
+      title: 'Error al entrar',
+    );
   }
 }

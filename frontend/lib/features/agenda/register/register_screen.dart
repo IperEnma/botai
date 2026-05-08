@@ -1,16 +1,20 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/google_identity_button_stub.dart'
+    if (dart.library.html) '../../../core/google_identity_button_web.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/agenda_nav_after_google_auth.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../services/agenda_api_exception.dart';
+import '../../../widgets/web_google_sign_in_scope.dart';
 import 'konecta_tokens.dart';
 
 // ── Country data ──────────────────────────────────────────────────────────────
@@ -522,6 +526,7 @@ class _GoogleSignupButtonState extends ConsumerState<_GoogleSignupButton> {
   bool _loading = false;
 
   Future<void> _onPressed() async {
+    if (kIsWeb) return;
     if (_loading) return;
     setState(() => _loading = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -555,6 +560,34 @@ class _GoogleSignupButtonState extends ConsumerState<_GoogleSignupButton> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authStateProvider);
+    if (kIsWeb) {
+      return WebGoogleSignInScope(
+        errorDialogTitle: 'Registro con Google',
+        onSignedIn: (ctx) => agendaNavigateAfterGoogleSignIn(ref, ctx),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: buildGoogleIdentitySignInButton(),
+            ),
+            if (auth.isLoading) ...[
+              const SizedBox(height: 12),
+              const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(

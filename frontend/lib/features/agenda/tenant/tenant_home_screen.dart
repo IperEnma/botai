@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
 import '../../../models/agenda/business.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
@@ -233,7 +234,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
 
 // ── Left Nav ──────────────────────────────────────────────────────────────────
 
-class _LeftNav extends StatelessWidget {
+class _LeftNav extends ConsumerWidget {
   const _LeftNav({this.nombre, this.businessName, this.tenantId, this.businessId});
 
   final String? nombre;
@@ -288,11 +289,15 @@ class _LeftNav extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final topPad = MediaQuery.of(context).padding.top;
     final initials = (nombre?.isNotEmpty == true)
         ? nombre![0].toUpperCase()
         : 'U';
+    final loc = GoRouterState.of(context).matchedLocation;
+    final selectedInicio =
+        loc == '/home' || loc.startsWith('/home/businesses/');
+    final selectedBots = loc.startsWith('/home/bots');
 
     return Container(
       width: _kNavWidth,
@@ -318,10 +323,16 @@ class _LeftNav extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           // Nav items
-          _NavItem(icon: Icons.home_outlined,           label: 'Inicio',      selected: true),
+          _NavItem(
+            icon: Icons.home_outlined,
+            label: 'Inicio',
+            selected: selectedInicio,
+            onTap: () => context.go('/home'),
+          ),
           _NavItem(
             icon: Icons.smart_toy_outlined,
             label: 'Mis bots',
+            selected: selectedBots,
             onTap: () => context.go('/home/bots'),
           ),
           _NavItem(
@@ -411,6 +422,17 @@ class _LeftNav extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+            child: TextButton.icon(
+              onPressed: () {
+                ref.read(authStateProvider.notifier).signOut();
+                context.go('/');
+              },
+              icon: const Icon(Icons.logout, size: 18),
+              label: const Text('Salir'),
             ),
           ),
         ],
