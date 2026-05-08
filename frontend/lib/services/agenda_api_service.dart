@@ -290,6 +290,51 @@ class AgendaApiService {
     return _decode(r, (b) => (b as Map<String, dynamic>)['businessId'] as String);
   }
 
+  /// `GET /public/businesses/by-slug/{slug}`
+  Future<Business> publicBusinessDetailBySlug(String slug) async {
+    final r = await _send(() => _client.get(
+          _uri('/public/businesses/by-slug/$slug'),
+          headers: _headers(),
+        ));
+    return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
+  }
+
+  /// `GET /public/businesses/by-slug/{slug}/services`
+  Future<List<AgendaService>> publicBusinessServicesBySlug(String slug) async {
+    final r = await _send(() => _client.get(
+          _uri('/public/businesses/by-slug/$slug/services'),
+          headers: _headers(),
+        ));
+    return _decodeList(r, AgendaService.fromJson);
+  }
+
+  /// `GET /public/businesses/by-slug/{slug}/staff`
+  Future<List<StaffMember>> publicBusinessStaffBySlug(String slug) async {
+    final r = await _send(() => _client.get(
+          _uri('/public/businesses/by-slug/$slug/staff'),
+          headers: _headers(),
+        ));
+    return _decodeList(r, StaffMember.fromJson);
+  }
+
+  /// `GET /public/businesses/by-slug/{slug}/availability`
+  Future<List<AvailabilitySlot>> publicAvailabilityBySlug({
+    required String slug,
+    required String serviceId,
+    String? staffMemberId,
+    required String date,
+  }) async {
+    final r = await _send(() => _client.get(
+          _uri('/public/businesses/by-slug/$slug/availability', {
+            'serviceId': serviceId,
+            'staffMemberId': staffMemberId,
+            'date': date,
+          }),
+          headers: _headers(),
+        ));
+    return _decodeList(r, AvailabilitySlot.fromJson);
+  }
+
   // =====================================================================
   // PUBLIC — sin auth
   // =====================================================================

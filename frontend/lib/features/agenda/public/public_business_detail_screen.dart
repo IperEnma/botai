@@ -7,6 +7,7 @@ import '../../../models/agenda/availability_slot.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/public/public_business_detail_provider.dart';
+import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,6 +30,30 @@ class PublicBusinessDetailScreen extends ConsumerWidget {
         body: AgendaErrorView(
           message: 'No se pudo cargar el negocio: $e',
           onRetry: () => ref.refresh(publicBusinessProvider(businessId)),
+        ),
+      ),
+      data: (b) => _DetailPage(business: b, servicesAsync: servicesAsync),
+    );
+  }
+}
+
+/// Variante que carga todo por `slug` (URL amigable) sin redireccionar a una URL con UUID.
+class PublicBusinessDetailBySlugScreen extends ConsumerWidget {
+  const PublicBusinessDetailBySlugScreen({super.key, required this.slug});
+
+  final String slug;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final businessAsync = ref.watch(publicBusinessBySlugProvider(slug));
+    final servicesAsync = ref.watch(publicBusinessServicesBySlugProvider(slug));
+
+    return businessAsync.when(
+      loading: () => const Scaffold(body: AgendaLoadingView()),
+      error: (e, _) => Scaffold(
+        body: AgendaErrorView(
+          message: 'No se pudo cargar el negocio: $e',
+          onRetry: () => ref.refresh(publicBusinessBySlugProvider(slug)),
         ),
       ),
       data: (b) => _DetailPage(business: b, servicesAsync: servicesAsync),

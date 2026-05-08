@@ -229,6 +229,41 @@ class FakeAgendaApiService implements AgendaApiService {
     return const [];
   }
 
+  @override
+  Future<Business> publicBusinessDetailBySlug(String slug) async {
+    _maybeThrow();
+    return Business(
+      id: 'business-test-uuid',
+      tenantId: 't',
+      nombre: 'Negocio fake ($slug)',
+      searchTags: const [],
+      activo: true,
+    );
+  }
+
+  @override
+  Future<List<AgendaService>> publicBusinessServicesBySlug(String slug) async {
+    _maybeThrow();
+    return const [];
+  }
+
+  @override
+  Future<List<StaffMember>> publicBusinessStaffBySlug(String slug) async {
+    _maybeThrow();
+    return const [];
+  }
+
+  @override
+  Future<List<AvailabilitySlot>> publicAvailabilityBySlug({
+    required String slug,
+    required String serviceId,
+    String? staffMemberId,
+    required String date,
+  }) async {
+    _maybeThrow();
+    return const [];
+  }
+
   // ── platform ─────────────────────────────────────────────────────────────
 
   @override
@@ -781,6 +816,16 @@ class FakeAgendaApiService implements AgendaApiService {
     String? tenantId,
     String? businessId,
     BookingEstado? estado,
+  }) async {
+    _maybeThrow();
+    return nextBookings ?? const [];
+  }
+
+  @override
+  Future<List<Booking>> businessAgendaBookings({
+    required String businessId,
+    required DateTime from,
+    required DateTime to,
   }) async {
     _maybeThrow();
     return nextBookings ?? const [];

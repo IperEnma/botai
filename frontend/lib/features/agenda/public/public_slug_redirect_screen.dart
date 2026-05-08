@@ -5,7 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 
-/// Link público amigable: `/agenda/<slug>` → resuelve a `/agenda/public/business/<id>`.
+/// DEPRECADO: antes resolvía `/agenda/<slug>` → `/agenda/public/business/<id>`.
+/// Ahora mantenemos el slug en la URL usando `PublicBusinessDetailBySlugScreen`.
 class PublicSlugRedirectScreen extends ConsumerWidget {
   const PublicSlugRedirectScreen({super.key, required this.slug});
 

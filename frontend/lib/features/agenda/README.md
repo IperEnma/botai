@@ -20,10 +20,12 @@ Frontend del módulo AGENDA dentro del mismo `pubspec.yaml` del bot. Vive en par
 
 Cada negocio expone un link público para que los clientes reserven (web con hash routing).
 Este link se obtiene desde el panel privado (empresa) vía `GET /api/agenda/me/public-link`
-y se muestra/copia desde el item **“Link público”** del sidebar del panel.
+y se muestra/copia desde el botón **“Copiar vínculo”** en la vista privada (calendario).
 
 - `/#/agenda/<slug>` (URL amigable, recomendada)
-- `/#/agenda/public/business/{businessId}` (ruta directa, interna)
+- `/#/agenda/public/business/{businessId}` (ruta directa, legacy / interna)
+
+**Importante**: el flujo recomendado mantiene siempre el `slug` visible en el navegador (no redirige a una URL con UUID).
 
 ### Nota de UX (decisión)
 
@@ -46,7 +48,7 @@ AGENDA tiene **dos experiencias** bien distintas:
 - **Sidebar**:
   - **“Inicio/Home”**: resumen del negocio y accesos rápidos.
   - **“Agenda”**: abre el **calendario privado** (turnos) dentro del panel (ruta `/home?section=agenda`).
-  - El vínculo público **no** vive en el sidebar: está dentro del calendario como botón **“Copiar vínculo”**.
+  - El vínculo público está dentro del calendario como botón **“Copiar vínculo”**.
 
 ### 2) Vista pública (clientes)
 
@@ -195,6 +197,8 @@ Los tests usan `FakeAgendaApiService` (`test/agenda/fake_agenda_api.dart`) que s
 | GET | `/api/agenda/public/categories/{slug}/businesses` | `businessesByCategoryProvider` |
 | GET | `/api/agenda/public/businesses/{id}` | `publicBusinessProvider` |
 | GET | `/api/agenda/public/businesses/{id}/services` | `publicBusinessServicesProvider` |
+| GET | `/api/agenda/public/businesses/by-slug/{slug}` | `publicBusinessBySlugProvider` |
+| GET | `/api/agenda/public/businesses/by-slug/{slug}/services` | `publicBusinessServicesBySlugProvider` |
 | GET | `/api/agenda/platform/categories` | `categoriesAdminProvider.load` |
 | POST | `/api/agenda/platform/categories` | `categoriesAdminProvider.create` |
 | PUT | `/api/agenda/platform/categories/{id}` | `categoriesAdminProvider.update` |
