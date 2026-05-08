@@ -8,6 +8,7 @@ import '../../../models/agenda/business.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/public/public_business_detail_provider.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
+import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -460,25 +461,105 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
     setState(() => _selectedSlot = slot);
   }
 
-  void _confirm() {
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '¡Turno solicitado! ${_service!.nombre} · ${_selectedSlot!.label}',
+  Future<void> _confirm() async {
+    final svc = _service;
+    final slot = _selectedSlot;
+    if (svc == null || slot == null) return;
+
+    try {
+      final payload = await _askClientData();
+      if (payload == null) return;
+
+      await ref.read(agendaApiServiceProvider).publicCreateBooking(
+            businessId: widget.business.id,
+            serviceId: svc.id,
+            staffMemberId: _anyStaff ? null : _selectedStaff?.id,
+            fechaHoraInicio: slot.inicio,
+            nombreCliente: payload.nombre,
+            emailCliente: payload.email,
+            telefonoCliente: payload.telefono,
+          );
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '¡Turno solicitado! ${svc.nombre} · ${slot.label}',
+                ),
               ),
+            ],
+          ),
+          backgroundColor: _primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo solicitar el turno: $e'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<_ClientPayload?> _askClientData() async {
+    final nombreCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final telCtrl = TextEditingController();
+
+    return showDialog<_ClientPayload>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tus datos'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nombreCtrl,
+              decoration: const InputDecoration(labelText: 'Nombre *'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: telCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Teléfono'),
             ),
           ],
         ),
-        backgroundColor: _primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final nombre = nombreCtrl.text.trim();
+              if (nombre.isEmpty) return;
+              Navigator.of(ctx).pop(_ClientPayload(
+                nombre: nombre,
+                email: emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim(),
+                telefono: telCtrl.text.trim().isEmpty ? null : telCtrl.text.trim(),
+              ));
+            },
+            child: const Text('Confirmar'),
+          ),
+        ],
       ),
     );
   }
@@ -1242,4 +1323,11 @@ TextStyle _fs(String family, {double? size, FontWeight? weight, Color? color}) {
     return TextStyle(
         fontFamily: family, fontSize: size, fontWeight: weight, color: color);
   }
+}
+
+class _ClientPayload {
+  const _ClientPayload({required this.nombre, this.email, this.telefono});
+  final String nombre;
+  final String? email;
+  final String? telefono;
 }

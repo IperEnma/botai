@@ -434,6 +434,37 @@ class AgendaApiService {
     return _decodeList(r, AgendaService.fromJson);
   }
 
+  /// `POST /public/businesses/{businessId}/bookings`
+  ///
+  /// Crea una reserva en estado PENDING (flujo público, sin auth).
+  Future<Booking> publicCreateBooking({
+    required String businessId,
+    required String serviceId,
+    String? staffMemberId,
+    required DateTime fechaHoraInicio,
+    required String nombreCliente,
+    String? emailCliente,
+    String? telefonoCliente,
+    String? notas,
+  }) async {
+    final r = await _send(() => _client.post(
+          _uri('/public/businesses/$businessId/bookings'),
+          headers: _headers(),
+          body: jsonEncode({
+            'serviceId': serviceId,
+            if (staffMemberId != null) 'staffMemberId': staffMemberId,
+            'fechaHoraInicio': fechaHoraInicio.toIso8601String(),
+            'nombreCliente': nombreCliente,
+            if (emailCliente != null && emailCliente.isNotEmpty)
+              'emailCliente': emailCliente,
+            if (telefonoCliente != null && telefonoCliente.isNotEmpty)
+              'telefonoCliente': telefonoCliente,
+            if (notas != null && notas.isNotEmpty) 'notas': notas,
+          }),
+        ));
+    return _decode(r, (body) => Booking.fromJson(body as Map<String, dynamic>));
+  }
+
   // =====================================================================
   // PLATFORM — admin del catálogo global
   // =====================================================================

@@ -230,6 +230,32 @@ class FakeAgendaApiService implements AgendaApiService {
   }
 
   @override
+  Future<Booking> publicCreateBooking({
+    required String businessId,
+    required String serviceId,
+    String? staffMemberId,
+    required DateTime fechaHoraInicio,
+    required String nombreCliente,
+    String? emailCliente,
+    String? telefonoCliente,
+    String? notas,
+  }) async {
+    _maybeThrow();
+    return nextCreatedBooking ??
+        Booking(
+          id: 'booking-public-1',
+          userId: 'user-public-1',
+          serviceId: serviceId,
+          servicioNombre: 'Servicio test',
+          businessId: businessId,
+          fechaHoraInicio: fechaHoraInicio,
+          fechaHoraFin: fechaHoraInicio.add(const Duration(minutes: 60)),
+          estado: BookingEstado.pendiente,
+          tipoReserva: BookingTipo.pagoPorTurno,
+        );
+  }
+
+  @override
   Future<Business> publicBusinessDetailBySlug(String slug) async {
     _maybeThrow();
     return Business(

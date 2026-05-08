@@ -85,6 +85,9 @@ class Booking {
   final BookingTipo tipoReserva;
   final String? notas;
   final DateTime? createdAt;
+  final String? clienteNombre;
+  final String? clienteEmail;
+  final String? clienteTelefono;
 
   const Booking({
     required this.id,
@@ -99,6 +102,9 @@ class Booking {
     required this.tipoReserva,
     this.notas,
     this.createdAt,
+    this.clienteNombre,
+    this.clienteEmail,
+    this.clienteTelefono,
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -106,7 +112,7 @@ class Booking {
       id: AgendaJson.parseString(json['id']),
       userId: AgendaJson.parseString(json['userId']),
       serviceId: AgendaJson.parseString(json['serviceId']),
-      servicioNombre: AgendaJson.parseString(json['servicioNombre']),
+      servicioNombre: AgendaJson.parseString(json['servicioNombre'], fallback: ''),
       businessId: AgendaJson.parseString(json['businessId']),
       subscriptionId: AgendaJson.parseStringOrNull(json['subscriptionId']),
       fechaHoraInicio: AgendaJson.parseDateTime(json['fechaHoraInicio']),
@@ -117,6 +123,9 @@ class Booking {
           AgendaJson.parseString(json['tipoReserva'], fallback: 'PAGO_POR_TURNO')),
       notas: AgendaJson.parseStringOrNull(json['notas']),
       createdAt: AgendaJson.parseDateTimeOrNull(json['createdAt']),
+      clienteNombre: AgendaJson.parseStringOrNull(json['clienteNombre']),
+      clienteEmail: AgendaJson.parseStringOrNull(json['clienteEmail']),
+      clienteTelefono: AgendaJson.parseStringOrNull(json['clienteTelefono']),
     );
   }
 

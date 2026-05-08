@@ -54,6 +54,7 @@ AGENDA tiene **dos experiencias** bien distintas:
 
 - **Objetivo**: que un cliente pueda ver disponibilidad y **registrarse** en turnos/horarios disponibles.
 - **No requiere login**.
+- **Al confirmar un turno**: se piden datos mínimos del cliente (nombre obligatorio; email/teléfono opcionales) y se guarda el turno para que la empresa lo vea en su calendario privado.
 - **Entradas**:
   - `/#/agenda/search` → buscador público (explorar negocios)
   - `/#/agenda/<slug>` → link amigable directo al negocio (flujo recomendado para compartir)
@@ -199,12 +200,31 @@ Los tests usan `FakeAgendaApiService` (`test/agenda/fake_agenda_api.dart`) que s
 | GET | `/api/agenda/public/businesses/{id}/services` | `publicBusinessServicesProvider` |
 | GET | `/api/agenda/public/businesses/by-slug/{slug}` | `publicBusinessBySlugProvider` |
 | GET | `/api/agenda/public/businesses/by-slug/{slug}/services` | `publicBusinessServicesBySlugProvider` |
+| POST | `/api/agenda/public/businesses/{businessId}/bookings` | `AgendaApiService.publicCreateBooking` |
 | GET | `/api/agenda/platform/categories` | `categoriesAdminProvider.load` |
 | POST | `/api/agenda/platform/categories` | `categoriesAdminProvider.create` |
 | PUT | `/api/agenda/platform/categories/{id}` | `categoriesAdminProvider.update` |
 | DELETE | `/api/agenda/platform/categories/{id}` | `categoriesAdminProvider.delete` |
 
 ---
+
+## Notas técnicas (cambios recientes)
+
+### 1) Link público sin exponer UUID
+
+- La URL pública recomendada es `/#/agenda/<slug>` y **no redirige** a `/#/agenda/public/business/<uuid>`.
+- El frontend resuelve todo por slug (mantiene la URL amigable en el navegador).
+
+### 2) Disponibilidad (turnos) y días sin horarios
+
+- Si un negocio todavía no cargó horarios (`business_hours`), el backend aplica un **fallback** para no bloquear onboarding:
+  - Lun–Vie 09:00–18:00, Sáb 09:00–13:00, Dom cerrado.
+
+### 3) Reservas públicas persistidas + datos del cliente
+
+- Al confirmar un turno en público, el frontend pide **Nombre** (obligatorio) + **Email/Teléfono** (opcionales).
+- Se crea una reserva en backend en estado **PENDING** vía `POST /api/agenda/public/businesses/{businessId}/bookings`.
+- La agenda privada (empresa) muestra esos datos en el listado del día (nombre/email/teléfono).
 
 ## Pendiente (próximos sprints)
 

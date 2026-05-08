@@ -207,6 +207,30 @@ Las migraciones de AGENDA viven en `backend/src/main/resources/db/migration/agen
 
 ### 6.1 Públicos (sin login)
 
+#### Link público amigable (por slug)
+
+- **Objetivo**: permitir que la URL visible sea siempre amigable (`slug`) sin exponer UUID.
+- **Nota**: el frontend recomendado usa `/#/agenda/<slug>` y resuelve el negocio internamente.
+
+Endpoints:
+
+- `GET /api/agenda/public/businesses/by-slug/{slug}` → ficha pública del negocio
+- `GET /api/agenda/public/businesses/by-slug/{slug}/services` → servicios activos
+- `GET /api/agenda/public/businesses/by-slug/{slug}/staff` → staff activo
+- `GET /api/agenda/public/businesses/by-slug/{slug}/availability?serviceId=...&date=YYYY-MM-DD` → slots disponibles
+
+#### Reservas públicas (clientes) — persistidas
+
+- **Objetivo**: que un cliente pueda solicitar un turno sin login.
+- **Comportamiento**:
+  - Crea una reserva en estado **PENDING**.
+  - Captura datos del cliente (nombre obligatorio; email/teléfono opcionales).
+  - Esos datos quedan visibles para el admin del negocio en el calendario privado.
+
+Endpoint:
+
+- `POST /api/agenda/public/businesses/{businessId}/bookings`
+
 Base: `/api/agenda/public`
 
 #### `GET /api/agenda/public/search`

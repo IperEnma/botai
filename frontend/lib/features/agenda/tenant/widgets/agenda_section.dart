@@ -304,8 +304,15 @@ class _BookingTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = b.fechaHoraInicio;
     final when = '${_fmt2(d.day)}/${_fmt2(d.month)} ${_fmt2(d.hour)}:${_fmt2(d.minute)}';
+    final cliente = b.clienteNombre?.trim();
+    final contacto = [
+      if (b.clienteEmail != null && b.clienteEmail!.trim().isNotEmpty) b.clienteEmail!.trim(),
+      if (b.clienteTelefono != null && b.clienteTelefono!.trim().isNotEmpty) b.clienteTelefono!.trim(),
+    ].join(' · ');
     final subtitle = [
       if (b.servicioNombre.isNotEmpty) b.servicioNombre,
+      if (cliente != null && cliente.isNotEmpty) cliente,
+      if (contacto.isNotEmpty) contacto,
       'Estado: ${b.estado.name}',
     ].join(' · ');
 
