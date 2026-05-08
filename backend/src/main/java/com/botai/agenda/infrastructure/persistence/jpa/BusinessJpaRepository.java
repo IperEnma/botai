@@ -20,6 +20,8 @@ public interface BusinessJpaRepository extends JpaRepository<BusinessEntity, UUI
 
     List<BusinessEntity> findAllByTenantIdAndDeletedAtIsNull(String tenantId);
 
+    Optional<BusinessEntity> findByPublicSlugAndDeletedAtIsNull(String publicSlug);
+
     boolean existsByIdAndTenantIdAndDeletedAtIsNull(UUID id, String tenantId);
 
     @Modifying

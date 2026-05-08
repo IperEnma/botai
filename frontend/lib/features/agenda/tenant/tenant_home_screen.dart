@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/services.dart';
 
 import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
 import '../../../models/agenda/business.dart';
@@ -14,6 +13,7 @@ import '../../../widgets/agenda/agenda_state_views.dart';
 import '../register/konecta_tokens.dart';
 import 'widgets/business_form_dialog.dart';
 import 'widgets/category_multi_select_dialog.dart';
+import 'widgets/agenda_section.dart';
 import 'widgets/dashboard_section.dart';
 
 // ── Palette (for business initials) ──────────────────────────────────────────
@@ -173,6 +173,8 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
 
     final first = state.items.isEmpty ? null : state.items.first;
     if (first != null) _syncControllers(first);
+    final effectiveDashboardBusinessId =
+        _dashboardBusinessId ?? (state.items.isEmpty ? null : state.items.first.id);
 
     if (isWide) {
       return Scaffold(
@@ -190,7 +192,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
               child: _MainContent(
                 tenantId:            widget.tenantId,
                 businesses:          state.items,
-                dashboardBusinessId: _dashboardBusinessId,
+                dashboardBusinessId: effectiveDashboardBusinessId,
                 nombre:              nombre,
                 isWide:              true,
                 onAdd:               () => _createBusiness(context),
@@ -215,7 +217,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
       body: _MainContent(
         tenantId:            widget.tenantId,
         businesses:          state.items,
-        dashboardBusinessId: _dashboardBusinessId,
+        dashboardBusinessId: effectiveDashboardBusinessId,
         nombre:              nombre,
         isWide:              false,
         onAdd:               () => _createBusiness(context),
@@ -249,45 +251,6 @@ class _LeftNav extends ConsumerWidget {
     );
   }
 
-  String? _publicBookingUrl() {
-    if (businessId == null) return null;
-    // Flutter web usa hash routing (/#/...). La ruta pública está en router.dart.
-    return '${Uri.base.origin}/#/agenda/public/business/$businessId';
-  }
-
-  Future<void> _showPublicAgendaLinkDialog(BuildContext context) async {
-    final url = _publicBookingUrl();
-    if (url == null) return;
-    await showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Link público para que tus clientes reserven'),
-        content: SelectableText(url),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: url));
-              if (context.mounted) Navigator.pop(context);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Link copiado')),
-                );
-              }
-            },
-            child: const Text('Copiar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.push('/agenda/public/business/$businessId');
-            },
-            child: const Text('Abrir'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final topPad = MediaQuery.of(context).padding.top;
@@ -295,9 +258,11 @@ class _LeftNav extends ConsumerWidget {
         ? nombre![0].toUpperCase()
         : 'U';
     final loc = GoRouterState.of(context).matchedLocation;
+    final section = GoRouterState.of(context).uri.queryParameters['section'] ?? '';
     final selectedInicio =
-        loc == '/home' || loc.startsWith('/home/businesses/');
+        (loc == '/home' || loc.startsWith('/home/businesses/')) && section != 'agenda';
     final selectedBots = loc.startsWith('/home/bots');
+    final selectedAgenda = loc == '/home' && section == 'agenda';
 
     return Container(
       width: _kNavWidth,
@@ -338,7 +303,9 @@ class _LeftNav extends ConsumerWidget {
           _NavItem(
             icon: Icons.calendar_today_outlined,
             label: 'Agenda',
-            onTap: () => _showPublicAgendaLinkDialog(context),
+            // Vista PRIVADA (empresa): panel interno bajo `/home/**`.
+            selected: selectedAgenda,
+            onTap: () => context.go('/home?section=agenda'),
           ),
           _NavItem(icon: Icons.people_outline,           label: 'Clientes'),
           _NavItem(
@@ -456,35 +423,47 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    final borderRadius = BorderRadius.circular(KTokens.rMd);
+    return MouseRegion(
+      cursor: onTap == null
+          ? SystemMouseCursors.basic
+          : SystemMouseCursors.click,
       child: Container(
-      margin: const EdgeInsets.fromLTRB(8, 1, 8, 1),
-      decoration: BoxDecoration(
-        color: selected ? KTokens.accentSoft : Colors.transparent,
-        borderRadius: BorderRadius.circular(KTokens.rMd),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 17,
-              color: selected ? KTokens.accent : KTokens.inkSoft,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected ? KTokens.accent : KTokens.inkMuted,
+        margin: const EdgeInsets.fromLTRB(8, 1, 8, 1),
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+        ),
+        child: Material(
+          color: selected ? KTokens.accentSoft : Colors.transparent,
+          borderRadius: borderRadius,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: borderRadius,
+            hoverColor: KTokens.accentSoft.withValues(alpha: 0.55),
+            splashColor: KTokens.accentSoft,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 17,
+                    color: selected ? KTokens.accent : KTokens.inkSoft,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: selected ? KTokens.accent : KTokens.inkMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -825,129 +804,142 @@ class _MainContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hPad = isWide ? 32.0 : 20.0;
+    final section = GoRouterState.of(context).uri.queryParameters['section'] ?? '';
+    final showAgenda = section == 'agenda';
 
     return CustomScrollView(
       slivers: [
-        // ── Header ──────────────────────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(hPad, 28, hPad, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Mobile top bar
-                  if (!isWide && onBack != null) ...[
+        if (!showAgenda)
+          // ── Header (solo Inicio) ──────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(hPad, 28, hPad, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Mobile top bar
+                    if (!isWide && onBack != null) ...[
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: onBack,
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: KTokens.borderStrong),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back_rounded,
+                                size: 18,
+                                color: KTokens.inkMuted,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'konecta',
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 18,
+                              fontStyle: FontStyle.italic,
+                              color: KTokens.accent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Eyebrow + "Nueva agenda" button
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        GestureDetector(
-                          onTap: onBack,
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: KTokens.borderStrong),
-                            ),
-                            child: const Icon(
-                              Icons.arrow_back_rounded,
-                              size: 18,
-                              color: KTokens.inkMuted,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
                         Text(
-                          'konecta',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 18,
-                            fontStyle: FontStyle.italic,
-                            color: KTokens.accent,
-                          ),
+                          nombre != null
+                              ? 'DASHBOARD · ${nombre!.split(' ').first.toUpperCase()}'
+                              : 'DASHBOARD',
+                          style: KTokens.tEyebrow,
                         ),
+                        const Spacer(),
+                        _NewAgendaButton(),
                       ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Headline
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Este es el resumen de ',
+                            style: GoogleFonts.inter(
+                              fontSize: isWide ? 28 : 22,
+                              fontWeight: FontWeight.w700,
+                              color: KTokens.ink,
+                              letterSpacing: -0.5,
+                              height: 1.15,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'tu negocio.',
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: isWide ? 32 : 26,
+                              fontStyle: FontStyle.italic,
+                              color: KTokens.accent,
+                              height: 1.15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Más info de tu agenda y rendimiento de tu negocio.',
+                      style: KTokens.tHint,
                     ),
                     const SizedBox(height: 24),
                   ],
-
-                  // Eyebrow + "Nueva agenda" button
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        nombre != null
-                            ? 'DASHBOARD · ${nombre!.split(' ').first.toUpperCase()}'
-                            : 'DASHBOARD',
-                        style: KTokens.tEyebrow,
-                      ),
-                      const Spacer(),
-                      _NewAgendaButton(),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Headline
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Este es el resumen de ',
-                          style: GoogleFonts.inter(
-                            fontSize: isWide ? 28 : 22,
-                            fontWeight: FontWeight.w700,
-                            color: KTokens.ink,
-                            letterSpacing: -0.5,
-                            height: 1.15,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'tu negocio.',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: isWide ? 32 : 26,
-                            fontStyle: FontStyle.italic,
-                            color: KTokens.accent,
-                            height: 1.15,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Más info de tu agenda y rendimiento de tu negocio.',
-                    style: KTokens.tHint,
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
             ),
           ),
-        ),
 
-        // ── TUS UBICACIONES carousel ─────────────────────────────────────────
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-          sliver: SliverToBoxAdapter(
-            child: _SucursalesSection(
-              tenantId:           tenantId,
-              businesses:         businesses,
-              selectedBusinessId: dashboardBusinessId,
-              onAdd:              onAdd,
-              onTap:              onTap,
-              onFilterSelect:     onFilterSelect,
+        if (!showAgenda)
+          // ── TUS UBICACIONES carousel (solo Inicio) ─────────────────────────
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+            sliver: SliverToBoxAdapter(
+              child: _SucursalesSection(
+                tenantId:           tenantId,
+                businesses:         businesses,
+                selectedBusinessId: dashboardBusinessId,
+                onAdd:              onAdd,
+                onTap:              onTap,
+                onFilterSelect:     onFilterSelect,
+              ),
             ),
           ),
-        ),
 
-        // ── Dashboard stats ──────────────────────────────────────────────────
+        // ── Inicio: stats / Agenda: calendario full ─────────────────────────
         SliverPadding(
           padding: EdgeInsets.fromLTRB(hPad, 24, hPad, 0),
           sliver: SliverToBoxAdapter(
-            child: DashboardSection(
-              tenantId:   tenantId,
-              businesses: businesses,
-            ),
+            child: showAgenda
+                ? AgendaSection(
+                    tenantId: tenantId,
+                    businesses: businesses,
+                    businessId: dashboardBusinessId,
+                    onBusinessSelected: (id) => onFilterSelect(
+                      businesses.firstWhere((b) => b.id == id),
+                    ),
+                  )
+                : DashboardSection(
+                    tenantId: tenantId,
+                    businesses: businesses,
+                  ),
           ),
         ),
       ],

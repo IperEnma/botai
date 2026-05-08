@@ -129,4 +129,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
+
+  /// Renueva el Google ID token (sin UI) y actualiza el estado.
+  ///
+  /// Devuelve `true` si pudo obtener un token nuevo. Si falla, no cambia la sesión.
+  Future<bool> refreshSessionSilently() async {
+    try {
+      final refreshed = await _authService.refreshSessionSilently();
+      if (refreshed == null) return false;
+
+      _apiService.setAccessToken(refreshed.accessToken);
+      state = state.copyWith(
+        user: refreshed,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

@@ -15,7 +15,7 @@ import '../models/agenda/business_hours.dart';
 import '../models/agenda/business_photo.dart';
 import '../models/agenda/business_settings.dart';
 import '../models/agenda/business_summary.dart';
-import '../models/agenda/category.dart';
+import '../models/agenda/category.dart' as agenda;
 import '../models/agenda/loyalty_suggestion.dart';
 import '../models/agenda/notification_template.dart';
 import '../models/agenda/plan.dart';
@@ -46,11 +46,14 @@ class AgendaApiService {
 
   String? _accessToken;
   String? _userId;
+  Future<String?> Function()? _refreshAccessToken;
 
   void setAccessToken(String? token) =>
       _accessToken = normalizeGoogleBearer(token);
   void setUserId(String? userId) => _userId = userId;
   String? get userId => _userId;
+  void setRefreshAccessTokenCallback(Future<String?> Function()? cb) =>
+      _refreshAccessToken = cb;
 
   // ---------------- Headers / IO helpers ----------------
 
@@ -78,7 +81,15 @@ class AgendaApiService {
 
   Future<http.Response> _send(Future<http.Response> Function() exec) async {
     try {
-      return await exec().timeout(_timeout);
+      final first = await exec().timeout(_timeout);
+      if (first.statusCode == 401 && _refreshAccessToken != null) {
+        final newToken = await _refreshAccessToken!();
+        if (newToken != null && newToken.trim().isNotEmpty) {
+          setAccessToken(newToken);
+          return await exec().timeout(_timeout);
+        }
+      }
+      return first;
     } on TimeoutException {
       throw const AgendaApiException(
         message: 'La conexión con el servidor tardó demasiado. Reintentá en unos segundos.',
@@ -254,6 +265,31 @@ class AgendaApiService {
     );
   }
 
+  /// `GET /me/public-link` — link público amigable (persistido) para este tenant.
+  Future<Map<String, String>> mePublicLink() async {
+    final r = await _send(() => _client.get(
+          _uri('/me/public-link'),
+          headers: _headers(),
+        ));
+    return _decode(r, (b) {
+      final m = b as Map<String, dynamic>;
+      return {
+        'slug': (m['slug'] ?? '').toString(),
+        'url': (m['url'] ?? '').toString(),
+        'businessId': (m['businessId'] ?? '').toString(),
+      };
+    });
+  }
+
+  /// `GET /public/links/{slug}` — resuelve slug → businessId.
+  Future<String> resolvePublicSlug(String slug) async {
+    final r = await _send(() => _client.get(
+          _uri('/public/links/$slug'),
+          headers: _headers(),
+        ));
+    return _decode(r, (b) => (b as Map<String, dynamic>)['businessId'] as String);
+  }
+
   // =====================================================================
   // PUBLIC — sin auth
   // =====================================================================
@@ -286,12 +322,12 @@ class AgendaApiService {
   }
 
   /// `GET /public/categories`
-  Future<List<Category>> listPublicCategories() async {
+  Future<List<agenda.Category>> listPublicCategories() async {
     final r = await _send(() => _client.get(
           _uri('/public/categories'),
           headers: _headers(),
         ));
-    return _decodeList(r, Category.fromJson);
+    return _decodeList(r, agenda.Category.fromJson);
   }
 
   /// `GET /public/categories/{slug}/businesses`
@@ -358,16 +394,16 @@ class AgendaApiService {
   // =====================================================================
 
   /// `GET /platform/categories`
-  Future<List<Category>> listAllCategories() async {
+  Future<List<agenda.Category>> listAllCategories() async {
     final r = await _send(() => _client.get(
           _uri('/platform/categories'),
           headers: _headers(),
         ));
-    return _decodeList(r, Category.fromJson);
+    return _decodeList(r, agenda.Category.fromJson);
   }
 
   /// `POST /platform/categories`
-  Future<Category> createCategory({
+  Future<agenda.Category> createCategory({
     required String nombre,
     required String slug,
     required List<String> synonyms,
@@ -383,11 +419,11 @@ class AgendaApiService {
             'activo': activo,
           }),
         ));
-    return _decode(r, (body) => Category.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) => agenda.Category.fromJson(body as Map<String, dynamic>));
   }
 
   /// `PUT /platform/categories/{id}`
-  Future<Category> updateCategory({
+  Future<agenda.Category> updateCategory({
     required String id,
     required String nombre,
     required String slug,
@@ -404,11 +440,11 @@ class AgendaApiService {
             'activo': activo,
           }),
         ));
-    return _decode(r, (body) => Category.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) => agenda.Category.fromJson(body as Map<String, dynamic>));
   }
 
   /// `PUT /platform/categories/{id}/synonyms` — merge
-  Future<Category> mergeCategorySynonyms({
+  Future<agenda.Category> mergeCategorySynonyms({
     required String id,
     required List<String> synonyms,
   }) async {
@@ -417,7 +453,7 @@ class AgendaApiService {
           headers: _headers(),
           body: jsonEncode({'synonyms': synonyms}),
         ));
-    return _decode(r, (body) => Category.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) => agenda.Category.fromJson(body as Map<String, dynamic>));
   }
 
   /// `DELETE /platform/categories/{id}`
@@ -1008,19 +1044,41 @@ class AgendaApiService {
     return _decode(r, (body) => Booking.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `GET /me/bookings`
+  /// `GET /me/businesses/{businessId}/bookings`
   Future<List<Booking>> myBookings({
-    String? tenantId,
     String? businessId,
     BookingEstado? estado,
   }) async {
+    if (businessId == null || businessId.isEmpty) {
+      throw const AgendaApiException(
+        message: 'Falta businessId para listar turnos.',
+        status: 400,
+        code: 'MISSING_BUSINESS_ID',
+      );
+    }
     final r = await _send(() => _client.get(
-          _uri('/me/bookings', {
-            if (tenantId != null) 'tenantId': tenantId,
-            if (businessId != null) 'businessId': businessId,
+          _uri('/me/businesses/$businessId/bookings', {
             if (estado != null) 'estado': estado.name.toUpperCase(),
           }),
           headers: _headers(sendUserId: true),
+        ));
+    return _decodeList(r, Booking.fromJson);
+  }
+
+  /// `GET /me/businesses/{businessId}/agenda/bookings?from=...&to=...`
+  ///
+  /// Calendario privado del negocio (admin). No requiere `X-User-Id`.
+  Future<List<Booking>> businessAgendaBookings({
+    required String businessId,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final r = await _send(() => _client.get(
+          _uri('/me/businesses/$businessId/agenda/bookings', {
+            'from': from.toIso8601String(),
+            'to': to.toIso8601String(),
+          }),
+          headers: _headers(),
         ));
     return _decodeList(r, Booking.fromJson);
   }

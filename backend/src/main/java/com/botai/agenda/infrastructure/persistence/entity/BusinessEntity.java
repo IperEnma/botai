@@ -60,6 +60,9 @@ public class BusinessEntity extends BaseAuditableEntity {
     @Column(name = "font_family", length = 100)
     private String fontFamily;
 
+    @Column(name = "public_slug", length = 180)
+    private String publicSlug;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -91,6 +94,8 @@ public class BusinessEntity extends BaseAuditableEntity {
     public void setColorFondo(String colorFondo) { this.colorFondo = colorFondo; }
     public String getFontFamily() { return fontFamily; }
     public void setFontFamily(String fontFamily) { this.fontFamily = fontFamily; }
+    public String getPublicSlug() { return publicSlug; }
+    public void setPublicSlug(String publicSlug) { this.publicSlug = publicSlug; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 }

@@ -49,6 +49,11 @@ public class JpaBusinessRepository implements BusinessRepository {
     }
 
     @Override
+    public Optional<Business> findByPublicSlug(String publicSlug) {
+        return jpa.findByPublicSlugAndDeletedAtIsNull(publicSlug).map(BusinessMapper::toDomain);
+    }
+
+    @Override
     public boolean existsByIdAndTenantId(UUID id, String tenantId) {
         return jpa.existsByIdAndTenantIdAndDeletedAtIsNull(id, tenantId);
     }

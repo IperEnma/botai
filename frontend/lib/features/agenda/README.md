@@ -18,15 +18,63 @@ Frontend del módulo AGENDA dentro del mismo `pubspec.yaml` del bot. Vive en par
 
 ### Link público para clientes
 
-Cada negocio expone un link público para que los clientes reserven (web con hash routing):
+Cada negocio expone un link público para que los clientes reserven (web con hash routing).
+Este link se obtiene desde el panel privado (empresa) vía `GET /api/agenda/me/public-link`
+y se muestra/copia desde el item **“Link público”** del sidebar del panel.
 
-- `/#/agenda/public/business/{businessId}`
+- `/#/agenda/<slug>` (URL amigable, recomendada)
+- `/#/agenda/public/business/{businessId}` (ruta directa, interna)
 
 ### Nota de UX (decisión)
 
 - “Citas/Agenda” **no** se configura desde el panel del bot. Se gestiona desde el panel del negocio (AGENDA) y se comparte vía link público.
 
 ---
+
+## Dos vistas: privada (empresa) vs pública (clientes)
+
+AGENDA tiene **dos experiencias** bien distintas:
+
+### 1) Vista privada (empresa / admin)
+
+- **Objetivo**: operar el negocio con info privada (configuración, staff, servicios, planes, horarios, etc.).
+- **Requiere login** (Google) y tener tenant Agenda asociado al email.
+- **Entrada**: `/home` (resuelve el tenant por email y muestra el dashboard).
+- **Rutas principales**:
+  - `/#/home` → dashboard privado (Tenant)
+  - `/#/home/businesses/:businessId` → panel del negocio con tabs (Horarios, Servicios, Planes, Settings, Loyalty, Equipo, etc.)
+- **Sidebar**:
+  - **“Inicio/Home”**: resumen del negocio y accesos rápidos.
+  - **“Agenda”**: abre el **calendario privado** (turnos) dentro del panel (ruta `/home?section=agenda`).
+  - El vínculo público **no** vive en el sidebar: está dentro del calendario como botón **“Copiar vínculo”**.
+
+### 2) Vista pública (clientes)
+
+- **Objetivo**: que un cliente pueda ver disponibilidad y **registrarse** en turnos/horarios disponibles.
+- **No requiere login**.
+- **Entradas**:
+  - `/#/agenda/search` → buscador público (explorar negocios)
+  - `/#/agenda/<slug>` → link amigable directo al negocio (flujo recomendado para compartir)
+  - `/#/agenda/public/business/:id` → ficha pública directa del negocio
+
+> Nota: hoy el panel privado ya genera y expone la URL amigable; el flujo de “reservar turno” del cliente vive bajo las rutas públicas.
+
+---
+
+## Importante: “Home” NO es “Agenda”
+
+Para evitar confusiones en UX y en el código:
+
+- **Home** (panel privado) = **dashboard/resumen** del negocio.
+  - Es el “inicio” del admin: métricas, accesos a configuración, listado de negocios, etc.
+  - Ruta: `/#/home` y `/#/home/**`.
+
+- **Agenda** = **turnos/calendario** (la grilla diaria/semanal, turnos tomados, gestión de reservas).
+  - Es una pantalla distinta al dashboard.
+  - **Estado actual**: el sidebar del panel privado abre una sección **Agenda (calendario)** (`/home?section=agenda`) con selector de fecha y lista de turnos del día. A futuro se reemplazará por un calendario full (día/semana) con endpoints admin dedicados.
+
+- **Público (clientes)** = búsqueda + ficha + registro en disponibilidad.
+  - Rutas: `/#/agenda/search`, `/#/agenda/<slug>`, `/#/agenda/public/business/:id`.
 
 ## Estructura de carpetas
 

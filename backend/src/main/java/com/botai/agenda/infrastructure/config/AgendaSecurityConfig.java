@@ -1,5 +1,7 @@
 package com.botai.agenda.infrastructure.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,9 +17,12 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Seguridad unificada para toda la API HTTP bajo {@code /api/**} (bot + AGENDA).
@@ -31,6 +36,8 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 public class AgendaSecurityConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(AgendaSecurityConfig.class);
 
     /**
      * API REST: mismo criterio de autenticación para panel del bot y AGENDA.
@@ -60,7 +67,33 @@ public class AgendaSecurityConfig {
                 .anyRequest().authenticated()
         );
 
-        http.oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+        http.oauth2ResourceServer(oauth2 -> oauth2
+                .authenticationEntryPoint((request, response, ex) -> {
+                    if (log.isDebugEnabled()) {
+                        boolean hasAuth = request.getHeader("Authorization") != null
+                                && !request.getHeader("Authorization").isBlank();
+                        log.debug(
+                                "AGENDA-SECURITY 401 | method={} uri={} hasAuthHeader={} ex={} msg={}",
+                                request.getMethod(),
+                                request.getRequestURI(),
+                                hasAuth,
+                                ex.getClass().getSimpleName(),
+                                ex.getMessage()
+                        );
+                        Throwable cur = ex.getCause();
+                        int depth = 0;
+                        while (cur != null && depth < 6) {
+                            log.debug("AGENDA-SECURITY 401 cause[{}]: {} msg={}",
+                                    depth,
+                                    cur.getClass().getSimpleName(),
+                                    cur.getMessage());
+                            cur = cur.getCause();
+                            depth++;
+                        }
+                    }
+                    new BearerTokenAuthenticationEntryPoint().commence(request, response, ex);
+                })
+                .jwt(Customizer.withDefaults()));
 
         return http.build();
     }
@@ -90,28 +123,55 @@ public class AgendaSecurityConfig {
             OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuer);
             OAuth2TokenValidator<Jwt> validator = audience == null || audience.isBlank()
                     ? withIssuer
-                    : new DelegatingOAuth2TokenValidator<>(withIssuer, new AudienceValidator(audience.trim()));
+                    : new DelegatingOAuth2TokenValidator<>(withIssuer,
+                            new AudienceValidator(parseAudienceList(audience)));
             nimbus.setJwtValidator(validator);
         }
         return decoder;
     }
 
-    static final class AudienceValidator implements OAuth2TokenValidator<Jwt> {
-        private final String audience;
+    /**
+     * Lista separada por comas o espacios (útil: cliente Web + Android + iOS en {@code GOOGLE_CLIENT_ID}).
+     */
+    static List<String> parseAudienceList(String raw) {
+        return Arrays.stream(raw.split("[,\\s]+"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
 
-        AudienceValidator(String audience) {
-            this.audience = audience;
+    static final class AudienceValidator implements OAuth2TokenValidator<Jwt> {
+
+        private final List<String> expectedAudiences;
+
+        AudienceValidator(List<String> expectedAudiences) {
+            this.expectedAudiences = List.copyOf(expectedAudiences);
         }
 
         @Override
         public OAuth2TokenValidatorResult validate(Jwt token) {
-            List<String> aud = token.getAudience();
-            if (aud != null && aud.contains(audience)) {
+            if (expectedAudiences.isEmpty()) {
                 return OAuth2TokenValidatorResult.success();
+            }
+            List<String> aud = token.getAudience();
+            if (aud == null) {
+                return OAuth2TokenValidatorResult.failure(new OAuth2Error(
+                        "invalid_token",
+                        "El token no declara audience (aud).",
+                        null
+                ));
+            }
+            for (String expected : expectedAudiences) {
+                if (aud.contains(expected)) {
+                    return OAuth2TokenValidatorResult.success();
+                }
             }
             return OAuth2TokenValidatorResult.failure(new OAuth2Error(
                     "invalid_token",
-                    "El token no tiene el audience esperado.",
+                    "El token no coincide con ningún OAuth client ID configurado (audience). "
+                            + "Tip: en Flutter Web el aud es GOOGLE_CLIENT_ID_WEB; en Android sin serverClientId, "
+                            + "el aud es el cliente Android — añadilo a GOOGLE_CLIENT_ID separado por comas "
+                            + "o configurá serverClientId al cliente Web.",
                     null
             ));
         }

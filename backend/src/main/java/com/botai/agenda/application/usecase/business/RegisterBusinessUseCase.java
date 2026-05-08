@@ -52,6 +52,7 @@ public class RegisterBusinessUseCase {
                 null,  // facebookUrl
                 null,  // colorFondo
                 null,  // fontFamily
+                null,  // publicSlug
                 null,
                 null,
                 null

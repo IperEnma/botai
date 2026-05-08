@@ -21,6 +21,7 @@ public final class Business {
     private final String facebookUrl;
     private final String colorFondo;
     private final String fontFamily;
+    private final String publicSlug;
     private final LocalDateTime deletedAt;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
@@ -30,6 +31,7 @@ public final class Business {
                     String logoUrl, String colorPrimario,
                     String instagramUrl, String tiktokUrl, String facebookUrl,
                     String colorFondo, String fontFamily,
+                    String publicSlug,
                     LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.tenantId = Objects.requireNonNull(tenantId, "tenantId");
@@ -45,9 +47,26 @@ public final class Business {
         this.facebookUrl = facebookUrl;
         this.colorFondo = colorFondo;
         this.fontFamily = fontFamily;
+        this.publicSlug = publicSlug;
         this.deletedAt = deletedAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+    }
+
+    /**
+     * Backward-compatible constructor (sin {@code publicSlug}).
+     * Mantiene tests y casos de uso existentes mientras migran.
+     */
+    public Business(UUID id, String tenantId, String nombre, String descripcion,
+                    UUID ownerUserId, List<String> searchTags, boolean activo,
+                    String logoUrl, String colorPrimario,
+                    String instagramUrl, String tiktokUrl, String facebookUrl,
+                    String colorFondo, String fontFamily,
+                    LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, tenantId, nombre, descripcion, ownerUserId, searchTags, activo,
+                logoUrl, colorPrimario, instagramUrl, tiktokUrl, facebookUrl,
+                colorFondo, fontFamily, null,
+                deletedAt, createdAt, updatedAt);
     }
 
     public UUID getId() { return id; }
@@ -64,6 +83,7 @@ public final class Business {
     public String getFacebookUrl() { return facebookUrl; }
     public String getColorFondo() { return colorFondo; }
     public String getFontFamily() { return fontFamily; }
+    public String getPublicSlug() { return publicSlug; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

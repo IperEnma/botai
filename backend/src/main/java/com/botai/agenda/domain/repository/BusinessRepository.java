@@ -16,6 +16,8 @@ public interface BusinessRepository {
 
     List<Business> findAllByTenantId(String tenantId);
 
+    Optional<Business> findByPublicSlug(String publicSlug);
+
     boolean existsByIdAndTenantId(UUID id, String tenantId);
 
     void softDelete(UUID id);

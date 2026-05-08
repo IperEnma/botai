@@ -35,6 +35,7 @@ public final class BusinessMapper {
                 entity.getFacebookUrl(),
                 entity.getColorFondo(),
                 entity.getFontFamily(),
+                entity.getPublicSlug(),
                 entity.getDeletedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -60,6 +61,7 @@ public final class BusinessMapper {
         entity.setFacebookUrl(business.getFacebookUrl());
         entity.setColorFondo(business.getColorFondo());
         entity.setFontFamily(business.getFontFamily());
+        entity.setPublicSlug(business.getPublicSlug());
         entity.setDeletedAt(business.getDeletedAt());
         entity.setCreatedAt(business.getCreatedAt());
         entity.setUpdatedAt(business.getUpdatedAt());

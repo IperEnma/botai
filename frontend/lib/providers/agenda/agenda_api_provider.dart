@@ -23,6 +23,13 @@ final agendaApiServiceProvider = Provider<AgendaApiService>((ref) {
     fireImmediately: true,
   );
 
+  // 3) Si el backend devuelve 401 (token vencido), intentar renovar con Google sin UI y reintentar.
+  api.setRefreshAccessTokenCallback(() async {
+    final ok = await ref.read(authStateProvider.notifier).refreshSessionSilently();
+    if (!ok) return null;
+    return ref.read(authStateProvider).user?.accessToken;
+  });
+
   ref.onDispose(api.close);
   return api;
 });

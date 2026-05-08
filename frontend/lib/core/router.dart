@@ -12,6 +12,7 @@ import '../features/agenda/public/category_businesses_screen.dart';
 import '../features/agenda/public/public_business_detail_screen.dart';
 import '../features/agenda/public/search_screen.dart';
 import '../features/agenda/public/landing_screen.dart';
+import '../features/agenda/public/public_slug_redirect_screen.dart';
 import '../features/agenda/platform/categories_admin_screen.dart';
 import '../features/agenda/home/agenda_home_shell.dart';
 // Sprint FE-2 — Tenant admin
@@ -32,9 +33,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isLoggedIn = authState.isAuthenticated;
       final loc = state.matchedLocation;
-      if (loc == '/agenda' || loc == '/agenda/') {
-        return '/';
-      }
       final isLoggingIn = loc == '/login';
       final legacyTenantsMe = loc.startsWith('/agenda/tenants/me');
       final homeTenantArea =
@@ -123,6 +121,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PublicLandingScreen(),
       ),
       GoRoute(
+        path: '/agenda',
+        redirect: (context, state) => '/agenda/search',
+      ),
+      GoRoute(
         path: '/agenda/search',
         builder: (context, state) => const SearchScreen(),
       ),
@@ -151,6 +153,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return PublicBusinessDetailScreen(businessId: id);
+        },
+      ),
+      GoRoute(
+        // Link público amigable: debe ir DESPUÉS de /agenda/public/** para no capturarlo como slug.
+        path: '/agenda/:slug',
+        builder: (context, state) {
+          final slug = state.pathParameters['slug']!;
+          return PublicSlugRedirectScreen(slug: slug);
         },
       ),
       GoRoute(

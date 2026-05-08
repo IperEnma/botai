@@ -62,6 +62,11 @@ class FakeAgendaApiService implements AgendaApiService {
   @override
   void setAccessToken(String? token) {}
 
+  @override
+  void setRefreshAccessTokenCallback(Future<String?> Function()? cb) {
+    // No-op en tests: el fake no hace requests HTTP reales.
+  }
+
   String? _fakeUserId;
 
   @override
@@ -136,6 +141,22 @@ class FakeAgendaApiService implements AgendaApiService {
   }) async {
     _maybeThrow();
     return nextLinkIdentifierResult ?? const TenantAdminContext(tenantId: 'tenant-test-uuid');
+  }
+
+  @override
+  Future<Map<String, String>> mePublicLink() async {
+    _maybeThrow();
+    return const {
+      'slug': 'fake-slug',
+      'url': 'https://fake.example/agenda/fake-slug',
+      'businessId': 'business-test-uuid',
+    };
+  }
+
+  @override
+  Future<String> resolvePublicSlug(String slug) async {
+    _maybeThrow();
+    return 'business-test-uuid';
   }
 
   // ── public ───────────────────────────────────────────────────────────────

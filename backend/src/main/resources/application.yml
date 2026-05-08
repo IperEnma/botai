@@ -133,15 +133,23 @@ logging:
 # ============================================================
 agenda:
   enabled: ${AGENDA_ENABLED:true}
+  public:
+    # Base URL del FRONTEND (no el backend) para construir el link público que se comparte.
+    # Ejemplos:
+    # - http://localhost:5173
+    # - https://app.botai.com
+    base-url: ${AGENDA_PUBLIC_BASE_URL:http://localhost:5173}
   security:
     # Desactiva JWT en /api/** (tests locales). En prod debe ser true.
     enabled: ${AGENDA_SECURITY_ENABLED:true}
     google:
       # Issuer de los ID tokens de Google.
       issuer-uri: ${AGENDA_GOOGLE_ISSUER_URI:https://accounts.google.com}
-      # Audience esperado (Client ID OAuth). Obligatorio en prod.
-      # Reusa el mismo GOOGLE_CLIENT_ID del entorno (una sola fuente de verdad).
-      audience: ${GOOGLE_CLIENT_ID:}
+      # Client ID(s) OAuth cuyo token Google aceptamos (claim aud). Debe coincidir con el emisor del id_token.
+      # Flutter Web usa GOOGLE_CLIENT_ID_WEB → el claim aud es ese cliente (tipo "Web application").
+      # Si solo definís GOOGLE_CLIENT_ID_WEB en el entorno, el backend lo reusa aquí cuando GOOGLE_CLIENT_ID está vacío.
+      # Varios clientes (Web+Android+iOS): lista separada por comas en GOOGLE_CLIENT_ID.
+      audience: ${GOOGLE_CLIENT_ID:${GOOGLE_CLIENT_ID_WEB:}}
   uploads:
     dir: ${AGENDA_UPLOADS_DIR:uploads}
     base-url: ${AGENDA_UPLOADS_BASE_URL:http://localhost:8080/uploads}

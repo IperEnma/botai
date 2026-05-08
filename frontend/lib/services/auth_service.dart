@@ -115,6 +115,25 @@ class AuthService {
     return user;
   }
 
+  /// Intenta renovar el `id_token` de Google sin UI (sesión existente).
+  ///
+  /// Esto es lo más cercano a un "refresh" en nuestro setup actual, porque
+  /// estamos usando Google ID tokens como Bearer en el backend.
+  Future<User?> refreshSessionSilently() async {
+    try {
+      final account = _googleSignIn.currentUser ??
+          await _googleSignIn.signInSilently().timeout(
+                const Duration(seconds: 20),
+              );
+      if (account == null) return null;
+      return await handleGoogleSignInAccount(account);
+    } on TimeoutException catch (_) {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _storage.deleteAll();

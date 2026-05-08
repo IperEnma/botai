@@ -55,6 +55,7 @@ public class UpdateBusinessUseCase {
                 facebookUrl == null ? existing.getFacebookUrl() : facebookUrl,
                 colorFondo == null ? existing.getColorFondo() : colorFondo,
                 fontFamily == null ? existing.getFontFamily() : fontFamily,
+                existing.getPublicSlug(),
                 existing.getDeletedAt(),
                 existing.getCreatedAt(),
                 existing.getUpdatedAt()

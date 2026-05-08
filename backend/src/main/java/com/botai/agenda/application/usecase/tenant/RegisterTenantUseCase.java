@@ -160,6 +160,7 @@ public class RegisterTenantUseCase {
                 null,
                 null,
                 null,
+                null,
                 null
         );
         businessRepository.save(business);
