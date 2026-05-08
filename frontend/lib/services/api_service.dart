@@ -12,6 +12,7 @@ import '../models/appointment.dart';
 class ApiService {
   final String baseUrl;
   String? _accessToken;
+  Future<String?> Function()? _refreshAccessToken;
 
   ApiService({String? baseUrl}) : baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
@@ -19,10 +20,26 @@ class ApiService {
     _accessToken = normalizeGoogleBearer(token);
   }
 
+  /// Si el backend responde 401 (JWT de Google vencido), se llama para renovar `id_token` sin UI y reintentar una vez.
+  void setRefreshAccessTokenCallback(Future<String?> Function()? cb) =>
+      _refreshAccessToken = cb;
+
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
       };
+
+  Future<http.Response> _with401Retry(Future<http.Response> Function() exec) async {
+    var response = await exec();
+    if (response.statusCode == 401 && _refreshAccessToken != null) {
+      final newToken = await _refreshAccessToken!();
+      if (newToken != null && newToken.trim().isNotEmpty) {
+        setAccessToken(newToken);
+        response = await exec();
+      }
+    }
+    return response;
+  }
 
   Future<User> authenticateWithGoogle(String idToken) async {
     final response = await http.post(
@@ -40,10 +57,10 @@ class ApiService {
 
   // Bot CRUD
   Future<List<Bot>> getBots() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/bots'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.get(
+          Uri.parse('$baseUrl/bots'),
+          headers: _headers,
+        ));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -54,11 +71,11 @@ class ApiService {
   }
 
   Future<Bot> createBot(Bot bot) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/bots'),
-      headers: _headers,
-      body: jsonEncode(bot.toJson()),
-    );
+    final response = await _with401Retry(() => http.post(
+          Uri.parse('$baseUrl/bots'),
+          headers: _headers,
+          body: jsonEncode(bot.toJson()),
+        ));
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       return Bot.fromJson(jsonDecode(response.body));
@@ -68,11 +85,11 @@ class ApiService {
   }
 
   Future<Bot> updateBot(Bot bot) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/bots/${bot.id}'),
-      headers: _headers,
-      body: jsonEncode(bot.toJson()),
-    );
+    final response = await _with401Retry(() => http.put(
+          Uri.parse('$baseUrl/bots/${bot.id}'),
+          headers: _headers,
+          body: jsonEncode(bot.toJson()),
+        ));
 
     if (response.statusCode == 200) {
       return Bot.fromJson(jsonDecode(response.body));
@@ -82,10 +99,10 @@ class ApiService {
   }
 
   Future<void> deleteBot(String botId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/bots/$botId'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.delete(
+          Uri.parse('$baseUrl/bots/$botId'),
+          headers: _headers,
+        ));
 
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Error deleting bot: ${response.body}');
@@ -94,10 +111,10 @@ class ApiService {
 
   // Menu CRUD
   Future<List<Menu>> getMenus(String tenantId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/tenants/$tenantId/menus'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.get(
+          Uri.parse('$baseUrl/tenants/$tenantId/menus'),
+          headers: _headers,
+        ));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -108,11 +125,11 @@ class ApiService {
   }
 
   Future<Menu> createMenu(Menu menu) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/tenants/${menu.tenantId}/menus'),
-      headers: _headers,
-      body: jsonEncode(menu.toJson()),
-    );
+    final response = await _with401Retry(() => http.post(
+          Uri.parse('$baseUrl/tenants/${menu.tenantId}/menus'),
+          headers: _headers,
+          body: jsonEncode(menu.toJson()),
+        ));
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       return Menu.fromJson(jsonDecode(response.body));
@@ -122,11 +139,11 @@ class ApiService {
   }
 
   Future<Menu> updateMenu(Menu menu) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/tenants/${menu.tenantId}/menus/${menu.id}'),
-      headers: _headers,
-      body: jsonEncode(menu.toJson()),
-    );
+    final response = await _with401Retry(() => http.put(
+          Uri.parse('$baseUrl/tenants/${menu.tenantId}/menus/${menu.id}'),
+          headers: _headers,
+          body: jsonEncode(menu.toJson()),
+        ));
 
     if (response.statusCode == 200) {
       return Menu.fromJson(jsonDecode(response.body));
@@ -136,10 +153,10 @@ class ApiService {
   }
 
   Future<void> deleteMenu(String tenantId, String menuId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/tenants/$tenantId/menus/$menuId'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.delete(
+          Uri.parse('$baseUrl/tenants/$tenantId/menus/$menuId'),
+          headers: _headers,
+        ));
 
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Error deleting menu: ${response.body}');
@@ -148,10 +165,10 @@ class ApiService {
 
   // Horario del negocio (dayOfWeek 1=Lunes..7=Domingo; openTime/closeTime "09:00", null = cerrado)
   Future<List<Map<String, dynamic>>> getBusinessHours(String tenantId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/tenants/$tenantId/business-hours'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.get(
+          Uri.parse('$baseUrl/tenants/$tenantId/business-hours'),
+          headers: _headers,
+        ));
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -160,11 +177,11 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> saveBusinessHours(String tenantId, List<Map<String, dynamic>> body) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/tenants/$tenantId/business-hours'),
-      headers: _headers,
-      body: jsonEncode(body),
-    );
+    final response = await _with401Retry(() => http.put(
+          Uri.parse('$baseUrl/tenants/$tenantId/business-hours'),
+          headers: _headers,
+          body: jsonEncode(body),
+        ));
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -174,10 +191,10 @@ class ApiService {
 
   // Servicios del negocio
   Future<List<Service>> getServices(String tenantId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/tenants/$tenantId/services'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.get(
+          Uri.parse('$baseUrl/tenants/$tenantId/services'),
+          headers: _headers,
+        ));
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => Service.fromJson(Map<String, dynamic>.from(e as Map))).toList();
@@ -186,11 +203,11 @@ class ApiService {
   }
 
   Future<Service> createService(String tenantId, Map<String, dynamic> body) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/tenants/$tenantId/services'),
-      headers: _headers,
-      body: jsonEncode(body),
-    );
+    final response = await _with401Retry(() => http.post(
+          Uri.parse('$baseUrl/tenants/$tenantId/services'),
+          headers: _headers,
+          body: jsonEncode(body),
+        ));
     if (response.statusCode == 200 || response.statusCode == 201) {
       return Service.fromJson(Map<String, dynamic>.from(jsonDecode(response.body) as Map));
     }
@@ -198,11 +215,11 @@ class ApiService {
   }
 
   Future<Service> updateService(String tenantId, String serviceId, Map<String, dynamic> body) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/tenants/$tenantId/services/$serviceId'),
-      headers: _headers,
-      body: jsonEncode(body),
-    );
+    final response = await _with401Retry(() => http.put(
+          Uri.parse('$baseUrl/tenants/$tenantId/services/$serviceId'),
+          headers: _headers,
+          body: jsonEncode(body),
+        ));
     if (response.statusCode == 200) {
       return Service.fromJson(Map<String, dynamic>.from(jsonDecode(response.body) as Map));
     }
@@ -210,10 +227,10 @@ class ApiService {
   }
 
   Future<void> deleteService(String tenantId, String serviceId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/tenants/$tenantId/services/$serviceId'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.delete(
+          Uri.parse('$baseUrl/tenants/$tenantId/services/$serviceId'),
+          headers: _headers,
+        ));
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Error deleting service: ${response.body}');
     }
@@ -231,7 +248,7 @@ class ApiService {
       qp['customerDocument'] = customerDocument;
     }
     uri = uri.replace(queryParameters: qp);
-    final response = await http.get(uri, headers: _headers);
+    final response = await _with401Retry(() => http.get(uri, headers: _headers));
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => Appointment.fromJson(Map<String, dynamic>.from(e as Map))).toList();
@@ -240,11 +257,11 @@ class ApiService {
   }
 
   Future<Appointment> createAppointment(String tenantId, Map<String, dynamic> body) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/tenants/$tenantId/appointments'),
-      headers: _headers,
-      body: jsonEncode(body),
-    );
+    final response = await _with401Retry(() => http.post(
+          Uri.parse('$baseUrl/tenants/$tenantId/appointments'),
+          headers: _headers,
+          body: jsonEncode(body),
+        ));
     if (response.statusCode == 200 || response.statusCode == 201) {
       return Appointment.fromJson(Map<String, dynamic>.from(jsonDecode(response.body) as Map));
     }
@@ -253,10 +270,10 @@ class ApiService {
 
   // Knowledge CRUD (Capa 2 - RAG)
   Future<List<KnowledgeChunk>> getKnowledge(String tenantId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/tenants/$tenantId/knowledge'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.get(
+          Uri.parse('$baseUrl/tenants/$tenantId/knowledge'),
+          headers: _headers,
+        ));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -267,11 +284,11 @@ class ApiService {
   }
 
   Future<KnowledgeChunk> createKnowledge(KnowledgeChunk chunk) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/tenants/${chunk.tenantId}/knowledge'),
-      headers: _headers,
-      body: jsonEncode(chunk.toJson()),
-    );
+    final response = await _with401Retry(() => http.post(
+          Uri.parse('$baseUrl/tenants/${chunk.tenantId}/knowledge'),
+          headers: _headers,
+          body: jsonEncode(chunk.toJson()),
+        ));
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       return KnowledgeChunk.fromJson(jsonDecode(response.body));
@@ -281,11 +298,11 @@ class ApiService {
   }
 
   Future<KnowledgeChunk> updateKnowledge(KnowledgeChunk chunk) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/tenants/${chunk.tenantId}/knowledge/${chunk.id}'),
-      headers: _headers,
-      body: jsonEncode(chunk.toJson()),
-    );
+    final response = await _with401Retry(() => http.put(
+          Uri.parse('$baseUrl/tenants/${chunk.tenantId}/knowledge/${chunk.id}'),
+          headers: _headers,
+          body: jsonEncode(chunk.toJson()),
+        ));
 
     if (response.statusCode == 200) {
       return KnowledgeChunk.fromJson(jsonDecode(response.body));
@@ -295,10 +312,10 @@ class ApiService {
   }
 
   Future<void> deleteKnowledge(String tenantId, String knowledgeId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/tenants/$tenantId/knowledge/$knowledgeId'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.delete(
+          Uri.parse('$baseUrl/tenants/$tenantId/knowledge/$knowledgeId'),
+          headers: _headers,
+        ));
 
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Error deleting knowledge: ${response.body}');
@@ -307,10 +324,10 @@ class ApiService {
 
   // Menu Triggers
   Future<List<MenuTrigger>> getMenuTriggers(String tenantId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/tenants/$tenantId/triggers'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.get(
+          Uri.parse('$baseUrl/tenants/$tenantId/triggers'),
+          headers: _headers,
+        ));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -321,11 +338,11 @@ class ApiService {
   }
 
   Future<MenuTrigger> createMenuTrigger(MenuTrigger trigger) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/tenants/${trigger.tenantId}/triggers'),
-      headers: _headers,
-      body: jsonEncode(trigger.toJson()),
-    );
+    final response = await _with401Retry(() => http.post(
+          Uri.parse('$baseUrl/tenants/${trigger.tenantId}/triggers'),
+          headers: _headers,
+          body: jsonEncode(trigger.toJson()),
+        ));
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       return MenuTrigger.fromJson(jsonDecode(response.body));
@@ -335,10 +352,10 @@ class ApiService {
   }
 
   Future<void> deleteMenuTrigger(String tenantId, String triggerId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/tenants/$tenantId/triggers/$triggerId'),
-      headers: _headers,
-    );
+    final response = await _with401Retry(() => http.delete(
+          Uri.parse('$baseUrl/tenants/$tenantId/triggers/$triggerId'),
+          headers: _headers,
+        ));
 
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Error deleting trigger: ${response.body}');

@@ -52,6 +52,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final ApiService _apiService;
 
   AuthNotifier(this._authService, this._apiService) : super(AuthState()) {
+    _apiService.setRefreshAccessTokenCallback(() async {
+      final ok = await refreshSessionSilently();
+      if (!ok) return null;
+      return state.user?.accessToken;
+    });
     _checkAuthentication();
   }
 
