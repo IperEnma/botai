@@ -1,6 +1,6 @@
 package com.botai.infrastructure.agenda.config;
 
-import com.botai.infrastructure.common.context.ThreadTenantContext;
+import com.botai.infrastructure.security.context.ThreadTenantContext;
 import com.botai.domain.agenda.feature.AgendaFeatureFlagService;
 import com.botai.domain.agenda.feature.AgendaFeatures;
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;

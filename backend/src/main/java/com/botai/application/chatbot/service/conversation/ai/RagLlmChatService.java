@@ -14,7 +14,7 @@ import com.botai.application.chatbot.support.StandardRouteResponses;
 import com.botai.application.chatbot.service.inbound.MessageHistoryService;
 import com.botai.application.chatbot.support.InboundMetadata;
 import com.botai.application.chatbot.support.InboundTextHeuristics;
-import com.botai.infrastructure.common.context.ThreadTenantContext;
+import com.botai.infrastructure.security.context.ThreadTenantContext;
 import com.botai.domain.chatbot.feature.BotFeatures;
 import com.botai.domain.chatbot.feature.FeatureFlagService;
 import com.botai.domain.chatbot.model.ConversationState;

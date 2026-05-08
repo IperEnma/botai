@@ -2,7 +2,7 @@ package com.botai.infrastructure.chatbot.ai;
 
 import com.botai.application.chatbot.prompt.BotPrompts;
 import com.botai.application.chatbot.service.knowledge.KnowledgeService;
-import com.botai.infrastructure.common.context.ThreadTenantContext;
+import com.botai.infrastructure.security.context.ThreadTenantContext;
 import com.botai.domain.chatbot.model.KnowledgeChunk;
 import com.botai.infrastructure.chatbot.persistence.entity.BusinessHoursEntity;
 import com.botai.infrastructure.chatbot.persistence.entity.ServiceEntity;

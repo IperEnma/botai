@@ -28,8 +28,9 @@ import java.util.stream.Collectors;
  * Seguridad HTTP del <strong>proceso único</strong> (un JAR, paquetes {@code chatbot} y {@code agenda}).
  * Protege toda la API bajo {@code /api/**} con JWT (Google ID token) salvo rutas públicas declaradas.
  *
- * <p>La configuración vive en el paquete del bot solo como ubicación neutral; aplica igual a
- * {@code /api/bots}, {@code /api/agenda/**}, etc. Propiedades bajo {@code agenda.security.*}.</p>
+ * <p>Infraestructura transversal: aplica a {@code /api/bots}, {@code /api/agenda/**}, etc.
+ * Propiedades bajo {@code agenda.security.*}. El contexto por hilo de identidad/tenant está en
+ * {@link com.botai.infrastructure.security.context.ThreadTenantContext}.</p>
  */
 @Configuration
 @EnableWebSecurity

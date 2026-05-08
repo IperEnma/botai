@@ -6,7 +6,7 @@ Este archivo es la instrucción maestra para Claude al trabajar sobre `botai`. *
 
 ## 🚧 Regla #1 (INNEGOCIABLE): solo trabajamos sobre AGENDA
 
-El backend es **un solo módulo Maven** (`chatbot-engine`) con **capas** (`application`, `domain`, `infrastructure`), rama **`chatbot`** / **`agenda`**, y la clase **`@SpringBootApplication`** en **`com.botai`** (raíz del código). Lo compartido va **dentro de la capa que corresponda** (p. ej. `infrastructure.common` para detalles técnicos transversales), no en un raíz `common` paralelo a las capas.
+El backend es **un solo módulo Maven** (`chatbot-engine`) con **capas** (`application`, `domain`, `infrastructure`), rama **`chatbot`** / **`agenda`**, y la clase **`@SpringBootApplication`** en **`com.botai`** (raíz del código). Lo transversal va **en la capa y subpaquete que corresponda** (p. ej. contexto de identidad por hilo → `infrastructure.security.context`), sin un `common` genérico paralelo a las capas.
 
 **Claude NO debe:**
 - Modificar ningún archivo bajo `backend/src/main/java/com/botai/application/chatbot/**`, `domain/chatbot/**`, `infrastructure/chatbot/**` (salvo autorización explícita del usuario).
@@ -16,7 +16,7 @@ El backend es **un solo módulo Maven** (`chatbot-engine`) con **capas** (`appli
 
 **Claude SÍ debe:**
 - Crear y modificar código bajo `backend/src/main/java/com/botai/application/agenda/**`, `domain/agenda/**`, `infrastructure/agenda/**`.
-- Colocar utilidades **realmente comunes** en la capa adecuada: `application/common`, `domain/common` o `infrastructure/common` (p. ej. `ThreadLocal` de request → `infrastructure/common`).
+- Colocar utilidades **realmente comunes** en la capa y subpaquete adecuados (p. ej. contexto de identidad por hilo → `infrastructure.security.context`; DTOs compartidos solo si aplica → `application` con nombre claro).
 - Crear tablas nuevas en el schema `public` con **prefijo obligatorio `agenda_`**.
 - Añadir dependencias al `pom.xml` solo si son estrictamente necesarias para AGENDA.
 - Añadir bloques de configuración bajo la key `agenda:` en `application.yml`.
@@ -55,8 +55,7 @@ com.botai.domain
 com.botai.infrastructure
 ├── chatbot/
 ├── agenda/                            # api, persistence, event, notification, config, …
-├── common/                            # transversal técnico (p.ej. ThreadTenantContext)
-└── security/                          # transversal (p.ej. JWT /api/**)
+└── security/                          # JWT /api/**, y context/ (p.ej. ThreadTenantContext por request)
 ```
 
 ### Convenciones de nombres

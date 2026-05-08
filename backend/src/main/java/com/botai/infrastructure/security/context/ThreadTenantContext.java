@@ -1,8 +1,9 @@
-package com.botai.infrastructure.common.context;
+package com.botai.infrastructure.security.context;
 
 /**
- * Infraestructura compartida: contexto por hilo (tenant / usuario / conversación) para un tramo de
- * procesamiento (tools de IA, interceptores HTTP). No es dominio ni caso de uso.
+ * Contexto por hilo vinculado a la identidad de la petición: tenant, usuario de canal y conversación.
+ * Vive bajo {@code infrastructure.security} porque se alinea con la resolución de identidad
+ * (JWT, guards, tools que operan en nombre del usuario autenticado o del canal).
  *
  * <p>Llamar siempre a {@link #clear()} al terminar el request o el bloque try/finally equivalente.</p>
  */

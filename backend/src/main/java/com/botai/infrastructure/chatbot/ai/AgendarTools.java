@@ -1,7 +1,7 @@
 package com.botai.infrastructure.chatbot.ai;
 
 import com.botai.application.chatbot.prompt.BotPrompts;
-import com.botai.infrastructure.common.context.ThreadTenantContext;
+import com.botai.infrastructure.security.context.ThreadTenantContext;
 import com.botai.domain.chatbot.repository.ConversationRepository;
 import com.botai.infrastructure.chatbot.booking.BookingContextSanitizer;
 import com.botai.infrastructure.chatbot.booking.CustomerDocumentNormalizer;
