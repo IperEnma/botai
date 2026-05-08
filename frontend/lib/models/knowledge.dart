@@ -1,6 +1,8 @@
 class KnowledgeChunk {
   final String? id;
   final String tenantId;
+  /// Sucursal Agenda (`agenda_businesses.id`); null si el fragmento es manual.
+  final String? businessId;
   final String topic;
   final String content;
   final String? keywords;
@@ -10,6 +12,7 @@ class KnowledgeChunk {
   KnowledgeChunk({
     this.id,
     required this.tenantId,
+    this.businessId,
     required this.topic,
     required this.content,
     this.keywords,
@@ -21,6 +24,7 @@ class KnowledgeChunk {
     return KnowledgeChunk(
       id: json['id']?.toString(),
       tenantId: json['tenantId'] as String,
+      businessId: json['businessId']?.toString(),
       topic: json['topic'] as String,
       content: json['content'] as String,
       keywords: json['keywords'] as String?,
@@ -35,6 +39,7 @@ class KnowledgeChunk {
     return {
       if (id != null) 'id': id,
       'tenantId': tenantId,
+      if (businessId != null) 'businessId': businessId,
       'topic': topic,
       'content': content,
       'keywords': keywords,
@@ -45,6 +50,7 @@ class KnowledgeChunk {
   KnowledgeChunk copyWith({
     String? id,
     String? tenantId,
+    String? businessId,
     String? topic,
     String? content,
     String? keywords,
@@ -54,6 +60,7 @@ class KnowledgeChunk {
     return KnowledgeChunk(
       id: id ?? this.id,
       tenantId: tenantId ?? this.tenantId,
+      businessId: businessId ?? this.businessId,
       topic: topic ?? this.topic,
       content: content ?? this.content,
       keywords: keywords ?? this.keywords,

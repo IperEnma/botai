@@ -1,8 +1,5 @@
--- V12: branding (logo + color) + horarios del negocio
-
-ALTER TABLE agenda_businesses
-    ADD COLUMN IF NOT EXISTS logo_url   VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS color_primario VARCHAR(9);
+-- V12: horarios del negocio.
+-- Columnas de branding de agenda_businesses: consolidadas en V1 (primer arranque).
 
 CREATE TABLE IF NOT EXISTS agenda_business_hours (
     id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

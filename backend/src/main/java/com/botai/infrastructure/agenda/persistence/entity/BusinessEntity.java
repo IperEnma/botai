@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/** Columnas alineadas al {@code CREATE TABLE agenda_businesses} en Flyway V1 (esquema de primer arranque). */
 @Entity
 @Table(name = "agenda_businesses")
 public class BusinessEntity extends BaseAuditableEntity {
@@ -63,6 +64,10 @@ public class BusinessEntity extends BaseAuditableEntity {
     @Column(name = "public_slug", length = 180)
     private String publicSlug;
 
+    /** FK a {@code bot.id}; varios negocios pueden compartir el mismo bot (mismo workspace). */
+    @Column(name = "bot_id")
+    private Long botId;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -96,6 +101,8 @@ public class BusinessEntity extends BaseAuditableEntity {
     public void setFontFamily(String fontFamily) { this.fontFamily = fontFamily; }
     public String getPublicSlug() { return publicSlug; }
     public void setPublicSlug(String publicSlug) { this.publicSlug = publicSlug; }
+    public Long getBotId() { return botId; }
+    public void setBotId(Long botId) { this.botId = botId; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 }

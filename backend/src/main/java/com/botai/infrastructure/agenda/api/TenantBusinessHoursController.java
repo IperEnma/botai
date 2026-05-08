@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 import com.botai.application.agenda.usecase.business.ListBusinessesByTenantUseCase;
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
+import com.botai.infrastructure.agenda.sync.AgendaKnowledgeChunkRefresher;
 
 @RestController
 @RequestMapping("/api/agenda/me/businesses/{businessId}/hours")
@@ -30,15 +31,18 @@ public class TenantBusinessHoursController {
     private final SaveBusinessHoursUseCase saveHours;
     private final AgendaCurrentTenantService currentTenant;
     private final ListBusinessesByTenantUseCase listBusinesses;
+    private final AgendaKnowledgeChunkRefresher knowledgeChunkRefresher;
 
     public TenantBusinessHoursController(BusinessHoursRepository hoursRepository,
                                          SaveBusinessHoursUseCase saveHours,
                                          AgendaCurrentTenantService currentTenant,
-                                         ListBusinessesByTenantUseCase listBusinesses) {
+                                         ListBusinessesByTenantUseCase listBusinesses,
+                                         AgendaKnowledgeChunkRefresher knowledgeChunkRefresher) {
         this.hoursRepository = hoursRepository;
         this.saveHours = saveHours;
         this.currentTenant = currentTenant;
         this.listBusinesses = listBusinesses;
+        this.knowledgeChunkRefresher = knowledgeChunkRefresher;
     }
 
     @GetMapping
@@ -71,6 +75,7 @@ public class TenantBusinessHoursController {
 
         List<BusinessHoursResponse> saved = saveHours.execute(tenantId, businessId, newHours)
                 .stream().map(this::toResponse).toList();
+        knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return ResponseEntity.ok(saved);
     }
 

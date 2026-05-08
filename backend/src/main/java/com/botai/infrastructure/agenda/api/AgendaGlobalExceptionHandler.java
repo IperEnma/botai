@@ -1,9 +1,11 @@
 package com.botai.infrastructure.agenda.api;
 
+import com.botai.domain.agenda.exception.AgendaBotNotFoundException;
 import com.botai.domain.agenda.exception.BookingNotCancellableException;
 import com.botai.domain.agenda.exception.BookingNotFoundException;
 import com.botai.domain.agenda.exception.BookingSlotTakenException;
 import com.botai.domain.agenda.exception.CancellationNotAllowedException;
+import com.botai.domain.agenda.exception.BusinessAlreadyLinkedToOtherBotException;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.exception.CategoryNotFoundException;
 import com.botai.domain.agenda.exception.DuplicateCategorySlugException;
@@ -11,6 +13,7 @@ import com.botai.domain.agenda.exception.DuplicateTenantEmailException;
 import com.botai.domain.agenda.exception.DuplicateTenantNumeroException;
 import com.botai.domain.agenda.exception.TenantAccessCodeNotFoundException;
 import com.botai.domain.agenda.exception.TenantGoogleLinkConflictException;
+import com.botai.domain.agenda.exception.WorkspaceBotMismatchException;
 import com.botai.domain.agenda.exception.InvalidPlanConfigurationException;
 import com.botai.domain.agenda.exception.NoCreditsException;
 import com.botai.domain.agenda.exception.PaymentFailedException;
@@ -49,6 +52,21 @@ public class AgendaGlobalExceptionHandler {
     @ExceptionHandler(BusinessNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleBusinessNotFound(BusinessNotFoundException ex) {
         return response(HttpStatus.NOT_FOUND, "BUSINESS_NOT_FOUND", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(AgendaBotNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleAgendaBotNotFound(AgendaBotNotFoundException ex) {
+        return response(HttpStatus.NOT_FOUND, "BOT_NOT_FOUND", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(WorkspaceBotMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleWorkspaceBotMismatch(WorkspaceBotMismatchException ex) {
+        return response(HttpStatus.FORBIDDEN, "BOT_TENANT_MISMATCH", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(BusinessAlreadyLinkedToOtherBotException.class)
+    public ResponseEntity<Map<String, Object>> handleBusinessLinkedOtherBot(BusinessAlreadyLinkedToOtherBotException ex) {
+        return response(HttpStatus.CONFLICT, "BUSINESS_LINKED_TO_OTHER_BOT", ex.getMessage(), null);
     }
 
     @ExceptionHandler(CategoryNotFoundException.class)

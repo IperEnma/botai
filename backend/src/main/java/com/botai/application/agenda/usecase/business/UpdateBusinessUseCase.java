@@ -56,6 +56,7 @@ public class UpdateBusinessUseCase {
                 colorFondo == null ? existing.getColorFondo() : colorFondo,
                 fontFamily == null ? existing.getFontFamily() : fontFamily,
                 existing.getPublicSlug(),
+                existing.getBotId(),
                 existing.getDeletedAt(),
                 existing.getCreatedAt(),
                 existing.getUpdatedAt()

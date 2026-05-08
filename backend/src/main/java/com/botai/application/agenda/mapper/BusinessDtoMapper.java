@@ -35,6 +35,7 @@ public final class BusinessDtoMapper {
                 business.getFacebookUrl(),
                 business.getColorFondo(),
                 business.getFontFamily(),
+                business.getBotId(),
                 categorias != null ? categorias : List.of()
         );
     }

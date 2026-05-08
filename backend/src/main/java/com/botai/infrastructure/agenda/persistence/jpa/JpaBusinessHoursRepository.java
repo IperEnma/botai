@@ -29,6 +29,8 @@ public class JpaBusinessHoursRepository implements BusinessHoursRepository {
     @Transactional
     public void deleteByBusinessId(UUID businessId) {
         jpa.deleteByBusinessId(businessId);
+        // Evita que el siguiente saveAll inserte antes de que el DELETE llegue a BD (23505 en UK business_id+dia_semana).
+        jpa.flush();
     }
 
     @Override

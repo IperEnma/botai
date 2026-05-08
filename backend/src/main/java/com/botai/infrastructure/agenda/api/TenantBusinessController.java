@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
+import com.botai.infrastructure.agenda.sync.AgendaKnowledgeChunkRefresher;
 
 import java.util.List;
 import java.util.UUID;
@@ -49,6 +50,7 @@ public class TenantBusinessController {
     private final BusinessSettingsRepository settingsRepository;
     private final BusinessCategoryRepository businessCategoryRepository;
     private final AgendaCurrentTenantService currentTenant;
+    private final AgendaKnowledgeChunkRefresher knowledgeChunkRefresher;
 
     public TenantBusinessController(RegisterBusinessUseCase registerBusiness,
                                     UpdateBusinessUseCase updateBusiness,
@@ -56,7 +58,8 @@ public class TenantBusinessController {
                                     ListBusinessesByTenantUseCase listBusinesses,
                                     BusinessSettingsRepository settingsRepository,
                                     BusinessCategoryRepository businessCategoryRepository,
-                                    AgendaCurrentTenantService currentTenant) {
+                                    AgendaCurrentTenantService currentTenant,
+                                    AgendaKnowledgeChunkRefresher knowledgeChunkRefresher) {
         this.registerBusiness = registerBusiness;
         this.updateBusiness = updateBusiness;
         this.associateCategories = associateCategories;
@@ -64,6 +67,7 @@ public class TenantBusinessController {
         this.settingsRepository = settingsRepository;
         this.businessCategoryRepository = businessCategoryRepository;
         this.currentTenant = currentTenant;
+        this.knowledgeChunkRefresher = knowledgeChunkRefresher;
     }
 
     @PostMapping
@@ -77,6 +81,7 @@ public class TenantBusinessController {
                 request.ownerUserId(),
                 request.searchTags()
         );
+        knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(BusinessDtoMapper.toResponse(created));
     }
 
@@ -100,6 +105,7 @@ public class TenantBusinessController {
                 request.colorFondo(),
                 request.fontFamily()
         );
+        knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return BusinessDtoMapper.toResponse(updated,
                 businessCategoryRepository.findCategorySlugsByBusinessId(updated.getId()));
     }
@@ -159,6 +165,7 @@ public class TenantBusinessController {
                 request.expirationAlertCredits(),
                 request.autoNotifyEnabled()
         ));
+        knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return ResponseEntity.ok(toSettingsResponse(updated));
     }
 

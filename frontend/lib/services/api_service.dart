@@ -79,8 +79,21 @@ class ApiService {
     if (response.statusCode == 201 || response.statusCode == 200) {
       return Bot.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Error creating bot: ${response.body}');
+      final msg = _tryParseErrorMessage(response.body);
+      throw Exception(msg ?? 'Error creating bot: ${response.body}');
     }
+  }
+
+  static String? _tryParseErrorMessage(String body) {
+    if (body.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final m = decoded['message']?.toString();
+        if (m != null && m.isNotEmpty) return m;
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<Bot> updateBot(Bot bot) async {

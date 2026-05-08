@@ -17,6 +17,8 @@ class Business {
   final String? facebookUrl;
   final String? colorFondo;
   final String? fontFamily;
+  /// PK del bot en el backend (`bot.id`); mismo workspace que [tenantId].
+  final int? botId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -36,6 +38,7 @@ class Business {
     this.facebookUrl,
     this.colorFondo,
     this.fontFamily,
+    this.botId,
     this.createdAt,
     this.updatedAt,
   });
@@ -57,6 +60,7 @@ class Business {
       facebookUrl: AgendaJson.parseStringOrNull(json['facebookUrl']),
       colorFondo: AgendaJson.parseStringOrNull(json['colorFondo']),
       fontFamily: AgendaJson.parseStringOrNull(json['fontFamily']),
+      botId: AgendaJson.parseIntOrNull(json['botId']),
       createdAt: AgendaJson.parseDateTimeOrNull(json['createdAt']),
       updatedAt: AgendaJson.parseDateTimeOrNull(json['updatedAt']),
     );
@@ -92,6 +96,7 @@ class Business {
       facebookUrl: identical(facebookUrl, _sentinel) ? this.facebookUrl : facebookUrl as String?,
       colorFondo: identical(colorFondo, _sentinel) ? this.colorFondo : colorFondo as String?,
       fontFamily: identical(fontFamily, _sentinel) ? this.fontFamily : fontFamily as String?,
+      botId: botId,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

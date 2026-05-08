@@ -18,6 +18,8 @@ public record BusinessResponse(
         String facebookUrl,
         String colorFondo,
         String fontFamily,
+        /** PK del bot en {@code bot}; null si no hay vínculo. */
+        Long botId,
         List<String> categorias
 ) {
 }

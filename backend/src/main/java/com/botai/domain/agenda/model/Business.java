@@ -22,6 +22,8 @@ public final class Business {
     private final String colorFondo;
     private final String fontFamily;
     private final String publicSlug;
+    /** PK numérica del bot en tabla {@code bot}; null si el negocio aún no está ligado al workspace del bot. */
+    private final Long botId;
     private final LocalDateTime deletedAt;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
@@ -32,6 +34,7 @@ public final class Business {
                     String instagramUrl, String tiktokUrl, String facebookUrl,
                     String colorFondo, String fontFamily,
                     String publicSlug,
+                    Long botId,
                     LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.tenantId = Objects.requireNonNull(tenantId, "tenantId");
@@ -48,14 +51,14 @@ public final class Business {
         this.colorFondo = colorFondo;
         this.fontFamily = fontFamily;
         this.publicSlug = publicSlug;
+        this.botId = botId;
         this.deletedAt = deletedAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
     /**
-     * Backward-compatible constructor (sin {@code publicSlug}).
-     * Mantiene tests y casos de uso existentes mientras migran.
+     * Constructor sin {@code publicSlug} ni {@code botId} (tests y código legado).
      */
     public Business(UUID id, String tenantId, String nombre, String descripcion,
                     UUID ownerUserId, List<String> searchTags, boolean activo,
@@ -65,7 +68,21 @@ public final class Business {
                     LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, tenantId, nombre, descripcion, ownerUserId, searchTags, activo,
                 logoUrl, colorPrimario, instagramUrl, tiktokUrl, facebookUrl,
-                colorFondo, fontFamily, null,
+                colorFondo, fontFamily, null, null,
+                deletedAt, createdAt, updatedAt);
+    }
+
+    /** Constructor con {@code publicSlug} sin {@code botId}. */
+    public Business(UUID id, String tenantId, String nombre, String descripcion,
+                    UUID ownerUserId, List<String> searchTags, boolean activo,
+                    String logoUrl, String colorPrimario,
+                    String instagramUrl, String tiktokUrl, String facebookUrl,
+                    String colorFondo, String fontFamily,
+                    String publicSlug,
+                    LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, tenantId, nombre, descripcion, ownerUserId, searchTags, activo,
+                logoUrl, colorPrimario, instagramUrl, tiktokUrl, facebookUrl,
+                colorFondo, fontFamily, publicSlug, null,
                 deletedAt, createdAt, updatedAt);
     }
 
@@ -84,6 +101,7 @@ public final class Business {
     public String getColorFondo() { return colorFondo; }
     public String getFontFamily() { return fontFamily; }
     public String getPublicSlug() { return publicSlug; }
+    public Long getBotId() { return botId; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

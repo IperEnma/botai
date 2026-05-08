@@ -30,7 +30,14 @@ public record RegisterTenantRequest(
         @Size(min = 2, max = 255)
         String nombreNegocio,
 
-        String categoriaSlug
+        String categoriaSlug,
+
+        /**
+         * Opcional: {@code bot.tenant_id} del workspace si el bot ya existe. Misma cadena se usa como
+         * {@code tenant_id} en Agenda (un solo tenant por workspace). Requiere fila en {@code bot}.
+         */
+        @Size(max = 64)
+        String workspaceTenantId
 ) {
     /** Normaliza cadenas vacías a {@code null} para validación ({@code @Email} ignora null). */
     public RegisterTenantRequest {
@@ -38,5 +45,6 @@ public record RegisterTenantRequest(
         numero = (numero == null || numero.isBlank()) ? null : numero;
         telefono = (telefono == null || telefono.isBlank()) ? null : telefono;
         categoriaSlug = (categoriaSlug == null || categoriaSlug.isBlank()) ? null : categoriaSlug;
+        workspaceTenantId = (workspaceTenantId == null || workspaceTenantId.isBlank()) ? null : workspaceTenantId.strip();
     }
 }

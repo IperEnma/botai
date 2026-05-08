@@ -1,8 +1,11 @@
 package com.botai.infrastructure.chatbot.persistence.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "bot")
@@ -53,6 +56,15 @@ public class BotEntity {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime updatedAt;
 
+    /**
+     * Solo entrada JSON al crear el bot: sucursales / negocios Agenda ({@code agenda_businesses.id}) que atiende.
+     * Obligatorio al menos un UUID; el {@code tenantId} del bot debe coincidir con el de esas filas en Agenda.
+     * No se persiste en la tabla {@code bot}; se aplica vía {@link com.botai.application.agenda.usecase.bot.LinkBotToAgendaBusinessesUseCase}.
+     */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Transient
+    private List<UUID> linkedAgendaBusinessIds;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -94,6 +106,14 @@ public class BotEntity {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public List<UUID> getLinkedAgendaBusinessIds() {
+        return linkedAgendaBusinessIds;
+    }
+
+    public void setLinkedAgendaBusinessIds(List<UUID> linkedAgendaBusinessIds) {
+        this.linkedAgendaBusinessIds = linkedAgendaBusinessIds;
+    }
 
     @PreUpdate
     public void preUpdate() {

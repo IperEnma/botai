@@ -1,9 +1,5 @@
--- V13: redes sociales del negocio + galería de trabajos (máx 10 fotos)
-
-ALTER TABLE agenda_businesses
-    ADD COLUMN IF NOT EXISTS instagram_url VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS tiktok_url    VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS facebook_url  VARCHAR(500);
+-- V13: galería de trabajos (máx 10 fotos en aplicación).
+-- Redes sociales en agenda_businesses: consolidadas en V1 (primer arranque).
 
 CREATE TABLE IF NOT EXISTS agenda_business_photos (
     id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),

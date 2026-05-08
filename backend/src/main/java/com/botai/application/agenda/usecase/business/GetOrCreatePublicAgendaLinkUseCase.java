@@ -63,6 +63,7 @@ public class GetOrCreatePublicAgendaLinkUseCase {
                 b.getColorFondo(),
                 b.getFontFamily(),
                 slug,
+                b.getBotId(),
                 b.getDeletedAt(),
                 b.getCreatedAt(),
                 b.getUpdatedAt()

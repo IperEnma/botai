@@ -1,15 +1,18 @@
 package com.botai.infrastructure.chatbot.api;
 
+import com.botai.application.agenda.usecase.bot.LinkBotToAgendaBusinessesUseCase;
 import com.botai.application.chatbot.service.knowledge.KnowledgeChunkAdminService;
 import com.botai.infrastructure.chatbot.booking.CustomerDocumentNormalizer;
 import com.botai.infrastructure.chatbot.persistence.entity.*;
 import com.botai.infrastructure.chatbot.persistence.jpa.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,6 +29,7 @@ public class AdminController {
     private final BotJpaRepository botRepository;
     private final KnowledgeChunkAdminService knowledgeChunkAdminService;
     private final AppointmentJpaRepository appointmentRepository;
+    private final LinkBotToAgendaBusinessesUseCase linkBotToAgendaBusinessesUseCase;
 
     public AdminController(
             MenuJpaRepository menuRepository,
@@ -33,13 +37,15 @@ public class AdminController {
             FeatureConfigJpaRepository featureConfigRepository,
             BotJpaRepository botRepository,
             KnowledgeChunkAdminService knowledgeChunkAdminService,
-            AppointmentJpaRepository appointmentRepository) {
+            AppointmentJpaRepository appointmentRepository,
+            LinkBotToAgendaBusinessesUseCase linkBotToAgendaBusinessesUseCase) {
         this.menuRepository = menuRepository;
         this.triggerRepository = triggerRepository;
         this.featureConfigRepository = featureConfigRepository;
         this.botRepository = botRepository;
         this.knowledgeChunkAdminService = knowledgeChunkAdminService;
         this.appointmentRepository = appointmentRepository;
+        this.linkBotToAgendaBusinessesUseCase = linkBotToAgendaBusinessesUseCase;
     }
 
     // ============ AUTH ============
@@ -68,10 +74,25 @@ public class AdminController {
         return ResponseEntity.ok(bots);
     }
 
+    /**
+     * Crea un bot y lo vincula a sucursales Agenda ({@code agenda_businesses}).
+     * Es obligatorio enviar al menos una sucursal y un {@code tenantId} igual al del espacio Agenda
+     * (no se autogenera el tenant si hay sucursales).
+     */
     @PostMapping("/bots")
-    public ResponseEntity<BotEntity> createBot(@RequestBody BotEntity bot) {
-        if (bot.getTenantId() == null || bot.getTenantId().isEmpty()) {
-            bot.setTenantId(UUID.randomUUID().toString());
+    public ResponseEntity<?> createBot(@RequestBody BotEntity bot) {
+        List<UUID> linkAgendaBusinessIds = bot.getLinkedAgendaBusinessIds();
+        if (linkAgendaBusinessIds == null || linkAgendaBusinessIds.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "code", "SUCURSALES_REQUIRED",
+                    "message", "Debés vincular al menos una sucursal: enviá linkedAgendaBusinessIds con uno o más UUID de negocios Agenda."
+            ));
+        }
+        if (bot.getTenantId() == null || bot.getTenantId().isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "code", "TENANT_REQUIRED_WITH_BRANCHES",
+                    "message", "Con sucursales obligatorias, enviá tenantId igual al tenant del espacio Agenda (mismo valor que en agenda_businesses.tenant_id)."
+            ));
         }
         if (bot.getUserId() == null || bot.getUserId().isEmpty()) {
             bot.setUserId("default_user");
@@ -82,6 +103,8 @@ public class AdminController {
 
         createDefaultFeatureFlags(tenantId, saved);
         // No se crean menús ni servicios por defecto: el dueño debe configurar todo en el panel.
+
+        linkBotToAgendaBusinessesUseCase.execute(tenantId, saved.getId(), new LinkedHashSet<>(linkAgendaBusinessIds));
 
         return ResponseEntity.ok(saved);
     }

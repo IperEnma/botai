@@ -10,6 +10,7 @@ import com.botai.domain.agenda.model.Category;
 import com.botai.domain.agenda.model.TenantAccount;
 import com.botai.domain.agenda.model.TenantConfig;
 import com.botai.domain.agenda.model.User;
+import com.botai.domain.agenda.repository.BotWorkspaceRegistry;
 import com.botai.domain.agenda.repository.BusinessCategoryRepository;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.BusinessSettingsRepository;
@@ -19,6 +20,7 @@ import com.botai.domain.agenda.repository.TenantConfigRepository;
 import com.botai.domain.agenda.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -42,6 +44,7 @@ class RegisterTenantUseCaseTest {
     private BusinessSettingsRepository businessSettingsRepo;
     private CategoryRepository categoryRepo;
     private BusinessCategoryRepository businessCategoryRepo;
+    private BotWorkspaceRegistry botWorkspaceRegistry;
 
     private RegisterTenantUseCase useCase;
 
@@ -54,6 +57,7 @@ class RegisterTenantUseCaseTest {
         businessSettingsRepo = mock(BusinessSettingsRepository.class);
         categoryRepo = mock(CategoryRepository.class);
         businessCategoryRepo = mock(BusinessCategoryRepository.class);
+        botWorkspaceRegistry = mock(BotWorkspaceRegistry.class);
 
         useCase = new RegisterTenantUseCase(
                 tenantAccountRepo,
@@ -62,18 +66,21 @@ class RegisterTenantUseCaseTest {
                 businessRepo,
                 businessSettingsRepo,
                 categoryRepo,
-                businessCategoryRepo
+                businessCategoryRepo,
+                botWorkspaceRegistry
         );
 
         when(tenantAccountRepo.existsByEmail(anyString())).thenReturn(false);
         when(tenantAccountRepo.existsByNumero(anyString())).thenReturn(false);
         when(tenantAccountRepo.existsByGoogleLinkedEmail(anyString())).thenReturn(false);
+        when(tenantAccountRepo.findByTenantId(anyString())).thenReturn(Optional.empty());
         when(tenantAccountRepo.save(any(TenantAccount.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
         when(tenantConfigRepo.save(any(TenantConfig.class))).thenAnswer(inv -> inv.getArgument(0));
         when(businessRepo.save(any(Business.class))).thenAnswer(inv -> inv.getArgument(0));
         when(businessSettingsRepo.save(any(BusinessSettings.class))).thenAnswer(inv -> inv.getArgument(0));
         when(categoryRepo.findBySlug(anyString())).thenReturn(Optional.empty());
+        when(botWorkspaceRegistry.findBotIdByWorkspaceTenantId(anyString())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -84,6 +91,7 @@ class RegisterTenantUseCaseTest {
                 null,
                 "+5491112345678",
                 "Peluquería Juan",
+                null,
                 null
         );
 
@@ -109,6 +117,7 @@ class RegisterTenantUseCaseTest {
                 "59899123456",
                 "+59899123456",
                 "Salón Ana",
+                null,
                 null
         );
 
@@ -129,6 +138,7 @@ class RegisterTenantUseCaseTest {
                 null,
                 null,
                 "Negocio Duplicado",
+                null,
                 null
         );
 
@@ -148,6 +158,7 @@ class RegisterTenantUseCaseTest {
                 "59899123456",
                 "+59899123456",
                 "Negocio X",
+                null,
                 null
         );
 
@@ -163,6 +174,7 @@ class RegisterTenantUseCaseTest {
                 null,
                 null,
                 "Negocio X",
+                null,
                 null
         );
 
@@ -179,7 +191,8 @@ class RegisterTenantUseCaseTest {
                 null,
                 null,
                 "Negocio Pedro",
-                "slug-inexistente"
+                "slug-inexistente",
+                null
         );
 
         RegisterTenantResponse response = useCase.execute(request);
@@ -202,7 +215,8 @@ class RegisterTenantUseCaseTest {
                 null,
                 null,
                 "Peluquería Ana",
-                "peluqueria"
+                "peluqueria",
+                null
         );
 
         RegisterTenantResponse response = useCase.execute(request);
@@ -219,6 +233,7 @@ class RegisterTenantUseCaseTest {
                 null,
                 null,
                 "Negocio Carlos",
+                null,
                 null
         );
 
@@ -238,10 +253,72 @@ class RegisterTenantUseCaseTest {
                 null,
                 null,
                 "Negocio X",
+                null,
                 null
         );
 
         assertThrows(DuplicateTenantEmailException.class, () -> useCase.execute(request));
         verify(tenantAccountRepo, never()).save(any());
+    }
+
+    @Test
+    void workspaceTenantId_reusaTenantDelBotYAsignaBotId() {
+        when(tenantAccountRepo.findByTenantId("workspace-tenant-1")).thenReturn(Optional.empty());
+        when(botWorkspaceRegistry.findBotIdByWorkspaceTenantId("workspace-tenant-1")).thenReturn(Optional.of(7L));
+
+        RegisterTenantRequest request = new RegisterTenantRequest(
+                "Dueño",
+                "owner@example.com",
+                null,
+                null,
+                "Mi negocio",
+                null,
+                "workspace-tenant-1"
+        );
+
+        RegisterTenantResponse response = useCase.execute(request);
+
+        assertEquals("workspace-tenant-1", response.tenantId());
+        ArgumentCaptor<Business> cap = ArgumentCaptor.forClass(Business.class);
+        verify(businessRepo).save(cap.capture());
+        assertEquals(7L, cap.getValue().getBotId());
+    }
+
+    @Test
+    void workspaceTenantId_sinBot_lanzaIllegalArgumentException() {
+        when(tenantAccountRepo.findByTenantId("sin-bot")).thenReturn(Optional.empty());
+        when(botWorkspaceRegistry.findBotIdByWorkspaceTenantId("sin-bot")).thenReturn(Optional.empty());
+
+        RegisterTenantRequest request = new RegisterTenantRequest(
+                "Dueño",
+                "x@example.com",
+                null,
+                null,
+                "Negocio",
+                null,
+                "sin-bot"
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> useCase.execute(request));
+        verify(tenantAccountRepo, never()).save(any());
+    }
+
+    @Test
+    void workspaceTenantId_cuentaAgendaYaExiste_lanzaIllegalStateException() {
+        when(tenantAccountRepo.findByTenantId("ocupado"))
+                .thenReturn(Optional.of(mock(TenantAccount.class)));
+        when(botWorkspaceRegistry.findBotIdByWorkspaceTenantId("ocupado")).thenReturn(Optional.of(1L));
+
+        RegisterTenantRequest request = new RegisterTenantRequest(
+                "Dueño",
+                "y@example.com",
+                null,
+                null,
+                "Negocio",
+                null,
+                "ocupado"
+        );
+
+        assertThrows(IllegalStateException.class, () -> useCase.execute(request));
     }
 }

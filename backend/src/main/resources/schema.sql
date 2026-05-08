@@ -116,6 +116,13 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_active ON knowledge_chunk(active);
 -- Por si la tabla fue creada por Hibernate (ddl-auto: update) sin la columna vector
 -- 384 = DJL MiniLM (paraphrase-multilingual-MiniLM-L12-v2). Si usas Ollama nomic-embed-text, usar vector(768).
 ALTER TABLE knowledge_chunk ADD COLUMN IF NOT EXISTS embedding vector(384);
+-- Sucursal Agenda (agenda_businesses.id); null = fragmento manual del panel
+ALTER TABLE knowledge_chunk ADD COLUMN IF NOT EXISTS business_id UUID NULL;
+CREATE INDEX IF NOT EXISTS idx_knowledge_chunk_business_id ON knowledge_chunk(business_id) WHERE business_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_knowledge_chunk_tenant_business ON knowledge_chunk(tenant_id, business_id) WHERE business_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_knowledge_chunk_tenant_topic_business ON knowledge_chunk (tenant_id, topic, business_id) WHERE business_id IS NOT NULL;
+-- Chunks Agenda legacy (sin sucursal): ocultar; AgendaRagSourceSync genera filas por business_id
+UPDATE knowledge_chunk SET active = false WHERE topic LIKE 'Agenda:%' AND business_id IS NULL;
 
 -- Bot: configuración de cada bot por usuario
 CREATE TABLE IF NOT EXISTS bot (

@@ -2,6 +2,10 @@
 -- V1__agenda_core_tables.sql
 -- Tablas base del módulo AGENDA (Sprint 1).
 -- Schema: public  |  Prefijo: agenda_  |  Aislado del bot.
+--
+-- Criterio: primer arranque — tablas “vivas” (p. ej. agenda_businesses) con todas
+-- las columnas que reflejan las entidades JPA actuales; migraciones posteriores
+-- añaden solo tablas nuevas / índices, no ALTER incrementales sobre ese núcleo.
 -- ============================================================================
 
 -- Extensiones necesarias (idempotentes).
@@ -48,21 +52,29 @@ CREATE INDEX idx_agenda_categories_synonyms_gin ON agenda_categories USING GIN (
 CREATE INDEX idx_agenda_categories_activo ON agenda_categories (activo) WHERE activo = TRUE;
 
 -- ----------------------------------------------------------------------------
--- agenda_businesses — negocios registrados por un admin de tenant.
--- search_tags (jsonb) guarda sinónimos específicos del negocio (nombre comercial,
--- barrio, keywords locales). deleted_at para soft delete.
+-- agenda_businesses — negocio (definición completa para primer arranque).
+-- Alineado con BusinessEntity: branding, redes, estilos, slug público, bot_id.
 -- ----------------------------------------------------------------------------
 CREATE TABLE agenda_businesses (
-    id             UUID         NOT NULL DEFAULT gen_random_uuid(),
-    tenant_id      VARCHAR(64)  NOT NULL,
-    nombre         VARCHAR(255) NOT NULL,
-    descripcion    TEXT,
-    owner_user_id  UUID,
-    search_tags    JSONB        NOT NULL DEFAULT '[]'::jsonb,
-    activo         BOOLEAN      NOT NULL DEFAULT TRUE,
-    deleted_at     TIMESTAMP,
-    created_at     TIMESTAMP    NOT NULL DEFAULT now(),
-    updated_at     TIMESTAMP    NOT NULL DEFAULT now(),
+    id              UUID         NOT NULL DEFAULT gen_random_uuid(),
+    tenant_id       VARCHAR(64)  NOT NULL,
+    nombre          VARCHAR(255) NOT NULL,
+    descripcion     TEXT,
+    owner_user_id   UUID,
+    search_tags     JSONB        NOT NULL DEFAULT '[]'::jsonb,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    logo_url        VARCHAR(500),
+    color_primario  VARCHAR(9),
+    instagram_url   VARCHAR(500),
+    tiktok_url      VARCHAR(500),
+    facebook_url    VARCHAR(500),
+    color_fondo     VARCHAR(20),
+    font_family     VARCHAR(100),
+    public_slug     VARCHAR(180),
+    bot_id          BIGINT,
+    deleted_at      TIMESTAMP,
+    created_at      TIMESTAMP    NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMP    NOT NULL DEFAULT now(),
     CONSTRAINT pk_agenda_businesses PRIMARY KEY (id),
     CONSTRAINT fk_agenda_businesses_owner
         FOREIGN KEY (owner_user_id) REFERENCES agenda_users (id) ON DELETE SET NULL
@@ -70,6 +82,7 @@ CREATE TABLE agenda_businesses (
 CREATE INDEX idx_agenda_businesses_tenant_activo ON agenda_businesses (tenant_id, activo) WHERE deleted_at IS NULL;
 CREATE INDEX idx_agenda_businesses_nombre_lower ON agenda_businesses (LOWER(nombre));
 CREATE INDEX idx_agenda_businesses_search_tags_gin ON agenda_businesses USING GIN (search_tags jsonb_path_ops);
+CREATE INDEX idx_agenda_businesses_bot_id ON agenda_businesses (bot_id);
 
 -- ----------------------------------------------------------------------------
 -- agenda_business_categories — pivote N:M con PK compuesta.

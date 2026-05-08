@@ -36,6 +36,7 @@ public final class BusinessMapper {
                 entity.getColorFondo(),
                 entity.getFontFamily(),
                 entity.getPublicSlug(),
+                entity.getBotId(),
                 entity.getDeletedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -62,6 +63,7 @@ public final class BusinessMapper {
         entity.setColorFondo(business.getColorFondo());
         entity.setFontFamily(business.getFontFamily());
         entity.setPublicSlug(business.getPublicSlug());
+        entity.setBotId(business.getBotId());
         entity.setDeletedAt(business.getDeletedAt());
         entity.setCreatedAt(business.getCreatedAt());
         entity.setUpdatedAt(business.getUpdatedAt());

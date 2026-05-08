@@ -263,6 +263,7 @@ class _KnowledgeScreenState extends ConsumerState<KnowledgeScreen> {
               final newChunk = KnowledgeChunk(
                 id: chunk?.id,
                 tenantId: widget.tenantId ?? chunk?.tenantId ?? '',
+                businessId: chunk?.businessId,
                 topic: topicController.text,
                 content: contentController.text,
                 keywords: keywordsController.text.isEmpty ? null : keywordsController.text,
@@ -459,6 +460,13 @@ class _KnowledgeChunkCard extends StatelessWidget {
               ),
             ],
           ),
+          if (chunk.businessId != null && chunk.businessId!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Sucursal (Agenda): ${chunk.businessId}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
+          ],
           const SizedBox(height: 12),
           Text(
             chunk.content,

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface KnowledgeChunkJpaRepository extends JpaRepository<KnowledgeChunkEntity, Long> {
 
@@ -15,4 +16,6 @@ public interface KnowledgeChunkJpaRepository extends JpaRepository<KnowledgeChun
     long countByTenantIdAndActiveTrue(String tenantId);
 
     Optional<KnowledgeChunkEntity> findByTenantIdAndTopic(String tenantId, String topic);
+
+    Optional<KnowledgeChunkEntity> findByTenantIdAndTopicAndBusinessId(String tenantId, String topic, UUID businessId);
 }

@@ -10,6 +10,7 @@ import com.botai.domain.agenda.model.TenantAccount;
 import com.botai.domain.agenda.model.TenantConfig;
 import com.botai.domain.agenda.model.User;
 import com.botai.domain.agenda.model.UserType;
+import com.botai.domain.agenda.repository.BotWorkspaceRegistry;
 import com.botai.domain.agenda.repository.BusinessCategoryRepository;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.BusinessSettingsRepository;
@@ -36,6 +37,9 @@ import java.util.UUID;
  * <p>En una única transacción crea: cuenta de tenant, usuario admin,
  * configuración de tenant con AGENDA habilitada, negocio y sus settings.
  * Opcionalmente asocia el negocio a una categoría por slug.</p>
+ *
+ * <p>Un solo {@code tenant_id} por workspace: si el cliente envía {@code workspaceTenantId} (el {@code tenant_id}
+ * del bot ya creado), se reutiliza en Agenda y se vincula {@code agenda_businesses.bot_id}.</p>
  */
 @Service
 public class RegisterTenantUseCase {
@@ -53,6 +57,7 @@ public class RegisterTenantUseCase {
     private final BusinessSettingsRepository businessSettingsRepository;
     private final CategoryRepository categoryRepository;
     private final BusinessCategoryRepository businessCategoryRepository;
+    private final BotWorkspaceRegistry botWorkspaceRegistry;
 
     public RegisterTenantUseCase(TenantAccountRepository tenantAccountRepository,
                                  UserRepository userRepository,
@@ -60,7 +65,8 @@ public class RegisterTenantUseCase {
                                  BusinessRepository businessRepository,
                                  BusinessSettingsRepository businessSettingsRepository,
                                  CategoryRepository categoryRepository,
-                                 BusinessCategoryRepository businessCategoryRepository) {
+                                 BusinessCategoryRepository businessCategoryRepository,
+                                 BotWorkspaceRegistry botWorkspaceRegistry) {
         this.tenantAccountRepository = tenantAccountRepository;
         this.userRepository = userRepository;
         this.tenantConfigRepository = tenantConfigRepository;
@@ -68,6 +74,7 @@ public class RegisterTenantUseCase {
         this.businessSettingsRepository = businessSettingsRepository;
         this.categoryRepository = categoryRepository;
         this.businessCategoryRepository = businessCategoryRepository;
+        this.botWorkspaceRegistry = botWorkspaceRegistry;
     }
 
     @Transactional
@@ -108,7 +115,24 @@ public class RegisterTenantUseCase {
             adminUserEmail = email;
         }
 
-        String tenantId = UUID.randomUUID().toString();
+        String tenantId;
+        Long linkedBotId;
+        if (request.workspaceTenantId() != null) {
+            tenantId = request.workspaceTenantId();
+            if (tenantId.length() > 64) {
+                throw new IllegalArgumentException("workspaceTenantId demasiado largo.");
+            }
+            if (tenantAccountRepository.findByTenantId(tenantId).isPresent()) {
+                throw new IllegalStateException("Ya existe cuenta Agenda para este workspace (tenant_id).");
+            }
+            linkedBotId = botWorkspaceRegistry.findBotIdByWorkspaceTenantId(tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No existe bot con ese tenant_id. Cree el bot con tenantId=workspaceTenantId o omita workspaceTenantId."));
+        } else {
+            tenantId = UUID.randomUUID().toString();
+            linkedBotId = botWorkspaceRegistry.findBotIdByWorkspaceTenantId(tenantId).orElse(null);
+        }
+
         String accessCode = generateAccessCode();
 
         TenantAccount account = new TenantAccount(
@@ -159,6 +183,7 @@ public class RegisterTenantUseCase {
                 null,
                 null,
                 null,
+                linkedBotId,
                 null,
                 null,
                 null

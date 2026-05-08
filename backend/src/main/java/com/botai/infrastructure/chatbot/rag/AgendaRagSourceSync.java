@@ -18,11 +18,13 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Materializa conocimiento del módulo Agenda en {@code knowledge_chunk} para RAG (sin imports agenda).
@@ -83,16 +85,20 @@ public class AgendaRagSourceSync {
         if (tenantId == null || tenantId.isBlank()) {
             return;
         }
-        Optional<BusinessRow> biz = loadPrimaryBusiness(tenantId);
-        if (biz.isEmpty()) {
+        List<BusinessRow> businesses = loadActiveBusinesses(tenantId);
+        if (businesses.isEmpty()) {
             log.debug("[AGENDA-RAG-SYNC] tenant {} sin negocio activo", tenantId);
+            deactivateStaleAgendaChunks(tenantId, Set.of());
             return;
         }
-        BusinessRow b = biz.get();
-        upsertChunk(tenantId, TOPIC_NEGOCIO, buildNegocioContent(b));
-        upsertChunk(tenantId, TOPIC_SERVICIOS, buildServiciosContent(b.id()));
-        upsertChunk(tenantId, TOPIC_HORARIOS, buildHorariosContent(b.id()));
-        upsertChunk(tenantId, TOPIC_POLITICAS, buildPoliticasContent(b.id()));
+        Set<UUID> keepIds = businesses.stream().map(BusinessRow::id).collect(Collectors.toCollection(LinkedHashSet::new));
+        for (BusinessRow b : businesses) {
+            upsertChunk(tenantId, b.id(), TOPIC_NEGOCIO, buildNegocioContent(b));
+            upsertChunk(tenantId, b.id(), TOPIC_SERVICIOS, buildServiciosContent(b.id()));
+            upsertChunk(tenantId, b.id(), TOPIC_HORARIOS, buildHorariosContent(b.id()));
+            upsertChunk(tenantId, b.id(), TOPIC_POLITICAS, buildPoliticasContent(b.id()));
+        }
+        deactivateStaleAgendaChunks(tenantId, keepIds);
     }
 
     private Set<String> loadAgendaTenantIds() {
@@ -102,21 +108,16 @@ public class AgendaRagSourceSync {
         return new LinkedHashSet<>(list);
     }
 
-    private Optional<BusinessRow> loadPrimaryBusiness(String tenantId) {
-        List<BusinessRow> rows = jdbcTemplate.query(
+    private List<BusinessRow> loadActiveBusinesses(String tenantId) {
+        return jdbcTemplate.query(
             """
                 SELECT id, nombre, descripcion, logo_url, color_primario, public_slug
                 FROM agenda_businesses
                 WHERE tenant_id = ? AND deleted_at IS NULL AND activo = TRUE
                 ORDER BY created_at ASC
-                LIMIT 1
                 """,
             ps -> ps.setString(1, tenantId),
             (rs, rowNum) -> mapBusiness(rs));
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(rows.get(0));
     }
 
     private static BusinessRow mapBusiness(ResultSet rs) throws SQLException {
@@ -222,25 +223,66 @@ public class AgendaRagSourceSync {
         return "Cancelación: se recomienda avisar con al menos " + hours + " horas de anticipación (configuración de agenda).";
     }
 
-    private void upsertChunk(String tenantId, String topic, String content) {
-        KnowledgeChunkEntity chunk = knowledgeChunkJpaRepository.findByTenantIdAndTopic(tenantId, topic)
+    /**
+     * Desactiva filas Agenda obsoletas (sucursal borrada o desactivada) para no mezclar con el catálogo actual.
+     */
+    private void deactivateStaleAgendaChunks(String tenantId, Set<UUID> keepBusinessIds) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return;
+        }
+        if (keepBusinessIds.isEmpty()) {
+            int n = jdbcTemplate.update(
+                """
+                    UPDATE knowledge_chunk SET active = false
+                    WHERE tenant_id = ? AND business_id IS NOT NULL AND topic LIKE 'Agenda:%'
+                    """,
+                tenantId);
+            if (n > 0) {
+                log.info("[AGENDA-RAG-SYNC] tenant={}: {} chunk(s) Agenda desactivados (sin sucursales activas)", tenantId, n);
+            }
+            return;
+        }
+        String placeholders = String.join(",", Collections.nCopies(keepBusinessIds.size(), "?"));
+        List<Object> args = new ArrayList<>();
+        args.add(tenantId);
+        args.addAll(keepBusinessIds);
+        int n = jdbcTemplate.update(
+            """
+                UPDATE knowledge_chunk SET active = false
+                WHERE tenant_id = ? AND business_id IS NOT NULL AND topic LIKE 'Agenda:%'
+                AND business_id NOT IN ("""
+                + placeholders
+                + ")",
+            args.toArray());
+        if (n > 0) {
+            log.info("[AGENDA-RAG-SYNC] tenant={}: {} chunk(s) Agenda desactivados (sucursales eliminadas)", tenantId, n);
+        }
+    }
+
+    private void upsertChunk(String tenantId, UUID businessId, String topic, String content) {
+        KnowledgeChunkEntity chunk = knowledgeChunkJpaRepository
+            .findByTenantIdAndTopicAndBusinessId(tenantId, topic, businessId)
             .orElseGet(() -> {
                 KnowledgeChunkEntity e = new KnowledgeChunkEntity();
                 e.setTenantId(tenantId);
+                e.setBusinessId(businessId);
                 e.setTopic(topic);
                 e.setActive(true);
                 return e;
             });
-        boolean contentChanged = !content.equals(chunk.getContent());
+        boolean contentChanged = !Objects.equals(content, chunk.getContent());
         boolean isNew = chunk.getId() == null;
         chunk.setContent(content);
         chunk.setActive(true);
+        chunk.setBusinessId(businessId);
         knowledgeChunkJpaRepository.save(chunk);
         if (contentChanged && chunk.getId() != null) {
             jdbcTemplate.update("UPDATE knowledge_chunk SET embedding = NULL WHERE id = ?", chunk.getId());
-            log.info("[AGENDA-RAG-SYNC] Chunk tenant={} topic='{}' id={} -> embedding=NULL", tenantId, topic, chunk.getId());
+            log.info("[AGENDA-RAG-SYNC] Chunk tenant={} businessId={} topic='{}' id={} -> embedding=NULL",
+                tenantId, businessId, topic, chunk.getId());
         } else if (isNew) {
-            log.info("[AGENDA-RAG-SYNC] Chunk creado tenant={} topic='{}' id={}", tenantId, topic, chunk.getId());
+            log.info("[AGENDA-RAG-SYNC] Chunk creado tenant={} businessId={} topic='{}' id={}",
+                tenantId, businessId, topic, chunk.getId());
         }
     }
 

@@ -2,6 +2,7 @@ package com.botai.application.agenda.usecase.business;
 
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessSettings;
+import com.botai.domain.agenda.repository.BotWorkspaceRegistry;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.BusinessSettingsRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,10 +10,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -22,6 +25,7 @@ class RegisterBusinessUseCaseTest {
     private BusinessRepository businessRepo;
     private BusinessSettingsRepository settingsRepo;
     private SaveBusinessHoursUseCase saveHours;
+    private BotWorkspaceRegistry botWorkspaceRegistry;
     private RegisterBusinessUseCase useCase;
 
     @BeforeEach
@@ -29,7 +33,9 @@ class RegisterBusinessUseCaseTest {
         businessRepo = mock(BusinessRepository.class);
         settingsRepo = mock(BusinessSettingsRepository.class);
         saveHours = mock(SaveBusinessHoursUseCase.class);
-        useCase = new RegisterBusinessUseCase(businessRepo, settingsRepo, saveHours);
+        botWorkspaceRegistry = mock(BotWorkspaceRegistry.class);
+        when(botWorkspaceRegistry.findBotIdByWorkspaceTenantId(anyString())).thenReturn(Optional.empty());
+        useCase = new RegisterBusinessUseCase(businessRepo, settingsRepo, saveHours, botWorkspaceRegistry);
     }
 
     @Test
@@ -90,5 +96,19 @@ class RegisterBusinessUseCaseTest {
         verify(businessRepo).save(captor.capture());
         assertEquals(0, captor.getValue().getSearchTags().size(),
                 "searchTags null se convierte en lista vacía al persistir");
+    }
+
+    @Test
+    void persisteBotIdCuandoExisteBotParaElTenant() {
+        when(businessRepo.save(any(Business.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(settingsRepo.save(any(BusinessSettings.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(saveHours.execute(any(), any(), any())).thenAnswer(inv -> inv.getArgument(2));
+        when(botWorkspaceRegistry.findBotIdByWorkspaceTenantId("tenant-1")).thenReturn(Optional.of(42L));
+
+        useCase.execute("tenant-1", "Sucursal", null, UUID.randomUUID(), List.of());
+
+        ArgumentCaptor<Business> captor = ArgumentCaptor.forClass(Business.class);
+        verify(businessRepo).save(captor.capture());
+        assertEquals(42L, captor.getValue().getBotId());
     }
 }

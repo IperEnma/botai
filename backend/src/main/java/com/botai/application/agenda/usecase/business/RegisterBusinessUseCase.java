@@ -3,6 +3,7 @@ package com.botai.application.agenda.usecase.business;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessHours;
 import com.botai.domain.agenda.model.BusinessSettings;
+import com.botai.domain.agenda.repository.BotWorkspaceRegistry;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.BusinessSettingsRepository;
 import org.slf4j.Logger;
@@ -26,13 +27,16 @@ public class RegisterBusinessUseCase {
     private final BusinessRepository businessRepository;
     private final BusinessSettingsRepository settingsRepository;
     private final SaveBusinessHoursUseCase saveBusinessHours;
+    private final BotWorkspaceRegistry botWorkspaceRegistry;
 
     public RegisterBusinessUseCase(BusinessRepository businessRepository,
                                    BusinessSettingsRepository settingsRepository,
-                                   SaveBusinessHoursUseCase saveBusinessHours) {
+                                   SaveBusinessHoursUseCase saveBusinessHours,
+                                   BotWorkspaceRegistry botWorkspaceRegistry) {
         this.businessRepository = businessRepository;
         this.settingsRepository = settingsRepository;
         this.saveBusinessHours = saveBusinessHours;
+        this.botWorkspaceRegistry = botWorkspaceRegistry;
     }
 
     @Transactional
@@ -42,6 +46,7 @@ public class RegisterBusinessUseCase {
                             UUID ownerUserId,
                             List<String> searchTags) {
         UUID newId = UUID.randomUUID();
+        Long botId = botWorkspaceRegistry.findBotIdByWorkspaceTenantId(tenantId).orElse(null);
         Business business = new Business(
                 newId,
                 tenantId,
@@ -58,6 +63,7 @@ public class RegisterBusinessUseCase {
                 null,  // colorFondo
                 null,  // fontFamily
                 null,  // publicSlug
+                botId,
                 null,
                 null,
                 null

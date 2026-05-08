@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
+import com.botai.infrastructure.agenda.sync.AgendaKnowledgeChunkRefresher;
 
 @RestController
 @RequestMapping("/api/agenda/me/businesses/{businessId}/services")
@@ -39,17 +40,20 @@ public class TenantServicesController {
     private final DeleteServiceUseCase deleteService;
     private final ListBusinessServicesUseCase listServices;
     private final AgendaCurrentTenantService currentTenant;
+    private final AgendaKnowledgeChunkRefresher knowledgeChunkRefresher;
 
     public TenantServicesController(CreateServiceUseCase createService,
                                     UpdateServiceUseCase updateService,
                                     DeleteServiceUseCase deleteService,
                                     ListBusinessServicesUseCase listServices,
-                                    AgendaCurrentTenantService currentTenant) {
+                                    AgendaCurrentTenantService currentTenant,
+                                    AgendaKnowledgeChunkRefresher knowledgeChunkRefresher) {
         this.createService = createService;
         this.updateService = updateService;
         this.deleteService = deleteService;
         this.listServices = listServices;
         this.currentTenant = currentTenant;
+        this.knowledgeChunkRefresher = knowledgeChunkRefresher;
     }
 
     @GetMapping
@@ -72,6 +76,7 @@ public class TenantServicesController {
         var created = createService.execute(tenantId, businessId,
                 request.nombre(), request.descripcion(),
                 request.duracionMin(), request.precio());
+        knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(ServiceDtoMapper.toResponse(created));
     }
 
@@ -85,6 +90,7 @@ public class TenantServicesController {
         var updated = updateService.execute(tenantId, businessId, serviceId,
                 request.nombre(), request.descripcion(),
                 request.duracionMin(), request.precio(), request.activo());
+        knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return ResponseEntity.ok(ServiceDtoMapper.toResponse(updated));
     }
 
@@ -95,6 +101,7 @@ public class TenantServicesController {
             @PathVariable UUID serviceId) {
         String tenantId = currentTenant.requireTenantId();
         deleteService.execute(tenantId, businessId, serviceId);
+        knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return ResponseEntity.noContent().build();
     }
 }

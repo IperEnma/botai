@@ -16,6 +16,13 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
 
+  # Flyway (módulo Agenda: tabla agenda_flyway_schema_history, locations vía AgendaEnvironmentPostProcessor).
+  # Si reescribís migraciones ya aplicadas, los checksums cambian. Spring Boot 3.2 no enlaza repair-on-migrate al
+  # bean Flyway; AgendaFlywayConfig aplica repair() antes de migrate() cuando esta propiedad es true.
+  # En prod/CI podés fijar FLYWAY_REPAIR_ON_MIGRATE=false y correr flyway repair manualmente.
+  flyway:
+    repair-on-migrate: ${FLYWAY_REPAIR_ON_MIGRATE:true}
+
   jpa:
     hibernate:
       ddl-auto: update

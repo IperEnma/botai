@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/bot_provider.dart';
+import '../../models/agenda/business.dart';
 import '../../models/bot.dart';
 import '../../core/theme.dart';
+import '../../providers/agenda/tenant/businesses_provider.dart';
+import '../../providers/agenda/tenant_admin_resolved_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/bot_provider.dart';
+import '../../services/agenda_api_exception.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -451,6 +455,7 @@ class _CreateBotDialogState extends ConsumerState<_CreateBotDialog> {
   final _descController = TextEditingController();
   BotTier _selectedTier = BotTier.tier1;
   bool _isLoading = false;
+  final Set<String> _selectedBusinessIds = {};
 
   @override
   void dispose() {
@@ -459,45 +464,149 @@ class _CreateBotDialogState extends ConsumerState<_CreateBotDialog> {
     super.dispose();
   }
 
+  String _mapTenantError(Object e) {
+    if (e is TenantAdminResolveException) {
+      return 'Iniciá sesión para vincular el bot con tus sucursales de Agenda.';
+    }
+    if (e is AgendaApiException) {
+      if (e.status == 404) {
+        return 'No encontramos tu espacio Agenda. Registrate o completá el alta en Agenda antes de crear el bot.';
+      }
+      return e.message;
+    }
+    return e.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tenantAsync = ref.watch(tenantAdminResolvedProvider);
+
+    return tenantAsync.when(
+      loading: () => AlertDialog(
+        title: const Text('Crear Nuevo Bot'),
+        content: const SizedBox(
+          width: 320,
+          height: 120,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+      error: (e, _) => AlertDialog(
+        title: const Text('Crear Nuevo Bot'),
+        content: SingleChildScrollView(child: Text(_mapTenantError(e))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.go('/home');
+            },
+            child: const Text('Ir a Agenda'),
+          ),
+        ],
+      ),
+      data: (tenantCtx) => _buildFormDialog(context, tenantCtx.tenantId),
+    );
+  }
+
+  Widget _buildFormDialog(BuildContext context, String agendaTenantId) {
+    final bizState = ref.watch(businessesProvider(agendaTenantId));
+    final maxH = MediaQuery.of(context).size.height * 0.65;
+
     return AlertDialog(
       title: const Text('Crear Nuevo Bot'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre del Bot',
-                hintText: 'Ej: Mi Clínica Bot',
-              ),
-              validator: (v) => v?.isEmpty == true ? 'Requerido' : null,
+      content: SizedBox(
+        width: 400,
+        height: maxH,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del Bot',
+                      hintText: 'Ej: Mi Clínica Bot',
+                    ),
+                    validator: (v) => v?.isEmpty == true ? 'Requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _descController,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción (opcional)',
+                      hintText: 'Ej: Bot para atención al cliente',
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<BotTier>(
+                    value: _selectedTier,
+                    decoration: const InputDecoration(labelText: 'Capa'),
+                    items: BotTier.values.map((tier) {
+                      return DropdownMenuItem(
+                        value: tier,
+                        child: Text(_getTierLabel(tier)),
+                      );
+                    }).toList(),
+                    onChanged: (v) => setState(() => _selectedTier = v!),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Sucursales (Agenda)',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Elegí al menos una. El tenant del bot será el mismo que tu espacio Agenda.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[700],
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (bizState.isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (bizState.error != null)
+                    Text(
+                      bizState.error!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    )
+                  else if (bizState.items.isEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'No tenés sucursales cargadas. Creá al menos una en Agenda.',
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            context.go('/home');
+                          },
+                          icon: const Icon(Icons.storefront_outlined),
+                          label: const Text('Ir a mis negocios'),
+                        ),
+                      ],
+                    )
+                  else
+                    ..._branchTiles(bizState.items),
+              ],
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _descController,
-              decoration: const InputDecoration(
-                labelText: 'Descripción (opcional)',
-                hintText: 'Ej: Bot para atención al cliente',
-              ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<BotTier>(
-              value: _selectedTier,
-              decoration: const InputDecoration(labelText: 'Capa'),
-              items: BotTier.values.map((tier) {
-                return DropdownMenuItem(
-                  value: tier,
-                  child: Text(_getTierLabel(tier)),
-                );
-              }).toList(),
-              onChanged: (v) => setState(() => _selectedTier = v!),
-            ),
-          ],
+          ),
         ),
       ),
       actions: [
@@ -506,7 +615,7 @@ class _CreateBotDialogState extends ConsumerState<_CreateBotDialog> {
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: _isLoading ? null : _createBot,
+          onPressed: _isLoading ? null : () => _createBot(agendaTenantId),
           child: _isLoading
               ? const SizedBox(
                   width: 20,
@@ -517,6 +626,33 @@ class _CreateBotDialogState extends ConsumerState<_CreateBotDialog> {
         ),
       ],
     );
+  }
+
+  List<Widget> _branchTiles(List<Business> items) {
+    return [
+      for (final b in items)
+        CheckboxListTile(
+          dense: true,
+          value: _selectedBusinessIds.contains(b.id),
+          onChanged: b.activo
+              ? (checked) {
+                  setState(() {
+                    if (checked == true) {
+                      _selectedBusinessIds.add(b.id);
+                    } else {
+                      _selectedBusinessIds.remove(b.id);
+                    }
+                  });
+                }
+              : null,
+          title: Text(b.nombre),
+          subtitle: b.activo
+              ? (b.botId != null
+                  ? Text('Ya vinculada a bot #${b.botId}', style: TextStyle(fontSize: 12, color: Colors.grey[600]))
+                  : null)
+              : const Text('Inactiva — no disponible'),
+        ),
+    ];
   }
 
   String _getTierLabel(BotTier tier) {
@@ -530,30 +666,45 @@ class _CreateBotDialogState extends ConsumerState<_CreateBotDialog> {
     }
   }
 
-  Future<void> _createBot() async {
+  Future<void> _createBot(String agendaTenantId) async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedBusinessIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Elegí al menos una sucursal para este bot.'),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     final bot = Bot(
       id: '',
-      tenantId: DateTime.now().millisecondsSinceEpoch.toString(),
+      tenantId: agendaTenantId,
       name: _nameController.text,
       description: _descController.text.isEmpty ? null : _descController.text,
       tier: _selectedTier,
       faqEnabled: true,
       aiEnabled: _selectedTier != BotTier.tier1,
       actionsEnabled: _selectedTier == BotTier.tier3,
+      linkedAgendaBusinessIds: _selectedBusinessIds.toList(),
       createdAt: DateTime.now(),
     );
 
     final created = await ref.read(botsProvider.notifier).createBot(bot);
 
     if (mounted) {
+      setState(() => _isLoading = false);
       Navigator.pop(context);
       if (created != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Bot creado exitosamente')),
+        );
+      } else {
+        final err = ref.read(botsProvider).error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err ?? 'No se pudo crear el bot')),
         );
       }
     }

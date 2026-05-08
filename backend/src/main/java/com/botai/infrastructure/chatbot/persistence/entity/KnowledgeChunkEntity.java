@@ -2,6 +2,8 @@ package com.botai.infrastructure.chatbot.persistence.entity;
 
 import jakarta.persistence.*;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "knowledge_chunk", indexes = {
     @Index(name = "idx_knowledge_tenant", columnList = "tenant_id"),
@@ -17,11 +19,26 @@ public class KnowledgeChunkEntity {
     @Column(name = "tenant_id", nullable = false, length = 64)
     private String tenantId;
 
+    /**
+     * Sucursal Agenda ({@code agenda_businesses.id}). Null en fragmentos manuales del panel;
+     * obligatorio en filas generadas por {@code AgendaRagSourceSync}.
+     */
+    @Column(name = "business_id")
+    private UUID businessId;
+
     @Column(name = "topic", nullable = false, length = 255)
     private String topic;
 
     public String getTenantId() { return tenantId; }
     public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+
+    public UUID getBusinessId() {
+        return businessId;
+    }
+
+    public void setBusinessId(UUID businessId) {
+        this.businessId = businessId;
+    }
 
     @Column(name = "content", nullable = false, columnDefinition = "text")
     private String content;

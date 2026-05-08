@@ -12,6 +12,8 @@ class Bot {
   final bool faqEnabled;
   final bool aiEnabled;
   final bool actionsEnabled;
+  /// IDs de sucursales Agenda (`agenda_businesses.id`). Obligatorio al crear bot (backend).
+  final List<String> linkedAgendaBusinessIds;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -27,6 +29,7 @@ class Bot {
     this.faqEnabled = true,
     this.aiEnabled = false,
     this.actionsEnabled = false,
+    this.linkedAgendaBusinessIds = const [],
     required this.createdAt,
     this.updatedAt,
   });
@@ -44,9 +47,16 @@ class Bot {
       faqEnabled: json['faqEnabled'] as bool? ?? true,
       aiEnabled: json['aiEnabled'] as bool? ?? false,
       actionsEnabled: json['actionsEnabled'] as bool? ?? false,
+      linkedAgendaBusinessIds: _parseUuidStringList(json['linkedAgendaBusinessIds']),
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTimeNullable(json['updatedAt']),
     );
+  }
+
+  static List<String> _parseUuidStringList(dynamic value) {
+    if (value == null) return const [];
+    if (value is! List<dynamic>) return const [];
+    return value.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
   }
 
   static String _parseId(dynamic value) {
@@ -96,6 +106,8 @@ class Bot {
       'faqEnabled': faqEnabled,
       'aiEnabled': aiEnabled,
       'actionsEnabled': actionsEnabled,
+      if (linkedAgendaBusinessIds.isNotEmpty)
+        'linkedAgendaBusinessIds': linkedAgendaBusinessIds,
     };
   }
 
@@ -111,6 +123,7 @@ class Bot {
     bool? faqEnabled,
     bool? aiEnabled,
     bool? actionsEnabled,
+    List<String>? linkedAgendaBusinessIds,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -126,6 +139,7 @@ class Bot {
       faqEnabled: faqEnabled ?? this.faqEnabled,
       aiEnabled: aiEnabled ?? this.aiEnabled,
       actionsEnabled: actionsEnabled ?? this.actionsEnabled,
+      linkedAgendaBusinessIds: linkedAgendaBusinessIds ?? this.linkedAgendaBusinessIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

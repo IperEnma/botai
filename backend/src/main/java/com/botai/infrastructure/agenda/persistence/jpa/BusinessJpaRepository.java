@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,4 +28,41 @@ public interface BusinessJpaRepository extends JpaRepository<BusinessEntity, UUI
     @Modifying
     @Query("UPDATE BusinessEntity b SET b.deletedAt = CURRENT_TIMESTAMP WHERE b.id = :id")
     int softDelete(@Param("id") UUID id);
+
+    @Query("""
+            SELECT b FROM BusinessEntity b
+            WHERE b.tenantId = :tenantId AND b.deletedAt IS NULL
+            AND b.id IN :ids AND b.botId IS NOT NULL AND b.botId <> :botId
+            """)
+    List<BusinessEntity> findConflictingBotAssignments(
+            @Param("tenantId") String tenantId,
+            @Param("ids") Collection<UUID> ids,
+            @Param("botId") long botId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE BusinessEntity b SET b.botId = NULL
+            WHERE b.tenantId = :tenantId AND b.deletedAt IS NULL AND b.botId = :botId
+            """)
+    int clearAllBotLinksForBotInTenant(@Param("tenantId") String tenantId, @Param("botId") long botId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE BusinessEntity b SET b.botId = NULL
+            WHERE b.tenantId = :tenantId AND b.deletedAt IS NULL AND b.botId = :botId AND b.id NOT IN :ids
+            """)
+    int clearBotLinksForBotNotInIds(
+            @Param("tenantId") String tenantId,
+            @Param("botId") long botId,
+            @Param("ids") Collection<UUID> ids);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE BusinessEntity b SET b.botId = :botId
+            WHERE b.tenantId = :tenantId AND b.deletedAt IS NULL AND b.id IN :ids
+            """)
+    int setBotIdForBusinessIds(
+            @Param("tenantId") String tenantId,
+            @Param("botId") long botId,
+            @Param("ids") Collection<UUID> ids);
 }

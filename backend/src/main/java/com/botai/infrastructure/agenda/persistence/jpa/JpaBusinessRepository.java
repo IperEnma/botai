@@ -1,5 +1,7 @@
 package com.botai.infrastructure.agenda.persistence.jpa;
 
+import com.botai.domain.agenda.exception.BusinessAlreadyLinkedToOtherBotException;
+import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.infrastructure.agenda.persistence.entity.BusinessEntity;
@@ -7,8 +9,10 @@ import com.botai.infrastructure.agenda.persistence.mapper.BusinessMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -62,5 +66,29 @@ public class JpaBusinessRepository implements BusinessRepository {
     @Transactional
     public void softDelete(UUID id) {
         jpa.softDelete(id);
+    }
+
+    @Override
+    @Transactional
+    public void replaceBotLinksForWorkspaceBot(String tenantId, long botId, Set<UUID> businessIds) {
+        Set<UUID> ids = businessIds == null ? Set.of() : new LinkedHashSet<>(businessIds);
+        for (UUID id : ids) {
+            if (!jpa.existsByIdAndTenantIdAndDeletedAtIsNull(id, tenantId)) {
+                throw new BusinessNotFoundException(id);
+            }
+        }
+        if (!ids.isEmpty()) {
+            List<BusinessEntity> conflicts = jpa.findConflictingBotAssignments(tenantId, ids, botId);
+            if (!conflicts.isEmpty()) {
+                BusinessEntity c = conflicts.get(0);
+                throw new BusinessAlreadyLinkedToOtherBotException(c.getId(), c.getBotId());
+            }
+        }
+        if (ids.isEmpty()) {
+            jpa.clearAllBotLinksForBotInTenant(tenantId, botId);
+            return;
+        }
+        jpa.clearBotLinksForBotNotInIds(tenantId, botId, ids);
+        jpa.setBotIdForBusinessIds(tenantId, botId, ids);
     }
 }
