@@ -30,12 +30,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.botai.agenda.infrastructure.security.AgendaCurrentTenantService;
+
 import java.util.List;
 import java.util.UUID;
 
 /** Admin de tenant: CRUD de negocios y asociación de categorías. */
 @RestController
-@RequestMapping("/api/agenda/tenants/{tenantId}/businesses")
+@RequestMapping("/api/agenda/me/businesses")
 @Tag(name = "Agenda Tenant", description = "Administración de negocios por tenant")
 @Validated
 public class TenantBusinessController {
@@ -46,25 +48,28 @@ public class TenantBusinessController {
     private final ListBusinessesByTenantUseCase listBusinesses;
     private final BusinessSettingsRepository settingsRepository;
     private final BusinessCategoryRepository businessCategoryRepository;
+    private final AgendaCurrentTenantService currentTenant;
 
     public TenantBusinessController(RegisterBusinessUseCase registerBusiness,
                                     UpdateBusinessUseCase updateBusiness,
                                     AssociateBusinessCategoriesUseCase associateCategories,
                                     ListBusinessesByTenantUseCase listBusinesses,
                                     BusinessSettingsRepository settingsRepository,
-                                    BusinessCategoryRepository businessCategoryRepository) {
+                                    BusinessCategoryRepository businessCategoryRepository,
+                                    AgendaCurrentTenantService currentTenant) {
         this.registerBusiness = registerBusiness;
         this.updateBusiness = updateBusiness;
         this.associateCategories = associateCategories;
         this.listBusinesses = listBusinesses;
         this.settingsRepository = settingsRepository;
         this.businessCategoryRepository = businessCategoryRepository;
+        this.currentTenant = currentTenant;
     }
 
     @PostMapping
     @Operation(summary = "Registra un nuevo negocio en el tenant")
-    public ResponseEntity<BusinessResponse> create(@PathVariable("tenantId") String tenantId,
-                                                   @Valid @RequestBody CreateBusinessRequest request) {
+    public ResponseEntity<BusinessResponse> create(@Valid @RequestBody CreateBusinessRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         var created = registerBusiness.execute(
                 tenantId,
                 request.nombre(),
@@ -77,9 +82,9 @@ public class TenantBusinessController {
 
     @PutMapping("/{businessId}")
     @Operation(summary = "Actualiza un negocio del tenant")
-    public BusinessResponse update(@PathVariable("tenantId") String tenantId,
-                                   @PathVariable("businessId") UUID businessId,
+    public BusinessResponse update(@PathVariable("businessId") UUID businessId,
                                    @Valid @RequestBody UpdateBusinessRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         var updated = updateBusiness.execute(
                 tenantId,
                 businessId,
@@ -101,16 +106,17 @@ public class TenantBusinessController {
 
     @PutMapping("/{businessId}/categories")
     @Operation(summary = "Reemplaza la lista de categorías asociadas al negocio")
-    public ResponseEntity<Void> associateCategories(@PathVariable("tenantId") String tenantId,
-                                                    @PathVariable("businessId") UUID businessId,
+    public ResponseEntity<Void> associateCategories(@PathVariable("businessId") UUID businessId,
                                                     @Valid @RequestBody AssociateCategoriesRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         associateCategories.execute(tenantId, businessId, request.categoryIds());
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping
     @Operation(summary = "Lista negocios del tenant")
-    public List<BusinessResponse> list(@PathVariable("tenantId") String tenantId) {
+    public List<BusinessResponse> list() {
+        String tenantId = currentTenant.requireTenantId();
         return listBusinesses.listAll(tenantId).stream()
                 .map(b -> BusinessDtoMapper.toResponse(b,
                         businessCategoryRepository.findCategorySlugsByBusinessId(b.getId())))
@@ -119,8 +125,8 @@ public class TenantBusinessController {
 
     @GetMapping("/{businessId}")
     @Operation(summary = "Detalle de un negocio del tenant")
-    public BusinessResponse detail(@PathVariable("tenantId") String tenantId,
-                                   @PathVariable("businessId") UUID businessId) {
+    public BusinessResponse detail(@PathVariable("businessId") UUID businessId) {
+        String tenantId = currentTenant.requireTenantId();
         var business = listBusinesses.findOne(tenantId, businessId);
         return BusinessDtoMapper.toResponse(business,
                 businessCategoryRepository.findCategorySlugsByBusinessId(business.getId()));
@@ -129,8 +135,8 @@ public class TenantBusinessController {
     @GetMapping("/{businessId}/settings")
     @Operation(summary = "Obtener configuración del negocio (cancelación, loyalty, alertas)")
     public ResponseEntity<BusinessSettingsResponse> getSettings(
-            @PathVariable("tenantId") String tenantId,
             @PathVariable("businessId") UUID businessId) {
+        String tenantId = currentTenant.requireTenantId();
         listBusinesses.findOne(tenantId, businessId); // valida tenant + existencia
         BusinessSettings s = settingsRepository.findByBusinessId(businessId)
                 .orElseGet(() -> BusinessSettings.defaults(businessId));
@@ -140,9 +146,9 @@ public class TenantBusinessController {
     @PutMapping("/{businessId}/settings")
     @Operation(summary = "Actualizar configuración del negocio")
     public ResponseEntity<BusinessSettingsResponse> updateSettings(
-            @PathVariable("tenantId") String tenantId,
             @PathVariable("businessId") UUID businessId,
             @Valid @RequestBody BusinessSettingsRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         listBusinesses.findOne(tenantId, businessId);
         BusinessSettings updated = settingsRepository.save(new BusinessSettings(
                 businessId,

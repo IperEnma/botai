@@ -31,7 +31,7 @@ class IntentScreen extends StatelessWidget {
                       GestureDetector(
                         onTap: () => context.canPop()
                             ? context.pop()
-                            : context.go('/agenda'),
+                            : context.go('/'),
                         child: Container(
                           width: 34,
                           height: 34,

@@ -40,7 +40,8 @@ class RegisterNotifier extends StateNotifier<RegisterState> {
 
   Future<RegisterTenantResponse?> register({
     required String nombrePropietario,
-    required String email,
+    String? email,
+    String? numero,
     String? telefono,
     required String nombreNegocio,
     String? categoriaSlug,
@@ -51,6 +52,7 @@ class RegisterNotifier extends StateNotifier<RegisterState> {
       final result = await api.registerTenant(
         nombrePropietario: nombrePropietario,
         email: email,
+        numero: numero,
         telefono: telefono,
         nombreNegocio: nombreNegocio,
         categoriaSlug: categoriaSlug,
@@ -59,7 +61,7 @@ class RegisterNotifier extends StateNotifier<RegisterState> {
       return result;
     } on AgendaApiException catch (e) {
       final msg = e.status == 409
-          ? 'Ese correo ya tiene una cuenta registrada.'
+          ? 'Ese correo o número ya tiene una cuenta registrada.'
           : e.message;
       state = RegisterState(status: RegisterStatus.error, error: msg);
       return null;

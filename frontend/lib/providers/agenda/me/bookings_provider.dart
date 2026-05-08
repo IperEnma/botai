@@ -56,7 +56,6 @@ class BookingsNotifier extends StateNotifier<BookingsState> {
   }
 
   Future<Booking> create({
-    required String tenantId,
     required String businessId,
     required String serviceId,
     required DateTime fechaHoraInicio,
@@ -67,7 +66,6 @@ class BookingsNotifier extends StateNotifier<BookingsState> {
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final created = await api.createBooking(
-      tenantId: tenantId,
       businessId: businessId,
       serviceId: serviceId,
       fechaHoraInicio: fechaHoraInicio,
@@ -81,13 +79,11 @@ class BookingsNotifier extends StateNotifier<BookingsState> {
   }
 
   Future<void> cancel({
-    required String tenantId,
     required String businessId,
     required String bookingId,
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     await api.cancelBooking(
-      tenantId: tenantId,
       businessId: businessId,
       bookingId: bookingId,
     );

@@ -54,13 +54,11 @@ class SubscriptionsNotifier extends StateNotifier<SubscriptionsState> {
   }
 
   Future<Subscription> purchase({
-    required String tenantId,
     required String businessId,
     required String planId,
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final created = await api.purchaseSubscription(
-      tenantId: tenantId,
       businessId: businessId,
       planId: planId,
     );

@@ -133,6 +133,15 @@ logging:
 # ============================================================
 agenda:
   enabled: ${AGENDA_ENABLED:true}
+  security:
+    # Desactiva JWT en /api/** (tests locales). En prod debe ser true.
+    enabled: ${AGENDA_SECURITY_ENABLED:true}
+    google:
+      # Issuer de los ID tokens de Google.
+      issuer-uri: ${AGENDA_GOOGLE_ISSUER_URI:https://accounts.google.com}
+      # Audience esperado (Client ID OAuth). Obligatorio en prod.
+      # Reusa el mismo GOOGLE_CLIENT_ID del entorno (una sola fuente de verdad).
+      audience: ${GOOGLE_CLIENT_ID:}
   uploads:
     dir: ${AGENDA_UPLOADS_DIR:uploads}
     base-url: ${AGENDA_UPLOADS_BASE_URL:http://localhost:8080/uploads}

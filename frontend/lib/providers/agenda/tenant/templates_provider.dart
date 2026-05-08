@@ -46,7 +46,6 @@ class TemplatesNotifier extends StateNotifier<TemplatesState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final items = await api.listTemplates(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
       );
       state = TemplatesState(items: items);
@@ -63,7 +62,6 @@ class TemplatesNotifier extends StateNotifier<TemplatesState> {
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final created = await api.createTemplate(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       codigo: codigo,
       canal: canal,
@@ -76,15 +74,16 @@ class TemplatesNotifier extends StateNotifier<TemplatesState> {
 
   Future<NotificationTemplate> update({
     required String id,
+    required String codigo,
     required String titulo,
     required String cuerpo,
     required NotificationCanal canal,
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final updated = await api.updateTemplate(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       id: id,
+      codigo: codigo,
       titulo: titulo,
       cuerpo: cuerpo,
       canal: canal,
@@ -98,7 +97,6 @@ class TemplatesNotifier extends StateNotifier<TemplatesState> {
   Future<void> delete(String id) async {
     final api = _ref.read(agendaApiServiceProvider);
     await api.deleteTemplate(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       id: id,
     );

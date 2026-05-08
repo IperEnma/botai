@@ -43,7 +43,7 @@ class BusinessesNotifier extends StateNotifier<BusinessesState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final api = _ref.read(agendaApiServiceProvider);
-      final items = await api.listBusinesses(_tenantId);
+      final items = await api.listBusinesses();
       state = BusinessesState(items: items);
     } on AgendaApiException catch (e) {
       state = BusinessesState(error: e.message);
@@ -57,7 +57,6 @@ class BusinessesNotifier extends StateNotifier<BusinessesState> {
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final created = await api.createBusiness(
-      tenantId: _tenantId,
       nombre: nombre,
       descripcion: descripcion,
       searchTags: searchTags,
@@ -81,7 +80,6 @@ class BusinessesNotifier extends StateNotifier<BusinessesState> {
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final updated = await api.updateBusiness(
-      tenantId: _tenantId,
       businessId: businessId,
       nombre: nombre,
       descripcion: descripcion,
@@ -109,7 +107,6 @@ class BusinessesNotifier extends StateNotifier<BusinessesState> {
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     await api.associateCategories(
-      tenantId: _tenantId,
       businessId: businessId,
       categoryIds: categoryIds,
     );

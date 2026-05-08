@@ -6,7 +6,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * Entidad JPA que representa una cuenta de tenant en {@code agenda_tenant_accounts}.
+ * Cuenta de tenant en {@code agenda_tenant_accounts}.
+ * <ul>
+ *   <li>Alta por correo: {@code email} obligatorio, {@code numero} null.</li>
+ *   <li>Alta por WhatsApp: {@code numero} (dígitos) obligatorio, {@code email} null.</li>
+ *   <li>{@code google_linked_email}: opcional; formato email cuando está presente (único entre filas).</li>
+ * </ul>
  */
 @Entity
 @Table(name = "agenda_tenant_accounts")
@@ -19,8 +24,14 @@ public class TenantAccountEntity extends BaseAuditableEntity {
     @Column(name = "nombre_propietario", nullable = false)
     private String nombrePropietario;
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email", length = 255)
     private String email;
+
+    @Column(name = "google_linked_email", length = 320)
+    private String googleLinkedEmail;
+
+    @Column(name = "numero", length = 32)
+    private String numero;
 
     @Column(name = "telefono", length = 32)
     private String telefono;
@@ -39,6 +50,12 @@ public class TenantAccountEntity extends BaseAuditableEntity {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getGoogleLinkedEmail() { return googleLinkedEmail; }
+    public void setGoogleLinkedEmail(String googleLinkedEmail) { this.googleLinkedEmail = googleLinkedEmail; }
+
+    public String getNumero() { return numero; }
+    public void setNumero(String numero) { this.numero = numero; }
 
     public String getTelefono() { return telefono; }
     public void setTelefono(String telefono) { this.telefono = telefono; }

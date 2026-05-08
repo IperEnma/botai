@@ -51,7 +51,6 @@ class BusinessPhotosNotifier
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final photos = await api.getBusinessPhotos(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
       );
       state = BusinessPhotosState(photos: photos);
@@ -65,7 +64,6 @@ class BusinessPhotosNotifier
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final photo = await api.addBusinessPhoto(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
         url: url,
       );
@@ -85,7 +83,6 @@ class BusinessPhotosNotifier
     try {
       final api = _ref.read(agendaApiServiceProvider);
       await api.deleteBusinessPhoto(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
         photoId: photoId,
       );

@@ -3,6 +3,7 @@ package com.botai.agenda.application.usecase.tenant;
 import com.botai.agenda.application.dto.RegisterTenantRequest;
 import com.botai.agenda.application.dto.RegisterTenantResponse;
 import com.botai.agenda.domain.exception.DuplicateTenantEmailException;
+import com.botai.agenda.domain.exception.DuplicateTenantNumeroException;
 import com.botai.agenda.domain.model.Business;
 import com.botai.agenda.domain.model.BusinessSettings;
 import com.botai.agenda.domain.model.TenantAccount;
@@ -23,10 +24,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
  * Registro público de un nuevo tenant en el módulo AGENDA.
+ *
+ * <p>Compatibilidad de canales: exactamente uno de {@code email} (correo) o {@code numero} (WhatsApp, dígitos).
+ * El admin {@link User} lleva email solo en el camino por correo; en el camino WhatsApp el email del usuario queda null.</p>
  *
  * <p>En una única transacción crea: cuenta de tenant, usuario admin,
  * configuración de tenant con AGENDA habilitada, negocio y sus settings.
@@ -67,25 +72,51 @@ public class RegisterTenantUseCase {
 
     @Transactional
     public RegisterTenantResponse execute(RegisterTenantRequest request) {
-        // 1. Normalizar email
-        String email = request.email().trim().toLowerCase();
+        String rawEmail = request.email() != null ? request.email().trim() : "";
+        String normNumero = request.numero() != null ? request.numero().replaceAll("\\D", "") : "";
 
-        // 2. Validar unicidad de email
-        if (tenantAccountRepository.existsByEmail(email)) {
-            throw new DuplicateTenantEmailException(email);
+        boolean hasEmail = !rawEmail.isEmpty();
+        boolean hasNumero = !normNumero.isEmpty();
+        if (hasEmail == hasNumero) {
+            throw new IllegalArgumentException("Debe indicar exactamente uno: email o numero.");
         }
 
-        // 3. Generar tenantId
-        String tenantId = UUID.randomUUID().toString();
+        String tenantEmail = null;
+        String tenantNumero = null;
+        String adminUserEmail = null;
 
-        // 4. Generar accessCode único
+        if (hasNumero) {
+            if (normNumero.length() < 8) {
+                throw new IllegalArgumentException("numero debe tener al menos 8 dígitos.");
+            }
+            if (tenantAccountRepository.existsByNumero(normNumero)) {
+                throw new DuplicateTenantNumeroException(normNumero);
+            }
+            tenantNumero = normNumero;
+        } else {
+            String email = rawEmail.toLowerCase(Locale.ROOT);
+            if (!email.contains("@")) {
+                throw new IllegalArgumentException("email inválido.");
+            }
+            if (tenantAccountRepository.existsByEmail(email)) {
+                throw new DuplicateTenantEmailException(email);
+            }
+            if (tenantAccountRepository.existsByGoogleLinkedEmail(email)) {
+                throw new DuplicateTenantEmailException(email);
+            }
+            tenantEmail = email;
+            adminUserEmail = email;
+        }
+
+        String tenantId = UUID.randomUUID().toString();
         String accessCode = generateAccessCode();
 
-        // 5. Crear y guardar TenantAccount
         TenantAccount account = new TenantAccount(
                 tenantId,
                 request.nombrePropietario().trim(),
-                email,
+                tenantEmail,
+                null,
+                tenantNumero,
                 request.telefono() != null ? request.telefono().trim() : null,
                 accessCode,
                 true,
@@ -94,13 +125,12 @@ public class RegisterTenantUseCase {
         );
         tenantAccountRepository.save(account);
 
-        // 6. Crear usuario admin para el tenant
         UUID userId = UUID.randomUUID();
         User adminUser = new User(
                 userId,
                 tenantId,
                 request.nombrePropietario().trim(),
-                email,
+                adminUserEmail,
                 request.telefono() != null ? request.telefono().trim() : null,
                 UserType.ADMIN,
                 true,
@@ -109,11 +139,9 @@ public class RegisterTenantUseCase {
         );
         userRepository.save(adminUser);
 
-        // 7. Crear TenantConfig con AGENDA_ENABLED=true
         TenantConfig config = new TenantConfig(tenantId, true, true, true, true);
         tenantConfigRepository.save(config);
 
-        // 8. Crear Business
         UUID businessId = UUID.randomUUID();
         Business business = new Business(
                 businessId,
@@ -123,39 +151,36 @@ public class RegisterTenantUseCase {
                 userId,
                 List.of(),
                 true,
-                null,  // logoUrl
-                null,  // colorPrimario
-                null,  // instagramUrl
-                null,  // tiktokUrl
-                null,  // facebookUrl
-                null,  // colorFondo
-                null,  // fontFamily
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 null
         );
         businessRepository.save(business);
 
-        // 9. Crear BusinessSettings con defaults
         businessSettingsRepository.save(BusinessSettings.defaults(businessId));
 
-        // 10. Asociar categoría si se proporcionó slug válido
         if (request.categoriaSlug() != null && !request.categoriaSlug().isBlank()) {
             categoryRepository.findBySlug(request.categoriaSlug().trim())
                     .ifPresent(category -> {
                         try {
                             businessCategoryRepository.associate(businessId, category.getId());
                         } catch (Exception e) {
-                            // Silenciar errores de asociación de categoría
                             log.warn("AGENDA: no se pudo asociar categoría slug={} al negocio id={}: {}",
                                     request.categoriaSlug(), businessId, e.getMessage());
                         }
                     });
         }
 
-        log.info("AGENDA: tenant registrado tenantId={} email={} businessId={}", tenantId, email, businessId);
+        String loginKey = tenantEmail != null ? tenantEmail : "numero:" + tenantNumero;
+        log.info("AGENDA: tenant registrado tenantId={} loginKey={} businessId={}", tenantId, loginKey, businessId);
 
-        // 11. Retornar respuesta
         return new RegisterTenantResponse(tenantId, businessId, accessCode);
     }
 

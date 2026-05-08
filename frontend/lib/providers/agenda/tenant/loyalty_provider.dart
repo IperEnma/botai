@@ -46,7 +46,6 @@ class LoyaltyNotifier extends StateNotifier<LoyaltyState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final items = await api.listLoyaltySuggestions(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
         estado: estado,
       );
@@ -59,7 +58,6 @@ class LoyaltyNotifier extends StateNotifier<LoyaltyState> {
   Future<void> patch(String id, LoyaltySuggestionEstado estado) async {
     final api = _ref.read(agendaApiServiceProvider);
     final updated = await api.patchLoyaltySuggestion(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       id: id,
       estado: estado,
@@ -72,7 +70,6 @@ class LoyaltyNotifier extends StateNotifier<LoyaltyState> {
   Future<void> send(String id) async {
     final api = _ref.read(agendaApiServiceProvider);
     final updated = await api.sendLoyaltySuggestion(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       id: id,
     );

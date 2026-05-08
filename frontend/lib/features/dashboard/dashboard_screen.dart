@@ -71,7 +71,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     onTap: () {
                       ref.read(selectedBotProvider.notifier).state =
                           botsState.bots[index];
-                      context.go('/bot/${botsState.bots[index].id}');
+                      context.go('/home/bots/${botsState.bots[index].id}');
                     },
                   );
                 },

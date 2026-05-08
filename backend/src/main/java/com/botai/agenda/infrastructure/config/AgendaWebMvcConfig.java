@@ -35,7 +35,7 @@ public class AgendaWebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(agendaFeatureGuard)
-                .addPathPatterns("/api/agenda/tenants/**", "/api/agenda/me/**");
+                .addPathPatterns("/api/agenda/me/**");
 
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/agenda/public/search");

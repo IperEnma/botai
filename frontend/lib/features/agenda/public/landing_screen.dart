@@ -95,7 +95,7 @@ class _Navbar extends StatelessWidget {
               children: [
                 // Logo
                 GestureDetector(
-                  onTap: () => context.go('/agenda'),
+                  onTap: () => context.go('/'),
                   child: Row(
                     children: [
                       Container(

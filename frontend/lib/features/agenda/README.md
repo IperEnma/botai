@@ -4,18 +4,27 @@ Frontend del módulo AGENDA dentro del mismo `pubspec.yaml` del bot. Vive en par
 
 ---
 
-## Sprint FE-1 entregado
+## Sprints entregados (estado actual)
 
-- Buscador público (`/agenda/public/search`) con debounce de 300 ms y chips de categoría.
-- Listado de negocios por categoría (`/agenda/public/categories/:slug`).
-- Ficha pública de negocio (`/agenda/public/business/:id`).
-- Admin del catálogo global de categorías (`/agenda/platform/categories`) con CRUD y edición de sinónimos.
-- Landing del módulo (`/agenda`) con 4 tiles (Buscador / Mi cuenta / Mi negocio / Plataforma).
-- Cliente HTTP `AgendaApiService` aislado del `ApiService` del bot.
-- Excepción tipada `AgendaApiException` con `code` + `message` del backend.
-- Widget tests de `SearchScreen` y `CategoriesAdminScreen`.
+- **FE-1 (público + plataforma)**:
+  - Buscador público (`/agenda/public/search`) y ficha pública (`/agenda/public/business/:id`).
+  - Catálogo global de categorías (`/agenda/platform/categories`).
+- **FE-2 (admin de negocio)**:
+  - Panel bajo `/home` (sin `tenantId` en URL).
+  - CRUD de negocio/horarios/servicios/planes/plantillas/loyalty/staff.
+  - Feature flags AGENDA via `GET/PUT /api/agenda/me/features`.
+- **FE-3 (usuario final)**:
+  - Mis suscripciones / wallet / bookings / notificaciones bajo `/agenda/me/**`.
 
-Sprint FE-2 (tenant admin) y FE-3 (usuario final) están planeados pero todavía no implementados — los tiles aparecen como "pronto".
+### Link público para clientes
+
+Cada negocio expone un link público para que los clientes reserven (web con hash routing):
+
+- `/#/agenda/public/business/{businessId}`
+
+### Nota de UX (decisión)
+
+- “Citas/Agenda” **no** se configura desde el panel del bot. Se gestiona desde el panel del negocio (AGENDA) y se comparte vía link público.
 
 ---
 
@@ -147,7 +156,6 @@ Los tests usan `FakeAgendaApiService` (`test/agenda/fake_agenda_api.dart`) que s
 
 ## Pendiente (próximos sprints)
 
-- **Sprint FE-2**: tenant admin completo — businesses, services, plans, settings, feature flags toggle.
-- **Sprint FE-3**: usuario final — wallet, bookings, notifications + loyalty/templates en tenant admin.
+- Mejoras: consolidar navegación “Agenda” del sidebar para abrir panel interno + compartir link público.
 
 Detalle en [PLAN_AGENDA_FRONTEND.md §8](../../../../PLAN_AGENDA_FRONTEND.md).

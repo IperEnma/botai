@@ -7,6 +7,7 @@ import com.botai.agenda.application.mapper.SubscriptionDtoMapper;
 import com.botai.agenda.application.usecase.subscription.GetMyWalletUseCase;
 import com.botai.agenda.application.usecase.subscription.ListMySubscriptionsUseCase;
 import com.botai.agenda.application.usecase.subscription.PurchaseSubscriptionUseCase;
+import com.botai.agenda.domain.repository.BusinessRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,22 +46,27 @@ public class MeSubscriptionsController {
     private final PurchaseSubscriptionUseCase purchaseSubscription;
     private final ListMySubscriptionsUseCase listMySubscriptions;
     private final GetMyWalletUseCase getMyWallet;
+    private final BusinessRepository businessRepository;
 
     public MeSubscriptionsController(PurchaseSubscriptionUseCase purchaseSubscription,
                                      ListMySubscriptionsUseCase listMySubscriptions,
-                                     GetMyWalletUseCase getMyWallet) {
+                                     GetMyWalletUseCase getMyWallet,
+                                     BusinessRepository businessRepository) {
         this.purchaseSubscription = purchaseSubscription;
         this.listMySubscriptions = listMySubscriptions;
         this.getMyWallet = getMyWallet;
+        this.businessRepository = businessRepository;
     }
 
-    @PostMapping("/tenants/{tenantId}/businesses/{businessId}/subscriptions")
+    @PostMapping("/businesses/{businessId}/subscriptions")
     @Operation(summary = "Comprar una suscripción contra un plan del negocio")
     public ResponseEntity<SubscriptionResponse> purchase(
-            @PathVariable("tenantId") String tenantId,
             @PathVariable("businessId") UUID businessId,
             @RequestHeader(USER_ID_HEADER) UUID userId,
             @Valid @RequestBody PurchaseSubscriptionRequest request) {
+        String tenantId = businessRepository.findById(businessId)
+                .map(b -> b.getTenantId())
+                .orElseThrow(() -> new IllegalArgumentException("Negocio no encontrado: " + businessId));
         var created = purchaseSubscription.execute(tenantId, businessId, userId, request.planId());
         return ResponseEntity.status(HttpStatus.CREATED).body(SubscriptionDtoMapper.toResponse(created));
     }

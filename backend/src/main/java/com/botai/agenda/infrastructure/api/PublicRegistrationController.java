@@ -40,12 +40,13 @@ public class PublicRegistrationController {
     @PostMapping("/register")
     @Operation(
             summary = "Registra un nuevo tenant con su negocio",
-            description = "Crea la cuenta de tenant, el usuario admin, la configuración y el negocio principal en una sola operación."
+            description = "Crea la cuenta de tenant, el usuario admin, la configuración y el negocio principal. "
+                    + "Enviar exactamente uno: `email` (registro por correo) o `numero` (solo dígitos, registro por WhatsApp)."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Tenant registrado exitosamente"),
             @ApiResponse(responseCode = "400", description = "Request inválido (campos requeridos faltantes o mal formateados)"),
-            @ApiResponse(responseCode = "409", description = "El email ya está registrado")
+            @ApiResponse(responseCode = "409", description = "El email o número ya está registrado")
     })
     public ResponseEntity<RegisterTenantResponse> register(
             @Valid @RequestBody RegisterTenantRequest request) {

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import '../../providers/agenda/agenda_nav_after_google_auth.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/theme.dart';
 
@@ -129,9 +129,9 @@ class LoginScreen extends ConsumerWidget {
                           await ref
                               .read(authStateProvider.notifier)
                               .signInWithGoogle();
-                          if (context.mounted &&
-                              ref.read(authStateProvider).isAuthenticated) {
-                            context.go('/dashboard');
+                          if (!context.mounted) return;
+                          if (ref.read(authStateProvider).isAuthenticated) {
+                            await agendaNavigateAfterGoogleSignIn(ref, context);
                           }
                         },
                       ),

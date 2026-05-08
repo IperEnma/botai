@@ -100,7 +100,9 @@ Todas tienen valor por defecto; solo sobreescribir en producción.
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `AGENDA_ENABLED` | `true` | Interruptor global del módulo. Si `false`, todos los endpoints bajo `/api/agenda/tenants/**` y `/api/agenda/me/**` devuelven 404. |
+| `AGENDA_ENABLED` | `true` | Interruptor global del módulo. Si `false`, todos los endpoints protegidos bajo `/api/agenda/me/**` devuelven 404. |
+| `AGENDA_GOOGLE_ISSUER_URI` | `https://accounts.google.com` | Issuer para validar Google ID Token (JWT). |
+| `GOOGLE_CLIENT_ID` | _(vacío)_ | Audience esperado del ID Token (client id OAuth). Recomendado en prod. |
 | `AGENDA_PAYMENT_STUB_AUTO_APPROVE` | `true` | El adaptador de pagos es un stub. `true` aprueba todo; `false` rechaza todo (útil para probar el unhappy path). |
 | `AGENDA_PAYMENT_STUB_REJECT_OVER` | `0` | Si > 0, rechaza pagos cuyo monto supere este valor. `0` = sin límite. |
 | `AGENDA_IT` | _(no seteada)_ | Si se setea a `true`, habilita los tests de integración con Testcontainers. Requiere Docker. |
@@ -369,14 +371,14 @@ curl -X DELETE http://localhost:8080/api/agenda/platform/categories/{id}
 
 ### 6.3 Tenant admin — feature flags
 
-Base: `/api/agenda/tenants/{tenantId}/features`
+Base: `/api/agenda/me/features`
 
-#### `GET /api/agenda/tenants/{tenantId}/features`
+#### `GET /api/agenda/me/features`
 
 Devuelve los flags de AGENDA activos para el tenant.
 
 ```bash
-curl http://localhost:8080/api/agenda/tenants/tenant-abc/features
+curl http://localhost:8080/api/agenda/me/features
 ```
 
 ```json
@@ -391,12 +393,12 @@ curl http://localhost:8080/api/agenda/tenants/tenant-abc/features
 
 ---
 
-#### `PUT /api/agenda/tenants/{tenantId}/features`
+#### `PUT /api/agenda/me/features`
 
 Actualiza los flags. Los campos enviados como `null` no se modifican (semántica PATCH).
 
 ```bash
-curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/features \
+curl -X PUT http://localhost:8080/api/agenda/me/features \
   -H "Content-Type: application/json" \
   -d '{
     "agendaEnabled": true,
@@ -410,14 +412,14 @@ curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/features \
 
 ### 6.4 Tenant admin — negocios
 
-Base: `/api/agenda/tenants/{tenantId}/businesses`
+Base: `/api/agenda/me/businesses`
 
-#### `POST /api/agenda/tenants/{tenantId}/businesses`
+#### `POST /api/agenda/me/businesses`
 
 Registra un negocio nuevo en el tenant. `searchTags` son keywords adicionales de búsqueda específicas del negocio.
 
 ```bash
-curl -X POST http://localhost:8080/api/agenda/tenants/tenant-abc/businesses \
+curl -X POST http://localhost:8080/api/agenda/me/businesses \
   -H "Content-Type: application/json" \
   -d '{
     "nombre": "Salón Belladonna",
@@ -441,32 +443,32 @@ curl -X POST http://localhost:8080/api/agenda/tenants/tenant-abc/businesses \
 
 ---
 
-#### `GET /api/agenda/tenants/{tenantId}/businesses`
+#### `GET /api/agenda/me/businesses`
 
 Lista todos los negocios del tenant.
 
 ```bash
-curl http://localhost:8080/api/agenda/tenants/tenant-abc/businesses
+curl http://localhost:8080/api/agenda/me/businesses
 ```
 
 ---
 
-#### `GET /api/agenda/tenants/{tenantId}/businesses/{businessId}`
+#### `GET /api/agenda/me/businesses/{businessId}`
 
 Detalle de un negocio.
 
 ```bash
-curl http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/3f2504e0-4f89-11d3-9a0c-0305e82c3301
+curl http://localhost:8080/api/agenda/me/businesses/3f2504e0-4f89-11d3-9a0c-0305e82c3301
 ```
 
 ---
 
-#### `PUT /api/agenda/tenants/{tenantId}/businesses/{businessId}`
+#### `PUT /api/agenda/me/businesses/{businessId}`
 
 Actualiza datos del negocio. `activo: false` hace soft delete.
 
 ```bash
-curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId} \
+curl -X PUT http://localhost:8080/api/agenda/me/businesses/{businessId} \
   -H "Content-Type: application/json" \
   -d '{
     "nombre": "Belladonna Studio",
@@ -478,12 +480,12 @@ curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{busi
 
 ---
 
-#### `PUT /api/agenda/tenants/{tenantId}/businesses/{businessId}/categories`
+#### `PUT /api/agenda/me/businesses/{businessId}/categories`
 
 Reemplaza la lista completa de categorías asociadas al negocio. Enviar array de IDs del catálogo global.
 
 ```bash
-curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/categories \
+curl -X PUT http://localhost:8080/api/agenda/me/businesses/{businessId}/categories \
   -H "Content-Type: application/json" \
   -d '{ "categoryIds": ["uuid-cat-manicure", "uuid-cat-spa"] }'
 ```
@@ -492,12 +494,12 @@ Responde `204 No Content`.
 
 ---
 
-#### `GET /api/agenda/tenants/{tenantId}/businesses/{businessId}/settings`
+#### `GET /api/agenda/me/businesses/{businessId}/settings`
 
 Obtiene la configuración del negocio. Si no existe fila en DB devuelve los valores por defecto.
 
 ```bash
-curl http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/settings
+curl http://localhost:8080/api/agenda/me/businesses/{businessId}/settings
 ```
 
 ```json
@@ -514,7 +516,7 @@ curl http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}
 
 ---
 
-#### `PUT /api/agenda/tenants/{tenantId}/businesses/{businessId}/settings`
+#### `PUT /api/agenda/me/businesses/{businessId}/settings`
 
 Actualiza la configuración del negocio.
 
@@ -528,7 +530,7 @@ Actualiza la configuración del negocio.
 | `autoNotifyEnabled` | Si el scheduler envía notificaciones automáticamente |
 
 ```bash
-curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/settings \
+curl -X PUT http://localhost:8080/api/agenda/me/businesses/{businessId}/settings \
   -H "Content-Type: application/json" \
   -d '{
     "hoursCancellationLimit": 6,
@@ -544,14 +546,14 @@ curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{busi
 
 ### 6.5 Tenant admin — servicios
 
-Base: `/api/agenda/tenants/{tenantId}/businesses/{businessId}/services`
+Base: `/api/agenda/me/businesses/{businessId}/services`
 
 #### `GET .../services`
 
 Lista los servicios del negocio. `soloActivos=true` filtra los dados de baja.
 
 ```bash
-curl "http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/services?soloActivos=true"
+curl "http://localhost:8080/api/agenda/me/businesses/{businessId}/services?soloActivos=true"
 ```
 
 ---
@@ -561,7 +563,7 @@ curl "http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId
 Crea un servicio.
 
 ```bash
-curl -X POST http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/services \
+curl -X POST http://localhost:8080/api/agenda/me/businesses/{businessId}/services \
   -H "Content-Type: application/json" \
   -d '{
     "nombre": "Manicure semi-permanente",
@@ -578,7 +580,7 @@ curl -X POST http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{bus
 Actualiza un servicio. `activo: false` hace soft delete.
 
 ```bash
-curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/services/{serviceId} \
+curl -X PUT http://localhost:8080/api/agenda/me/businesses/{businessId}/services/{serviceId} \
   -H "Content-Type: application/json" \
   -d '{
     "nombre": "Manicure semi-permanente",
@@ -596,7 +598,7 @@ curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{busi
 Baja lógica del servicio (soft delete, `activo=false`).
 
 ```bash
-curl -X DELETE http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/services/{serviceId}
+curl -X DELETE http://localhost:8080/api/agenda/me/businesses/{businessId}/services/{serviceId}
 ```
 
 Responde `204 No Content`.
@@ -605,7 +607,7 @@ Responde `204 No Content`.
 
 ### 6.6 Tenant admin — planes
 
-Base: `/api/agenda/tenants/{tenantId}/businesses/{businessId}/plans`
+Base: `/api/agenda/me/businesses/{businessId}/plans`
 
 Los planes son lo que los clientes compran como suscripción. Hay 4 tipos:
 
@@ -619,7 +621,7 @@ Los planes son lo que los clientes compran como suscripción. Hay 4 tipos:
 #### `POST .../plans`
 
 ```bash
-curl -X POST http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/plans \
+curl -X POST http://localhost:8080/api/agenda/me/businesses/{businessId}/plans \
   -H "Content-Type: application/json" \
   -d '{
     "nombrePlan": "Pack 10 clases",
@@ -641,7 +643,7 @@ Valores de `tier`: `VIP`, `GOLDEN`, `PLATA`.
 Lista planes. `onlyActive=true` filtra los dados de baja lógica.
 
 ```bash
-curl "http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/plans?onlyActive=true"
+curl "http://localhost:8080/api/agenda/me/businesses/{businessId}/plans?onlyActive=true"
 ```
 
 ---
@@ -657,7 +659,7 @@ Detalle de un plan.
 Actualiza un plan. Los campos enviados como `null` no se modifican.
 
 ```bash
-curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/plans/{planId} \
+curl -X PUT http://localhost:8080/api/agenda/me/businesses/{businessId}/plans/{planId} \
   -H "Content-Type: application/json" \
   -d '{
     "nombrePlan": "Pack 10 clases — Promo",
@@ -672,14 +674,14 @@ curl -X PUT http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{busi
 Baja lógica del plan (`activo=false`). No se puede borrar físicamente si hay suscripciones activas.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/plans/{planId}
+curl -X DELETE http://localhost:8080/api/agenda/me/businesses/{businessId}/plans/{planId}
 ```
 
 ---
 
 ### 6.7 Tenant admin — loyalty
 
-Base: `/api/agenda/tenants/{tenantId}/businesses/{businessId}/loyalty/suggestions`
+Base: `/api/agenda/me/businesses/{businessId}/loyalty/suggestions`
 
 El motor de fidelización genera sugerencias automáticamente cuando un usuario sin suscripción activa supera el umbral de asistencias configurado en `business_settings`.
 
@@ -688,7 +690,7 @@ El motor de fidelización genera sugerencias automáticamente cuando un usuario 
 Lista las sugerencias del negocio. Filtro opcional por `estado`: `PENDING`, `SENT`, `DISMISSED`.
 
 ```bash
-curl "http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/loyalty/suggestions?estado=PENDING"
+curl "http://localhost:8080/api/agenda/me/businesses/{businessId}/loyalty/suggestions?estado=PENDING"
 ```
 
 ```json
@@ -711,7 +713,7 @@ curl "http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId
 Cambia el estado de una sugerencia (marcar como enviada manualmente o descartar).
 
 ```bash
-curl -X PATCH http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/loyalty/suggestions/{suggestionId} \
+curl -X PATCH http://localhost:8080/api/agenda/me/businesses/{businessId}/loyalty/suggestions/{suggestionId} \
   -H "Content-Type: application/json" \
   -d '{ "estado": "DISMISSED" }'
 ```
@@ -723,21 +725,21 @@ curl -X PATCH http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{bu
 Envía la notificación in-app al usuario asociado a la sugerencia y cambia el estado a `SENT`.
 
 ```bash
-curl -X POST http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/loyalty/suggestions/{suggestionId}/send
+curl -X POST http://localhost:8080/api/agenda/me/businesses/{businessId}/loyalty/suggestions/{suggestionId}/send
 ```
 
 ---
 
 ### 6.8 Tenant admin — plantillas de notificación
 
-Base: `/api/agenda/tenants/{tenantId}/businesses/{businessId}/notification-templates`
+Base: `/api/agenda/me/businesses/{businessId}/notification-templates`
 
 Las plantillas definen los mensajes que el scheduler envía automáticamente (vencimientos, saldo bajo).
 
 #### `GET .../notification-templates`
 
 ```bash
-curl http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/notification-templates
+curl http://localhost:8080/api/agenda/me/businesses/{businessId}/notification-templates
 ```
 
 ---
@@ -745,7 +747,7 @@ curl http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}
 #### `POST .../notification-templates`
 
 ```bash
-curl -X POST http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/notification-templates \
+curl -X POST http://localhost:8080/api/agenda/me/businesses/{businessId}/notification-templates \
   -H "Content-Type: application/json" \
   -d '{
     "codigo": "EXPIRATION_ALERT",
@@ -770,7 +772,7 @@ Actualiza una plantilla existente.
 Elimina una plantilla.
 
 ```bash
-curl -X DELETE http://localhost:8080/api/agenda/tenants/tenant-abc/businesses/{businessId}/notification-templates/{templateId}
+curl -X DELETE http://localhost:8080/api/agenda/me/businesses/{businessId}/notification-templates/{templateId}
 ```
 
 ---
@@ -1029,7 +1031,7 @@ AGENDA tiene su propio sistema de flags, completamente aislado del bot.
 | `LOYALTY_ENGINE_ENABLED` | Activa el motor que genera sugerencias de fidelización. |
 | `AUTO_NOTIFICATIONS` | El scheduler diario envía notificaciones automáticamente. |
 
-El guard `AgendaFeatureGuard` se aplica a todos los endpoints bajo `/api/agenda/tenants/**` y `/api/agenda/me/**`. Devuelve **404 uniforme** (no 403) para no revelar que el módulo existe cuando está deshabilitado.
+El guard `AgendaFeatureGuard` se aplica a endpoints autenticados bajo `/api/agenda/me/**`. Devuelve **404 uniforme** (no 403) para no revelar que el módulo existe cuando está deshabilitado.
 
 ---
 

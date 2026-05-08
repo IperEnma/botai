@@ -16,32 +16,38 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.botai.agenda.infrastructure.security.AgendaCurrentTenantService;
+
 /** Endpoints de lectura/actualización de flags por tenant. */
 @RestController
-@RequestMapping("/api/agenda/tenants/{tenantId}/features")
+@RequestMapping("/api/agenda/me/features")
 @Tag(name = "Agenda Tenant Features", description = "Flags por tenant del módulo AGENDA")
 @Validated
 public class TenantFeaturesController {
 
     private final GetTenantFeaturesUseCase getFeatures;
     private final UpdateTenantFeaturesUseCase updateFeatures;
+    private final AgendaCurrentTenantService currentTenant;
 
     public TenantFeaturesController(GetTenantFeaturesUseCase getFeatures,
-                                    UpdateTenantFeaturesUseCase updateFeatures) {
+                                    UpdateTenantFeaturesUseCase updateFeatures,
+                                    AgendaCurrentTenantService currentTenant) {
         this.getFeatures = getFeatures;
         this.updateFeatures = updateFeatures;
+        this.currentTenant = currentTenant;
     }
 
     @GetMapping
     @Operation(summary = "Obtiene los flags del tenant")
-    public TenantFeaturesResponse get(@PathVariable("tenantId") String tenantId) {
+    public TenantFeaturesResponse get() {
+        String tenantId = currentTenant.requireTenantId();
         return TenantConfigDtoMapper.toResponse(getFeatures.execute(tenantId));
     }
 
     @PutMapping
     @Operation(summary = "Actualiza (patch) los flags del tenant")
-    public TenantFeaturesResponse update(@PathVariable("tenantId") String tenantId,
-                                         @Valid @RequestBody UpdateTenantFeaturesRequest request) {
+    public TenantFeaturesResponse update(@Valid @RequestBody UpdateTenantFeaturesRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         var updated = updateFeatures.execute(
                 tenantId,
                 request.agendaEnabled(),

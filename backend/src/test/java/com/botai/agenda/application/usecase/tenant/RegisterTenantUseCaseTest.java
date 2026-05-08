@@ -3,6 +3,7 @@ package com.botai.agenda.application.usecase.tenant;
 import com.botai.agenda.application.dto.RegisterTenantRequest;
 import com.botai.agenda.application.dto.RegisterTenantResponse;
 import com.botai.agenda.domain.exception.DuplicateTenantEmailException;
+import com.botai.agenda.domain.exception.DuplicateTenantNumeroException;
 import com.botai.agenda.domain.model.Business;
 import com.botai.agenda.domain.model.BusinessSettings;
 import com.botai.agenda.domain.model.Category;
@@ -64,8 +65,9 @@ class RegisterTenantUseCaseTest {
                 businessCategoryRepo
         );
 
-        // Defaults: email no existe
         when(tenantAccountRepo.existsByEmail(anyString())).thenReturn(false);
+        when(tenantAccountRepo.existsByNumero(anyString())).thenReturn(false);
+        when(tenantAccountRepo.existsByGoogleLinkedEmail(anyString())).thenReturn(false);
         when(tenantAccountRepo.save(any(TenantAccount.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
         when(tenantConfigRepo.save(any(TenantConfig.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -79,6 +81,7 @@ class RegisterTenantUseCaseTest {
         RegisterTenantRequest request = new RegisterTenantRequest(
                 "Juan Perez",
                 "juan@example.com",
+                null,
                 "+5491112345678",
                 "Peluquería Juan",
                 null
@@ -99,6 +102,24 @@ class RegisterTenantUseCaseTest {
     }
 
     @Test
+    void happyPath_numeroWhatsApp_guardaTenantSinEmail() {
+        RegisterTenantRequest request = new RegisterTenantRequest(
+                "Ana",
+                null,
+                "59899123456",
+                "+59899123456",
+                "Salón Ana",
+                null
+        );
+
+        RegisterTenantResponse response = useCase.execute(request);
+
+        assertNotNull(response.tenantId());
+        verify(tenantAccountRepo).existsByNumero("59899123456");
+        verify(tenantAccountRepo).save(any(TenantAccount.class));
+    }
+
+    @Test
     void emailDuplicado_lanzaDuplicateTenantEmailException() {
         when(tenantAccountRepo.existsByEmail("duplicado@example.com")).thenReturn(true);
 
@@ -106,15 +127,46 @@ class RegisterTenantUseCaseTest {
                 "Maria Lopez",
                 "duplicado@example.com",
                 null,
+                null,
                 "Negocio Duplicado",
                 null
         );
 
         assertThrows(DuplicateTenantEmailException.class, () -> useCase.execute(request));
 
-        // No deben invocarse los saves si el email ya existe
         verify(tenantAccountRepo, never()).save(any());
         verify(businessRepo, never()).save(any());
+    }
+
+    @Test
+    void numeroDuplicado_lanzaDuplicateTenantNumeroException() {
+        when(tenantAccountRepo.existsByNumero("59899123456")).thenReturn(true);
+
+        RegisterTenantRequest request = new RegisterTenantRequest(
+                "X",
+                null,
+                "59899123456",
+                "+59899123456",
+                "Negocio X",
+                null
+        );
+
+        assertThrows(DuplicateTenantNumeroException.class, () -> useCase.execute(request));
+        verify(tenantAccountRepo, never()).save(any());
+    }
+
+    @Test
+    void sinEmailNiNumero_lanzaIllegalArgumentException() {
+        RegisterTenantRequest request = new RegisterTenantRequest(
+                "X",
+                null,
+                null,
+                null,
+                "Negocio X",
+                null
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> useCase.execute(request));
     }
 
     @Test
@@ -125,6 +177,7 @@ class RegisterTenantUseCaseTest {
                 "Pedro García",
                 "pedro@example.com",
                 null,
+                null,
                 "Negocio Pedro",
                 "slug-inexistente"
         );
@@ -132,7 +185,6 @@ class RegisterTenantUseCaseTest {
         RegisterTenantResponse response = useCase.execute(request);
 
         assertNotNull(response.tenantId());
-        // La categoría no existía, no se debe llamar associate
         verify(businessCategoryRepo, never()).associate(any(UUID.class), any(UUID.class));
     }
 
@@ -147,6 +199,7 @@ class RegisterTenantUseCaseTest {
         RegisterTenantRequest request = new RegisterTenantRequest(
                 "Ana Torres",
                 "ana@example.com",
+                null,
                 null,
                 "Peluquería Ana",
                 "peluqueria"
@@ -164,13 +217,31 @@ class RegisterTenantUseCaseTest {
                 "Carlos Ruiz",
                 "  CARLOS@EXAMPLE.COM  ",
                 null,
+                null,
                 "Negocio Carlos",
                 null
         );
 
         useCase.execute(request);
 
-        // La verificacion de existencia debe haberse hecho con el email normalizado
         verify(tenantAccountRepo).existsByEmail("carlos@example.com");
+        verify(tenantAccountRepo).existsByGoogleLinkedEmail("carlos@example.com");
+    }
+
+    @Test
+    void emailYaVinculadoAGoogle_lanzaDuplicateTenantEmailException() {
+        when(tenantAccountRepo.existsByGoogleLinkedEmail("taken@example.com")).thenReturn(true);
+
+        RegisterTenantRequest request = new RegisterTenantRequest(
+                "X",
+                "taken@example.com",
+                null,
+                null,
+                "Negocio X",
+                null
+        );
+
+        assertThrows(DuplicateTenantEmailException.class, () -> useCase.execute(request));
+        verify(tenantAccountRepo, never()).save(any());
     }
 }

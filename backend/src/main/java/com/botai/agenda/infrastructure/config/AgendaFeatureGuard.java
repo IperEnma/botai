@@ -3,6 +3,7 @@ package com.botai.agenda.infrastructure.config;
 import com.botai.agenda.domain.context.AgendaTenantContext;
 import com.botai.agenda.domain.feature.AgendaFeatureFlagService;
 import com.botai.agenda.domain.feature.AgendaFeatures;
+import com.botai.agenda.infrastructure.security.AgendaCurrentTenantService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -10,17 +11,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 /**
  * Interceptor que protege las rutas sensibles del módulo AGENDA.
  *
  * <p>Evalúa {@code AGENDA_ENABLED} para el tenant de la request:
- * <ul>
- *   <li>{@code /api/agenda/tenants/{tenantId}/**}: extrae {@code tenantId} del path.</li>
- *   <li>{@code /api/agenda/me/tenants/{tenantId}/**}: extrae {@code tenantId} del path.</li>
- * </ul>
+ * para endpoints autenticados bajo {@code /api/agenda/me/**}.
  * Si el flag está off, responde <b>404</b> uniforme para no revelar la existencia
  * del módulo — concordante con la sección 5 del plan.</p>
  *
@@ -32,16 +27,13 @@ public class AgendaFeatureGuard implements HandlerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(AgendaFeatureGuard.class);
 
-    private static final Pattern TENANT_URI_PATTERN =
-            Pattern.compile("^/api/agenda/tenants/([^/]+)(/.*)?$");
-
-    private static final Pattern ME_TENANT_URI_PATTERN =
-            Pattern.compile("^/api/agenda/me/tenants/([^/]+)(/.*)?$");
-
     private final AgendaFeatureFlagService featureFlagService;
+    private final AgendaCurrentTenantService currentTenant;
 
-    public AgendaFeatureGuard(AgendaFeatureFlagService featureFlagService) {
+    public AgendaFeatureGuard(AgendaFeatureFlagService featureFlagService,
+                             AgendaCurrentTenantService currentTenant) {
         this.featureFlagService = featureFlagService;
+        this.currentTenant = currentTenant;
     }
 
     @Override
@@ -52,12 +44,18 @@ public class AgendaFeatureGuard implements HandlerInterceptor {
             return true;
         }
 
-        String tenantId = extractTenantId(uri);
-
-        if (tenantId == null) {
+        // Solo aplica a rutas autenticadas. Las rutas /public/** se permiten en SecurityFilterChain.
+        if (!uri.startsWith("/api/agenda/me/")) {
             return true;
         }
 
+        String tenantId = currentTenant.findTenantId().orElse(null);
+        if (tenantId == null || tenantId.isBlank()) {
+            // Usuario autenticado pero todavía sin tenant (primer login / onboarding).
+            return true;
+        }
+
+        AgendaTenantContext.setTenantId(tenantId);
         if (!featureFlagService.isEnabled(AgendaFeatures.AGENDA_ENABLED, tenantId)) {
             log.debug("AgendaFeatureGuard: AGENDA_ENABLED off para tenant={} uri={}", tenantId, uri);
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -70,17 +68,5 @@ public class AgendaFeatureGuard implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                                 Object handler, Exception ex) {
         AgendaTenantContext.clear();
-    }
-
-    private String extractTenantId(String uri) {
-        Matcher tenantMatcher = TENANT_URI_PATTERN.matcher(uri);
-        if (tenantMatcher.matches()) {
-            return tenantMatcher.group(1);
-        }
-        Matcher meTenantMatcher = ME_TENANT_URI_PATTERN.matcher(uri);
-        if (meTenantMatcher.matches()) {
-            return meTenantMatcher.group(1);
-        }
-        return null;
     }
 }

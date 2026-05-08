@@ -3,11 +3,14 @@ package com.botai.agenda.infrastructure.config;
 import com.botai.agenda.domain.context.AgendaTenantContext;
 import com.botai.agenda.domain.feature.AgendaFeatureFlagService;
 import com.botai.agenda.domain.feature.AgendaFeatures;
+import com.botai.agenda.infrastructure.security.AgendaCurrentTenantService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,12 +24,14 @@ import static org.mockito.Mockito.when;
 class AgendaFeatureGuardTest {
 
     private AgendaFeatureFlagService flagService;
+    private AgendaCurrentTenantService currentTenant;
     private AgendaFeatureGuard guard;
 
     @BeforeEach
     void setUp() {
         flagService = mock(AgendaFeatureFlagService.class);
-        guard = new AgendaFeatureGuard(flagService);
+        currentTenant = mock(AgendaCurrentTenantService.class);
+        guard = new AgendaFeatureGuard(flagService, currentTenant);
     }
 
     @AfterEach
@@ -35,10 +40,11 @@ class AgendaFeatureGuardTest {
     }
 
     @Test
-    void rutaDeTenantConFlagOnPermitePasar() throws Exception {
+    void rutaMeConTenantYFlagOnPermitePasar() throws Exception {
         HttpServletRequest req = mock(HttpServletRequest.class);
         HttpServletResponse res = mock(HttpServletResponse.class);
-        when(req.getRequestURI()).thenReturn("/api/agenda/tenants/tenant-1/businesses");
+        when(req.getRequestURI()).thenReturn("/api/agenda/me/businesses");
+        when(currentTenant.findTenantId()).thenReturn(Optional.of("tenant-1"));
         when(flagService.isEnabled(AgendaFeatures.AGENDA_ENABLED, "tenant-1")).thenReturn(true);
 
         assertTrue(guard.preHandle(req, res, new Object()));
@@ -46,10 +52,11 @@ class AgendaFeatureGuardTest {
     }
 
     @Test
-    void rutaDeTenantConFlagOffResponde404() throws Exception {
+    void rutaMeConTenantYFlagOffResponde404() throws Exception {
         HttpServletRequest req = mock(HttpServletRequest.class);
         HttpServletResponse res = mock(HttpServletResponse.class);
-        when(req.getRequestURI()).thenReturn("/api/agenda/tenants/tenant-1/businesses");
+        when(req.getRequestURI()).thenReturn("/api/agenda/me/businesses");
+        when(currentTenant.findTenantId()).thenReturn(Optional.of("tenant-1"));
         when(flagService.isEnabled(AgendaFeatures.AGENDA_ENABLED, "tenant-1")).thenReturn(false);
 
         assertFalse(guard.preHandle(req, res, new Object()));
@@ -57,29 +64,19 @@ class AgendaFeatureGuardTest {
     }
 
     @Test
-    void rutaMeConTenantIdEnPathYFlagOnPermitePasar() throws Exception {
+    void rutaMeSinTenantTodaviaPermitePasar() throws Exception {
         HttpServletRequest req = mock(HttpServletRequest.class);
         HttpServletResponse res = mock(HttpServletResponse.class);
-        when(req.getRequestURI()).thenReturn("/api/agenda/me/tenants/tenant-2/businesses/some-id/bookings");
-        when(flagService.isEnabled(AgendaFeatures.AGENDA_ENABLED, "tenant-2")).thenReturn(true);
+        when(req.getRequestURI()).thenReturn("/api/agenda/me/tenant-admin");
+        when(currentTenant.findTenantId()).thenReturn(Optional.empty());
 
         assertTrue(guard.preHandle(req, res, new Object()));
+        verify(flagService, never()).isEnabled(any(), anyString());
         verify(res, never()).sendError(any(Integer.class));
     }
 
     @Test
-    void rutaMeConTenantIdEnPathYFlagOffResponde404() throws Exception {
-        HttpServletRequest req = mock(HttpServletRequest.class);
-        HttpServletResponse res = mock(HttpServletResponse.class);
-        when(req.getRequestURI()).thenReturn("/api/agenda/me/tenants/tenant-2/businesses/some-id/bookings");
-        when(flagService.isEnabled(AgendaFeatures.AGENDA_ENABLED, "tenant-2")).thenReturn(false);
-
-        assertFalse(guard.preHandle(req, res, new Object()));
-        verify(res).sendError(HttpServletResponse.SC_NOT_FOUND);
-    }
-
-    @Test
-    void rutaPublicaNoPasaPorElGuard() throws Exception {
+    void rutaNoMeNoPasaPorElGuard() throws Exception {
         HttpServletRequest req = mock(HttpServletRequest.class);
         HttpServletResponse res = mock(HttpServletResponse.class);
         when(req.getRequestURI()).thenReturn("/api/agenda/public/search");

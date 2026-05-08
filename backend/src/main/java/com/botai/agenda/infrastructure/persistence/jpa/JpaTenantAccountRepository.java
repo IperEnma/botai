@@ -26,8 +26,28 @@ public class JpaTenantAccountRepository implements TenantAccountRepository {
     }
 
     @Override
+    public Optional<TenantAccount> findByNumero(String numero) {
+        return jpa.findByNumero(numero).map(TenantAccountMapper::toDomain);
+    }
+
+    @Override
+    public Optional<TenantAccount> findByGoogleLinkedEmail(String googleLinkedEmail) {
+        return jpa.findByGoogleLinkedEmail(googleLinkedEmail).map(TenantAccountMapper::toDomain);
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         return jpa.existsByEmail(email);
+    }
+
+    @Override
+    public boolean existsByNumero(String numero) {
+        return jpa.existsByNumero(numero);
+    }
+
+    @Override
+    public boolean existsByGoogleLinkedEmail(String googleLinkedEmail) {
+        return jpa.existsByGoogleLinkedEmail(googleLinkedEmail);
     }
 
     @Override

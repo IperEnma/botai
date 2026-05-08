@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 
+import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
 import '../../../models/agenda/business.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
@@ -149,7 +151,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
     final isWide    = MediaQuery.sizeOf(context).width >= _kBreakpoint;
 
     void onBack() =>
-        context.canPop() ? context.pop() : context.go('/agenda');
+        context.canPop() ? context.pop() : context.go('/home');
 
     if (state.isLoading) {
       return Scaffold(
@@ -192,7 +194,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
                 isWide:              true,
                 onAdd:               () => _createBusiness(context),
                 onTap:               (b) => context.push(
-                  '/agenda/tenants/${widget.tenantId}/businesses/${b.id}',
+                  agendaTenantBusinessPath(context, widget.tenantId, b.id),
                 ),
                 onFilterSelect: (b) => setState(() =>
                   _dashboardBusinessId =
@@ -217,7 +219,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
         isWide:              false,
         onAdd:               () => _createBusiness(context),
         onTap:               (b) => context.push(
-          '/agenda/tenants/${widget.tenantId}/businesses/${b.id}',
+          agendaTenantBusinessPath(context, widget.tenantId, b.id),
         ),
         onFilterSelect: (b) => setState(() =>
           _dashboardBusinessId =
@@ -242,7 +244,46 @@ class _LeftNav extends StatelessWidget {
   void _goTab(BuildContext context, int tab) {
     if (tenantId == null || businessId == null) return;
     context.push(
-      '/agenda/tenants/$tenantId/businesses/$businessId?tab=$tab',
+      agendaTenantBusinessPath(context, tenantId!, businessId!, tab: tab),
+    );
+  }
+
+  String? _publicBookingUrl() {
+    if (businessId == null) return null;
+    // Flutter web usa hash routing (/#/...). La ruta pública está en router.dart.
+    return '${Uri.base.origin}/#/agenda/public/business/$businessId';
+  }
+
+  Future<void> _showPublicAgendaLinkDialog(BuildContext context) async {
+    final url = _publicBookingUrl();
+    if (url == null) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Link público para que tus clientes reserven'),
+        content: SelectableText(url),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: url));
+              if (context.mounted) Navigator.pop(context);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Link copiado')),
+                );
+              }
+            },
+            child: const Text('Copiar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.push('/agenda/public/business/$businessId');
+            },
+            child: const Text('Abrir'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -278,7 +319,16 @@ class _LeftNav extends StatelessWidget {
           const SizedBox(height: 28),
           // Nav items
           _NavItem(icon: Icons.home_outlined,           label: 'Inicio',      selected: true),
-          _NavItem(icon: Icons.calendar_today_outlined,  label: 'Agenda'),
+          _NavItem(
+            icon: Icons.smart_toy_outlined,
+            label: 'Mis bots',
+            onTap: () => context.go('/home/bots'),
+          ),
+          _NavItem(
+            icon: Icons.calendar_today_outlined,
+            label: 'Agenda',
+            onTap: () => _showPublicAgendaLinkDialog(context),
+          ),
           _NavItem(icon: Icons.people_outline,           label: 'Clientes'),
           _NavItem(
             icon:  Icons.design_services_outlined,

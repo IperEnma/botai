@@ -12,7 +12,15 @@ public interface TenantAccountJpaRepository extends JpaRepository<TenantAccountE
 
     Optional<TenantAccountEntity> findByEmail(String email);
 
+    Optional<TenantAccountEntity> findByNumero(String numero);
+
+    Optional<TenantAccountEntity> findByGoogleLinkedEmail(String googleLinkedEmail);
+
     boolean existsByEmail(String email);
+
+    boolean existsByNumero(String numero);
+
+    boolean existsByGoogleLinkedEmail(String googleLinkedEmail);
 
     Optional<TenantAccountEntity> findByAccessCode(String accessCode);
 }

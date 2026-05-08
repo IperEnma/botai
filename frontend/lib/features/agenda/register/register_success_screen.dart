@@ -65,7 +65,7 @@ class RegisterSuccessScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => context.go('/agenda/tenants/$tenantId'),
+                    onPressed: () => context.go('/home'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: KTokens.ink,
                       foregroundColor: Colors.white,

@@ -19,6 +19,8 @@ public final class TenantAccountMapper {
                 entity.getTenantId(),
                 entity.getNombrePropietario(),
                 entity.getEmail(),
+                entity.getGoogleLinkedEmail(),
+                entity.getNumero(),
                 entity.getTelefono(),
                 entity.getAccessCode(),
                 entity.isActivo(),
@@ -35,6 +37,8 @@ public final class TenantAccountMapper {
         entity.setTenantId(account.getTenantId());
         entity.setNombrePropietario(account.getNombrePropietario());
         entity.setEmail(account.getEmail());
+        entity.setGoogleLinkedEmail(account.getGoogleLinkedEmail());
+        entity.setNumero(account.getNumero());
         entity.setTelefono(account.getTelefono());
         entity.setAccessCode(account.getAccessCode());
         entity.setActivo(account.isActivo());

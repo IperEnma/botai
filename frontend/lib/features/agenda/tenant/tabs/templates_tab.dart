@@ -114,6 +114,7 @@ class _TemplateRow extends ConsumerWidget {
             try {
               await ref.read(templatesProvider(key).notifier).update(
                     id: template.id,
+                    codigo: result.codigo,
                     titulo: result.titulo,
                     cuerpo: result.cuerpo,
                     canal: result.canal,

@@ -50,7 +50,6 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final members = await api.getStaffMembers(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
       );
       state = BusinessStaffState(members: members);
@@ -64,7 +63,6 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final member = await api.createStaffMember(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
         nombre: nombre,
         rol: rol,
@@ -92,7 +90,6 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final updated = await api.updateStaffMember(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
         staffId: staffId,
         nombre: nombre,
@@ -116,7 +113,6 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final url = await api.uploadStaffAvatar(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
         staffId: staffId,
         bytes: bytes,
@@ -124,7 +120,6 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
       );
       final member = state.members.firstWhere((m) => m.id == staffId);
       final updated = await api.updateStaffMember(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
         staffId: staffId,
         nombre: member.nombre,
@@ -148,7 +143,6 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       await api.deleteStaffMember(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
         staffId: staffId,
       );

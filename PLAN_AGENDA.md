@@ -172,7 +172,7 @@ SELECT ... FROM agenda_user_subscriptions WHERE id=? FOR UPDATE
 
 ## 4. Endpoints REST — `/api/agenda/**`
 
-Se sigue el patrón del bot (`/api/tenants/{tenantId}/...`) pero bajo el subpath `/api/agenda/tenants/{tenantId}/...` para aislar del namespace del admin del bot.
+Los endpoints de **admin de negocio** son **me-scoped**: el frontend no envía `tenantId` y el backend lo resuelve desde el contexto de seguridad (JWT validado).
 
 ### 4.1 Públicos (sin login — RNF01)
 | Método | Ruta | Descripción |
@@ -194,24 +194,24 @@ Como las categorías son globales, su CRUD vive bajo `/api/agenda/platform/**` y
 ### 4.2 Admin de negocio
 | Método | Ruta |
 |---|---|
-| GET / PUT | `/api/agenda/tenants/{tenantId}/features` (flags propios de AGENDA) |
-| POST / GET / PUT | `/api/agenda/tenants/{tenantId}/businesses` |
-| PUT | `/api/agenda/tenants/{tenantId}/businesses/{businessId}/categories` (asociar N categorías del catálogo global) |
-| CRUD | `/api/agenda/tenants/{tenantId}/businesses/{businessId}/services` |
-| CRUD | `/api/agenda/tenants/{tenantId}/businesses/{businessId}/plans` |
-| GET / PUT | `/api/agenda/tenants/{tenantId}/businesses/{businessId}/settings` |
-| GET | `/api/agenda/tenants/{tenantId}/businesses/{businessId}/loyalty-suggestions` |
-| POST | `/api/agenda/tenants/{tenantId}/businesses/{businessId}/loyalty-suggestions/{id}/send` |
-| CRUD | `/api/agenda/tenants/{tenantId}/businesses/{businessId}/notification-templates` |
+| GET / PUT | `/api/agenda/me/features` (flags propios de AGENDA) |
+| POST / GET / PUT | `/api/agenda/me/businesses` |
+| PUT | `/api/agenda/me/businesses/{businessId}/categories` (asociar N categorías del catálogo global) |
+| CRUD | `/api/agenda/me/businesses/{businessId}/services` |
+| CRUD | `/api/agenda/me/businesses/{businessId}/plans` |
+| GET / PUT | `/api/agenda/me/businesses/{businessId}/settings` |
+| GET | `/api/agenda/me/businesses/{businessId}/loyalty/suggestions` |
+| POST | `/api/agenda/me/businesses/{businessId}/loyalty/suggestions/{id}/send` |
+| CRUD | `/api/agenda/me/businesses/{businessId}/notification-templates` |
 
 ### 4.3 Usuario final (cliente)
 | Método | Ruta |
 |---|---|
 | GET | `/api/agenda/me/subscriptions` |
-| POST | `/api/agenda/me/subscriptions` (comprar plan) |
+| POST | `/api/agenda/me/businesses/{businessId}/subscriptions` (comprar plan) |
 | GET | `/api/agenda/me/bookings` |
-| POST | `/api/agenda/me/bookings` (reservar) |
-| DELETE | `/api/agenda/me/bookings/{id}` (cancelar) |
+| POST | `/api/agenda/me/businesses/{businessId}/bookings` (reservar) |
+| DELETE | `/api/agenda/me/businesses/{businessId}/bookings/{id}` (cancelar) |
 
 Documentación: **OpenAPI/Swagger desde el Sprint 1** (ver mejoras).
 
@@ -238,8 +238,8 @@ public interface AgendaFeatureFlagService {
 - **Puerto:** `com.botai.agenda.domain.feature.AgendaFeatureFlagService`.
 - **Implementación:** `com.botai.agenda.infrastructure.config.JpaAgendaFeatureFlagService`.
 - **Persistencia:** tabla propia `agenda_tenant_config` (ver modelo de datos).
-- **Guardia:** interceptor `AgendaFeatureGuard` en la capa REST que evalúa `AGENDA_ENABLED` para cada request bajo `/api/agenda/tenants/{tenantId}/**` y `/api/agenda/me/**`. Si el flag está off → **404 uniforme** (mejor que 403 para no revelar que el módulo existe).
-- **Endpoints:** `/api/agenda/tenants/{tenantId}/features` (GET/PUT) para que el admin del tenant prenda/apague cosas de AGENDA — mismo patrón de URL que el bot, pero en su propio namespace.
+- **Guardia:** interceptor `AgendaFeatureGuard` en la capa REST que evalúa `AGENDA_ENABLED` para cada request autenticada bajo `/api/agenda/me/**`. Si el flag está off → **404 uniforme** (mejor que 403 para no revelar que el módulo existe).
+- **Endpoints:** `/api/agenda/me/features` (GET/PUT) para que el admin prenda/apague flags de AGENDA sin exponer tenantId en URL.
 - **Cero cambios en `com.botai.chatbot`** ni en `BotEntity` ni en `BotFeatures`.
 
 ---
@@ -256,7 +256,7 @@ Entregables:
 3. Endpoints Sprint 1 (registro de negocio, asociar categorías al negocio, búsqueda pública, CRUD de catálogo global de categorías).
 4. `SynonymSearchAdapter` que resuelve primero contra `agenda_categories.synonyms` y luego contra `agenda_businesses.search_tags`.
 5. Seed inicial de categorías comunes (`Peluquería`, `Manicure`, `Spa`, `Yoga`, `Gimnasio`, `Tatuajes`, ...) con sus sinónimos, en `V2__agenda_seed_categories.sql`.
-6. Sistema de feature flags propio de AGENDA: enum `AgendaFeatures`, puerto `AgendaFeatureFlagService`, impl JPA sobre `agenda_tenant_config`, interceptor `AgendaFeatureGuard` y endpoints `/api/agenda/tenants/{tenantId}/features`.
+6. Sistema de feature flags propio de AGENDA: enum `AgendaFeatures`, puerto `AgendaFeatureFlagService`, impl JPA sobre `agenda_tenant_config`, interceptor `AgendaFeatureGuard` y endpoints `GET/PUT /api/agenda/me/features`.
 7. README del módulo AGENDA + configuración Swagger.
 8. Tests unitarios de dominio + tests de integración con **Testcontainers PostgreSQL**.
 

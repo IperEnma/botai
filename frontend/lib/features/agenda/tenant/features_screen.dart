@@ -5,19 +5,17 @@ import '../../../providers/agenda/tenant/features_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 
 class FeaturesScreen extends ConsumerWidget {
-  const FeaturesScreen({super.key, required this.tenantId});
-
-  final String tenantId;
+  const FeaturesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(featuresProvider(tenantId));
+    final state = ref.watch(featuresProvider);
 
     if (state.isLoading) return const AgendaLoadingView();
     if (state.features == null) {
       return AgendaErrorView(
         message: state.error ?? 'No se pudo cargar la configuración.',
-        onRetry: () => ref.read(featuresProvider(tenantId).notifier).load(),
+        onRetry: () => ref.read(featuresProvider.notifier).load(),
       );
     }
 
@@ -29,7 +27,7 @@ class FeaturesScreen extends ConsumerWidget {
       bool? loyaltyEngineEnabled,
       bool? autoNotifications,
     }) {
-      ref.read(featuresProvider(tenantId).notifier).update(
+      ref.read(featuresProvider.notifier).update(
             f.copyWith(
               agendaEnabled: agendaEnabled,
               publicSearchEnabled: publicSearchEnabled,

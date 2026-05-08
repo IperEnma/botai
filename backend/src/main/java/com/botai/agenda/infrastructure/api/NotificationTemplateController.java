@@ -23,27 +23,31 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
+import com.botai.agenda.infrastructure.security.AgendaCurrentTenantService;
 
 @RestController
-@RequestMapping("/api/agenda/tenants/{tenantId}/businesses/{businessId}/notification-templates")
+@RequestMapping("/api/agenda/me/businesses/{businessId}/notification-templates")
 @Tag(name = "Agenda Notifications · Templates", description = "Plantillas de notificación editables por el negocio")
 @Validated
 public class NotificationTemplateController {
 
     private final BusinessRepository businessRepository;
     private final NotificationTemplateRepository templateRepository;
+    private final AgendaCurrentTenantService currentTenant;
 
     public NotificationTemplateController(BusinessRepository businessRepository,
-                                          NotificationTemplateRepository templateRepository) {
+                                          NotificationTemplateRepository templateRepository,
+                                          AgendaCurrentTenantService currentTenant) {
         this.businessRepository = businessRepository;
         this.templateRepository = templateRepository;
+        this.currentTenant = currentTenant;
     }
 
     @GetMapping
     @Operation(summary = "Listar plantillas de notificación del negocio")
     public ResponseEntity<List<NotificationTemplateResponse>> list(
-            @PathVariable String tenantId,
             @PathVariable UUID businessId) {
+        String tenantId = currentTenant.requireTenantId();
         validateBusiness(tenantId, businessId);
         List<NotificationTemplateResponse> result = templateRepository
                 .findAllByBusinessId(businessId)
@@ -54,9 +58,9 @@ public class NotificationTemplateController {
     @PostMapping
     @Operation(summary = "Crear una plantilla de notificación")
     public ResponseEntity<NotificationTemplateResponse> create(
-            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @Valid @RequestBody NotificationTemplateRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         validateBusiness(tenantId, businessId);
         NotificationTemplate template = new NotificationTemplate(
                 null, businessId, request.codigo(), request.canal(),
@@ -68,10 +72,10 @@ public class NotificationTemplateController {
     @PutMapping("/{templateId}")
     @Operation(summary = "Actualizar una plantilla de notificación")
     public ResponseEntity<NotificationTemplateResponse> update(
-            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @PathVariable UUID templateId,
             @Valid @RequestBody NotificationTemplateRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         validateBusiness(tenantId, businessId);
         NotificationTemplate existing = templateRepository.findById(templateId)
                 .filter(t -> t.getBusinessId().equals(businessId))
@@ -86,9 +90,9 @@ public class NotificationTemplateController {
     @DeleteMapping("/{templateId}")
     @Operation(summary = "Eliminar una plantilla de notificación")
     public ResponseEntity<Void> delete(
-            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @PathVariable UUID templateId) {
+        String tenantId = currentTenant.requireTenantId();
         validateBusiness(tenantId, businessId);
         templateRepository.findById(templateId)
                 .filter(t -> t.getBusinessId().equals(businessId))

@@ -76,7 +76,7 @@ whatsapp:
 
 ## API Endpoints
 
-### Admin Panel (Frontend)
+### Admin Panel (Frontend — Bot)
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
@@ -89,6 +89,26 @@ whatsapp:
 | POST | `/api/tenants/{id}/knowledge` | Crear knowledge chunk |
 | GET | `/api/tenants/{id}/features` | Listar feature flags |
 | PUT | `/api/tenants/{id}/features/{key}` | Actualizar feature flag |
+
+### Admin Panel (Frontend — AGENDA)
+
+**Regla clave:** el frontend **no** usa `tenantId` en URLs ni en llamadas admin. Todo el panel de negocio vive bajo `/home` y el backend resuelve `tenantId` desde el contexto de seguridad.
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/agenda/me/tenant-admin` | Resolver el tenant del admin autenticado |
+| GET | `/api/agenda/me/businesses` | Listar negocios del admin |
+| PUT | `/api/agenda/me/businesses/{businessId}` | Actualizar negocio |
+| PUT | `/api/agenda/me/businesses/{businessId}/hours` | Guardar horarios |
+| CRUD | `/api/agenda/me/businesses/{businessId}/services` | Servicios del negocio |
+| CRUD | `/api/agenda/me/businesses/{businessId}/plans` | Planes del negocio |
+| GET/PUT | `/api/agenda/me/features` | Feature flags del tenant AGENDA |
+
+### Link público de agenda (para clientes)
+
+Cada negocio tiene ficha pública y flujo de reserva. En web (hash routing):
+
+- `/#/agenda/public/business/{businessId}`
 
 ### WhatsApp Webhook
 

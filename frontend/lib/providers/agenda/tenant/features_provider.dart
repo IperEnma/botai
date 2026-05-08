@@ -31,19 +31,17 @@ class FeaturesState {
 }
 
 class FeaturesNotifier extends StateNotifier<FeaturesState> {
-  FeaturesNotifier(this._ref, this._tenantId)
-      : super(const FeaturesState(isLoading: true)) {
+  FeaturesNotifier(this._ref) : super(const FeaturesState(isLoading: true)) {
     load();
   }
 
   final Ref _ref;
-  final String _tenantId;
 
   Future<void> load() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final api = _ref.read(agendaApiServiceProvider);
-      final features = await api.getFeatures(_tenantId);
+      final features = await api.getFeatures();
       state = FeaturesState(features: features);
     } on AgendaApiException catch (e) {
       state = FeaturesState(error: e.message);
@@ -55,7 +53,7 @@ class FeaturesNotifier extends StateNotifier<FeaturesState> {
     state = state.copyWith(features: features);
     try {
       final api = _ref.read(agendaApiServiceProvider);
-      final updated = await api.updateFeatures(_tenantId, features);
+      final updated = await api.updateFeatures(features);
       state = FeaturesState(features: updated);
     } on AgendaApiException catch (e) {
       state = FeaturesState(features: prev, error: e.message);
@@ -63,7 +61,7 @@ class FeaturesNotifier extends StateNotifier<FeaturesState> {
   }
 }
 
-final featuresProvider = StateNotifierProvider.autoDispose
-    .family<FeaturesNotifier, FeaturesState, String>((ref, tenantId) {
-  return FeaturesNotifier(ref, tenantId);
+final featuresProvider =
+    StateNotifierProvider.autoDispose<FeaturesNotifier, FeaturesState>((ref) {
+  return FeaturesNotifier(ref);
 });

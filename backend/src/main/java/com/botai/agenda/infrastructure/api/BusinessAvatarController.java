@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.botai.agenda.infrastructure.security.AgendaCurrentTenantService;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,26 +25,29 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/agenda/tenants/{tenantId}/businesses/{businessId}")
+@RequestMapping("/api/agenda/me/businesses/{businessId}")
 @Tag(name = "Agenda Tenant", description = "Administración de negocios por tenant")
 public class BusinessAvatarController {
 
     private final BusinessRepository businessRepository;
     private final AgendaUploadProperties uploadProps;
+    private final AgendaCurrentTenantService currentTenant;
 
     public BusinessAvatarController(BusinessRepository businessRepository,
-                                    AgendaUploadProperties uploadProps) {
+                                    AgendaUploadProperties uploadProps,
+                                    AgendaCurrentTenantService currentTenant) {
         this.businessRepository = businessRepository;
         this.uploadProps = uploadProps;
+        this.currentTenant = currentTenant;
     }
 
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Sube la imagen de avatar del negocio al filesystem")
     public ResponseEntity<Map<String, String>> uploadAvatar(
-            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @RequestParam("file") MultipartFile file) throws IOException {
 
+        String tenantId = currentTenant.requireTenantId();
         businessRepository.findByIdAndTenantId(businessId, tenantId)
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
 

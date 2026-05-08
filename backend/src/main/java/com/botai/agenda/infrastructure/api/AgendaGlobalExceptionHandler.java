@@ -8,6 +8,9 @@ import com.botai.agenda.domain.exception.BusinessNotFoundException;
 import com.botai.agenda.domain.exception.CategoryNotFoundException;
 import com.botai.agenda.domain.exception.DuplicateCategorySlugException;
 import com.botai.agenda.domain.exception.DuplicateTenantEmailException;
+import com.botai.agenda.domain.exception.DuplicateTenantNumeroException;
+import com.botai.agenda.domain.exception.TenantAccessCodeNotFoundException;
+import com.botai.agenda.domain.exception.TenantGoogleLinkConflictException;
 import com.botai.agenda.domain.exception.InvalidPlanConfigurationException;
 import com.botai.agenda.domain.exception.NoCreditsException;
 import com.botai.agenda.domain.exception.PaymentFailedException;
@@ -61,6 +64,21 @@ public class AgendaGlobalExceptionHandler {
     @ExceptionHandler(DuplicateTenantEmailException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateTenantEmail(DuplicateTenantEmailException ex) {
         return response(HttpStatus.CONFLICT, "EMAIL_ALREADY_REGISTERED", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(DuplicateTenantNumeroException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateTenantNumero(DuplicateTenantNumeroException ex) {
+        return response(HttpStatus.CONFLICT, "NUMERO_ALREADY_REGISTERED", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(TenantAccessCodeNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessCodeNotFound(TenantAccessCodeNotFoundException ex) {
+        return response(HttpStatus.NOT_FOUND, "ACCESS_CODE_NOT_FOUND", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(TenantGoogleLinkConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleGoogleLinkConflict(TenantGoogleLinkConflictException ex) {
+        return response(HttpStatus.CONFLICT, "GOOGLE_LINK_CONFLICT", ex.getMessage(), null);
     }
 
     @ExceptionHandler(PlanNotFoundException.class)

@@ -212,7 +212,7 @@ class _SearchNavbar extends StatelessWidget {
         child: Row(
           children: [
             GestureDetector(
-              onTap: () => context.go('/agenda'),
+              onTap: () => context.go('/'),
               child: Row(
                 children: [
                   Container(
@@ -237,7 +237,7 @@ class _SearchNavbar extends StatelessWidget {
             const Spacer(),
             if (wide) ...[
               TextButton(
-                onPressed: () => context.go('/agenda'),
+                onPressed: () => context.go('/'),
                 child: Text('Inicio',
                     style: _b(13, w: FontWeight.w500, c: _kTextSub)),
               ),

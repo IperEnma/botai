@@ -143,7 +143,6 @@ class _StylesTabState extends ConsumerState<StylesTab> {
 
         final api = ref.read(agendaApiServiceProvider);
         final url = await api.uploadBusinessAvatar(
-          tenantId: widget.tenantId,
           businessId: widget.business.id,
           bytes: bytes,
           fileName: file.name,

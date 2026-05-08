@@ -4,10 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config.dart';
 
 class AgendaUserState {
-  const AgendaUserState({this.tenantId, this.nombre, this.phone});
+  const AgendaUserState({this.tenantId, this.nombre, this.phone, this.email});
   final String? tenantId;
   final String? nombre;
   final String? phone;
+  /// Correo del flujo "Continuar con Google" (registro por email en API).
+  final String? email;
   bool get hasBusiness => tenantId != null;
 }
 
@@ -15,6 +17,7 @@ class AgendaUserNotifier extends AsyncNotifier<AgendaUserState> {
   static const _kTenantId = 'agenda_tenant_id';
   static const _kNombre   = 'agenda_user_nombre';
   static const _kPhone    = 'agenda_user_phone';
+  static const _kEmail    = 'agenda_user_email';
 
   @override
   Future<AgendaUserState> build() async {
@@ -22,7 +25,9 @@ class AgendaUserNotifier extends AsyncNotifier<AgendaUserState> {
     final tenantId = prefs.getString(_kTenantId) ?? AppConfig.agendaDefaultTenantId;
     final nombre   = prefs.getString(_kNombre);
     final phone    = prefs.getString(_kPhone);
-    return AgendaUserState(tenantId: tenantId, nombre: nombre, phone: phone);
+    final email    = prefs.getString(_kEmail);
+    return AgendaUserState(
+        tenantId: tenantId, nombre: nombre, phone: phone, email: email);
   }
 
   Future<void> saveTenantId(String id) async {
@@ -33,6 +38,7 @@ class AgendaUserNotifier extends AsyncNotifier<AgendaUserState> {
       tenantId: id,
       nombre: current?.nombre,
       phone: current?.phone,
+      email: current?.email,
     ));
   }
 
@@ -44,6 +50,7 @@ class AgendaUserNotifier extends AsyncNotifier<AgendaUserState> {
       tenantId: current?.tenantId ?? AppConfig.agendaDefaultTenantId,
       nombre: nombre,
       phone: current?.phone,
+      email: current?.email,
     ));
   }
 
@@ -55,6 +62,7 @@ class AgendaUserNotifier extends AsyncNotifier<AgendaUserState> {
       tenantId: current?.tenantId ?? AppConfig.agendaDefaultTenantId,
       nombre: current?.nombre,
       phone: phone,
+      email: current?.email,
     ));
   }
 
@@ -65,11 +73,31 @@ class AgendaUserNotifier extends AsyncNotifier<AgendaUserState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kNombre, nombre);
     await prefs.setString(_kPhone, phone);
+    await prefs.remove(_kEmail);
     final current = state.valueOrNull;
     state = AsyncData(AgendaUserState(
       tenantId: current?.tenantId ?? AppConfig.agendaDefaultTenantId,
       nombre: nombre,
       phone: phone,
+      email: null,
+    ));
+  }
+
+  /// Registro vía Google: cuenta Agenda por email (no WhatsApp).
+  Future<void> saveGoogleRegistration({
+    required String nombre,
+    required String email,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kNombre, nombre);
+    await prefs.setString(_kEmail, email.trim());
+    await prefs.remove(_kPhone);
+    final current = state.valueOrNull;
+    state = AsyncData(AgendaUserState(
+      tenantId: current?.tenantId ?? AppConfig.agendaDefaultTenantId,
+      nombre: nombre,
+      phone: null,
+      email: email.trim(),
     ));
   }
 }

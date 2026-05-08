@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -69,6 +70,8 @@ public class RagLlmChatService implements ConversationModeHandler {
     private final ConversationActionRouting actionRouting;
     private final StandardRouteResponses standardRouteResponses;
     private final ConversationRepository conversationRepository;
+    private final ChatMemory chatMemory;
+    private final BookingAiFastPathService bookingAiFastPathService;
     private final String messageTenantUnknown;
     private final String messageAiError;
 
@@ -82,6 +85,8 @@ public class RagLlmChatService implements ConversationModeHandler {
                              ConversationActionRouting actionRouting,
                              StandardRouteResponses standardRouteResponses,
                              ConversationRepository conversationRepository,
+                             ChatMemory chatMemory,
+                             BookingAiFastPathService bookingAiFastPathService,
                              BotMessages botMessages) {
         this.chatClientWithTools = chatClientWithTools;
         this.aiContextBuilder = aiContextBuilder;
@@ -93,6 +98,8 @@ public class RagLlmChatService implements ConversationModeHandler {
         this.actionRouting = actionRouting;
         this.standardRouteResponses = standardRouteResponses;
         this.conversationRepository = conversationRepository;
+        this.chatMemory = chatMemory;
+        this.bookingAiFastPathService = bookingAiFastPathService;
         String tu = botMessages.getTenantUnknown();
         String ae = botMessages.getAiError();
         this.messageTenantUnknown = tu != null && !tu.isBlank() ? tu : "No se pudo identificar el negocio. Revisa la configuración del bot.";
@@ -208,13 +215,13 @@ public class RagLlmChatService implements ConversationModeHandler {
             log.info("[RAG-LLM] Jailbreak filtrado -> LLM con contexto de limite");
             List<String> guardSupp = BotPrompts.RouterSupplement.jailbreakFilteredLines();
             OutboundMessage msg = generateResponse(
-                inbound, request.state(), request.classification(), mergeLists(guardSupp, supplemental));
+                inbound, request.state(), request.classification(), mergeLists(guardSupp, supplemental), false);
             return Optional.of(new ConversationRouteResult(msg, ConversationIntentSource.AI, null));
         }
 
         log.info("[RAG-LLM] Generacion RAG + clasificacion inyectada");
         OutboundMessage out = generateResponse(
-            inbound, request.state(), request.classification(), supplemental);
+            inbound, request.state(), request.classification(), supplemental, true);
         return Optional.of(new ConversationRouteResult(out, ConversationIntentSource.AI, null));
     }
 
@@ -224,14 +231,14 @@ public class RagLlmChatService implements ConversationModeHandler {
     }
 
     public OutboundMessage generateResponse(InboundMessage inbound, ConversationState state) {
-        return generateResponse(inbound, state, null, Collections.emptyList());
+        return generateResponse(inbound, state, null, Collections.emptyList(), true);
     }
 
     /**
      * Generación con la clasificación del router ya resuelta (inyectada en system prompt vía {@link BotPrompts.InjectedClassification}).
      */
     public OutboundMessage generateResponse(InboundMessage inbound, ConversationState state, IntentClassification classification) {
-        return generateResponse(inbound, state, classification, Collections.emptyList());
+        return generateResponse(inbound, state, classification, Collections.emptyList(), true);
     }
 
     /**
@@ -239,18 +246,28 @@ public class RagLlmChatService implements ConversationModeHandler {
      */
     public OutboundMessage generateResponse(InboundMessage inbound, ConversationState state, IntentClassification classification,
                                            List<String> supplementalSystemLines) {
-        return generateResponse(inbound, state, classification, supplementalSystemLines, aiContextBuilder);
+        return generateResponse(inbound, state, classification, supplementalSystemLines, true);
+    }
+
+    /**
+     * Igual que {@link #generateResponse(InboundMessage, ConversationState, IntentClassification, List)} con control del
+     * atajo determinístico de agendamiento (desactivado p. ej. tras filtro jailbreak).
+     */
+    public OutboundMessage generateResponse(InboundMessage inbound, ConversationState state, IntentClassification classification,
+                                           List<String> supplementalSystemLines, boolean allowBookingFastPath) {
+        return generateResponse(inbound, state, classification, supplementalSystemLines, aiContextBuilder, allowBookingFastPath);
     }
 
     /**
      * Misma generación que {@link #generateResponse} pero sin fragmentos RAG (solo reglas mínimas + tools); útil para comparar en diagnóstico.
      */
     public OutboundMessage generateResponseNoRag(InboundMessage inbound, ConversationState state, IntentClassification classification) {
-        return generateResponse(inbound, state, classification, Collections.emptyList(), defaultAiContextBuilder);
+        return generateResponse(inbound, state, classification, Collections.emptyList(), defaultAiContextBuilder, true);
     }
 
     private OutboundMessage generateResponse(InboundMessage inbound, ConversationState state, IntentClassification classification,
-                                           List<String> supplementalSystemLines, AiContextBuilder contextBuilder) {
+                                           List<String> supplementalSystemLines, AiContextBuilder contextBuilder,
+                                           boolean allowBookingFastPath) {
         String conversationId = inbound.getConversationId();
         String userText = inbound.getText();
         String tenantId = InboundMetadata.tenantId(inbound);
@@ -266,19 +283,37 @@ public class RagLlmChatService implements ConversationModeHandler {
             return OutboundMessage.builder().text(messageTenantUnknown).conversationId(conversationId).tenantId(null).build();
         }
 
-        return generateResponseWithRag(inbound, conversationId, userText, tenantId, state, classification, supplementalSystemLines, contextBuilder);
+        return generateResponseWithRag(inbound, conversationId, userText, tenantId, state, classification, supplementalSystemLines, contextBuilder,
+            allowBookingFastPath);
     }
 
     private OutboundMessage generateResponseWithRag(InboundMessage inbound, String conversationId, String userText, String tenantId,
                                                      ConversationState state, IntentClassification classification,
                                                      List<String> supplementalSystemLines,
-                                                     AiContextBuilder contextBuilder) {
+                                                     AiContextBuilder contextBuilder,
+                                                     boolean allowBookingFastPath) {
         String sessionId = ChatSessionService.sessionIdFrom(state);
         String memoryKey = ChatMemoryConversationIdCodec.encode(conversationId, sessionId);
         TenantContext.set(tenantId);
         TenantContext.setUserId(resolveUserIdForTools(inbound, state));
         TenantContext.setConversationId(conversationId);
         try {
+            if (allowBookingFastPath && isBookingFlow(state, classification)) {
+                Optional<String> fastPath = bookingAiFastPathService.tryExecute(tenantId, conversationId, sessionId, userText);
+                if (fastPath.isPresent()) {
+                    String ut = userText != null ? userText : "";
+                    String safeText = responseValidator.validateAndSanitize(fastPath.get());
+                    chatMemory.add(memoryKey, new UserMessage(ut));
+                    chatMemory.add(memoryKey, new AssistantMessage(safeText));
+                    log.info("[RAG-LLM] Agendamiento determinístico (sin LLM); conversationId={}", conversationId);
+                    return OutboundMessage.builder()
+                        .text(safeText)
+                        .conversationId(conversationId)
+                        .tenantId(tenantId)
+                        .build();
+                }
+            }
+
             BuildContextResult ctxResult = contextBuilder.buildContext(state, userText);
             List<String> systemLines = new ArrayList<>(ctxResult.systemPromptLines());
             boolean ragEmpty = !ctxResult.hasRelevantChunks();
@@ -362,16 +397,17 @@ public class RagLlmChatService implements ConversationModeHandler {
     }
 
     /**
-     * Mientras el intent {@code book_appointment} está activo con IA, el modelo recibe la directriz de agendamiento
-     * salvo que el clasificador marque pregunta general o saludo (entonces se prioriza respuesta informativa RAG sin el bloque CRM largo).
+     * Flujo de agendamiento para fast path y reglas “sin chunks”: si en BD sigue {@code book_appointment},
+     * se mantiene aunque el mini-clasificador marque PREGUNTA_GENERAL (typos, ruido). La línea inyectada
+     * {@link #bookingClassificationLine} sigue acortando el bloque CRM cuando el clasificador pide tono FAQ/saludo.
      */
     private static boolean isBookingFlow(ConversationState state, IntentClassification classification) {
-        if (classification != null && (classification.isGeneralQuestion() || classification.isGreeting())) {
-            return false;
-        }
         if (state != null && state.hasIntent()
             && ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID.equals(state.getCurrentIntent())) {
             return true;
+        }
+        if (classification != null && (classification.isGeneralQuestion() || classification.isGreeting())) {
+            return false;
         }
         return classification != null && classification.isCrmAction()
             && ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID.equals(classification.getActionId().orElse(""));

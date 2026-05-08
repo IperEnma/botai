@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
 import '../../../models/agenda/business.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
@@ -76,7 +77,7 @@ class BusinessesScreen extends ConsumerWidget {
                 return _BusinessCard(
                   business: b,
                   onTap: () => context.push(
-                    '/agenda/tenants/$tenantId/businesses/${b.id}',
+                    agendaTenantBusinessPath(context, tenantId, b.id),
                   ),
                 );
               },

@@ -50,7 +50,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final settings = await api.getSettings(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
       );
       state = SettingsState(settings: settings);
@@ -64,7 +63,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final updated = await api.updateSettings(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
         settings: settings,
       );

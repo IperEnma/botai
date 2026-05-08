@@ -46,7 +46,6 @@ class ServicesNotifier extends StateNotifier<ServicesState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final items = await api.listTenantServices(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
       );
       state = ServicesState(items: items);
@@ -63,7 +62,6 @@ class ServicesNotifier extends StateNotifier<ServicesState> {
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final created = await api.createService(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       nombre: nombre,
       descripcion: descripcion,
@@ -84,7 +82,6 @@ class ServicesNotifier extends StateNotifier<ServicesState> {
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final updated = await api.updateService(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       serviceId: serviceId,
       nombre: nombre,
@@ -105,7 +102,6 @@ class ServicesNotifier extends StateNotifier<ServicesState> {
   Future<void> delete(String serviceId) async {
     final api = _ref.read(agendaApiServiceProvider);
     await api.deleteService(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       serviceId: serviceId,
     );

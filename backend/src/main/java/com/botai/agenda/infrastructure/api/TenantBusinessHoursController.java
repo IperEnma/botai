@@ -18,25 +18,34 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
+import com.botai.agenda.application.usecase.business.ListBusinessesByTenantUseCase;
+import com.botai.agenda.infrastructure.security.AgendaCurrentTenantService;
 
 @RestController
-@RequestMapping("/api/agenda/tenants/{tenantId}/businesses/{businessId}/hours")
+@RequestMapping("/api/agenda/me/businesses/{businessId}/hours")
 @Tag(name = "Horarios", description = "Horarios de atención del negocio")
 public class TenantBusinessHoursController {
 
     private final BusinessHoursRepository hoursRepository;
     private final SaveBusinessHoursUseCase saveHours;
+    private final AgendaCurrentTenantService currentTenant;
+    private final ListBusinessesByTenantUseCase listBusinesses;
 
     public TenantBusinessHoursController(BusinessHoursRepository hoursRepository,
-                                         SaveBusinessHoursUseCase saveHours) {
+                                         SaveBusinessHoursUseCase saveHours,
+                                         AgendaCurrentTenantService currentTenant,
+                                         ListBusinessesByTenantUseCase listBusinesses) {
         this.hoursRepository = hoursRepository;
         this.saveHours = saveHours;
+        this.currentTenant = currentTenant;
+        this.listBusinesses = listBusinesses;
     }
 
     @GetMapping
     @Operation(summary = "Obtiene los horarios de atención del negocio")
-    public List<BusinessHoursResponse> getHours(@PathVariable String tenantId,
-                                                 @PathVariable UUID businessId) {
+    public List<BusinessHoursResponse> getHours(@PathVariable UUID businessId) {
+        String tenantId = currentTenant.requireTenantId();
+        listBusinesses.findOne(tenantId, businessId);
         return hoursRepository.findByBusinessId(businessId).stream()
                 .map(this::toResponse)
                 .toList();
@@ -45,9 +54,10 @@ public class TenantBusinessHoursController {
     @PutMapping
     @Operation(summary = "Reemplaza los horarios de atención del negocio")
     public ResponseEntity<List<BusinessHoursResponse>> saveHours(
-            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @Valid @RequestBody SaveBusinessHoursRequest request) {
+        String tenantId = currentTenant.requireTenantId();
+        listBusinesses.findOne(tenantId, businessId);
 
         List<BusinessHours> newHours = request.horarios().stream()
                 .map(item -> new BusinessHours(

@@ -46,7 +46,6 @@ class PlansNotifier extends StateNotifier<PlansState> {
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final items = await api.listPlans(
-        tenantId: _key.tenantId,
         businessId: _key.businessId,
       );
       state = PlansState(items: items);
@@ -65,7 +64,6 @@ class PlansNotifier extends StateNotifier<PlansState> {
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final created = await api.createPlan(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       nombrePlan: nombrePlan,
       tipo: tipo,
@@ -90,7 +88,6 @@ class PlansNotifier extends StateNotifier<PlansState> {
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final updated = await api.updatePlan(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       planId: planId,
       nombrePlan: nombrePlan,
@@ -113,7 +110,6 @@ class PlansNotifier extends StateNotifier<PlansState> {
   Future<void> delete(String planId) async {
     final api = _ref.read(agendaApiServiceProvider);
     await api.deletePlan(
-      tenantId: _key.tenantId,
       businessId: _key.businessId,
       planId: planId,
     );

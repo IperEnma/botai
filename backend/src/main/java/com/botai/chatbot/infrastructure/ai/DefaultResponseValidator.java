@@ -56,6 +56,8 @@ public class DefaultResponseValidator implements RagLlmChatService.ResponseValid
         s = s.replaceFirst("(?i)^(disculpa\\s+el\\s+retraso\\.?\\s*)+", "").strip();
         s = s.replaceFirst("(?i)^(disculpa\\.?\\s*)+", "").strip();
 
+        s = stripTypographicQuotes(s);
+
         s = replaceWhatsappTemplateJsonWithPlainText(s);
 
         // No hablar como administrador: reemplazar frases de "panel/datos cargados" por voz del negocio
@@ -70,6 +72,21 @@ public class DefaultResponseValidator implements RagLlmChatService.ResponseValid
             s = s.substring(0, MAX_LENGTH) + "...";
         }
         return s;
+    }
+
+    /** Quita comillas tipográficas y recorta comillas ASCII decorativas (mejor legibilidad en WhatsApp). */
+    private static String stripTypographicQuotes(String s) {
+        if (s == null || s.isEmpty()) {
+            return s;
+        }
+        String t = s.replace('\u201c', ' ').replace('\u201d', ' ')
+            .replace('\u2018', ' ').replace('\u2019', ' ')
+            .replace('\u00ab', ' ').replace('\u00bb', ' ');
+        t = t.replaceAll("\\s{2,}", " ").strip();
+        while (t.length() >= 2 && t.startsWith("\"") && t.endsWith("\"")) {
+            t = t.substring(1, t.length() - 1).strip();
+        }
+        return t;
     }
 
     /**

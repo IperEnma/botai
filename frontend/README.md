@@ -1,17 +1,30 @@
-# botai_admin
+# Frontend (Flutter) — Bot + AGENDA
 
-A new Flutter project.
+Este frontend contiene:
 
-## Getting Started
+- **Bot admin** (menús, knowledge, bots)
+- **AGENDA** (público + panel de negocio + usuario final)
 
-This project is a starting point for a Flutter application.
+## Cómo arrancar (web)
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+cd frontend
+flutter pub get
+flutter run -d web-server --web-port 5173 --web-hostname 127.0.0.1
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Entradas principales:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **Landing pública**: `http://localhost:5173/#/`
+- **Panel de negocio (admin)**: `http://localhost:5173/#/home`
+- **Público Agenda**: `http://localhost:5173/#/agenda/public/search`
+
+## Link público por negocio (clientes)
+
+Para que un cliente reserve en un negocio:
+
+- `http://localhost:5173/#/agenda/public/business/{businessId}`
+
+## Reglas clave
+
+- El panel AGENDA **no usa** `tenantId` en URLs (`/home/...`), ni en llamadas admin: el backend resuelve el tenant desde el contexto de seguridad.

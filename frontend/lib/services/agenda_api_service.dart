@@ -18,6 +18,7 @@ import '../models/agenda/loyalty_suggestion.dart';
 import '../models/agenda/notification_template.dart';
 import '../models/agenda/plan.dart';
 import '../models/agenda/register_tenant.dart';
+import '../models/agenda/tenant_admin_context.dart';
 import '../models/agenda/staff_member.dart';
 import '../models/agenda/subscription.dart';
 import '../models/agenda/tenant_features.dart';
@@ -126,18 +127,27 @@ class AgendaApiService {
   // PUBLIC — registro
   // =====================================================================
 
-  /// `POST /public/register`
+  /// `POST /public/register` — indicar exactamente uno: [email] o [numero] (solo dígitos, WhatsApp).
   Future<RegisterTenantResponse> registerTenant({
     required String nombrePropietario,
-    required String email,
+    String? email,
+    String? numero,
     String? telefono,
     required String nombreNegocio,
     String? categoriaSlug,
   }) async {
+    final trimmedEmail = email?.trim() ?? '';
+    final digitsNumero = numero?.replaceAll(RegExp(r'\D'), '') ?? '';
+    final hasEmail = trimmedEmail.isNotEmpty;
+    final hasNumero = digitsNumero.isNotEmpty;
+    if (hasEmail == hasNumero) {
+      throw ArgumentError('Indicá email o numero (teléfono con dígitos), uno solo.');
+    }
     final body = <String, dynamic>{
       'nombrePropietario': nombrePropietario,
-      'email': email,
       'nombreNegocio': nombreNegocio,
+      if (hasEmail) 'email': trimmedEmail.toLowerCase(),
+      if (hasNumero) 'numero': digitsNumero,
       if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
       if (categoriaSlug != null && categoriaSlug.isNotEmpty) 'categoriaSlug': categoriaSlug,
     };
@@ -147,6 +157,57 @@ class AgendaApiService {
           body: jsonEncode(body),
         ));
     return _decode(r, (b) => RegisterTenantResponse.fromJson(b as Map<String, dynamic>));
+  }
+
+  /// `GET /me/tenant-admin` — tenant del administrador según email de cuenta.
+  Future<TenantAdminContext> fetchTenantAdminContext() async {
+    final r = await _send(() => _client.get(
+          _uri('/me/tenant-admin'),
+          headers: _headers(),
+        ));
+    return _decode(
+      r,
+      (b) => TenantAdminContext.fromJson(b as Map<String, dynamic>),
+    );
+  }
+
+  /// `POST /me/tenant-admin/link` — asocia la sesión Google a la cuenta Agenda identificada por teléfono
+  Future<TenantAdminContext> linkTenantAdminWithAccessCode(String accessCode) async {
+    final r = await _send(() => _client.post(
+          _uri('/me/tenant-admin/link'),
+          headers: _headers(),
+          body: jsonEncode({'accessCode': accessCode.trim()}),
+        ));
+    return _decode(
+      r,
+      (b) => TenantAdminContext.fromJson(b as Map<String, dynamic>),
+    );
+  }
+
+  /// `POST /me/tenant-admin/identifiers` — agrega email o numero a la cuenta actual.
+  Future<TenantAdminContext> linkTenantIdentifier({
+    String? email,
+    String? numero,
+  }) async {
+    final trimmedEmail = email?.trim() ?? '';
+    final digitsNumero = numero?.replaceAll(RegExp(r'\D'), '') ?? '';
+    final hasEmail = trimmedEmail.isNotEmpty;
+    final hasNumero = digitsNumero.isNotEmpty;
+    if (hasEmail == hasNumero) {
+      throw ArgumentError('Indicá email o numero (teléfono con dígitos), uno solo.');
+    }
+    final r = await _send(() => _client.post(
+          _uri('/me/tenant-admin/identifiers'),
+          headers: _headers(),
+          body: jsonEncode({
+            if (hasEmail) 'email': trimmedEmail.toLowerCase(),
+            if (hasNumero) 'numero': digitsNumero,
+          }),
+        ));
+    return _decode(
+      r,
+      (b) => TenantAdminContext.fromJson(b as Map<String, dynamic>),
+    );
   }
 
   // =====================================================================
@@ -325,34 +386,31 @@ class AgendaApiService {
   }
 
   // =====================================================================
-  // TENANT — features
+  // ME — features
   // =====================================================================
 
-  /// `GET /tenants/{tenantId}/features`
-  Future<TenantFeatures> getFeatures(String tenantId) async {
+  /// `GET /me/features`
+  Future<TenantFeatures> getFeatures() async {
     final r = await _send(() => _client.get(
-          _uri('/tenants/$tenantId/features'),
+          _uri('/me/features'),
           headers: _headers(),
         ));
     return _decode(
       r,
-      (body) => TenantFeatures.fromJson(tenantId, body as Map<String, dynamic>),
+      (body) => TenantFeatures.fromJson('me', body as Map<String, dynamic>),
     );
   }
 
-  /// `PUT /tenants/{tenantId}/features`
-  Future<TenantFeatures> updateFeatures(
-    String tenantId,
-    TenantFeatures features,
-  ) async {
+  /// `PUT /me/features`
+  Future<TenantFeatures> updateFeatures(TenantFeatures features) async {
     final r = await _send(() => _client.put(
-          _uri('/tenants/$tenantId/features'),
+          _uri('/me/features'),
           headers: _headers(),
           body: jsonEncode(features.toRequestJson()),
         ));
     return _decode(
       r,
-      (body) => TenantFeatures.fromJson(tenantId, body as Map<String, dynamic>),
+      (body) => TenantFeatures.fromJson('me', body as Map<String, dynamic>),
     );
   }
 
@@ -360,29 +418,28 @@ class AgendaApiService {
   // TENANT — businesses
   // =====================================================================
 
-  /// `GET /tenants/{tenantId}/businesses`
-  Future<List<Business>> listBusinesses(String tenantId) async {
+  /// `GET /me/businesses`
+  Future<List<Business>> listBusinesses() async {
     final r = await _send(() => _client.get(
-          _uri('/tenants/$tenantId/businesses'),
+          _uri('/me/businesses'),
           headers: _headers(),
         ));
     return _decodeList(r, Business.fromJson);
   }
 
-  /// `POST /tenants/{tenantId}/businesses`
+  /// `POST /me/businesses`
   Future<Business> createBusiness({
-    required String tenantId,
     required String nombre,
     String? descripcion,
     List<String> searchTags = const [],
     String? ownerUserId,
   }) async {
     final r = await _send(() => _client.post(
-          _uri('/tenants/$tenantId/businesses'),
+          _uri('/me/businesses'),
           headers: _headers(),
           body: jsonEncode({
             'nombre': nombre,
-            'descripcion': ?descripcion,
+            if (descripcion != null) 'descripcion': descripcion,
             'searchTags': searchTags,
             if (ownerUserId != null && ownerUserId.isNotEmpty)
               'ownerUserId': ownerUserId,
@@ -391,9 +448,8 @@ class AgendaApiService {
     return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `PUT /tenants/{tenantId}/businesses/{businessId}`
+  /// `PUT /me/businesses/{businessId}`
   Future<Business> updateBusiness({
-    required String tenantId,
     required String businessId,
     required String nombre,
     String? descripcion,
@@ -407,11 +463,11 @@ class AgendaApiService {
     String? fontFamily,
   }) async {
     final r = await _send(() => _client.put(
-          _uri('/tenants/$tenantId/businesses/$businessId'),
+          _uri('/me/businesses/$businessId'),
           headers: _headers(),
           body: jsonEncode({
             'nombre': nombre,
-            'descripcion': ?descripcion,
+            if (descripcion != null) 'descripcion': descripcion,
             'searchTags': searchTags,
             'logoUrl': logoUrl,
             'colorPrimario': colorPrimario,
@@ -425,14 +481,13 @@ class AgendaApiService {
     return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/avatar`
+  /// `POST /me/businesses/{businessId}/avatar`
   Future<String> uploadBusinessAvatar({
-    required String tenantId,
     required String businessId,
     required List<int> bytes,
     required String fileName,
   }) async {
-    final uri = Uri.parse('$baseUrl/tenants/$tenantId/businesses/$businessId/avatar');
+    final uri = Uri.parse('$baseUrl/me/businesses/$businessId/avatar');
     final request = http.MultipartRequest('POST', uri)
       ..headers['Accept'] = 'application/json';
     if (_accessToken != null) {
@@ -444,16 +499,15 @@ class AgendaApiService {
     return _decode(r, (body) => (body as Map<String, dynamic>)['url'] as String);
   }
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/staff/{staffId}/avatar`
+  /// `POST /me/businesses/{businessId}/staff/{staffId}/avatar`
   Future<String> uploadStaffAvatar({
-    required String tenantId,
     required String businessId,
     required String staffId,
     required List<int> bytes,
     required String fileName,
   }) async {
     final uri = Uri.parse(
-        '$baseUrl/tenants/$tenantId/businesses/$businessId/staff/$staffId/avatar');
+        '$baseUrl/me/businesses/$businessId/staff/$staffId/avatar');
     final request = http.MultipartRequest('POST', uri)
       ..headers['Accept'] = 'application/json';
     if (_accessToken != null) {
@@ -469,92 +523,85 @@ class AgendaApiService {
   // TENANT — business hours
   // =====================================================================
 
-  /// `GET /tenants/{tenantId}/businesses/{businessId}/hours`
+  /// `GET /me/businesses/{businessId}/hours`
   Future<List<BusinessHours>> getBusinessHours({
-    required String tenantId,
     required String businessId,
   }) async {
     final r = await _send(() => _client.get(
-          _uri('/tenants/$tenantId/businesses/$businessId/hours'),
+          _uri('/me/businesses/$businessId/hours'),
           headers: _headers(),
         ));
     return _decodeList(r, BusinessHours.fromJson);
   }
 
-  /// `PUT /tenants/{tenantId}/businesses/{businessId}/hours`
+  /// `PUT /me/businesses/{businessId}/hours`
   Future<List<BusinessHours>> saveBusinessHours({
-    required String tenantId,
     required String businessId,
     required List<BusinessHours> hours,
   }) async {
     final r = await _send(() => _client.put(
-          _uri('/tenants/$tenantId/businesses/$businessId/hours'),
+          _uri('/me/businesses/$businessId/hours'),
           headers: _headers(),
           body: jsonEncode({'horarios': hours.map((h) => h.toJson()).toList()}),
         ));
     return _decodeList(r, BusinessHours.fromJson);
   }
 
-  /// `PUT /tenants/{tenantId}/businesses/{businessId}/categories`
+  /// `PUT /me/businesses/{businessId}/categories`
   Future<void> associateCategories({
-    required String tenantId,
     required String businessId,
     required List<String> categoryIds,
   }) async {
     final r = await _send(() => _client.put(
-          _uri('/tenants/$tenantId/businesses/$businessId/categories'),
+          _uri('/me/businesses/$businessId/categories'),
           headers: _headers(),
           body: jsonEncode({'categoryIds': categoryIds}),
         ));
     _ensureOk(r);
   }
 
-  /// `GET /tenants/{tenantId}/businesses/{businessId}/photos`
+  /// `GET /me/businesses/{businessId}/photos`
   Future<List<BusinessPhoto>> getBusinessPhotos({
-    required String tenantId,
     required String businessId,
   }) async {
     final r = await _send(() => _client.get(
-          _uri('/tenants/$tenantId/businesses/$businessId/photos'),
+          _uri('/me/businesses/$businessId/photos'),
           headers: _headers(),
         ));
     return _decodeList(r, BusinessPhoto.fromJson);
   }
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/photos`
+  /// `POST /me/businesses/{businessId}/photos`
   Future<BusinessPhoto> addBusinessPhoto({
-    required String tenantId,
     required String businessId,
     required String url,
   }) async {
     final r = await _send(() => _client.post(
-          _uri('/tenants/$tenantId/businesses/$businessId/photos'),
+          _uri('/me/businesses/$businessId/photos'),
           headers: _headers(),
           body: jsonEncode({'url': url}),
         ));
     return _decode(r, (body) => BusinessPhoto.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `DELETE /tenants/{tenantId}/businesses/{businessId}/photos/{photoId}`
+  /// `DELETE /me/businesses/{businessId}/photos/{photoId}`
   Future<void> deleteBusinessPhoto({
-    required String tenantId,
     required String businessId,
     required String photoId,
   }) async {
     final r = await _send(() => _client.delete(
-          _uri('/tenants/$tenantId/businesses/$businessId/photos/$photoId'),
+          _uri('/me/businesses/$businessId/photos/$photoId'),
           headers: _headers(),
         ));
     _ensureOk(r);
   }
 
-  /// `GET /tenants/{tenantId}/businesses/{businessId}/settings`
+  /// `GET /me/businesses/{businessId}/settings`
   Future<BusinessSettings> getSettings({
-    required String tenantId,
     required String businessId,
   }) async {
     final r = await _send(() => _client.get(
-          _uri('/tenants/$tenantId/businesses/$businessId/settings'),
+          _uri('/me/businesses/$businessId/settings'),
           headers: _headers(),
         ));
     return _decode(
@@ -563,14 +610,13 @@ class AgendaApiService {
     );
   }
 
-  /// `PUT /tenants/{tenantId}/businesses/{businessId}/settings`
+  /// `PUT /me/businesses/{businessId}/settings`
   Future<BusinessSettings> updateSettings({
-    required String tenantId,
     required String businessId,
     required BusinessSettings settings,
   }) async {
     final r = await _send(() => _client.put(
-          _uri('/tenants/$tenantId/businesses/$businessId/settings'),
+          _uri('/me/businesses/$businessId/settings'),
           headers: _headers(),
           body: jsonEncode(settings.toRequestJson()),
         ));
@@ -584,14 +630,13 @@ class AgendaApiService {
   // TENANT — services
   // =====================================================================
 
-  /// `GET /tenants/{tenantId}/businesses/{businessId}/services`
+  /// `GET /me/businesses/{businessId}/services`
   Future<List<AgendaService>> listTenantServices({
-    required String tenantId,
     required String businessId,
     bool soloActivos = false,
   }) async {
     final r = await _send(() => _client.get(
-          _uri('/tenants/$tenantId/businesses/$businessId/services', {
+          _uri('/me/businesses/$businessId/services', {
             if (soloActivos) 'soloActivos': 'true',
           }),
           headers: _headers(),
@@ -599,9 +644,8 @@ class AgendaApiService {
     return _decodeList(r, AgendaService.fromJson);
   }
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/services`
+  /// `POST /me/businesses/{businessId}/services`
   Future<AgendaService> createService({
-    required String tenantId,
     required String businessId,
     required String nombre,
     String? descripcion,
@@ -609,11 +653,11 @@ class AgendaApiService {
     required double precio,
   }) async {
     final r = await _send(() => _client.post(
-          _uri('/tenants/$tenantId/businesses/$businessId/services'),
+          _uri('/me/businesses/$businessId/services'),
           headers: _headers(),
           body: jsonEncode({
             'nombre': nombre,
-            'descripcion': ?descripcion,
+            if (descripcion != null) 'descripcion': descripcion,
             'duracionMin': duracionMin,
             'precio': precio,
           }),
@@ -621,9 +665,8 @@ class AgendaApiService {
     return _decode(r, (body) => AgendaService.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `PUT /tenants/{tenantId}/businesses/{businessId}/services/{serviceId}`
+  /// `PUT /me/businesses/{businessId}/services/{serviceId}`
   Future<AgendaService> updateService({
-    required String tenantId,
     required String businessId,
     required String serviceId,
     required String nombre,
@@ -633,11 +676,11 @@ class AgendaApiService {
     required bool activo,
   }) async {
     final r = await _send(() => _client.put(
-          _uri('/tenants/$tenantId/businesses/$businessId/services/$serviceId'),
+          _uri('/me/businesses/$businessId/services/$serviceId'),
           headers: _headers(),
           body: jsonEncode({
             'nombre': nombre,
-            'descripcion': ?descripcion,
+            if (descripcion != null) 'descripcion': descripcion,
             'duracionMin': duracionMin,
             'precio': precio,
             'activo': activo,
@@ -646,31 +689,29 @@ class AgendaApiService {
     return _decode(r, (body) => AgendaService.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `DELETE /tenants/{tenantId}/businesses/{businessId}/services/{serviceId}`
+  /// `DELETE /me/businesses/{businessId}/services/{serviceId}`
   Future<void> deleteService({
-    required String tenantId,
     required String businessId,
     required String serviceId,
   }) async {
     final r = await _send(() => _client.delete(
-          _uri('/tenants/$tenantId/businesses/$businessId/services/$serviceId'),
+          _uri('/me/businesses/$businessId/services/$serviceId'),
           headers: _headers(),
         ));
     _ensureOk(r);
   }
 
   // =====================================================================
-  // TENANT — plans
+  // ME — plans
   // =====================================================================
 
-  /// `GET /tenants/{tenantId}/businesses/{businessId}/plans`
+  /// `GET /me/businesses/{businessId}/plans`
   Future<List<Plan>> listPlans({
-    required String tenantId,
     required String businessId,
     bool onlyActive = false,
   }) async {
     final r = await _send(() => _client.get(
-          _uri('/tenants/$tenantId/businesses/$businessId/plans', {
+          _uri('/me/businesses/$businessId/plans', {
             if (onlyActive) 'onlyActive': 'true',
           }),
           headers: _headers(),
@@ -678,9 +719,8 @@ class AgendaApiService {
     return _decodeList(r, Plan.fromJson);
   }
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/plans`
+  /// `POST /me/businesses/{businessId}/plans`
   Future<Plan> createPlan({
-    required String tenantId,
     required String businessId,
     required String nombrePlan,
     required PlanTipo tipo,
@@ -690,7 +730,7 @@ class AgendaApiService {
     required double precio,
   }) async {
     final r = await _send(() => _client.post(
-          _uri('/tenants/$tenantId/businesses/$businessId/plans'),
+          _uri('/me/businesses/$businessId/plans'),
           headers: _headers(),
           body: jsonEncode({
             'nombrePlan': nombrePlan,
@@ -704,9 +744,8 @@ class AgendaApiService {
     return _decode(r, (body) => Plan.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `PUT /tenants/{tenantId}/businesses/{businessId}/plans/{planId}`
+  /// `PUT /me/businesses/{businessId}/plans/{planId}`
   Future<Plan> updatePlan({
-    required String tenantId,
     required String businessId,
     required String planId,
     required String nombrePlan,
@@ -718,7 +757,7 @@ class AgendaApiService {
     required bool activo,
   }) async {
     final r = await _send(() => _client.put(
-          _uri('/tenants/$tenantId/businesses/$businessId/plans/$planId'),
+          _uri('/me/businesses/$businessId/plans/$planId'),
           headers: _headers(),
           body: jsonEncode({
             'nombrePlan': nombrePlan,
@@ -733,32 +772,30 @@ class AgendaApiService {
     return _decode(r, (body) => Plan.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `DELETE /tenants/{tenantId}/businesses/{businessId}/plans/{planId}`
+  /// `DELETE /me/businesses/{businessId}/plans/{planId}`
   Future<void> deletePlan({
-    required String tenantId,
     required String businessId,
     required String planId,
   }) async {
     final r = await _send(() => _client.delete(
-          _uri('/tenants/$tenantId/businesses/$businessId/plans/$planId'),
+          _uri('/me/businesses/$businessId/plans/$planId'),
           headers: _headers(),
         ));
     _ensureOk(r);
   }
 
   // =====================================================================
-  // TENANT — loyalty suggestions
+  // ME — loyalty suggestions
   // =====================================================================
 
-  /// `GET /tenants/{tenantId}/businesses/{businessId}/loyalty/suggestions`
+  /// `GET /me/businesses/{businessId}/loyalty/suggestions`
   Future<List<LoyaltySuggestion>> listLoyaltySuggestions({
-    required String tenantId,
     required String businessId,
     LoyaltySuggestionEstado? estado,
   }) async {
     final r = await _send(() => _client.get(
           _uri(
-            '/tenants/$tenantId/businesses/$businessId/loyalty/suggestions',
+            '/me/businesses/$businessId/loyalty/suggestions',
             {if (estado != null) 'estado': estado.toBackendString()},
           ),
           headers: _headers(),
@@ -766,53 +803,49 @@ class AgendaApiService {
     return _decodeList(r, LoyaltySuggestion.fromJson);
   }
 
-  /// `PATCH /tenants/{tenantId}/businesses/{businessId}/loyalty/suggestions/{id}`
+  /// `PATCH /me/businesses/{businessId}/loyalty/suggestions/{id}`
   Future<LoyaltySuggestion> patchLoyaltySuggestion({
-    required String tenantId,
     required String businessId,
     required String id,
     required LoyaltySuggestionEstado estado,
   }) async {
     final r = await _send(() => _client.patch(
-          _uri('/tenants/$tenantId/businesses/$businessId/loyalty/suggestions/$id'),
+          _uri('/me/businesses/$businessId/loyalty/suggestions/$id'),
           headers: _headers(),
           body: jsonEncode({'estado': estado.toBackendString()}),
         ));
     return _decode(r, (body) => LoyaltySuggestion.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/loyalty/suggestions/{id}/send`
+  /// `POST /me/businesses/{businessId}/loyalty/suggestions/{id}/send`
   Future<LoyaltySuggestion> sendLoyaltySuggestion({
-    required String tenantId,
     required String businessId,
     required String id,
   }) async {
     final r = await _send(() => _client.post(
-          _uri('/tenants/$tenantId/businesses/$businessId/loyalty/suggestions/$id/send'),
+          _uri('/me/businesses/$businessId/loyalty/suggestions/$id/send'),
           headers: _headers(),
         ));
     return _decode(r, (body) => LoyaltySuggestion.fromJson(body as Map<String, dynamic>));
   }
 
   // =====================================================================
-  // TENANT — notification templates
+  // ME — notification templates
   // =====================================================================
 
-  /// `GET /tenants/{tenantId}/businesses/{businessId}/templates`
+  /// `GET /me/businesses/{businessId}/notification-templates`
   Future<List<NotificationTemplate>> listTemplates({
-    required String tenantId,
     required String businessId,
   }) async {
     final r = await _send(() => _client.get(
-          _uri('/tenants/$tenantId/businesses/$businessId/templates'),
+          _uri('/me/businesses/$businessId/notification-templates'),
           headers: _headers(),
         ));
     return _decodeList(r, NotificationTemplate.fromJson);
   }
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/templates`
+  /// `POST /me/businesses/{businessId}/notification-templates`
   Future<NotificationTemplate> createTemplate({
-    required String tenantId,
     required String businessId,
     required String codigo,
     required NotificationCanal canal,
@@ -820,7 +853,7 @@ class AgendaApiService {
     required String cuerpo,
   }) async {
     final r = await _send(() => _client.post(
-          _uri('/tenants/$tenantId/businesses/$businessId/templates'),
+          _uri('/me/businesses/$businessId/notification-templates'),
           headers: _headers(),
           body: jsonEncode({
             'codigo': codigo,
@@ -832,19 +865,20 @@ class AgendaApiService {
     return _decode(r, (body) => NotificationTemplate.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `PUT /tenants/{tenantId}/businesses/{businessId}/templates/{id}`
+  /// `PUT /me/businesses/{businessId}/notification-templates/{id}`
   Future<NotificationTemplate> updateTemplate({
-    required String tenantId,
     required String businessId,
     required String id,
+    required String codigo,
     required String titulo,
     required String cuerpo,
     required NotificationCanal canal,
   }) async {
     final r = await _send(() => _client.put(
-          _uri('/tenants/$tenantId/businesses/$businessId/templates/$id'),
+          _uri('/me/businesses/$businessId/notification-templates/$id'),
           headers: _headers(),
           body: jsonEncode({
+            'codigo': codigo,
             'titulo': titulo,
             'cuerpo': cuerpo,
             'canal': canal.toBackendString(),
@@ -853,14 +887,13 @@ class AgendaApiService {
     return _decode(r, (body) => NotificationTemplate.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `DELETE /tenants/{tenantId}/businesses/{businessId}/templates/{id}`
+  /// `DELETE /me/businesses/{businessId}/notification-templates/{id}`
   Future<void> deleteTemplate({
-    required String tenantId,
     required String businessId,
     required String id,
   }) async {
     final r = await _send(() => _client.delete(
-          _uri('/tenants/$tenantId/businesses/$businessId/templates/$id'),
+          _uri('/me/businesses/$businessId/notification-templates/$id'),
           headers: _headers(),
         ));
     _ensureOk(r);
@@ -870,15 +903,15 @@ class AgendaApiService {
   // ME — subscriptions
   // =====================================================================
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/plans/{planId}/subscribe`
+  /// `POST /me/businesses/{businessId}/subscriptions`
   Future<Subscription> purchaseSubscription({
-    required String tenantId,
     required String businessId,
     required String planId,
   }) async {
     final r = await _send(() => _client.post(
-          _uri('/tenants/$tenantId/businesses/$businessId/plans/$planId/subscribe'),
+          _uri('/me/businesses/$businessId/subscriptions'),
           headers: _headers(sendUserId: true),
+          body: jsonEncode({'planId': planId}),
         ));
     return _decode(r, (body) => Subscription.fromJson(body as Map<String, dynamic>));
   }
@@ -907,9 +940,8 @@ class AgendaApiService {
   // ME — bookings
   // =====================================================================
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/bookings`
+  /// `POST /me/businesses/{businessId}/bookings`
   Future<Booking> createBooking({
-    required String tenantId,
     required String businessId,
     required String serviceId,
     required DateTime fechaHoraInicio,
@@ -919,13 +951,13 @@ class AgendaApiService {
     String? idempotencyKey,
   }) async {
     final r = await _send(() => _client.post(
-          _uri('/tenants/$tenantId/businesses/$businessId/bookings'),
+          _uri('/me/businesses/$businessId/bookings'),
           headers: _headers(sendUserId: true, idempotencyKey: idempotencyKey),
           body: jsonEncode({
             'serviceId': serviceId,
             'fechaHoraInicio': fechaHoraInicio.toIso8601String(),
             'tipoReserva': tipoReserva.toBackendString(),
-            'subscriptionId': ?subscriptionId,
+            if (subscriptionId != null) 'subscriptionId': subscriptionId,
             if (notas != null && notas.isNotEmpty) 'notas': notas,
           }),
         ));
@@ -940,8 +972,8 @@ class AgendaApiService {
   }) async {
     final r = await _send(() => _client.get(
           _uri('/me/bookings', {
-            'tenantId': ?tenantId,
-            'businessId': ?businessId,
+            if (tenantId != null) 'tenantId': tenantId,
+            if (businessId != null) 'businessId': businessId,
             if (estado != null) 'estado': estado.name.toUpperCase(),
           }),
           headers: _headers(sendUserId: true),
@@ -949,14 +981,13 @@ class AgendaApiService {
     return _decodeList(r, Booking.fromJson);
   }
 
-  /// `DELETE /tenants/{tenantId}/businesses/{businessId}/bookings/{bookingId}`
+  /// `DELETE /me/businesses/{businessId}/bookings/{bookingId}`
   Future<void> cancelBooking({
-    required String tenantId,
     required String businessId,
     required String bookingId,
   }) async {
     final r = await _send(() => _client.delete(
-          _uri('/tenants/$tenantId/businesses/$businessId/bookings/$bookingId'),
+          _uri('/me/businesses/$businessId/bookings/$bookingId'),
           headers: _headers(sendUserId: true),
         ));
     _ensureOk(r);
@@ -980,31 +1011,29 @@ class AgendaApiService {
   }
 
   // =====================================================================
-  // TENANT — staff members
+  // ME — staff members
   // =====================================================================
 
-  /// `GET /tenants/{tenantId}/businesses/{businessId}/staff`
+  /// `GET /me/businesses/{businessId}/staff`
   Future<List<StaffMember>> getStaffMembers({
-    required String tenantId,
     required String businessId,
   }) async {
     final r = await _send(() => _client.get(
-          _uri('/tenants/$tenantId/businesses/$businessId/staff'),
+          _uri('/me/businesses/$businessId/staff'),
           headers: _headers(),
         ));
     return _decodeList(r, StaffMember.fromJson);
   }
 
-  /// `POST /tenants/{tenantId}/businesses/{businessId}/staff`
+  /// `POST /me/businesses/{businessId}/staff`
   Future<StaffMember> createStaffMember({
-    required String tenantId,
     required String businessId,
     required String nombre,
     String? rol,
     String? avatarUrl,
   }) async {
     final r = await _send(() => _client.post(
-          _uri('/tenants/$tenantId/businesses/$businessId/staff'),
+          _uri('/me/businesses/$businessId/staff'),
           headers: _headers(),
           body: jsonEncode({
             'nombre': nombre,
@@ -1015,9 +1044,8 @@ class AgendaApiService {
     return _decode(r, (body) => StaffMember.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `PUT /tenants/{tenantId}/businesses/{businessId}/staff/{staffId}`
+  /// `PUT /me/businesses/{businessId}/staff/{staffId}`
   Future<StaffMember> updateStaffMember({
-    required String tenantId,
     required String businessId,
     required String staffId,
     required String nombre,
@@ -1026,7 +1054,7 @@ class AgendaApiService {
     required bool activo,
   }) async {
     final r = await _send(() => _client.put(
-          _uri('/tenants/$tenantId/businesses/$businessId/staff/$staffId'),
+          _uri('/me/businesses/$businessId/staff/$staffId'),
           headers: _headers(),
           body: jsonEncode({
             'nombre': nombre,
@@ -1038,14 +1066,13 @@ class AgendaApiService {
     return _decode(r, (body) => StaffMember.fromJson(body as Map<String, dynamic>));
   }
 
-  /// `DELETE /tenants/{tenantId}/businesses/{businessId}/staff/{staffId}` → 204
+  /// `DELETE /me/businesses/{businessId}/staff/{staffId}` → 204
   Future<void> deleteStaffMember({
-    required String tenantId,
     required String businessId,
     required String staffId,
   }) async {
     final r = await _send(() => _client.delete(
-          _uri('/tenants/$tenantId/businesses/$businessId/staff/$staffId'),
+          _uri('/me/businesses/$businessId/staff/$staffId'),
           headers: _headers(),
         ));
     _ensureOk(r);

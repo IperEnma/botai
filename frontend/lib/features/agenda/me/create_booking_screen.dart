@@ -74,7 +74,6 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
 
     try {
       await ref.read(bookingsProvider(_bookingsKey).notifier).create(
-            tenantId: widget.tenantId,
             businessId: widget.businessId,
             serviceId: _selectedService!.id,
             fechaHoraInicio: _selectedDateTime!,

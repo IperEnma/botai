@@ -7,9 +7,6 @@ import '../../models/bot.dart';
 import '../../core/theme.dart';
 import '../menus/menus_screen.dart';
 import '../knowledge/knowledge_screen.dart';
-import '../services/services_screen.dart';
-import '../appointments/appointments_screen.dart';
-import '../../widgets/business_hours_card.dart';
 
 class BotDetailScreen extends ConsumerStatefulWidget {
   final String botId;
@@ -27,7 +24,7 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -46,7 +43,7 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go('/dashboard'),
+            onPressed: () => context.go('/home/bots'),
           ),
           title: const Text('Bot no encontrado'),
         ),
@@ -59,7 +56,7 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
               const Text('Este bot no existe o fue eliminado'),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () => context.go('/dashboard'),
+                onPressed: () => context.go('/home/bots'),
                 child: const Text('Volver al Dashboard'),
               ),
             ],
@@ -72,7 +69,7 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/dashboard'),
+          onPressed: () => context.go('/home/bots'),
         ),
         title: Row(
           children: [
@@ -109,9 +106,6 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
           controller: _tabController,
           tabs: const [
             Tab(icon: Icon(Icons.settings), text: 'Configuración'),
-            Tab(icon: Icon(Icons.schedule), text: 'Horario'),
-            Tab(icon: Icon(Icons.build_circle), text: 'Servicios'),
-            Tab(icon: Icon(Icons.calendar_today), text: 'Citas'),
             Tab(icon: Icon(Icons.menu_book), text: 'Menús'),
             Tab(icon: Icon(Icons.psychology), text: 'Knowledge'),
           ],
@@ -121,9 +115,6 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
         controller: _tabController,
         children: [
           BotConfigContent(bot: bot),
-          HorarioContent(botId: widget.botId, tenantId: bot.tenantId),
-          ServicesScreen(botId: widget.botId, tenantId: bot.tenantId, embedded: true),
-          AppointmentsScreen(botId: widget.botId, tenantId: bot.tenantId, embedded: true),
           MenusContent(botId: widget.botId, tenantId: bot.tenantId),
           KnowledgeContent(botId: widget.botId, tenantId: bot.tenantId),
         ],
@@ -466,22 +457,7 @@ class _WebhookUrlCard extends StatelessWidget {
   }
 }
 
-// ============ HORARIO TAB ============
-
-class HorarioContent extends StatelessWidget {
-  final String botId;
-  final String tenantId;
-
-  const HorarioContent({super.key, required this.botId, required this.tenantId});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: BusinessHoursCard(tenantId: tenantId),
-    );
-  }
-}
+// Horario y Servicios se gestionan desde AGENDA (panel del negocio), no desde la configuración del bot.
 
 // ============ MENUS TAB ============
 

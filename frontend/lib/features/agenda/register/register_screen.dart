@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../providers/auth_provider.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
+import '../../../providers/agenda/agenda_nav_after_google_auth.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../services/agenda_api_exception.dart';
 import 'konecta_tokens.dart';
@@ -124,7 +126,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final api      = ref.read(agendaApiServiceProvider);
       final tenantId = await api.getTenantByCode(accessCode);
       if (!mounted) return;
-      context.go('/agenda/tenants/$tenantId');
+      // URL limpia: el panel del admin resuelve tenant por seguridad (token).
+      await ref.read(agendaUserProvider.notifier).saveTenantId(tenantId);
+      if (!mounted) return;
+      context.go('/home');
     } on AgendaApiException catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
@@ -226,7 +231,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               children: [
                 _NavBar(
                   onBack: () =>
-                      context.canPop() ? context.pop() : context.go('/agenda'),
+                      context.canPop() ? context.pop() : context.go('/'),
                   onLogin: _showLoginDialog,
                 ),
                 Expanded(
@@ -330,7 +335,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         const SizedBox(height: 28),
         const _WaDivider(label: 'O CON GOOGLE'),
         const SizedBox(height: 28),
-        _GoogleButton(),
+        const _GoogleSignupButton(),
         const SizedBox(height: 28),
         Center(
           child: GestureDetector(
@@ -505,7 +510,49 @@ class _NavBar extends StatelessWidget {
 
 // ── Google button ─────────────────────────────────────────────────────────────
 
-class _GoogleButton extends StatelessWidget {
+class _GoogleSignupButton extends ConsumerStatefulWidget {
+  const _GoogleSignupButton();
+
+  @override
+  ConsumerState<_GoogleSignupButton> createState() =>
+      _GoogleSignupButtonState();
+}
+
+class _GoogleSignupButtonState extends ConsumerState<_GoogleSignupButton> {
+  bool _loading = false;
+
+  Future<void> _onPressed() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(authStateProvider.notifier).signInWithGoogle();
+      if (!mounted) return;
+      final auth = ref.read(authStateProvider);
+      if (auth.error != null) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(auth.error!),
+          backgroundColor: KTokens.errorColor,
+        ));
+        return;
+      }
+      if (!auth.isAuthenticated || auth.user == null) {
+        messenger.showSnackBar(const SnackBar(
+          content: Text('No pudimos completar el inicio de sesión con Google.'),
+        ));
+        return;
+      }
+      await agendaNavigateAfterGoogleSignIn(ref, context);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('Google: $e'),
+        backgroundColor: KTokens.errorColor,
+      ));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -518,23 +565,27 @@ class _GoogleButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(KTokens.rMd)),
         ),
-        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Google Sign-In próximamente')),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const _GoogleG(),
-            const SizedBox(width: 10),
-            Text(
-              'Continuar con Google',
-              style: KTokens.tCta.copyWith(
-                  color: KTokens.ink,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 15),
-            ),
-          ],
-        ),
+        onPressed: _loading ? null : _onPressed,
+        child: _loading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const _GoogleG(),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Continuar con Google',
+                    style: KTokens.tCta.copyWith(
+                        color: KTokens.ink,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 15),
+                  ),
+                ],
+              ),
       ),
     );
   }

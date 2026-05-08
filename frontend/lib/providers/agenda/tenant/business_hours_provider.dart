@@ -33,23 +33,20 @@ class BusinessHoursState {
   static const _sentinel = Object();
 }
 
-class BusinessHoursNotifier
-    extends StateNotifier<BusinessHoursState> {
-  BusinessHoursNotifier(this._ref, this._tenantId, this._businessId)
+class BusinessHoursNotifier extends StateNotifier<BusinessHoursState> {
+  BusinessHoursNotifier(this._ref, this._businessId)
       : super(const BusinessHoursState()) {
     load();
   }
 
   final Ref _ref;
-  final String _tenantId;
   final String _businessId;
 
   Future<void> load() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final api = _ref.read(agendaApiServiceProvider);
-      final hours = await api.getBusinessHours(
-          tenantId: _tenantId, businessId: _businessId);
+      final hours = await api.getBusinessHours(businessId: _businessId);
       state = state.copyWith(hours: hours, isLoading: false);
     } on AgendaApiException catch (e) {
       state = state.copyWith(isLoading: false, error: e.message);
@@ -61,7 +58,7 @@ class BusinessHoursNotifier
     try {
       final api = _ref.read(agendaApiServiceProvider);
       final saved = await api.saveBusinessHours(
-          tenantId: _tenantId, businessId: _businessId, hours: hours);
+          businessId: _businessId, hours: hours);
       state = state.copyWith(hours: saved, isSaving: false);
       return true;
     } on AgendaApiException catch (e) {
@@ -74,5 +71,5 @@ class BusinessHoursNotifier
 final businessHoursProvider = StateNotifierProvider.autoDispose
     .family<BusinessHoursNotifier, BusinessHoursState,
         ({String tenantId, String businessId})>((ref, key) {
-  return BusinessHoursNotifier(ref, key.tenantId, key.businessId);
+  return BusinessHoursNotifier(ref, key.businessId);
 });

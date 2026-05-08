@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:async';
 import '../models/user.dart';
 import '../core/config.dart';
 import 'api_service.dart';
@@ -8,6 +9,8 @@ import 'api_service.dart';
 class AuthService {
   late final GoogleSignIn _googleSignIn;
   final FlutterSecureStorage _storage;
+  // Kept for future backend auth exchange; currently unused.
+  // ignore: unused_field
   final ApiService _apiService;
 
   AuthService({ApiService? apiService})
@@ -15,7 +18,8 @@ class AuthService {
         _apiService = apiService ?? ApiService() {
     _googleSignIn = GoogleSignIn(
       clientId: kIsWeb ? AppConfig.googleClientIdWeb : null,
-      scopes: ['email', 'profile', 'openid'],
+      // Evita depender de Google People API (profile/photo). Para login alcanza con email + openid (idToken).
+      scopes: ['email', 'openid'],
     );
   }
 
@@ -26,17 +30,28 @@ class AuthService {
       GoogleSignInAccount? googleUser;
       
       if (kIsWeb) {
-        googleUser = await _googleSignIn.signInSilently();
-        if (googleUser == null) {
-          googleUser = await _googleSignIn.signIn();
+        final clientId = AppConfig.googleClientIdWeb.trim();
+        if (clientId.isEmpty) {
+          throw StateError(
+            'Falta GOOGLE_CLIENT_ID_WEB en frontend/.env (OAuth Client ID tipo "Web application").',
+          );
         }
+
+        // En Web, signInSilently puede quedar colgado por bloqueo de third‑party cookies o popups.
+        // Preferimos disparar el flujo interactivo y poner timeout para no dejar UI cargando infinito.
+        googleUser = await _googleSignIn
+            .signIn()
+            .timeout(const Duration(seconds: 45));
       } else {
-        googleUser = await _googleSignIn.signIn();
+        googleUser = await _googleSignIn
+            .signIn()
+            .timeout(const Duration(seconds: 45));
       }
       
       if (googleUser == null) return null;
 
-      final googleAuth = await googleUser.authentication;
+      final googleAuth = await googleUser.authentication
+          .timeout(const Duration(seconds: 45));
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
 
@@ -45,7 +60,8 @@ class AuthService {
         email: googleUser.email,
         name: googleUser.displayName,
         photoUrl: googleUser.photoUrl,
-        accessToken: accessToken ?? idToken ?? 'google_auth_${DateTime.now().millisecondsSinceEpoch}',
+        // Preferimos ID token (JWT) para backend Resource Server; accessToken es para APIs Google.
+        accessToken: idToken ?? accessToken ?? 'google_auth_${DateTime.now().millisecondsSinceEpoch}',
       );
       
       await _storage.write(key: 'access_token', value: user.accessToken);
@@ -55,6 +71,10 @@ class AuthService {
       await _storage.write(key: 'user_photo', value: user.photoUrl);
 
       return user;
+    } on TimeoutException catch (_) {
+      throw StateError(
+        'Google Sign-In no respondió a tiempo. En Web: habilita popups/terceros cookies para este sitio y reintenta.',
+      );
     } catch (e) {
       debugPrint('Error signing in with Google: $e');
       rethrow;
@@ -71,7 +91,8 @@ class AuthService {
       email: googleUser.email,
       name: googleUser.displayName,
       photoUrl: googleUser.photoUrl,
-      accessToken: googleAuth.accessToken ?? googleAuth.idToken ?? 'google_auth',
+      // Mismo criterio que signInWithGoogle: Bearer debe ser ID token para el Resource Server.
+      accessToken: googleAuth.idToken ?? googleAuth.accessToken ?? 'google_auth',
     );
     
     await _storage.write(key: 'access_token', value: user.accessToken);

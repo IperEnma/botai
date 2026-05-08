@@ -7,6 +7,7 @@ import com.botai.agenda.application.usecase.booking.CancelBookingUseCase;
 import com.botai.agenda.application.usecase.booking.CreateBookingUseCase;
 import com.botai.agenda.application.usecase.booking.ListMyBookingsUseCase;
 import com.botai.agenda.domain.model.BookingEstado;
+import com.botai.agenda.domain.repository.BusinessRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -37,22 +38,27 @@ public class MeBookingsController {
     private final CreateBookingUseCase createBooking;
     private final ListMyBookingsUseCase listMyBookings;
     private final CancelBookingUseCase cancelBooking;
+    private final BusinessRepository businessRepository;
 
     public MeBookingsController(CreateBookingUseCase createBooking,
                                 ListMyBookingsUseCase listMyBookings,
-                                CancelBookingUseCase cancelBooking) {
+                                CancelBookingUseCase cancelBooking,
+                                BusinessRepository businessRepository) {
         this.createBooking = createBooking;
         this.listMyBookings = listMyBookings;
         this.cancelBooking = cancelBooking;
+        this.businessRepository = businessRepository;
     }
 
-    @GetMapping("/tenants/{tenantId}/businesses/{businessId}/bookings")
+    @GetMapping("/businesses/{businessId}/bookings")
     @Operation(summary = "Listar mis reservas en un negocio (filtro opcional por estado)")
     public ResponseEntity<List<BookingResponse>> list(
-            @PathVariable("tenantId") String tenantId,
             @PathVariable("businessId") UUID businessId,
             @RequestHeader(USER_ID_HEADER) UUID userId,
             @RequestParam(value = "estado", required = false) BookingEstado estado) {
+        String tenantId = businessRepository.findById(businessId)
+                .map(b -> b.getTenantId())
+                .orElseThrow(() -> new IllegalArgumentException("Negocio no encontrado: " + businessId));
         List<BookingResponse> responses = listMyBookings.execute(tenantId, businessId, userId, estado)
                 .stream()
                 .map(BookingDtoMapper::toResponse)
@@ -60,24 +66,28 @@ public class MeBookingsController {
         return ResponseEntity.ok(responses);
     }
 
-    @DeleteMapping("/tenants/{tenantId}/businesses/{businessId}/bookings/{bookingId}")
+    @DeleteMapping("/businesses/{businessId}/bookings/{bookingId}")
     @Operation(summary = "Cancelar una reserva propia (dentro de la ventana de cancelación)")
     public ResponseEntity<Void> cancel(
-            @PathVariable("tenantId") String tenantId,
             @PathVariable("businessId") UUID businessId,
             @PathVariable("bookingId") UUID bookingId,
             @RequestHeader(USER_ID_HEADER) UUID userId) {
+        String tenantId = businessRepository.findById(businessId)
+                .map(b -> b.getTenantId())
+                .orElseThrow(() -> new IllegalArgumentException("Negocio no encontrado: " + businessId));
         cancelBooking.execute(tenantId, businessId, userId, bookingId);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/tenants/{tenantId}/businesses/{businessId}/bookings")
+    @PostMapping("/businesses/{businessId}/bookings")
     @Operation(summary = "Crear una reserva confirmada contra un servicio del negocio")
     public ResponseEntity<BookingResponse> create(
-            @PathVariable("tenantId") String tenantId,
             @PathVariable("businessId") UUID businessId,
             @RequestHeader(USER_ID_HEADER) UUID userId,
             @Valid @RequestBody CreateBookingRequest request) {
+        String tenantId = businessRepository.findById(businessId)
+                .map(b -> b.getTenantId())
+                .orElseThrow(() -> new IllegalArgumentException("Negocio no encontrado: " + businessId));
         var booking = createBooking.execute(
                 tenantId,
                 businessId,

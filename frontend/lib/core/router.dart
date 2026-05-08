@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
@@ -14,9 +13,10 @@ import '../features/agenda/public/public_business_detail_screen.dart';
 import '../features/agenda/public/search_screen.dart';
 import '../features/agenda/public/landing_screen.dart';
 import '../features/agenda/platform/categories_admin_screen.dart';
+import '../features/agenda/home/agenda_home_shell.dart';
 // Sprint FE-2 — Tenant admin
-import '../features/agenda/tenant/tenant_home_screen.dart';
-import '../features/agenda/tenant/business_detail_screen.dart';
+import '../features/agenda/tenant/tenant_me_gate_screen.dart';
+import '../features/agenda/tenant/business_me_gate_screen.dart';
 // Sprint FE-3 — Me
 import '../features/agenda/me/my_subscriptions_screen.dart';
 import '../features/agenda/me/wallet_screen.dart';
@@ -26,21 +26,50 @@ import '../features/agenda/me/my_notifications_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
-  
+
   return GoRouter(
-    initialLocation: '/agenda',
+    initialLocation: '/',
     redirect: (context, state) {
       final isLoggedIn = authState.isAuthenticated;
-      final isLoggingIn = state.matchedLocation == '/login';
-      // Durante período de testing, toda la sección /agenda es pública.
-      // El bot del dashboard sigue requiriendo auth.
-      final isAgendaRoute = state.matchedLocation.startsWith('/agenda');
+      final loc = state.matchedLocation;
+      if (loc == '/agenda' || loc == '/agenda/') {
+        return '/';
+      }
+      final isLoggingIn = loc == '/login';
+      final legacyTenantsMe = loc.startsWith('/agenda/tenants/me');
+      final homeTenantArea =
+          loc == '/home' || loc.startsWith('/home/businesses/');
+      final isAgendaRoute = loc == '/' || loc.startsWith('/agenda');
 
+      if (isLoggedIn && loc == '/dashboard') {
+        return '/home/bots';
+      }
+      if (!isLoggedIn && legacyTenantsMe) {
+        return '/login';
+      }
+      if (!isLoggedIn && homeTenantArea) {
+        return '/login';
+      }
       if (!isLoggedIn && !isLoggingIn && !isAgendaRoute) {
         return '/login';
       }
       if (isLoggedIn && isLoggingIn) {
-        return '/dashboard';
+        return '/home';
+      }
+      final meBizPrefix = '/agenda/tenants/me/businesses/';
+      if (isLoggedIn && loc.startsWith(meBizPrefix)) {
+        final after = loc.substring(meBizPrefix.length);
+        final businessId =
+            Uri.decodeComponent(after.split('?').first.split('/').first);
+        final tab = state.uri.queryParameters['tab'];
+        if (tab != null && tab.isNotEmpty) {
+          return '/home/businesses/$businessId?tab=$tab';
+        }
+        return '/home/businesses/$businessId';
+      }
+
+      if (isLoggedIn && loc == '/agenda/tenants/me') {
+        return '/home';
       }
       return null;
     },
@@ -50,14 +79,33 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
       ShellRoute(
-        builder: (context, state, child) => AppShell(currentPath: state.matchedLocation, child: child),
+        builder: (context, state, child) => AgendaHomeShell(
+          currentPath: state.matchedLocation,
+          child: child,
+        ),
         routes: [
           GoRoute(
-            path: '/dashboard',
+            path: '/home',
+            builder: (context, state) => const TenantMeGateScreen(),
+          ),
+          GoRoute(
+            path: '/home/businesses/:businessId',
+            builder: (context, state) {
+              final businessId = state.pathParameters['businessId']!;
+              final tab =
+                  int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
+              return BusinessMeGateScreen(
+                businessId: businessId,
+                initialTabIndex: tab,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/home/bots',
             builder: (context, state) => const DashboardScreen(),
           ),
           GoRoute(
-            path: '/bot/:botId',
+            path: '/home/bots/:botId',
             builder: (context, state) {
               final botId = state.pathParameters['botId']!;
               return BotDetailScreen(botId: botId);
@@ -65,12 +113,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      // ----------- AGENDA module -----------
-      // Sin shell propio: cada screen maneja su AppBar. Más adelante (FE-2/3)
-      // puede envolverse en una ShellRoute para mostrar rail lateral en /tenants/**.
-      // Hub público principal — landing marketing
       GoRoute(
-        path: '/agenda',
+        path: '/bot/:botId',
+        redirect: (context, state) {
+          final botId = state.pathParameters['botId']!;
+          return '/home/bots/$botId';
+        },
+      ),
+      // ----------- AGENDA module -----------
+      GoRoute(
+        path: '/',
         builder: (context, state) => const PublicLandingScreen(),
       ),
       GoRoute(
@@ -108,26 +160,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/agenda/platform/categories',
         builder: (context, state) => const CategoriesAdminScreen(),
       ),
-      // ----------- AGENDA — Tenant admin (Sprint FE-2) -----------
-      GoRoute(
-        path: '/agenda/tenants/:tenantId',
-        builder: (context, state) {
-          final tenantId = state.pathParameters['tenantId']!;
-          return TenantHomeScreen(tenantId: tenantId);
-        },
-      ),
-      GoRoute(
-        path: '/agenda/tenants/:tenantId/businesses/:businessId',
-        builder: (context, state) {
-          final tenantId    = state.pathParameters['tenantId']!;
-          final businessId  = state.pathParameters['businessId']!;
-          final tab         = int.tryParse(
-                state.uri.queryParameters['tab'] ?? '') ?? 0;
-          return BusinessDetailScreen(
-              tenantId: tenantId, businessId: businessId, initialTabIndex: tab);
-        },
-      ),
-      // ----------- AGENDA — Me (Sprint FE-3) -----------
       GoRoute(
         path: '/agenda/me/subscriptions',
         builder: (context, state) => const MySubscriptionsScreen(),
@@ -149,7 +181,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           final tenantId = state.uri.queryParameters['tenantId'] ?? '';
           final businessId = state.uri.queryParameters['businessId'] ?? '';
           return CreateBookingScreen(
-              tenantId: tenantId, businessId: businessId);
+            tenantId: tenantId,
+            businessId: businessId,
+          );
         },
       ),
       GoRoute(
@@ -159,97 +193,3 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
-class AppShell extends ConsumerWidget {
-  final Widget child;
-  final String currentPath;
-  
-  const AppShell({super.key, required this.child, required this.currentPath});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateProvider);
-    final user = authState.user;
-    
-    final isInBotDetail = currentPath.startsWith('/bot/');
-    
-    if (isInBotDetail) {
-      return child;
-    }
-    
-    return Scaffold(
-      body: Row(
-        children: [
-          NavigationRail(
-            selectedIndex: 0,
-            onDestinationSelected: (index) {
-              if (index == 0) context.go('/dashboard');
-            },
-            labelType: NavigationRailLabelType.all,
-            leading: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.smart_toy, color: Colors.white),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('BotAI', style: TextStyle(fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-            trailing: Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (user?.photoUrl != null)
-                        CircleAvatar(
-                          backgroundImage: NetworkImage(user!.photoUrl!),
-                          radius: 20,
-                        )
-                      else
-                        CircleAvatar(
-                          radius: 20,
-                          child: Text(user?.name?.substring(0, 1).toUpperCase() ?? 'U'),
-                        ),
-                      const SizedBox(height: 8),
-                      IconButton(
-                        icon: const Icon(Icons.logout),
-                        onPressed: () {
-                          ref.read(authStateProvider.notifier).signOut();
-                          context.go('/login');
-                        },
-                        tooltip: 'Cerrar sesión',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard),
-                label: Text('Mis Bots'),
-              ),
-            ],
-          ),
-          const VerticalDivider(thickness: 1, width: 1),
-          Expanded(child: child),
-        ],
-      ),
-    );
-  }
-}

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -104,6 +105,11 @@ public class IntentClassifierService {
             return new IntentClassification.CrmAction(ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID);
         }
 
+        if (isActiveBookAppointment(conversationState) && looksLikeBookingContinuationHeuristic(text)) {
+            log.info("[CLASSIFIER] Cita activa + heurística de agendamiento -> ACCION_CRM book_appointment (sin mini-LLM)");
+            return new IntentClassification.CrmAction(ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID);
+        }
+
         IntentClassification fromLlm = classifyWithLlm(text, conversationState);
         if (fromLlm != null) {
             if (fromLlm.isBadIntent() && InboundTextHeuristics.looksLikeNoiseOrCorruptedContent(text)) {
@@ -132,6 +138,41 @@ public class IntentClassifierService {
     private static boolean isActiveBookAppointment(ConversationState state) {
         return state != null && state.hasIntent()
             && ConversationActionRouting.BOOK_APPOINTMENT_ACTION_ID.equals(state.getCurrentIntent());
+    }
+
+    /**
+     * Evita que typos ("Quwornagendar…") o frases claras de reserva disparen PREGUNTA_GENERAL en el mini-LLM
+     * y desconecten el flujo mientras {@code book_appointment} sigue activo en BD.
+     */
+    private static boolean looksLikeBookingContinuationHeuristic(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String n = text.strip().toLowerCase(Locale.ROOT);
+        if (n.length() > 220) {
+            return false;
+        }
+        if (n.contains("agendar") || n.contains("reserv")) {
+            return true;
+        }
+        if (n.contains("cita")) {
+            return true;
+        }
+        if (n.contains("cancel")) {
+            return true;
+        }
+        if (n.contains("turno")
+            && (n.contains("quiero") || n.contains("sacar") || n.contains("pedir") || n.contains("un turno"))) {
+            return true;
+        }
+        boolean hasHoraWord = n.contains("hora") || n.contains(" a las") || n.contains("a las ");
+        boolean hasClock = Pattern.compile("\\b\\d{1,2}[:.]\\d{2}\\b").matcher(n).find();
+        if ((hasHoraWord || hasClock)
+            && (n.contains("mañana") || n.contains("manana") || n.contains("hoy")
+            || n.contains("disponib") || n.contains("libre"))) {
+            return true;
+        }
+        return false;
     }
 
     /** Respuesta típica con solo documento o cédula (sin letras). */

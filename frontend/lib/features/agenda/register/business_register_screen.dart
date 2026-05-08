@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../models/agenda/register_tenant.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import 'business_registration_model.dart';
@@ -227,7 +228,7 @@ class _BusinessRegisterScreenState
       if (context.canPop()) {
         context.pop();
       } else {
-        context.go('/agenda');
+        context.go('/');
       }
     }
   }
@@ -266,16 +267,13 @@ class _BusinessRegisterScreenState
 
   Future<void> _submit() async {
     setState(() => _loading = true);
+    var regEmail = '';
 
     try {
       final userState = await ref.read(agendaUserProvider.future);
       final phone = userState.phone ?? '';
+      regEmail = userState.email?.trim() ?? '';
       final nombre = userState.nombre ?? _reg.name!.trim();
-
-      // Derive a stable identifier from the WhatsApp phone number.
-      // The backend requires email format; we use {digits}@wa.konecta.app.
-      final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-      final derivedEmail = '${digits.isNotEmpty ? digits : _reg.name!.trim().replaceAll(' ', '').toLowerCase()}@wa.konecta.app';
 
       final api = ref.read(agendaApiServiceProvider);
 
@@ -297,23 +295,41 @@ class _BusinessRegisterScreenState
       ];
       final descripcion = parts.join('\n');
 
-      // Step 1: create tenant + initial business
-      final registration = await api.registerTenant(
-        nombrePropietario: nombre,
-        email: derivedEmail,
-        telefono: phone.isNotEmpty ? phone : null,
-        nombreNegocio: _reg.name!.trim(),
-        categoriaSlug: _reg.categories.isNotEmpty
-            ? _reg.categories.first.slug
-            : null,
-      );
+      // Step 1: create tenant + initial business (email Google o WhatsApp / número)
+      final RegisterTenantResponse registration;
+      if (regEmail.isNotEmpty) {
+        registration = await api.registerTenant(
+          nombrePropietario: nombre,
+          email: regEmail,
+          nombreNegocio: _reg.name!.trim(),
+          categoriaSlug: _reg.categories.isNotEmpty
+              ? _reg.categories.first.slug
+              : null,
+        );
+      } else {
+        final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+        final numero = digits.isNotEmpty
+            ? digits
+            : _reg.name!.trim().replaceAll(RegExp(r'\D'), '');
+        if (numero.length < 8) {
+          throw StateError('Número demasiado corto para registrar la cuenta.');
+        }
+        registration = await api.registerTenant(
+          nombrePropietario: nombre,
+          numero: numero,
+          telefono: phone.isNotEmpty ? phone : null,
+          nombreNegocio: _reg.name!.trim(),
+          categoriaSlug: _reg.categories.isNotEmpty
+              ? _reg.categories.first.slug
+              : null,
+        );
+      }
 
       final tenantId = registration.tenantId;
       final businessId = registration.businessId;
 
       // Step 2: enrich the business with full form data
       await api.updateBusiness(
-        tenantId: tenantId,
         businessId: businessId,
         nombre: _reg.name!.trim(),
         descripcion: descripcion.isEmpty ? null : descripcion,
@@ -323,7 +339,6 @@ class _BusinessRegisterScreenState
       // Step 3: associate all selected categories
       if (_reg.categories.isNotEmpty) {
         await api.associateCategories(
-          tenantId: tenantId,
           businessId: businessId,
           categoryIds: _reg.categories.map((c) => c.id).toList(),
         );
@@ -341,8 +356,11 @@ class _BusinessRegisterScreenState
       );
     } on Exception catch (e) {
       if (mounted) {
+        final emailReg = regEmail.isNotEmpty;
         final msg = e.toString().contains('409')
-            ? 'Este número de WhatsApp ya tiene una cuenta registrada.'
+            ? (emailReg
+                ? 'Este correo ya tiene una cuenta registrada.'
+                : 'Este número de WhatsApp ya tiene una cuenta registrada.')
             : 'Error al registrar: $e';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(msg),

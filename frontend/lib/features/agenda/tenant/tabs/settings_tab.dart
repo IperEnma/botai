@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../models/agenda/business_settings.dart';
+import '../../../../providers/agenda/tenant_admin_resolved_provider.dart';
 import '../../../../providers/agenda/tenant/settings_provider.dart';
+import '../../../../providers/agenda/agenda_api_provider.dart';
+import '../../../../services/agenda_api_exception.dart';
+
 import '../../../../widgets/agenda/agenda_state_views.dart';
 
 class SettingsTab extends ConsumerStatefulWidget {
@@ -83,6 +87,75 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
     }
   }
 
+  Future<void> _linkIdentifierDialog({required bool linkEmail}) async {
+    final ctrl = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+
+    Future<void> submit() async {
+      final raw = ctrl.text.trim();
+      if (raw.isEmpty) return;
+      try {
+        final api = ref.read(agendaApiServiceProvider);
+        await api.linkTenantIdentifier(
+          email: linkEmail ? raw : null,
+          numero: linkEmail ? null : raw,
+        );
+        ref.invalidate(tenantAdminResolvedProvider);
+        if (!mounted) return;
+        messenger.showSnackBar(SnackBar(
+          content: Text(linkEmail
+              ? 'Email vinculado al negocio.'
+              : 'Número vinculado al negocio.'),
+        ));
+        // Si el vínculo cambió el tenant, la invalidación actualizará /home.
+        // Dejamos al usuario en settings.
+      } on AgendaApiException catch (e) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(e.message),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ));
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ));
+      }
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(linkEmail ? 'Agregar email' : 'Agregar WhatsApp'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType:
+              linkEmail ? TextInputType.emailAddress : TextInputType.phone,
+          decoration: InputDecoration(
+            hintText: linkEmail ? 'correo@dominio.com' : '+598 99 112 233',
+          ),
+          onSubmitted: (_) {
+            Navigator.of(dialogCtx).pop();
+            submit();
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              submit();
+            },
+            child: const Text('Vincular'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(settingsProvider(_key));
@@ -105,6 +178,25 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Cuenta', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _linkIdentifierDialog(linkEmail: false),
+                  icon: const Icon(Icons.phone),
+                  label: const Text('Agregar WhatsApp'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _linkIdentifierDialog(linkEmail: true),
+                  icon: const Icon(Icons.alternate_email),
+                  label: const Text('Agregar email'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
             Text('Cancelación',
                 style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),

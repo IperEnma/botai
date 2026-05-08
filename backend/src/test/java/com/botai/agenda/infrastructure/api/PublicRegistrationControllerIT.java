@@ -89,6 +89,41 @@ class PublicRegistrationControllerIT extends AbstractAgendaIntegrationTest {
     }
 
     @Test
+    void registroPorNumero_devuelve201YpersisteNumero() throws Exception {
+        String body = """
+                {
+                  "nombrePropietario": "Ana",
+                  "numero": "59899123456",
+                  "telefono": "+59899123456",
+                  "nombreNegocio": "Salón Ana"
+                }
+                """;
+
+        MvcResult result = mockMvc.perform(
+                        post(URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tenantId", notNullValue()))
+                .andReturn();
+
+        JsonNode json = objectMapper.readTree(result.getResponse().getContentAsString());
+        String tenantId = json.get("tenantId").asText();
+
+        String numero = jdbc.queryForObject(
+                "SELECT numero FROM agenda_tenant_accounts WHERE tenant_id = ?",
+                String.class, tenantId
+        );
+        assertEquals("59899123456", numero);
+
+        String email = jdbc.queryForObject(
+                "SELECT email FROM agenda_tenant_accounts WHERE tenant_id = ?",
+                String.class, tenantId
+        );
+        assertEquals(null, email);
+    }
+
+    @Test
     void emailInvalido_devuelve400() throws Exception {
         String body = """
                 {

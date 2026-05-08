@@ -26,19 +26,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.botai.agenda.infrastructure.security.AgendaCurrentTenantService;
+
 import java.util.List;
 import java.util.UUID;
 
 /**
  * CRUD de planes del negocio. Vive en el mismo namespace que los demás recursos
- * del admin de tenant ({@code /api/agenda/tenants/{tenantId}/...}) y queda
+ * del admin de tenant ({@code /api/agenda/me/businesses/{businessId}/...}) y queda
  * protegido por {@code AgendaFeatureGuard} (404 si {@code AGENDA_ENABLED=false}).
  *
  * <p>{@code DELETE} hace baja lógica (activo=false) porque las suscripciones
  * futuras mantienen FK {@code RESTRICT} al plan; ver {@code DeletePlanUseCase}.</p>
  */
 @RestController
-@RequestMapping("/api/agenda/tenants/{tenantId}/businesses/{businessId}/plans")
+@RequestMapping("/api/agenda/me/businesses/{businessId}/plans")
 @Tag(name = "Agenda Tenant · Plans", description = "CRUD de planes por negocio")
 @Validated
 public class TenantPlansController {
@@ -48,24 +50,27 @@ public class TenantPlansController {
     private final DeletePlanUseCase deletePlan;
     private final ListPlansByBusinessUseCase listPlans;
     private final GetPlanUseCase getPlan;
+    private final AgendaCurrentTenantService currentTenant;
 
     public TenantPlansController(CreatePlanUseCase createPlan,
                                  UpdatePlanUseCase updatePlan,
                                  DeletePlanUseCase deletePlan,
                                  ListPlansByBusinessUseCase listPlans,
-                                 GetPlanUseCase getPlan) {
+                                 GetPlanUseCase getPlan,
+                                 AgendaCurrentTenantService currentTenant) {
         this.createPlan = createPlan;
         this.updatePlan = updatePlan;
         this.deletePlan = deletePlan;
         this.listPlans = listPlans;
         this.getPlan = getPlan;
+        this.currentTenant = currentTenant;
     }
 
     @PostMapping
     @Operation(summary = "Crea un plan para el negocio")
-    public ResponseEntity<PlanResponse> create(@PathVariable("tenantId") String tenantId,
-                                               @PathVariable("businessId") UUID businessId,
+    public ResponseEntity<PlanResponse> create(@PathVariable("businessId") UUID businessId,
                                                @Valid @RequestBody CreatePlanRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         boolean activo = request.activo() == null || request.activo();
         var created = createPlan.execute(
                 tenantId, businessId,
@@ -82,10 +87,10 @@ public class TenantPlansController {
 
     @PutMapping("/{planId}")
     @Operation(summary = "Actualiza un plan (PATCH: null no cambia el campo)")
-    public PlanResponse update(@PathVariable("tenantId") String tenantId,
-                               @PathVariable("businessId") UUID businessId,
+    public PlanResponse update(@PathVariable("businessId") UUID businessId,
                                @PathVariable("planId") UUID planId,
                                @Valid @RequestBody UpdatePlanRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         var updated = updatePlan.execute(
                 tenantId, businessId, planId,
                 request.nombrePlan(),
@@ -101,19 +106,19 @@ public class TenantPlansController {
 
     @DeleteMapping("/{planId}")
     @Operation(summary = "Baja lógica del plan (activo=false)")
-    public ResponseEntity<Void> delete(@PathVariable("tenantId") String tenantId,
-                                       @PathVariable("businessId") UUID businessId,
+    public ResponseEntity<Void> delete(@PathVariable("businessId") UUID businessId,
                                        @PathVariable("planId") UUID planId) {
+        String tenantId = currentTenant.requireTenantId();
         deletePlan.execute(tenantId, businessId, planId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping
     @Operation(summary = "Lista planes del negocio")
-    public List<PlanResponse> list(@PathVariable("tenantId") String tenantId,
-                                   @PathVariable("businessId") UUID businessId,
+    public List<PlanResponse> list(@PathVariable("businessId") UUID businessId,
                                    @Parameter(description = "Si true, solo planes con activo=true")
                                    @RequestParam(name = "onlyActive", defaultValue = "false") boolean onlyActive) {
+        String tenantId = currentTenant.requireTenantId();
         return listPlans.execute(tenantId, businessId, onlyActive).stream()
                 .map(PlanDtoMapper::toResponse)
                 .toList();
@@ -121,9 +126,9 @@ public class TenantPlansController {
 
     @GetMapping("/{planId}")
     @Operation(summary = "Detalle de un plan del negocio")
-    public PlanResponse detail(@PathVariable("tenantId") String tenantId,
-                               @PathVariable("businessId") UUID businessId,
+    public PlanResponse detail(@PathVariable("businessId") UUID businessId,
                                @PathVariable("planId") UUID planId) {
+        String tenantId = currentTenant.requireTenantId();
         return PlanDtoMapper.toResponse(getPlan.execute(tenantId, businessId, planId));
     }
 }

@@ -318,7 +318,8 @@ public class AdminController {
             @PathVariable String tenantId,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
-            @RequestParam(required = false, defaultValue = "false") boolean includeCancelled) {
+            @RequestParam(required = false, defaultValue = "false") boolean includeCancelled,
+            @RequestParam(required = false) String customerDocument) {
         LocalDate start = from != null && !from.isBlank() ? LocalDate.parse(from) : LocalDate.now();
         LocalDate end = to != null && !to.isBlank() ? LocalDate.parse(to) : start.plusMonths(1);
         List<AppointmentEntity> list = appointmentRepository.findByTenantIdAndAppointmentDateBetweenOrderByAppointmentTimeAsc(tenantId, start, end);
@@ -329,6 +330,15 @@ public class AdminController {
                     return s == null || s.isBlank() || !"cancelled".equalsIgnoreCase(s.strip());
                 })
                 .collect(Collectors.toList());
+        }
+        if (customerDocument != null && !customerDocument.isBlank()) {
+            String nd = CustomerDocumentNormalizer.normalize(customerDocument);
+            if (!nd.isEmpty()) {
+                list = list.stream()
+                    .filter(a -> nd.equals(a.getCustomerDocument() != null
+                        ? a.getCustomerDocument().strip() : ""))
+                    .collect(Collectors.toList());
+            }
         }
         return ResponseEntity.ok(list);
     }

@@ -1,5 +1,6 @@
 package com.botai.chatbot.infrastructure.channel.whatsapp;
 
+import com.botai.chatbot.application.support.InboundMetadata;
 import com.botai.chatbot.domain.ConversationContextKeys;
 import com.botai.chatbot.domain.model.InboundMessage;
 import com.botai.chatbot.domain.model.OutboundMessage;
@@ -60,6 +61,7 @@ public class WhatsAppAdapter implements ChannelAdapter {
         String text = "";
         String messageId = "";
         String tenantId = null;
+        String whatsappProfileName = null;
 
         Object entryList = payload.get("entry");
         if (entryList instanceof List<?> entries && !entries.isEmpty()) {
@@ -72,6 +74,23 @@ public class WhatsAppAdapter implements ChannelAdapter {
                         Object value = ((Map<String, Object>) firstChange).get("value");
                         if (value instanceof Map<?, ?> valueMap) {
                             Map<String, Object> v = (Map<String, Object>) value;
+
+                            Object contactsObj = v.get("contacts");
+                            if (contactsObj instanceof List<?> contactList && !contactList.isEmpty()) {
+                                Object c0 = contactList.get(0);
+                                if (c0 instanceof Map<?, ?> contactMap) {
+                                    Object profile = contactMap.get("profile");
+                                    if (profile instanceof Map<?, ?> profMap) {
+                                        Object nameObj = profMap.get("name");
+                                        if (nameObj != null) {
+                                            String pn = String.valueOf(nameObj).strip();
+                                            if (!pn.isEmpty()) {
+                                                whatsappProfileName = WhatsAppInboundTextUtf8.tryFix(pn);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             
                             // IGNORAR STATUS UPDATES (esto causa el loop!)
                             if (v.containsKey("statuses")) {
@@ -159,6 +178,9 @@ public class WhatsAppAdapter implements ChannelAdapter {
         metadata.put("messageId", messageId);
         if (tenantId != null) {
             metadata.put(METADATA_TENANT_ID, tenantId);
+        }
+        if (whatsappProfileName != null && !whatsappProfileName.isBlank()) {
+            metadata.put(InboundMetadata.WHATSAPP_PROFILE_NAME, whatsappProfileName);
         }
         return InboundMessage.builder()
             .channelId(CHANNEL_ID)

@@ -11,6 +11,9 @@
 # ============================================================================
 
 spring:
+  task:
+    scheduling:
+      enabled: false
   # Desactivamos el init de scripts SQL del bot en tests para no pelear con
   # eventuales data.sql; las tablas de AGENDA se crean con Flyway.
   sql:
@@ -66,6 +69,8 @@ bot:
 
 agenda:
   enabled: true
+  security:
+    enabled: false
 
 logging:
   level:

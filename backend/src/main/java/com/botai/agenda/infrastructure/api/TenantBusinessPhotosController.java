@@ -21,21 +21,26 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.UUID;
 
+import com.botai.agenda.infrastructure.security.AgendaCurrentTenantService;
+
 @RestController
-@RequestMapping("/api/agenda/tenants/{tenantId}/businesses/{businessId}/photos")
+@RequestMapping("/api/agenda/me/businesses/{businessId}/photos")
 @Tag(name = "Agenda Tenant", description = "Galería de fotos del negocio")
 public class TenantBusinessPhotosController {
 
     private final BusinessPhotosUseCase photosUseCase;
+    private final AgendaCurrentTenantService currentTenant;
 
-    public TenantBusinessPhotosController(BusinessPhotosUseCase photosUseCase) {
+    public TenantBusinessPhotosController(BusinessPhotosUseCase photosUseCase,
+                                         AgendaCurrentTenantService currentTenant) {
         this.photosUseCase = photosUseCase;
+        this.currentTenant = currentTenant;
     }
 
     @GetMapping
     @Operation(summary = "Lista las fotos del negocio (máx 10)")
-    public List<BusinessPhotoResponse> list(@PathVariable String tenantId,
-                                            @PathVariable UUID businessId) {
+    public List<BusinessPhotoResponse> list(@PathVariable UUID businessId) {
+        String tenantId = currentTenant.requireTenantId();
         return photosUseCase.list(tenantId, businessId).stream()
                 .map(this::toResponse)
                 .toList();
@@ -43,9 +48,9 @@ public class TenantBusinessPhotosController {
 
     @PostMapping
     @Operation(summary = "Agrega una foto al negocio (máx 10)")
-    public ResponseEntity<BusinessPhotoResponse> add(@PathVariable String tenantId,
-                                                     @PathVariable UUID businessId,
+    public ResponseEntity<BusinessPhotoResponse> add(@PathVariable UUID businessId,
                                                      @Valid @RequestBody AddBusinessPhotoRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         try {
             BusinessPhoto saved = photosUseCase.add(tenantId, businessId, request.url());
             return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(saved));
@@ -56,9 +61,9 @@ public class TenantBusinessPhotosController {
 
     @DeleteMapping("/{photoId}")
     @Operation(summary = "Elimina una foto del negocio")
-    public ResponseEntity<Void> delete(@PathVariable String tenantId,
-                                       @PathVariable UUID businessId,
+    public ResponseEntity<Void> delete(@PathVariable UUID businessId,
                                        @PathVariable UUID photoId) {
+        String tenantId = currentTenant.requireTenantId();
         photosUseCase.delete(tenantId, businessId, photoId);
         return ResponseEntity.noContent().build();
     }

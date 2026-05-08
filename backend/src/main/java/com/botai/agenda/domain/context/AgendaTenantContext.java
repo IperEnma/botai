@@ -8,9 +8,9 @@ package com.botai.agenda.domain.context;
  * se introduce un contexto compartido, se haría con una abstracción explícita
  * (no importando entre paquetes).</p>
  *
- * <p>Uso típico: un interceptor HTTP extrae el tenantId del path variable
- * ({@code /api/agenda/tenants/{tenantId}/**}) y lo setea acá al comienzo de la
- * request; el {@code clear()} se llama en el {@code afterCompletion}.</p>
+ * <p>Uso típico: un interceptor HTTP resuelve el tenantId desde el contexto de
+ * seguridad y lo setea acá al comienzo de la request; el {@code clear()} se
+ * llama en el {@code afterCompletion}.</p>
  */
 public final class AgendaTenantContext {
 

@@ -312,7 +312,6 @@ class _BookingCard extends ConsumerWidget {
     const key = (tenantId: null, businessId: null);
     try {
       await ref.read(bookingsProvider(key).notifier).cancel(
-            tenantId: booking.businessId,
             businessId: booking.businessId,
             bookingId: booking.id,
           );
