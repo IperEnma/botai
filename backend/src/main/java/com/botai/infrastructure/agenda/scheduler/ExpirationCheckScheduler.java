@@ -10,6 +10,7 @@ import com.botai.domain.agenda.repository.NotificationTemplateRepository;
 import com.botai.domain.agenda.repository.UserSubscriptionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ import java.util.Optional;
  * personalizarlo por negocio.</p>
  */
 @Component
+@ConditionalOnProperty(name = "agenda.outbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
 public class ExpirationCheckScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(ExpirationCheckScheduler.class);

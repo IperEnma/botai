@@ -24,7 +24,11 @@ public class AgendaCurrentTenantService {
     }
 
     public Optional<String> findTenantId() {
-        String email = AgendaAuthContext.requireEmail().strip().toLowerCase(Locale.ROOT);
+        var jwt = AgendaAuthContext.currentJwt();
+        if (jwt == null) return Optional.empty();
+        String raw = jwt.getClaimAsString("email");
+        if (raw == null || raw.isBlank()) return Optional.empty();
+        String email = raw.strip().toLowerCase(Locale.ROOT);
         return tenantAccountRepository.findByEmail(email)
                 .or(() -> tenantAccountRepository.findByGoogleLinkedEmail(email))
                 .map(a -> a.getTenantId());

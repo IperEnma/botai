@@ -5,6 +5,8 @@ import com.botai.domain.agenda.exception.BookingSlotTakenException;
 import com.botai.domain.agenda.exception.NoCreditsException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
@@ -37,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationTest {
 
+    private static final Logger log = LoggerFactory.getLogger(CreateBookingConcurrencyIntegrationTest.class);
     private static final String TENANT_ID = "test-tenant-booking-concurrency";
 
     @Autowired
@@ -135,6 +138,7 @@ class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationT
                 } catch (BookingSlotTakenException e) {
                     slotTaken.incrementAndGet();
                 } catch (Exception e) {
+                    log.warn("CONCURRENCY TEST unexpected exception: {}", e.getClass().getName(), e);
                     otros.incrementAndGet();
                 }
                 return null;
@@ -285,6 +289,7 @@ class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationT
             } catch (BookingSlotTakenException e) {
                 slotTaken.incrementAndGet();
             } catch (Exception e) {
+                log.warn("CONCURRENCY TEST (thread A) unexpected exception: {}", e.getClass().getName(), e);
                 otros.incrementAndGet();
             }
             return null;
@@ -299,6 +304,7 @@ class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationT
             } catch (BookingSlotTakenException e) {
                 slotTaken.incrementAndGet();
             } catch (Exception e) {
+                log.warn("CONCURRENCY TEST (thread B) unexpected exception: {}", e.getClass().getName(), e);
                 otros.incrementAndGet();
             }
             return null;
@@ -358,6 +364,7 @@ class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationT
                 } catch (NoCreditsException e) {
                     noCredits.incrementAndGet();
                 } catch (Exception e) {
+                    log.warn("CONCURRENCY TEST stress unexpected exception: {}", e.getClass().getName(), e);
                     otros.incrementAndGet();
                 }
                 return null;

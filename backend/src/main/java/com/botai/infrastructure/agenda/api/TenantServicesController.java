@@ -26,11 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
-import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import com.botai.infrastructure.agenda.sync.AgendaKnowledgeChunkRefresher;
 
 @RestController
-@RequestMapping("/api/agenda/me/businesses/{businessId}/services")
+@RequestMapping("/api/agenda/tenants/{tenantId}/businesses/{businessId}/services")
 @Tag(name = "Agenda Tenant · Services", description = "CRUD de servicios por negocio")
 @Validated
 public class TenantServicesController {
@@ -39,29 +38,26 @@ public class TenantServicesController {
     private final UpdateServiceUseCase updateService;
     private final DeleteServiceUseCase deleteService;
     private final ListBusinessServicesUseCase listServices;
-    private final AgendaCurrentTenantService currentTenant;
     private final AgendaKnowledgeChunkRefresher knowledgeChunkRefresher;
 
     public TenantServicesController(CreateServiceUseCase createService,
                                     UpdateServiceUseCase updateService,
                                     DeleteServiceUseCase deleteService,
                                     ListBusinessServicesUseCase listServices,
-                                    AgendaCurrentTenantService currentTenant,
                                     AgendaKnowledgeChunkRefresher knowledgeChunkRefresher) {
         this.createService = createService;
         this.updateService = updateService;
         this.deleteService = deleteService;
         this.listServices = listServices;
-        this.currentTenant = currentTenant;
         this.knowledgeChunkRefresher = knowledgeChunkRefresher;
     }
 
     @GetMapping
     @Operation(summary = "Listar servicios del negocio (activos y todos)")
     public ResponseEntity<List<ServiceResponse>> list(
+            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @RequestParam(value = "soloActivos", required = false, defaultValue = "false") boolean soloActivos) {
-        String tenantId = currentTenant.requireTenantId();
         List<ServiceResponse> result = listServices.execute(tenantId, businessId, soloActivos)
                 .stream().map(ServiceDtoMapper::toResponse).toList();
         return ResponseEntity.ok(result);
@@ -70,9 +66,9 @@ public class TenantServicesController {
     @PostMapping
     @Operation(summary = "Crear un servicio para el negocio")
     public ResponseEntity<ServiceResponse> create(
+            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @Valid @RequestBody CreateServiceRequest request) {
-        String tenantId = currentTenant.requireTenantId();
         var created = createService.execute(tenantId, businessId,
                 request.nombre(), request.descripcion(),
                 request.duracionMin(), request.precio());
@@ -83,10 +79,10 @@ public class TenantServicesController {
     @PutMapping("/{serviceId}")
     @Operation(summary = "Actualizar un servicio")
     public ResponseEntity<ServiceResponse> update(
+            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @PathVariable UUID serviceId,
             @Valid @RequestBody UpdateServiceRequest request) {
-        String tenantId = currentTenant.requireTenantId();
         var updated = updateService.execute(tenantId, businessId, serviceId,
                 request.nombre(), request.descripcion(),
                 request.duracionMin(), request.precio(), request.activo());
@@ -97,9 +93,9 @@ public class TenantServicesController {
     @DeleteMapping("/{serviceId}")
     @Operation(summary = "Eliminar (soft-delete) un servicio")
     public ResponseEntity<Void> delete(
+            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @PathVariable UUID serviceId) {
-        String tenantId = currentTenant.requireTenantId();
         deleteService.execute(tenantId, businessId, serviceId);
         knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return ResponseEntity.noContent().build();
