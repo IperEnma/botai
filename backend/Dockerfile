@@ -1,21 +1,15 @@
-# Build stage
-FROM maven:3.9-eclipse-temurin-17-alpine AS build
-WORKDIR /app
+# Build + runtime (Oracle ARM / Render / cualquier host con Docker).
+# En la VM: docker compose -f docker-compose.prod.yml build backend
 
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /app
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
-
 COPY src ./src
-RUN mvn package -DskipTests -B
+RUN mvn -B -DskipTests package
 
-# Runtime stage
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre
 WORKDIR /app
-
-RUN adduser -D -u 1000 appuser
-USER appuser
-
 COPY --from=build /app/target/*.jar app.jar
-
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Heap: Render ~384m (JAVA_OPTS). Oracle VM: JAVA_OPTS=-Xmx3g en docker-compose.prod.yml
+ENTRYPOINT ["sh","-c","exec java ${JAVA_OPTS:--Xmx512m} -XX:+UseContainerSupport -jar app.jar"]

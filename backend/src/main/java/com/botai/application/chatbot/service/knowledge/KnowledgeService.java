@@ -45,7 +45,7 @@ public class KnowledgeService {
             return List.of();
         }
         if (embeddingModel == null) {
-            log.error("[RAG] EmbeddingModel no configurado: RAG requiere modelo de embeddings (Ollama). Sin fallback.");
+            log.error("[RAG] EmbeddingModel no configurado: definí BOT_EMBEDDING_PROVIDER (djl o api). Sin fallback.");
             return List.of();
         }
         int limit = maxChunks > 0 ? maxChunks : DEFAULT_MAX_CHUNKS;

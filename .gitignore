@@ -1,6 +1,8 @@
 # Environment files (NEVER commit these)
 .env
 *.env.local
+.env.prod
+backend/.env.prod
 
 # IDE
 .idea/

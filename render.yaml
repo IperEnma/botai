@@ -1,0 +1,63 @@
+# Render Blueprint — backend botai (embeddings API + Neon).
+# Dashboard: New → Blueprint → conectar repo, o Web Service manual con rootDir=backend.
+#
+# Plan free = 512 MB RAM (justo). Si falla por memoria, subir a Starter.
+
+services:
+  - type: web
+    name: botai-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: JAVA_OPTS
+        value: -Xmx384m
+      - key: SPRING_SQL_INIT_MODE
+        value: never
+      - key: FLYWAY_REPAIR_ON_MIGRATE
+        value: false
+      - key: BOT_EMBEDDING_PROVIDER
+        value: api
+      - key: BOT_EMBEDDING_API_BASE_URL
+        value: https://openrouter.ai/api
+      - key: BOT_EMBEDDING_API_MODEL
+        value: openai/text-embedding-3-small
+      - key: DB_JDBC_PARAMS
+        value: ?sslmode=require
+      # Secretos: definir en Render Dashboard (sync: false)
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: AGENDA_PUBLIC_BASE_URL
+        sync: false
+      - key: AGENDA_UPLOADS_BASE_URL
+        sync: false
+      - key: AGENDA_SECURITY_ENABLED
+        value: "true"
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      # Chat LLM: URL pública de Ollama (no localhost). Sin Ollama, el chat falla al usarlo.
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: OLLAMA_MODEL
+        value: llama3.2

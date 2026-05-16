@@ -1,0 +1,41 @@
+# Producción: backend + Caddy en Oracle VM. Base de datos en Neon (externa).
+# Uso: docker compose -f docker-compose.prod.yml --env-file backend/.env.prod up -d
+#
+# Límites free Oracle: 1 VM Ampere, 2 OCPU + 12 GB RAM.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chatbot-backend
+    env_file:
+      - backend/.env.prod
+    environment:
+      JAVA_OPTS: ${JAVA_OPTS:--Xmx3g}
+    expose:
+      - "8080"
+    volumes:
+      - uploads_data:/app/uploads
+    restart: unless-stopped
+    mem_limit: 6g
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: chatbot-caddy
+    environment:
+      CADDY_DOMAIN: ${CADDY_DOMAIN:-api.example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+    mem_limit: 256m
+
+volumes:
+  uploads_data:

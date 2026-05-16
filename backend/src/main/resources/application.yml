@@ -8,7 +8,7 @@ spring:
     name: chatbot-engine
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5444}/${DB_NAME:chatbot}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5444}/${DB_NAME:chatbot}${DB_JDBC_PARAMS:}
     username: ${DB_USER:chatbot}
     password: ${DB_PASSWORD:chatbot}
     driver-class-name: org.postgresql.Driver
@@ -44,11 +44,8 @@ spring:
       max-request-size: 10MB
 
   # ---------------------------------------------------------------------------
-  # Spring AI: chat (Ollama) + qué integración de embeddings usa el contenedor
+  # Spring AI: chat (Ollama) + embeddings (ver bot.embedding.provider más abajo)
   # ---------------------------------------------------------------------------
-  # Embeddings reales: bot.embedding.* (abajo). Si provider=djl → model.embedding=none
-  # y NO uses spring.ai.ollama.embedding. Si provider=ollama → model.embedding=ollama
-  # y define spring.ai.ollama.embedding.options.model.
   ai:
     ollama:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
@@ -63,11 +60,12 @@ spring:
 # Bot: motor (orden: IA/RAG → conversación → canales)
 # -----------------------------------------------------------------------------
 bot:
-  # Embeddings (DJL en JVM o Ollama): va junto a spring.ai.model.embedding / ollama arriba.
+  # Embeddings RAG: BOT_EMBEDDING_PROVIDER = djl (local JVM) | api (HTTP OpenAI-compatible).
+  # api cubre OpenRouter, OpenAI y Ollama (/v1/embeddings) — solo cambia base-url y modelo.
   embedding:
-    provider: djl
+    provider: ${BOT_EMBEDDING_PROVIDER:djl}
     djl:
-      model-url: djl://ai.djl.huggingface.pytorch/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      model-url: ${BOT_EMBEDDING_DJL_MODEL_URL:djl://ai.djl.huggingface.pytorch/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
 
   # RAG (pgvector): usa el mismo EmbeddingModel que embedding.provider.
   rag:
@@ -119,7 +117,7 @@ bot:
 # HTTP
 # -----------------------------------------------------------------------------
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${PORT:${SERVER_PORT:8080}}
   servlet:
     encoding:
       charset: UTF-8
@@ -199,3 +197,22 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+# =============================================================================
+# Embeddings por API (OpenRouter, OpenAI, Ollama /v1, …)
+# =============================================================================
+---
+spring.config.activate.on-property:
+  name: bot.embedding.provider
+  having-value: api
+spring:
+  ai:
+    model:
+      embedding: openai
+    openai:
+      # Ollama ignora la key; OpenRouter/OpenAI la requieren.
+      api-key: ${OPENROUTER_API_KEY:${OPENAI_API_KEY:ollama}}
+      base-url: ${BOT_EMBEDDING_API_BASE_URL:https://openrouter.ai/api}
+      embedding:
+        options:
+          model: ${BOT_EMBEDDING_API_MODEL:openai/text-embedding-3-small}

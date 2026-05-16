@@ -1,0 +1,6 @@
+# Sustituí el dominio antes de desplegar.
+# Sin dominio: comentá el servicio caddy en docker-compose.prod.yml y exponé backend:8080 solo para pruebas.
+
+{$CADDY_DOMAIN:api.example.com} {
+    reverse_proxy backend:8080
+}
