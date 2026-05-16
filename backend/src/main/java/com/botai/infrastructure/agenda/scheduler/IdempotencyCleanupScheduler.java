@@ -3,6 +3,7 @@ package com.botai.infrastructure.agenda.scheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
  * Se ejecuta una vez por día a medianoche.
  */
 @Component
+@ConditionalOnProperty(name = "agenda.outbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
 public class IdempotencyCleanupScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(IdempotencyCleanupScheduler.class);

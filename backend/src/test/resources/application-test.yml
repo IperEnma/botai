@@ -71,6 +71,9 @@ agenda:
   enabled: true
   security:
     enabled: false
+  outbox:
+    scheduler:
+      enabled: false
 
 logging:
   level:

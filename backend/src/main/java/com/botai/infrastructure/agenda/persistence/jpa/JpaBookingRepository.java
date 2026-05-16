@@ -52,6 +52,14 @@ public class JpaBookingRepository implements BookingRepository {
                 throw new BookingSlotTakenException();
             }
             throw ex;
+        } catch (RuntimeException ex) {
+            // Defensive: handle cases where the JPA exception was not translated
+            // to DataIntegrityViolationException (e.g. raw ConstraintViolationException
+            // from Hibernate propagating before the PersistenceExceptionTranslationInterceptor).
+            if (isSlotExclusionViolation(ex)) {
+                throw new BookingSlotTakenException();
+            }
+            throw ex;
         }
     }
 
@@ -98,7 +106,7 @@ public class JpaBookingRepository implements BookingRepository {
         return jpa.countConfirmedInWindow(userId, businessId, desde);
     }
 
-    private boolean isSlotExclusionViolation(DataIntegrityViolationException ex) {
+    private boolean isSlotExclusionViolation(Throwable ex) {
         Throwable cause = ex;
         while (cause != null) {
             if (cause.getMessage() != null && cause.getMessage().contains(SLOT_CONSTRAINT)) {

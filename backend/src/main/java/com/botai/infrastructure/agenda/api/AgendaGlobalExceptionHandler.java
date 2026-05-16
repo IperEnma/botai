@@ -214,6 +214,13 @@ public class AgendaGlobalExceptionHandler {
         return response(HttpStatus.CONFLICT, "CONFLICT", ex.getMessage(), null);
     }
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
+        log.error("AGENDA: error inesperado en controller", ex);
+        return response(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
+                "Ocurrió un error interno. Por favor intenta nuevamente.", null);
+    }
+
     private ResponseEntity<Map<String, Object>> response(HttpStatus status,
                                                          String code,
                                                          String message,

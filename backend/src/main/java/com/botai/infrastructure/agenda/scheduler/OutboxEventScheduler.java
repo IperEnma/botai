@@ -6,6 +6,7 @@ import com.botai.domain.agenda.repository.OutboxEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,7 @@ import java.util.List;
  * el segundo disparo simplemente no hace nada.</p>
  */
 @Component
+@ConditionalOnProperty(name = "agenda.outbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxEventScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxEventScheduler.class);
