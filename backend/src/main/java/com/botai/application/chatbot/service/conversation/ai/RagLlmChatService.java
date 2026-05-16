@@ -256,7 +256,7 @@ public class RagLlmChatService implements ConversationModeHandler {
                 log.info("[RAG-LLM] Sin chunks RAG -> LLM con contexto mínimo (fecha + reglas conservadoras)");
                 systemLines.add("");
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_SECTION_TITLE);
-                systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_NO_INVENTAR);
+                systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_USE_TOOLS);
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_SIN_DATOS);
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_AGENDAR_TOOLS);
             }

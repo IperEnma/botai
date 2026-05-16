@@ -93,7 +93,7 @@ public class AgendaRagSourceSync {
         }
         Set<UUID> keepIds = businesses.stream().map(BusinessRow::id).collect(Collectors.toCollection(LinkedHashSet::new));
         for (BusinessRow b : businesses) {
-            upsertChunk(tenantId, b.id(), TOPIC_NEGOCIO, buildNegocioContent(b));
+            upsertChunk(tenantId, b.id(), TOPIC_NEGOCIO, buildNegocioContent(tenantId, b));
             upsertChunk(tenantId, b.id(), TOPIC_SERVICIOS, buildServiciosContent(b.id()));
             upsertChunk(tenantId, b.id(), TOPIC_HORARIOS, buildHorariosContent(b.id()));
             upsertChunk(tenantId, b.id(), TOPIC_POLITICAS, buildPoliticasContent(b.id()));
@@ -131,22 +131,55 @@ public class AgendaRagSourceSync {
         );
     }
 
-    private String buildNegocioContent(BusinessRow b) {
+    /**
+     * Contenido indexable para RAG: nombre comercial explícito (Agenda o tabla {@code bot}) para que el asistente no lo invente.
+     */
+    static String buildNegocioKnowledgeContent(String displayName, String descripcion, String publicSlug,
+                                               String logoUrl, String colorPrimario) {
         List<String> lines = new ArrayList<>();
-        lines.add("Nombre: " + (b.nombre() != null ? b.nombre() : ""));
-        if (b.descripcion() != null && !b.descripcion().isBlank()) {
-            lines.add("Descripción: " + b.descripcion().strip());
+        String name = displayName != null ? displayName.strip() : "";
+        if (!name.isEmpty()) {
+            lines.add("Nombre comercial del negocio: " + name);
+            lines.add("El negocio se llama " + name + ". Usa este nombre al hablar con clientes.");
+        } else {
+            lines.add("Nombre comercial del negocio: (sin nombre cargado en agenda ni en el bot)");
         }
-        if (b.publicSlug() != null && !b.publicSlug().isBlank()) {
-            lines.add("Identificador público (slug): " + b.publicSlug());
+        if (descripcion != null && !descripcion.isBlank()) {
+            lines.add("Descripción: " + descripcion.strip());
         }
-        if (b.logoUrl() != null && !b.logoUrl().isBlank()) {
-            lines.add("Logo: " + b.logoUrl().strip());
+        if (publicSlug != null && !publicSlug.isBlank()) {
+            lines.add("Identificador público (slug): " + publicSlug.strip());
         }
-        if (b.colorPrimario() != null && !b.colorPrimario().isBlank()) {
-            lines.add("Color corporativo: " + b.colorPrimario().strip());
+        if (logoUrl != null && !logoUrl.isBlank()) {
+            lines.add("Logo: " + logoUrl.strip());
+        }
+        if (colorPrimario != null && !colorPrimario.isBlank()) {
+            lines.add("Color corporativo: " + colorPrimario.strip());
         }
         return String.join("\n", lines);
+    }
+
+    private String buildNegocioContent(String tenantId, BusinessRow b) {
+        String displayName = resolveBusinessDisplayName(tenantId, b.nombre());
+        return buildNegocioKnowledgeContent(
+            displayName, b.descripcion(), b.publicSlug(), b.logoUrl(), b.colorPrimario());
+    }
+
+    private String resolveBusinessDisplayName(String tenantId, String agendaNombre) {
+        if (agendaNombre != null && !agendaNombre.isBlank()) {
+            return agendaNombre.strip();
+        }
+        if (tenantId == null || tenantId.isBlank()) {
+            return "";
+        }
+        List<String> fromBot = jdbcTemplate.query(
+            "SELECT name FROM bot WHERE tenant_id = ? LIMIT 1",
+            ps -> ps.setString(1, tenantId),
+            (rs, rowNum) -> rs.getString(1));
+        if (!fromBot.isEmpty() && fromBot.get(0) != null && !fromBot.get(0).isBlank()) {
+            return fromBot.get(0).strip();
+        }
+        return "";
     }
 
     private String buildServiciosContent(UUID businessId) {
