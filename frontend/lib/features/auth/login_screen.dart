@@ -7,7 +7,6 @@ import '../../core/google_identity_button_stub.dart'
     if (dart.library.html) '../../core/google_identity_button_web.dart';
 import '../../core/theme.dart';
 import '../../providers/agenda/agenda_nav_after_google_auth.dart';
-import '../../providers/agenda/tenant_admin_resolved_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/web_google_sign_in_scope.dart';
 
@@ -159,24 +158,23 @@ class LoginScreen extends ConsumerWidget {
                         _GoogleSignInButton(
                           isLoading: authState.isLoading,
                           onPressed: () async {
-                            await ref
+                            final ok = await ref
                                 .read(authStateProvider.notifier)
                                 .signInWithGoogle();
                             if (!context.mounted) return;
                             final auth = ref.read(authStateProvider);
-                            if (auth.error != null) {
-                              await showApiErrorDialog(
-                                context,
-                                Exception(auth.error!),
-                                title: 'Inicio de sesión con Google',
-                              );
+                            if (!ok || auth.error != null) {
+                              if (auth.error != null) {
+                                await showApiErrorDialog(
+                                  context,
+                                  Exception(auth.error!),
+                                  title: 'Inicio de sesión con Google',
+                                );
+                              }
                               return;
                             }
-                            if (auth.isAuthenticated) {
-                              ref.invalidate(tenantAdminResolvedProvider);
-                              await agendaNavigateAfterGoogleSignIn(
-                                  ref, context);
-                            }
+                            await agendaNavigateAfterGoogleSignIn(
+                                ref, context);
                           },
                         ),
                       if (kIsWeb) ...[

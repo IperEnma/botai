@@ -52,22 +52,22 @@ class _WebGoogleSignInScopeState extends ConsumerState<WebGoogleSignInScope> {
 
     _handling = true;
     try {
-      await ref
+      final ok = await ref
           .read(authStateProvider.notifier)
           .completeGoogleSignInFromAccount(account);
       if (!mounted) return;
       final after = ref.read(authStateProvider);
-      if (after.error != null) {
-        await showApiErrorDialog(
-          context,
-          Exception(after.error!),
-          title: widget.errorDialogTitle,
-        );
+      if (!ok || after.error != null) {
+        if (after.error != null) {
+          await showApiErrorDialog(
+            context,
+            Exception(after.error!),
+            title: widget.errorDialogTitle,
+          );
+        }
         return;
       }
-      if (after.isAuthenticated) {
-        await widget.onSignedIn(context);
-      }
+      await widget.onSignedIn(context);
     } finally {
       _handling = false;
     }

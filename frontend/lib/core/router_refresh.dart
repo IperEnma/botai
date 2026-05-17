@@ -7,7 +7,15 @@ import '../providers/auth_provider.dart';
 final routerRefreshListenableProvider = Provider<RouterRefreshListenable>((ref) {
   final listenable = RouterRefreshListenable();
   ref.onDispose(listenable.dispose);
-  ref.listen(authStateProvider, (_, _) => listenable.refresh());
+  ref.listen(authStateProvider, (prev, next) {
+    final wasIn = prev?.isAuthenticated ?? false;
+    final isIn = next.isAuthenticated;
+    final tokenChanged =
+        prev?.user?.accessToken != next.user?.accessToken;
+    if (wasIn != isIn || tokenChanged) {
+      listenable.refresh();
+    }
+  });
   return listenable;
 });
 
