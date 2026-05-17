@@ -132,7 +132,13 @@ class _Navbar extends StatelessWidget {
                   const SizedBox(width: 8),
                 ],
 
-                // CTAs
+                // CTAs (login visible también en móvil)
+                if (!wide)
+                  IconButton(
+                    tooltip: 'Iniciar sesión',
+                    onPressed: () => context.go('/login'),
+                    icon: const Icon(Icons.login, color: _kPrimary),
+                  ),
                 if (wide)
                   OutlinedButton(
                     onPressed: () => context.go('/login'),
@@ -149,13 +155,13 @@ class _Navbar extends StatelessWidget {
                         style: _b(13,
                             w: FontWeight.w600, c: _kPrimary)),
                   ),
-                const SizedBox(width: 8),
+                if (wide) const SizedBox(width: 8),
                 FilledButton(
                   onPressed: () => context.go('/agenda/register'),
                   style: FilledButton.styleFrom(
                     backgroundColor: _kPrimary,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 0),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: wide ? 16 : 12, vertical: 0),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                     minimumSize: const Size(0, 38),

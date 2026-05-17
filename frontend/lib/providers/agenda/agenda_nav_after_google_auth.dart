@@ -2,18 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api_error_presenter.dart';
-import '../../services/agenda_api_exception.dart';
 import '../auth_provider.dart';
 import 'agenda_api_provider.dart';
-import 'agenda_user_provider.dart';
+import 'tenant_admin_resolved_provider.dart';
 
-/// Tras Google Sign-In: si ya existe tenant Agenda para el correo → `/home`;
-/// si no (404) → guarda datos para registro por email y va a `/agenda/intent`
-/// (mismo onboarding que WhatsApp).
+/// Tras Google Sign-In: sincroniza el token Agenda y entra al panel (`/home`).
 ///
-/// Fuerza token y email en [AgendaApiService] para evitar carreras con el
-/// listener de Riverpod.
+/// La resolución del tenant (cuenta existente vs onboarding) la hace
+/// [TenantMeGateScreen] vía [tenantAdminResolvedProvider], en un solo lugar.
 Future<void> agendaNavigateAfterGoogleSignIn(
   WidgetRef ref,
   BuildContext context,
@@ -24,37 +20,8 @@ Future<void> agendaNavigateAfterGoogleSignIn(
 
   final api = ref.read(agendaApiServiceProvider);
   api.setAccessToken(user.accessToken);
+  ref.invalidate(tenantAdminResolvedProvider);
 
-  try {
-    await api.fetchTenantAdminContext();
-    if (!context.mounted) return;
-    context.go('/home');
-  } on AgendaApiException catch (e) {
-    if (!context.mounted) return;
-    if (!e.isNotFound) {
-      await showApiErrorDialog(
-        context,
-        e,
-        title: 'No se pudo verificar tu cuenta Agenda',
-      );
-      return;
-    }
-    final trimmedName = user.name?.trim();
-    final nombre = (trimmedName != null && trimmedName.isNotEmpty)
-        ? trimmedName
-        : user.email.split('@').first;
-    await ref.read(agendaUserProvider.notifier).saveGoogleRegistration(
-          nombre: nombre,
-          email: user.email,
-        );
-    if (!context.mounted) return;
-    context.go('/agenda/intent');
-  } catch (e) {
-    if (!context.mounted) return;
-    await showApiErrorDialog(
-      context,
-      e is Exception ? e : Exception(e.toString()),
-      title: 'Error al entrar',
-    );
-  }
+  if (!context.mounted) return;
+  context.go('/home');
 }

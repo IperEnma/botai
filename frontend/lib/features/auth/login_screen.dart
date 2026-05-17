@@ -7,6 +7,7 @@ import '../../core/google_identity_button_stub.dart'
     if (dart.library.html) '../../core/google_identity_button_web.dart';
 import '../../core/theme.dart';
 import '../../providers/agenda/agenda_nav_after_google_auth.dart';
+import '../../providers/agenda/tenant_admin_resolved_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/web_google_sign_in_scope.dart';
 
@@ -172,6 +173,7 @@ class LoginScreen extends ConsumerWidget {
                               return;
                             }
                             if (auth.isAuthenticated) {
+                              ref.invalidate(tenantAdminResolvedProvider);
                               await agendaNavigateAfterGoogleSignIn(
                                   ref, context);
                             }
