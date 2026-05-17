@@ -79,7 +79,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> signInWithGoogle() async {
+  /// Devuelve `true` si la sesión quedó activa.
+  Future<bool> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _authService.signInWithGoogle();
@@ -90,19 +91,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isAuthenticated: true,
           isLoading: false,
         );
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'No se pudo iniciar sesión',
-        );
+        return true;
       }
+      state = state.copyWith(
+        isLoading: false,
+        error: 'No se pudo iniciar sesión',
+      );
+      return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
     }
   }
 
   /// Web: after GIS [renderButton] signs the user in, the platform updates [GoogleSignIn.currentUser].
-  Future<void> completeGoogleSignInFromAccount(GoogleSignInAccount account) async {
+  Future<bool> completeGoogleSignInFromAccount(
+      GoogleSignInAccount account) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _authService.handleGoogleSignInAccount(account);
@@ -113,14 +117,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isAuthenticated: true,
           isLoading: false,
         );
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'No se pudo iniciar sesión',
-        );
+        return true;
       }
+      state = state.copyWith(
+        isLoading: false,
+        error: 'No se pudo iniciar sesión',
+      );
+      return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
     }
   }
 

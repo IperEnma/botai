@@ -1,6 +1,5 @@
 # Render Blueprint — backend botai (Neon).
-# Plan free = 512 MB RAM. Config por defecto sin cargos OpenRouter (chat free + embeddings DJL en JVM).
-# Si el servicio muere por memoria al cargar DJL, subir a Starter o usar BOT_EMBEDDING_PROVIDER=api (embeddings de pago).
+# Plan free = 512 MB RAM. Sin DJL: chat + embeddings por OpenRouter (modelos :free).
 
 services:
   - type: web
@@ -16,16 +15,16 @@ services:
         value: -Xmx384m
       - key: FLYWAY_REPAIR_ON_MIGRATE
         value: false
-      # $0 OpenRouter: chat free; vectores RAG en JVM (384 dims → embedding_384)
       - key: BOT_EMBEDDING_PROVIDER
-        value: djl
-      - key: BOT_CHAT_PROVIDER
         value: api
       - key: BOT_API_BASE_URL
         value: https://openrouter.ai/api
+      - key: BOT_EMBEDDING_API_MODEL
+        value: nvidia/llama-nemotron-embed-vl-1b-v2:free
+      - key: BOT_EMBEDDING_API_DIMENSIONS
+        value: "384"
       - key: BOT_CHAT_API_MODEL
         value: openrouter/free
-      # Neon → tres variables (ver backend/.env.render.example). No uses DATABASE_URL.
       - key: SPRING_DATASOURCE_URL
         sync: false
       - key: SPRING_DATASOURCE_USERNAME

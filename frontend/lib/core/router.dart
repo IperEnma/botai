@@ -27,10 +27,14 @@ import '../features/agenda/me/wallet_screen.dart';
 import '../features/agenda/me/my_bookings_screen.dart';
 import '../features/agenda/me/create_booking_screen.dart';
 import '../features/agenda/me/my_notifications_screen.dart';
+import 'router_refresh.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final router = GoRouter(
+  final refresh = ref.watch(routerRefreshListenableProvider);
+
+  return GoRouter(
     initialLocation: '/',
+    refreshListenable: refresh,
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.isAuthenticated;
@@ -60,8 +64,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         debugPrint('[ROUTER] → /login (not agenda, not logged in)');
         return '/login';
       }
-      if (isLoggedIn && (isLoggingIn || loc == '/agenda/register')) {
-        debugPrint('[ROUTER] → /home (logged in at /login or /register)');
+      if (isLoggedIn &&
+          (loc == '/' || isLoggingIn || loc == '/agenda/register')) {
         return '/home';
       }
       final meBizPrefix = '/agenda/tenants/me/businesses/';
@@ -240,17 +244,4 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
-
-  // Refrescar el redirect solo en logout. En login, la navegación la maneja
-  // agendaNavigateAfterGoogleSignIn directamente; si router.refresh() se llamara
-  // al autenticarse, el redirect isLoggedIn&&isLoggingIn→'/home' desmontaría
-  // LoginScreen antes de que el callback async pudiera navegar al onboarding.
-  ref.listen<AuthState>(authStateProvider, (prev, next) {
-    if (prev != null && prev.isAuthenticated && !next.isAuthenticated) {
-      router.refresh();
-    }
-  });
-  ref.onDispose(router.dispose);
-
-  return router;
 });

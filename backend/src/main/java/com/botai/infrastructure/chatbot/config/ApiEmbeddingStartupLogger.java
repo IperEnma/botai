@@ -22,10 +22,13 @@ public class ApiEmbeddingStartupLogger {
     @Bean
     ApplicationRunner apiEmbeddingStartupRunner(
             @Value("${spring.ai.openai.base-url}") String baseUrl,
-            @Value("${spring.ai.openai.embedding.options.model}") String model) {
+            @Value("${spring.ai.openai.embedding.options.model}") String model,
+            @Value("${bot.embedding.api-dimensions:384}") int dimensions) {
         return (ApplicationArguments args) -> log.info(
-                "[EMBED-API] Embeddings RAG por HTTPS: baseUrl={} model={} (columna embedding_* según bot.embedding.api-dimensions)",
+                "[EMBED-API] Embeddings RAG por HTTPS: baseUrl={} model={} dimensions={} (columna embedding_{})",
                 baseUrl,
-                model);
+                model,
+                dimensions,
+                dimensions);
     }
 }

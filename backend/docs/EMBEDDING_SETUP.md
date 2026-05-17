@@ -9,15 +9,18 @@ Dos modos, una variable:
 | **`djl`** (default) | Local en JVM (MiniLM, **384** dims). Dev / máquina con RAM. |
 | **`api`** | Cualquier API **OpenAI-compatible** por HTTPS (poco RAM). |
 
-### OpenRouter (Render / prod)
+### OpenRouter (Render / prod, $0)
 
 ```env
 BOT_EMBEDDING_PROVIDER=api
+BOT_API_BASE_URL=https://openrouter.ai/api
 OPENROUTER_API_KEY=sk-or-v1-...
-# opcional:
-# BOT_EMBEDDING_API_MODEL=openai/text-embedding-3-small
-# BOT_EMBEDDING_API_BASE_URL=https://openrouter.ai/api
+BOT_EMBEDDING_API_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2:free
+BOT_EMBEDDING_API_DIMENSIONS=384
+BOT_CHAT_API_MODEL=openrouter/free
 ```
+
+Embeddings de pago (opcional): `BOT_EMBEDDING_API_MODEL=openai/text-embedding-3-small` + `BOT_EMBEDDING_API_DIMENSIONS=1536`.
 
 ### Ollama (misma idea: es una API)
 
@@ -32,7 +35,7 @@ BOT_EMBEDDING_API_MODEL=nomic-embed-text
 
 Antes de usar el modelo: `ollama pull nomic-embed-text` (768 dims — hoy solo soportamos columnas 384 y 1536).
 
-Con `BOT_EMBEDDING_PROVIDER=api`, el **chat** también usa OpenRouter (`BOT_CHAT_API_MODEL`; default `openrouter/free`). En Render sin Ollama: `BOT_EMBEDDING_PROVIDER=djl` + `BOT_CHAT_PROVIDER=api` + `BOT_CHAT_API_MODEL=openrouter/free`. En local con `djl`, el chat por defecto sigue en Ollama (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`).
+Con `BOT_EMBEDDING_PROVIDER=api`, el **chat** también usa OpenRouter (`BOT_CHAT_API_MODEL`; default `openrouter/free`). En local con `djl`, el chat sigue en Ollama (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`).
 
 ---
 
@@ -42,12 +45,12 @@ Con `BOT_EMBEDDING_PROVIDER=api`, el **chat** también usa OpenRouter (`BOT_CHAT
 
 | Columna | Uso |
 |---------|-----|
-| `embedding_384` | DJL local (`BOT_EMBEDDING_PROVIDER=djl`) |
-| `embedding_1536` | API / OpenRouter (`BOT_EMBEDDING_PROVIDER=api`, modelo 1536-d) |
+| `embedding_384` | DJL local, o API Nemotron free con `BOT_EMBEDDING_API_DIMENSIONS=384` |
+| `embedding_1536` | API OpenAI small (`BOT_EMBEDDING_API_DIMENSIONS=1536`) |
 
 Solo se lee/escribe la columna del proveedor activo. Podés usar **la misma Neon** en Render (API) y Postgres local (DJL) sin `ALTER` que rompa el otro entorno.
 
-Opcional en Render: `BOT_EMBEDDING_API_DIMENSIONS=1536` (default).
+Default API: `BOT_EMBEDDING_API_DIMENSIONS=384` (Nemotron free). Para OpenAI small: `1536`.
 
 Si cambiás de modelo API a otra dimensión no soportada (384 o 1536), hay que extender el código; hoy solo esas dos.
 
