@@ -51,7 +51,7 @@ Si cambiás de proveedor o modelo, la columna `embedding` debe tener las **misma
 ## Base de datos (PostgreSQL + pgvector)
 
 - Imagen con pgvector (ej. `pgvector/pgvector:pg16`).
-- `schema.sql` crea `embedding vector(384)` para el default DJL.
+- Hibernate crea `knowledge_chunk.embedding` como `vector(384)` por defecto (DJL MiniLM).
 
 Si la base ya existía sin pgvector:
 

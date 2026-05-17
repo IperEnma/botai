@@ -14,18 +14,14 @@ Render da HTTPS; no hace falta Caddy ni `docker-compose.prod.yml`.
 
 ## 1. Neon (si aún no está)
 
-1. [neon.tech](https://neon.tech) → proyecto → **SQL Editor**:
+1. [neon.tech](https://neon.tech) → proyecto → activar **pgvector** en el proyecto (o en SQL Editor: `CREATE EXTENSION IF NOT EXISTS vector;`).
+2. Copiá **Connection string** → variable `DATABASE_URL` en Render (`postgresql://...`; el backend antepone `jdbc:`).
 
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-2. Ejecutá `backend/src/main/resources/schema.sql` (tablas del bot).
-3. Copiá **Connection details** (host, user, password, database).
+Al **primer deploy**, el backend crea tablas del bot y agenda con **Hibernate** y aplica **Flyway** (V1–V4). No hace falta ejecutar `schema.sql` manual.
 
 ### Dimensiones de embeddings (importante)
 
-Tu `schema.sql` usa **`vector(384)`** (DJL MiniLM).
+Por defecto la entidad JPA usa **`vector(384)`** (DJL MiniLM local).
 
 `openai/text-embedding-3-small` en OpenRouter devuelve **1536** dimensiones. Antes del primer embed en prod, en Neon:
 
@@ -51,7 +47,7 @@ Si preferís seguir con **384** dims, elegí en OpenRouter un modelo que devuelv
 
 1. [dashboard.render.com](https://dashboard.render.com) → **New** → **Blueprint**.
 2. Conectá el repo `botai`.
-3. Completá las variables marcadas como secretas (`DB_*`, `OPENROUTER_API_KEY`, `GOOGLE_*`, etc.).
+3. Completá las variables marcadas como secretas (`DATABASE_URL`, `OPENROUTER_API_KEY`, `GOOGLE_*`, etc.).
 4. **Apply**.
 
 ### Opción B — Manual
@@ -73,14 +69,12 @@ Si preferís seguir con **384** dims, elegí en OpenRouter un modelo que devuelv
 | `BOT_EMBEDDING_PROVIDER` | `api` |
 | `OPENROUTER_API_KEY` | tu key |
 | `BOT_EMBEDDING_API_MODEL` | `openai/text-embedding-3-small` (→ 1536 dims, ver SQL arriba) |
-| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Neon |
-| `DB_JDBC_PARAMS` | `?sslmode=require` |
-| `SPRING_SQL_INIT_MODE` | `never` |
+| `DATABASE_URL` | connection string de Neon |
 | `AGENDA_PUBLIC_BASE_URL` | URL del front Flutter/web |
 | `AGENDA_UPLOADS_BASE_URL` | `https://TU-SERVICIO.onrender.com/uploads` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | OAuth |
 
-Opcional WhatsApp: `WHATSAPP_*`.
+WhatsApp: credenciales en el panel del bot (`bot.whatsapp_*` en BD), no variables de entorno.
 
 ### Chat (Ollama)
 

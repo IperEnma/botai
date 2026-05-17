@@ -110,10 +110,7 @@ bot:
   channels:
     web:
       base-path: /api/v1/webhook
-    whatsapp:
-      verify-token: ${WHATSAPP_VERIFY_TOKEN:}
-      access-token: ${WHATSAPP_ACCESS_TOKEN:}
-      phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+    # WhatsApp: credenciales por bot en BD (bot.whatsapp_*), no variables de entorno.
 
 # -----------------------------------------------------------------------------
 # HTTP

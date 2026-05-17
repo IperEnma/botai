@@ -15,4 +15,6 @@ public interface BotJpaRepository extends JpaRepository<BotEntity, Long> {
     Optional<BotEntity> findByTenantId(String tenantId);
 
     Optional<BotEntity> findFirstByWhatsappPhoneNumberId(String whatsappPhoneNumberId);
+
+    boolean existsByWhatsappVerifyToken(String whatsappVerifyToken);
 }

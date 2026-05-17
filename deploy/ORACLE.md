@@ -28,35 +28,21 @@ En el proyecto Neon → **SQL Editor** (o consola):
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-### A3. Esquema del bot (tablas chatbot)
+### A3. Esquema (automático al arrancar)
 
-Flyway crea las tablas `agenda_*` al arrancar el backend. Las tablas del **bot** (`knowledge_chunk`, etc.) vienen de `schema.sql`.
+No ejecutes `schema.sql` manual. Con `DATABASE_URL` apuntando a Neon, el primer arranque del backend:
 
-Desde tu PC (con `psql` instalado o [Neon SQL Editor](https://console.neon.tech)):
-
-1. En Neon → **Dashboard** → **Connection details** → copiá host, user, password, database.
-2. Ejecutá el contenido de `backend/src/main/resources/schema.sql` (todo el archivo).
-3. Opcional: `backend/src/main/resources/data.sql` si querés datos semilla del bot.
-
-Con `psql` desde tu máquina (reemplazá la connection string de Neon):
-
-```bash
-psql "postgresql://USER:PASSWORD@HOST/neondb?sslmode=require" -f backend/src/main/resources/schema.sql
-```
-
-Si `data.sql` falla por duplicados, omitilo en prod.
+1. Aplica extensiones PG (Flyway V1 + `AgendaPostgresExtensions`).
+2. Crea/actualiza tablas del **bot** y **agenda** con Hibernate (`ddl-auto=update`).
+3. Corre Flyway V2–V4 (semilla agenda, índices, constraints).
 
 ### A4. Anotar variables para `.env.prod`
 
-En Neon → **Connection details** (modo **Pooled** o **Direct** — para Spring/JPA usá **Direct** o host sin pooler si Neon lo muestra):
+En Neon → **Connection details** → copiá el **connection string** completo:
 
-| Variable | Dónde en Neon |
-|----------|----------------|
-| `DB_HOST` | Hostname (ej. `ep-xxx.sa-east-1.aws.neon.tech`) |
-| `DB_PORT` | `5432` |
-| `DB_NAME` | nombre de la DB (ej. `neondb`) |
-| `DB_USER` | usuario |
-| `DB_PASSWORD` | password |
+| Variable | Valor |
+|----------|--------|
+| `DATABASE_URL` | `postgresql://...` o `jdbc:postgresql://...` (ambos valen) |
 
 ---
 
@@ -207,8 +193,8 @@ Tras cambiar de `djl` a `api`, en Neon conviene **regenerar embeddings** (column
 
 | Síntoma | Solución |
 |---------|----------|
-| Backend no conecta a Neon | Revisá `DB_HOST`, SSL, firewall de Neon (allow connections), password |
-| `vector` extension missing | `CREATE EXTENSION vector` en Neon |
-| RAG sin chunks | Correr `schema.sql`; revisar logs `[RAG-EMBED]` |
+| Backend no conecta a Neon | Revisá `DATABASE_URL`, SSL (`sslmode=require`), password |
+| `vector` extension missing | Activar pgvector en Neon o `CREATE EXTENSION vector` |
+| RAG sin chunks | Revisar logs `[RAG-EMBED]`; tabla `knowledge_chunk` la crea Hibernate al arrancar |
 | OOM en VM | `BOT_EMBEDDING_PROVIDER=api` y bajar `mem_limit` del backend en compose |
 | Flyway checksum | Solo dev: `FLYWAY_REPAIR_ON_MIGRATE=true`; en prod migraciones inmutables |

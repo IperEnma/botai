@@ -15,8 +15,6 @@ services:
     envVars:
       - key: JAVA_OPTS
         value: -Xmx384m
-      - key: SPRING_SQL_INIT_MODE
-        value: never
       - key: FLYWAY_REPAIR_ON_MIGRATE
         value: false
       - key: BOT_EMBEDDING_PROVIDER
@@ -25,7 +23,7 @@ services:
         value: https://openrouter.ai/api
       - key: BOT_EMBEDDING_API_MODEL
         value: openai/text-embedding-3-small
-      # Neon → Connection string (Direct). Si empieza con postgresql://, anteponer jdbc:
+      # Neon → pegar connection string tal cual (postgresql://...); el backend antepone jdbc: solo.
       - key: DATABASE_URL
         sync: false
       - key: OPENROUTER_API_KEY
@@ -40,12 +38,6 @@ services:
         sync: false
       - key: AGENDA_SECURITY_ENABLED
         value: "true"
-      - key: WHATSAPP_VERIFY_TOKEN
-        sync: false
-      - key: WHATSAPP_PHONE_NUMBER_ID
-        sync: false
-      - key: WHATSAPP_ACCESS_TOKEN
-        sync: false
       # Chat LLM: URL pública de Ollama (no localhost). Sin Ollama, el chat falla al usarlo.
       - key: OLLAMA_BASE_URL
         sync: false

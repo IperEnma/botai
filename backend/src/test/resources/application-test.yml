@@ -12,8 +12,7 @@ spring:
   task:
     scheduling:
       enabled: false
-  # Desactivamos el init de scripts SQL del bot en tests para no pelear con
-  # eventuales data.sql; las tablas de AGENDA se crean con Flyway.
+  # spring.sql.init.mode=never en application.yml; esquema vía Hibernate + Flyway.
   sql:
     init:
       mode: never
