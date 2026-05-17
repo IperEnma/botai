@@ -86,19 +86,23 @@ function Invoke-DockerComposeUp {
 }
 
 function Ensure-PostgresExtensions {
-  $sql = @(
-        "CREATE EXTENSION IF NOT EXISTS vector;",
-        "CREATE EXTENSION IF NOT EXISTS pgcrypto;",
-        "CREATE EXTENSION IF NOT EXISTS unaccent;",
-        "CREATE EXTENSION IF NOT EXISTS btree_gist;"
-    ) -join " "
+    $sqlFile = Join-Path $RepoRoot "backend\src\main\resources\db\migration\agenda\V1__postgresql_extensions.sql"
+    if (-not (Test-Path $sqlFile)) {
+        throw "No se encontro $sqlFile"
+    }
+    Write-Host "  Aplicando Flyway V1 (extensiones PG) antes del backend ..." -ForegroundColor DarkGray
     $prevEap = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        docker exec chatbot-postgres psql -U chatbot -d chatbot -v ON_ERROR_STOP=1 -c $sql 2>&1 | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "  Extensiones PG listas (vector, pgcrypto, unaccent, btree_gist)" -ForegroundColor DarkGray
+        Get-Content $sqlFile -Raw | docker exec -i chatbot-postgres psql -U chatbot -d chatbot -v ON_ERROR_STOP=1 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw @"
+Fallo al crear extensiones PG en chatbot-postgres.
+  - Imagen esperada: pgvector/pgvector:pg16 (ver docker-compose.yml)
+  - Si cambiaste de postgres:16 a pgvector, recrea el volumen: docker compose down -v && docker compose up -d
+"@
         }
+        Write-Host "  Extensiones PG listas (vector, pgcrypto, unaccent, btree_gist)" -ForegroundColor DarkGray
     } finally {
         $ErrorActionPreference = $prevEap
     }
@@ -189,6 +193,15 @@ if (-not $SkipDocker) {
 } elseif (-not $FrontendOnly) {
     Write-Host ""
     Write-Host "==> Docker omitido (-SkipDocker). Backend asume Postgres en localhost:5444." -ForegroundColor Yellow
+    $pgRunning = & {
+        $ErrorActionPreference = "Continue"
+        docker inspect --format='{{.State.Running}}' chatbot-postgres 2>$null
+    }
+    if ($pgRunning -eq "true") {
+        Ensure-PostgresExtensions
+    } else {
+        Write-Host "  Aviso: chatbot-postgres no corre; aplica V1__postgresql_extensions.sql antes del backend." -ForegroundColor Yellow
+    }
 }
 
 if (-not $FrontendOnly) {

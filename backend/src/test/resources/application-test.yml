@@ -4,10 +4,8 @@
 # Los valores de datasource se sobrescriben dinámicamente en cada test base
 # con @DynamicPropertySource a partir del PostgreSQLContainer.
 #
-# Nota: mantenemos hibernate.ddl-auto=update porque el bot también tiene
-# entidades JPA (@Entity) y sus tablas NO están en ninguna migración Flyway
-# del módulo AGENDA. Flyway corre primero y crea las tablas "agenda_*";
-# luego Hibernate, con update, crea las tablas del bot sin tocar las nuestras.
+# Tablas agenda_* = Hibernate (ddl-auto=update). Flyway: semilla, EXCLUDE, índices/FKs.
+# Extensiones PG: PostgresExtensions aplica Flyway V1 antes del contexto (igual que start-dev.ps1).
 # ============================================================================
 
 spring:
@@ -24,10 +22,6 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
-    # Evita el ciclo 'flyway' ↔ 'entityManagerFactory' de Spring Boot:
-    #   - defer-datasource-initialization=true hace flyway depends-on EMF
-    #   - FlywayJpaDependsOnPostProcessor hace EMF depends-on flyway
-    # En tests no corre ningún data.sql así que el defer no aporta nada.
     defer-datasource-initialization: false
     properties:
       hibernate:
@@ -37,6 +31,7 @@ spring:
     enabled: true
     locations: classpath:db/migration/agenda
     table: agenda_flyway_schema_history
+    repair-on-migrate: true
 
   # Desactivamos Spring AI en tests: no necesitamos el modelo Ollama para
   # ejercitar endpoints de AGENDA. Al evitar el autoconfigure, el contexto
@@ -72,6 +67,8 @@ bot:
 
 agenda:
   enabled: true
+  test:
+    flyway-after-jpa: true
   security:
     enabled: false
   outbox:

@@ -1,22 +1,22 @@
-INSERT INTO agenda_categories (id, nombre, slug, icono, synonyms) VALUES
+INSERT INTO agenda_categories (id, nombre, slug, icono, synonyms, activo, created_at, updated_at) VALUES
     (gen_random_uuid(), 'Peluquería',  'peluqueria',  'scissors',
-        '["peluqueria","peluquero","peluquera","pelu","corte de pelo","cabello","salón de belleza","salon"]'::jsonb),
+        '["peluqueria","peluquero","peluquera","pelu","corte de pelo","cabello","salón de belleza","salon"]'::jsonb, true, now(), now()),
     (gen_random_uuid(), 'Barbería',    'barberia',    'razor',
-        '["barberia","barbero","barba","afeitado","corte masculino"]'::jsonb),
+        '["barberia","barbero","barba","afeitado","corte masculino"]'::jsonb, true, now(), now()),
     (gen_random_uuid(), 'Manicure',    'manicure',    'hand',
-        '["manicure","manicura","uñas","uñitas","mani","esmalte","nail","nails"]'::jsonb),
+        '["manicure","manicura","uñas","uñitas","mani","esmalte","nail","nails"]'::jsonb, true, now(), now()),
     (gen_random_uuid(), 'Pedicure',    'pedicure',    'foot',
-        '["pedicure","pedicura","pies","uñas de los pies","pedi"]'::jsonb),
+        '["pedicure","pedicura","pies","uñas de los pies","pedi"]'::jsonb, true, now(), now()),
     (gen_random_uuid(), 'Spa',         'spa',         'sparkles',
-        '["spa","relax","relajacion","relajación","jacuzzi","sauna","wellness"]'::jsonb),
+        '["spa","relax","relajacion","relajación","jacuzzi","sauna","wellness"]'::jsonb, true, now(), now()),
     (gen_random_uuid(), 'Yoga',        'yoga',        'lotus',
-        '["yoga","yogui","meditación","meditacion","pilates","mindfulness"]'::jsonb),
+        '["yoga","yogui","meditación","meditacion","pilates","mindfulness"]'::jsonb, true, now(), now()),
     (gen_random_uuid(), 'Gimnasio',    'gimnasio',    'dumbbell',
-        '["gimnasio","gym","fitness","entrenamiento","pesas","crossfit","funcional"]'::jsonb),
+        '["gimnasio","gym","fitness","entrenamiento","pesas","crossfit","funcional"]'::jsonb, true, now(), now()),
     (gen_random_uuid(), 'Tatuajes',    'tatuajes',    'needle',
-        '["tatuajes","tatuaje","tattoo","tatuador","piercing"]'::jsonb),
+        '["tatuajes","tatuaje","tattoo","tatuador","piercing"]'::jsonb, true, now(), now()),
     (gen_random_uuid(), 'Masajes',     'masajes',     'hands',
-        '["masajes","masaje","masajista","masoterapia","terapéutico","descontracturante"]'::jsonb),
+        '["masajes","masaje","masajista","masoterapia","terapéutico","descontracturante"]'::jsonb, true, now(), now()),
     (gen_random_uuid(), 'Estética',    'estetica',    'mirror',
-        '["estetica","estética","belleza","facial","tratamiento facial","depilacion","depilación"]'::jsonb)
+        '["estetica","estética","belleza","facial","tratamiento facial","depilacion","depilación"]'::jsonb, true, now(), now())
 ON CONFLICT (slug) DO NOTHING;

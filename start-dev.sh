@@ -31,6 +31,18 @@ done
 
 step() { echo ""; echo "==> $*"; }
 
+ensure_postgres_extensions() {
+  local sql_file="$ROOT/backend/src/main/resources/db/migration/agenda/V1__postgresql_extensions.sql"
+  [[ -f "$sql_file" ]] || { echo "No se encontro $sql_file"; exit 1; }
+  echo "  Aplicando Flyway V1 (extensiones PG) antes del backend ..."
+  if ! docker exec -i chatbot-postgres psql -U chatbot -d chatbot -v ON_ERROR_STOP=1 <"$sql_file"; then
+    echo "Fallo al crear extensiones PG. Usa imagen pgvector/pgvector:pg16 (docker-compose.yml)."
+    echo "Si migraste de postgres:16: docker compose down -v && docker compose up -d"
+    exit 1
+  fi
+  echo "  Extensiones PG listas (vector, pgcrypto, unaccent, btree_gist)"
+}
+
 wait_postgres() {
   local i=0
   while [[ $i -lt 30 ]]; do
@@ -87,7 +99,16 @@ if [[ $SKIP_DOCKER -eq 0 ]]; then
   step "Docker Compose - Postgres"
   (cd "$ROOT" && docker compose up -d) || (cd "$ROOT" && docker-compose up -d)
   wait_postgres || { echo "Postgres no listo. docker logs chatbot-postgres"; exit 1; }
+  ensure_postgres_extensions
   echo "  Postgres OK en localhost:5444"
+elif [[ $FRONTEND_ONLY -eq 0 ]]; then
+  echo ""
+  echo "==> Docker omitido (--skip-docker). Backend asume Postgres en localhost:5444."
+  if docker inspect --format='{{.State.Running}}' chatbot-postgres 2>/dev/null | grep -q true; then
+    ensure_postgres_extensions
+  else
+    echo "  Aviso: chatbot-postgres no corre; aplica V1__postgresql_extensions.sql antes del backend."
+  fi
 fi
 
 if [[ $FRONTEND_ONLY -eq 0 ]]; then

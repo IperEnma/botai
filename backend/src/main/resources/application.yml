@@ -14,7 +14,8 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
 
-  # Flyway: extensiones PG, semilla, EXCLUDE (V3) e índices/FKs que JPA no modela (V4). Tablas = JPA.
+  # Flyway: V1 extensiones, V2 semilla, V3 EXCLUDE, V4 índices/FKs. Tablas = JPA.
+  # Local: start-dev.ps1 ejecuta V1 antes del backend (Hibernate va antes que Flyway por defer).
   # repair-on-migrate: AgendaFlywayConfig aplica repair() antes de migrate() si hace falta.
   flyway:
     repair-on-migrate: ${FLYWAY_REPAIR_ON_MIGRATE:true}
