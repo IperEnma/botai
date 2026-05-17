@@ -113,6 +113,7 @@ Actualizá:
 | CORS / red bloqueada | `API_BASE_URL` debe ser HTTPS del backend; backend levantado. |
 | Google Sign-In no abre | Origins en Google Cloud = URL exacta de Vercel (sin path). |
 | Links del bot van a localhost | `AGENDA_PUBLIC_BASE_URL` en Render no actualizada. |
+| Cambios no se ven (solo incógnito) | Caché del navegador + service worker viejo. Tras deploy: forzar **Redeploy** en Vercel. En el celular: cerrar pestaña o borrar datos del sitio. El build usa `--pwa-strategy=none` y `main.dart.js` ya no va con cache de 1 año. Comprobá `https://TU-APP.vercel.app/version.json` — el `buildId` debe cambiar en cada deploy. |
 
 ---
 
