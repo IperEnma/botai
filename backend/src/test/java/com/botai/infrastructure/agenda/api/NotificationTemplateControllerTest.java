@@ -31,7 +31,7 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
 
     private static final String TENANT_ID = "test-tenant-notif-tmpl";
     private static final String BASE_URL =
-            "/api/agenda/tenants/{t}/businesses/{b}/notification-templates";
+            "/api/agenda/me/businesses/{b}/notification-templates";
 
     private UUID businessId;
 
@@ -57,18 +57,19 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
                 "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo) VALUES (?, ?, 'Negocio Templates', TRUE)",
                 businessId, TENANT_ID);
         jdbc.update("INSERT INTO agenda_business_settings (business_id) VALUES (?)", businessId);
+        stubAgendaTenant(TENANT_ID);
     }
 
     @Test
     void listar_sinPlantillas_devuelveListaVacia() throws Exception {
-        mockMvc.perform(get(BASE_URL, TENANT_ID, businessId))
+        mockMvc.perform(get(BASE_URL, businessId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
 
     @Test
     void listar_businessInexistente_devuelve404() throws Exception {
-        mockMvc.perform(get(BASE_URL, TENANT_ID, UUID.randomUUID()))
+        mockMvc.perform(get(BASE_URL, UUID.randomUUID()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("BUSINESS_NOT_FOUND"));
     }
@@ -81,7 +82,7 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
                 "VALUES (?, ?, 'EXPIRACION_PRONTO', 'IN_APP', 'Título', 'Cuerpo')",
                 UUID.randomUUID(), businessId);
 
-        mockMvc.perform(get(BASE_URL, TENANT_ID, businessId))
+        mockMvc.perform(get(BASE_URL, businessId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].codigo").value("EXPIRACION_PRONTO"))
@@ -100,7 +101,7 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
                 }
                 """;
 
-        MvcResult result = mockMvc.perform(post(BASE_URL, TENANT_ID, businessId)
+        MvcResult result = mockMvc.perform(post(BASE_URL, businessId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -128,7 +129,7 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(post(BASE_URL, TENANT_ID, businessId)
+        mockMvc.perform(post(BASE_URL, businessId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -153,7 +154,7 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(put(BASE_URL + "/{id}", TENANT_ID, businessId, templateId)
+        mockMvc.perform(put(BASE_URL + "/{id}", businessId, templateId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -173,7 +174,7 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(put(BASE_URL + "/{id}", TENANT_ID, businessId, UUID.randomUUID())
+        mockMvc.perform(put(BASE_URL + "/{id}", businessId, UUID.randomUUID())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -189,7 +190,7 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
                 "VALUES (?, ?, 'EXPIRACION_PRONTO', 'IN_APP', 'T', 'C')",
                 templateId, businessId);
 
-        mockMvc.perform(delete(BASE_URL + "/{id}", TENANT_ID, businessId, templateId))
+        mockMvc.perform(delete(BASE_URL + "/{id}", businessId, templateId))
                 .andExpect(status().isNoContent());
 
         Integer count = jdbc.queryForObject(
@@ -200,7 +201,7 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
 
     @Test
     void eliminar_inexistente_devuelve400() throws Exception {
-        mockMvc.perform(delete(BASE_URL + "/{id}", TENANT_ID, businessId, UUID.randomUUID()))
+        mockMvc.perform(delete(BASE_URL + "/{id}", businessId, UUID.randomUUID()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
     }

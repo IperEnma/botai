@@ -47,12 +47,13 @@ class LoyaltySuggestionControllerTest extends AbstractAgendaIntegrationTest {
                 "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo) VALUES (?, ?, 'Negocio Loyalty', TRUE)",
                 businessId, TENANT_ID);
         jdbc.update("INSERT INTO agenda_business_settings (business_id) VALUES (?)", businessId);
+        stubAgendaTenant(TENANT_ID);
     }
 
     @Test
     void listarSugerencias_sinRegistros_devuelveListaVacia() throws Exception {
-        mockMvc.perform(get("/api/agenda/tenants/{t}/businesses/{b}/loyalty/suggestions",
-                        TENANT_ID, businessId))
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/loyalty/suggestions",
+                        businessId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
@@ -60,8 +61,8 @@ class LoyaltySuggestionControllerTest extends AbstractAgendaIntegrationTest {
     @Test
     void listarSugerencias_businessInexistente_devuelve404() throws Exception {
         UUID inexistente = UUID.randomUUID();
-        mockMvc.perform(get("/api/agenda/tenants/{t}/businesses/{b}/loyalty/suggestions",
-                        TENANT_ID, inexistente))
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/loyalty/suggestions",
+                        inexistente))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("BUSINESS_NOT_FOUND"));
     }
@@ -75,8 +76,8 @@ class LoyaltySuggestionControllerTest extends AbstractAgendaIntegrationTest {
                 "VALUES (?, ?, ?, 'LOYALTY_THRESHOLD_REACHED', 'PENDING')",
                 suggestionId, businessId, userId);
 
-        mockMvc.perform(get("/api/agenda/tenants/{t}/businesses/{b}/loyalty/suggestions",
-                        TENANT_ID, businessId))
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/loyalty/suggestions",
+                        businessId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].id").value(suggestionId.toString()))
@@ -95,8 +96,8 @@ class LoyaltySuggestionControllerTest extends AbstractAgendaIntegrationTest {
                 "VALUES (?, ?, ?, 'LOYALTY_THRESHOLD_REACHED', 'SENT')",
                 UUID.randomUUID(), businessId, userId);
 
-        mockMvc.perform(get("/api/agenda/tenants/{t}/businesses/{b}/loyalty/suggestions",
-                        TENANT_ID, businessId)
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/loyalty/suggestions",
+                        businessId)
                         .param("estado", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
@@ -116,8 +117,8 @@ class LoyaltySuggestionControllerTest extends AbstractAgendaIntegrationTest {
                 {"estado": "SENT"}
                 """;
 
-        mockMvc.perform(patch("/api/agenda/tenants/{t}/businesses/{b}/loyalty/suggestions/{s}",
-                        TENANT_ID, businessId, suggestionId)
+        mockMvc.perform(patch("/api/agenda/me/businesses/{b}/loyalty/suggestions/{s}",
+                        businessId, suggestionId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -132,8 +133,8 @@ class LoyaltySuggestionControllerTest extends AbstractAgendaIntegrationTest {
                 {"estado": "DISMISSED"}
                 """;
 
-        mockMvc.perform(patch("/api/agenda/tenants/{t}/businesses/{b}/loyalty/suggestions/{s}",
-                        TENANT_ID, businessId, inexistente)
+        mockMvc.perform(patch("/api/agenda/me/businesses/{b}/loyalty/suggestions/{s}",
+                        businessId, inexistente)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())

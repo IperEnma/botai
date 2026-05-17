@@ -49,6 +49,7 @@ class BusinessRegistrationIntegrationTest extends AbstractAgendaIntegrationTest 
                 "INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled) VALUES (?, TRUE)",
                 TENANT_ID
         );
+        stubAgendaTenant(TENANT_ID);
     }
 
     @Test
@@ -62,7 +63,7 @@ class BusinessRegistrationIntegrationTest extends AbstractAgendaIntegrationTest 
                 """;
 
         MvcResult result = mockMvc.perform(
-                        post("/api/agenda/tenants/{tenantId}/businesses", TENANT_ID)
+                        post("/api/agenda/me/businesses")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isCreated())
@@ -107,7 +108,7 @@ class BusinessRegistrationIntegrationTest extends AbstractAgendaIntegrationTest 
                 """;
 
         mockMvc.perform(
-                        post("/api/agenda/tenants/{tenantId}/businesses", TENANT_ID)
+                        post("/api/agenda/me/businesses")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isBadRequest())

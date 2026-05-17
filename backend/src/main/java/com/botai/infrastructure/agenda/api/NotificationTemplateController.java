@@ -6,6 +6,7 @@ import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.NotificationTemplate;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.NotificationTemplateRepository;
+import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -25,26 +26,27 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/agenda/tenants/{tenantId}/businesses/{businessId}/notification-templates")
+@RequestMapping("/api/agenda/me/businesses/{businessId}/notification-templates")
 @Tag(name = "Agenda Notifications · Templates", description = "Plantillas de notificación editables por el negocio")
 @Validated
 public class NotificationTemplateController {
 
     private final BusinessRepository businessRepository;
     private final NotificationTemplateRepository templateRepository;
+    private final AgendaCurrentTenantService currentTenant;
 
     public NotificationTemplateController(BusinessRepository businessRepository,
-                                          NotificationTemplateRepository templateRepository) {
+                                          NotificationTemplateRepository templateRepository,
+                                          AgendaCurrentTenantService currentTenant) {
         this.businessRepository = businessRepository;
         this.templateRepository = templateRepository;
+        this.currentTenant = currentTenant;
     }
 
     @GetMapping
     @Operation(summary = "Listar plantillas de notificación del negocio")
-    public ResponseEntity<List<NotificationTemplateResponse>> list(
-            @PathVariable String tenantId,
-            @PathVariable UUID businessId) {
-        validateBusiness(tenantId, businessId);
+    public ResponseEntity<List<NotificationTemplateResponse>> list(@PathVariable UUID businessId) {
+        validateBusiness(businessId);
         List<NotificationTemplateResponse> result = templateRepository
                 .findAllByBusinessId(businessId)
                 .stream().map(this::toResponse).toList();
@@ -54,10 +56,9 @@ public class NotificationTemplateController {
     @PostMapping
     @Operation(summary = "Crear una plantilla de notificación")
     public ResponseEntity<NotificationTemplateResponse> create(
-            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @Valid @RequestBody NotificationTemplateRequest request) {
-        validateBusiness(tenantId, businessId);
+        validateBusiness(businessId);
         NotificationTemplate template = new NotificationTemplate(
                 null, businessId, request.codigo(), request.canal(),
                 request.titulo(), request.cuerpo(), null, null);
@@ -68,11 +69,10 @@ public class NotificationTemplateController {
     @PutMapping("/{templateId}")
     @Operation(summary = "Actualizar una plantilla de notificación")
     public ResponseEntity<NotificationTemplateResponse> update(
-            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @PathVariable UUID templateId,
             @Valid @RequestBody NotificationTemplateRequest request) {
-        validateBusiness(tenantId, businessId);
+        validateBusiness(businessId);
         NotificationTemplate existing = templateRepository.findById(templateId)
                 .filter(t -> t.getBusinessId().equals(businessId))
                 .orElseThrow(() -> new IllegalArgumentException("Plantilla no encontrada: " + templateId));
@@ -86,10 +86,9 @@ public class NotificationTemplateController {
     @DeleteMapping("/{templateId}")
     @Operation(summary = "Eliminar una plantilla de notificación")
     public ResponseEntity<Void> delete(
-            @PathVariable String tenantId,
             @PathVariable UUID businessId,
             @PathVariable UUID templateId) {
-        validateBusiness(tenantId, businessId);
+        validateBusiness(businessId);
         templateRepository.findById(templateId)
                 .filter(t -> t.getBusinessId().equals(businessId))
                 .orElseThrow(() -> new IllegalArgumentException("Plantilla no encontrada: " + templateId));
@@ -97,7 +96,8 @@ public class NotificationTemplateController {
         return ResponseEntity.noContent().build();
     }
 
-    private void validateBusiness(String tenantId, UUID businessId) {
+    private void validateBusiness(UUID businessId) {
+        String tenantId = currentTenant.requireTenantId();
         businessRepository.findByIdAndTenantId(businessId, tenantId)
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
     }

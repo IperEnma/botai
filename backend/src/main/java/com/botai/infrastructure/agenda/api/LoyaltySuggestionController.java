@@ -8,6 +8,7 @@ import com.botai.domain.agenda.model.LoyaltySuggestion;
 import com.botai.domain.agenda.model.LoyaltySuggestionEstado;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.LoyaltySuggestionRepository;
+import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,7 +31,7 @@ import java.util.UUID;
  * Listado y gestión de las sugerencias generadas por el motor de loyalty.
  */
 @RestController
-@RequestMapping("/api/agenda/tenants/{tenantId}/businesses/{businessId}/loyalty/suggestions")
+@RequestMapping("/api/agenda/me/businesses/{businessId}/loyalty/suggestions")
 @Tag(name = "Agenda Loyalty", description = "Panel de fidelización — sugerencias por umbral de asistencias")
 @Validated
 public class LoyaltySuggestionController {
@@ -38,22 +39,24 @@ public class LoyaltySuggestionController {
     private final BusinessRepository businessRepository;
     private final LoyaltySuggestionRepository suggestionRepository;
     private final SendLoyaltySuggestionUseCase sendSuggestion;
+    private final AgendaCurrentTenantService currentTenant;
 
     public LoyaltySuggestionController(BusinessRepository businessRepository,
                                        LoyaltySuggestionRepository suggestionRepository,
-                                       SendLoyaltySuggestionUseCase sendSuggestion) {
+                                       SendLoyaltySuggestionUseCase sendSuggestion,
+                                       AgendaCurrentTenantService currentTenant) {
         this.businessRepository = businessRepository;
         this.suggestionRepository = suggestionRepository;
         this.sendSuggestion = sendSuggestion;
+        this.currentTenant = currentTenant;
     }
 
     @GetMapping
     @Operation(summary = "Listar sugerencias de fidelización (filtro opcional por estado)")
     public ResponseEntity<List<LoyaltySuggestionResponse>> list(
-            @PathVariable String tenantId,
             @PathVariable("businessId") UUID businessId,
             @RequestParam(value = "estado", required = false) LoyaltySuggestionEstado estado) {
-
+        String tenantId = currentTenant.requireTenantId();
         businessRepository.findByIdAndTenantId(businessId, tenantId)
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
 
@@ -67,11 +70,10 @@ public class LoyaltySuggestionController {
     @PatchMapping("/{suggestionId}")
     @Operation(summary = "Actualizar estado de una sugerencia (SENT o DISMISSED)")
     public ResponseEntity<LoyaltySuggestionResponse> update(
-            @PathVariable String tenantId,
             @PathVariable("businessId") UUID businessId,
             @PathVariable("suggestionId") UUID suggestionId,
             @Valid @RequestBody UpdateLoyaltySuggestionRequest request) {
-
+        String tenantId = currentTenant.requireTenantId();
         businessRepository.findByIdAndTenantId(businessId, tenantId)
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
 
@@ -88,10 +90,9 @@ public class LoyaltySuggestionController {
     @PostMapping("/{suggestionId}/send")
     @Operation(summary = "Enviar notificación in-app a partir de una sugerencia de fidelización")
     public ResponseEntity<LoyaltySuggestionResponse> send(
-            @PathVariable String tenantId,
             @PathVariable("businessId") UUID businessId,
             @PathVariable("suggestionId") UUID suggestionId) {
-
+        String tenantId = currentTenant.requireTenantId();
         LoyaltySuggestion updated = sendSuggestion.execute(tenantId, businessId, suggestionId);
         return ResponseEntity.ok(toResponse(updated));
     }

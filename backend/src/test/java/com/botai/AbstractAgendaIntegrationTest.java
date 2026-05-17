@@ -1,8 +1,10 @@
 package com.botai;
 
 import com.botai.ChatbotEngineApplication;
+import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -11,6 +13,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+
+import java.util.Optional;
+
+import static org.mockito.Mockito.when;
 
 /**
  * Base de los tests de integración del módulo AGENDA.
@@ -49,6 +55,15 @@ import org.testcontainers.utility.DockerImageName;
         disabledReason = "Tests de integración AGENDA — requieren Docker. Exportá AGENDA_IT=true para habilitarlos."
 )
 public abstract class AbstractAgendaIntegrationTest {
+
+    @MockBean
+    protected AgendaCurrentTenantService agendaCurrentTenantService;
+
+    /** Resuelve el tenant en rutas {@code /api/agenda/me/**} durante tests de integración. */
+    protected void stubAgendaTenant(String tenantId) {
+        when(agendaCurrentTenantService.requireTenantId()).thenReturn(tenantId);
+        when(agendaCurrentTenantService.findTenantId()).thenReturn(Optional.of(tenantId));
+    }
 
     @Container
     @SuppressWarnings("resource")

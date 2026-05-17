@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
-class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
+class MeBusinessServicesControllerTest extends AbstractAgendaIntegrationTest {
 
     private static final String TENANT_ID = "test-tenant-svc";
 
@@ -55,6 +55,7 @@ class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
                 "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo) VALUES (?, ?, 'Negocio Test', TRUE)",
                 businessId, TENANT_ID);
         jdbc.update("INSERT INTO agenda_business_settings (business_id) VALUES (?)", businessId);
+        stubAgendaTenant(TENANT_ID);
     }
 
     @Test
@@ -69,7 +70,7 @@ class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
                 """;
 
         MvcResult result = mockMvc.perform(
-                        post("/api/agenda/tenants/{t}/businesses/{b}/services", TENANT_ID, businessId)
+                        post("/api/agenda/me/businesses/{b}/services", businessId)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isCreated())
@@ -99,7 +100,7 @@ class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
                 """;
 
         mockMvc.perform(
-                        post("/api/agenda/tenants/{t}/businesses/{b}/services", TENANT_ID, businessId)
+                        post("/api/agenda/me/businesses/{b}/services", businessId)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isBadRequest())
@@ -115,7 +116,7 @@ class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
                 "VALUES (?, ?, 'Manicura', 30, TRUE)",
                 svcId, businessId);
 
-        mockMvc.perform(get("/api/agenda/tenants/{t}/businesses/{b}/services", TENANT_ID, businessId))
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/services", businessId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].id").value(svcId.toString()))
@@ -133,7 +134,7 @@ class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
                 "INSERT INTO agenda_services (id, business_id, nombre, duracion_min, activo) VALUES (?, ?, 'Inactivo', 20, FALSE)",
                 inactivoId, businessId);
 
-        mockMvc.perform(get("/api/agenda/tenants/{t}/businesses/{b}/services", TENANT_ID, businessId)
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/services", businessId)
                         .param("soloActivos", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
@@ -157,8 +158,8 @@ class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(put("/api/agenda/tenants/{t}/businesses/{b}/services/{s}",
-                        TENANT_ID, businessId, svcId)
+        mockMvc.perform(put("/api/agenda/me/businesses/{b}/services/{s}",
+                        businessId, svcId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -175,8 +176,8 @@ class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
                 {"nombre":"X","duracionMin":30,"activo":true}
                 """;
 
-        mockMvc.perform(put("/api/agenda/tenants/{t}/businesses/{b}/services/{s}",
-                        TENANT_ID, businessId, inexistente)
+        mockMvc.perform(put("/api/agenda/me/businesses/{b}/services/{s}",
+                        businessId, inexistente)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNotFound())
@@ -190,8 +191,8 @@ class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
                 "INSERT INTO agenda_services (id, business_id, nombre, duracion_min, activo) VALUES (?, ?, 'Para borrar', 30, TRUE)",
                 svcId, businessId);
 
-        mockMvc.perform(delete("/api/agenda/tenants/{t}/businesses/{b}/services/{s}",
-                        TENANT_ID, businessId, svcId))
+        mockMvc.perform(delete("/api/agenda/me/businesses/{b}/services/{s}",
+                        businessId, svcId))
                 .andExpect(status().isNoContent());
 
         Integer softDeleted = jdbc.queryForObject(
@@ -204,8 +205,8 @@ class TenantServicesControllerTest extends AbstractAgendaIntegrationTest {
     void eliminarServicioInexistente_devuelve404() throws Exception {
         UUID inexistente = UUID.randomUUID();
 
-        mockMvc.perform(delete("/api/agenda/tenants/{t}/businesses/{b}/services/{s}",
-                        TENANT_ID, businessId, inexistente))
+        mockMvc.perform(delete("/api/agenda/me/businesses/{b}/services/{s}",
+                        businessId, inexistente))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SERVICE_NOT_FOUND"));
     }

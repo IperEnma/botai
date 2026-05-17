@@ -2,8 +2,12 @@ package com.botai.infrastructure.agenda.api;
 
 import com.botai.application.agenda.dto.AssociateCategoriesRequest;
 import com.botai.application.agenda.dto.BusinessResponse;
+import com.botai.application.agenda.dto.BusinessSettingsRequest;
+import com.botai.application.agenda.dto.BusinessSettingsResponse;
 import com.botai.application.agenda.dto.CreateBusinessRequest;
 import com.botai.application.agenda.dto.UpdateBusinessRequest;
+import com.botai.domain.agenda.model.BusinessSettings;
+import com.botai.domain.agenda.repository.BusinessSettingsRepository;
 import com.botai.application.agenda.mapper.BusinessDtoMapper;
 import com.botai.application.agenda.usecase.business.AssociateBusinessCategoriesUseCase;
 import com.botai.application.agenda.usecase.business.ListBusinessesByTenantUseCase;
@@ -47,6 +51,7 @@ public class MeBusinessManagementController {
     private final ListBusinessesByTenantUseCase listBusinesses;
     private final AssociateBusinessCategoriesUseCase associateCategories;
     private final BusinessCategoryRepository businessCategoryRepository;
+    private final BusinessSettingsRepository settingsRepository;
     private final AgendaCurrentTenantService currentTenant;
     private final AgendaKnowledgeChunkRefresher knowledgeChunkRefresher;
 
@@ -55,6 +60,7 @@ public class MeBusinessManagementController {
                                           ListBusinessesByTenantUseCase listBusinesses,
                                           AssociateBusinessCategoriesUseCase associateCategories,
                                           BusinessCategoryRepository businessCategoryRepository,
+                                          BusinessSettingsRepository settingsRepository,
                                           AgendaCurrentTenantService currentTenant,
                                           AgendaKnowledgeChunkRefresher knowledgeChunkRefresher) {
         this.registerBusiness = registerBusiness;
@@ -62,6 +68,7 @@ public class MeBusinessManagementController {
         this.listBusinesses = listBusinesses;
         this.associateCategories = associateCategories;
         this.businessCategoryRepository = businessCategoryRepository;
+        this.settingsRepository = settingsRepository;
         this.currentTenant = currentTenant;
         this.knowledgeChunkRefresher = knowledgeChunkRefresher;
     }
@@ -133,5 +140,47 @@ public class MeBusinessManagementController {
         String tenantId = currentTenant.requireTenantId();
         associateCategories.execute(tenantId, businessId, request.categoryIds());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{businessId}/settings")
+    @Operation(summary = "Obtener configuración del negocio (cancelación, loyalty, alertas)")
+    public ResponseEntity<BusinessSettingsResponse> getSettings(@PathVariable("businessId") UUID businessId) {
+        String tenantId = currentTenant.requireTenantId();
+        listBusinesses.findOne(tenantId, businessId);
+        BusinessSettings s = settingsRepository.findByBusinessId(businessId)
+                .orElseGet(() -> BusinessSettings.defaults(businessId));
+        return ResponseEntity.ok(toSettingsResponse(s));
+    }
+
+    @PutMapping("/{businessId}/settings")
+    @Operation(summary = "Actualizar configuración del negocio")
+    public ResponseEntity<BusinessSettingsResponse> updateSettings(
+            @PathVariable("businessId") UUID businessId,
+            @Valid @RequestBody BusinessSettingsRequest request) {
+        String tenantId = currentTenant.requireTenantId();
+        listBusinesses.findOne(tenantId, businessId);
+        BusinessSettings updated = settingsRepository.save(new BusinessSettings(
+                businessId,
+                request.hoursCancellationLimit(),
+                request.loyaltyMinAttendances(),
+                request.loyaltyWindowDays(),
+                request.expirationAlertDays(),
+                request.expirationAlertCredits(),
+                request.autoNotifyEnabled()
+        ));
+        knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
+        return ResponseEntity.ok(toSettingsResponse(updated));
+    }
+
+    private BusinessSettingsResponse toSettingsResponse(BusinessSettings s) {
+        return new BusinessSettingsResponse(
+                s.getBusinessId(),
+                s.getHoursCancellationLimit(),
+                s.getLoyaltyMinAttendances(),
+                s.getLoyaltyWindowDays(),
+                s.getExpirationAlertDays(),
+                s.getExpirationAlertCredits(),
+                s.isAutoNotifyEnabled()
+        );
     }
 }

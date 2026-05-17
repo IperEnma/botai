@@ -7,6 +7,7 @@ import com.botai.application.agenda.usecase.booking.CancelBookingUseCase;
 import com.botai.application.agenda.usecase.booking.CreateBookingUseCase;
 import com.botai.application.agenda.usecase.booking.ListMyBookingsUseCase;
 import com.botai.domain.agenda.model.BookingEstado;
+import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,7 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/agenda/me/tenants/{tenantId}")
+@RequestMapping("/api/agenda/me")
 @Tag(name = "Agenda Me · Bookings", description = "Reservas del usuario final autenticado")
 @Validated
 public class MeBookingsController {
@@ -37,22 +38,25 @@ public class MeBookingsController {
     private final CreateBookingUseCase createBooking;
     private final ListMyBookingsUseCase listMyBookings;
     private final CancelBookingUseCase cancelBooking;
+    private final AgendaCurrentTenantService currentTenant;
 
     public MeBookingsController(CreateBookingUseCase createBooking,
                                 ListMyBookingsUseCase listMyBookings,
-                                CancelBookingUseCase cancelBooking) {
+                                CancelBookingUseCase cancelBooking,
+                                AgendaCurrentTenantService currentTenant) {
         this.createBooking = createBooking;
         this.listMyBookings = listMyBookings;
         this.cancelBooking = cancelBooking;
+        this.currentTenant = currentTenant;
     }
 
     @GetMapping("/businesses/{businessId}/bookings")
     @Operation(summary = "Listar mis reservas en un negocio (filtro opcional por estado)")
     public ResponseEntity<List<BookingResponse>> list(
-            @PathVariable String tenantId,
             @PathVariable("businessId") UUID businessId,
             @RequestHeader(USER_ID_HEADER) UUID userId,
             @RequestParam(value = "estado", required = false) BookingEstado estado) {
+        String tenantId = currentTenant.requireTenantId();
         List<BookingResponse> responses = listMyBookings.execute(tenantId, businessId, userId, estado)
                 .stream()
                 .map(BookingDtoMapper::toResponse)
@@ -63,10 +67,10 @@ public class MeBookingsController {
     @DeleteMapping("/businesses/{businessId}/bookings/{bookingId}")
     @Operation(summary = "Cancelar una reserva propia (dentro de la ventana de cancelación)")
     public ResponseEntity<Void> cancel(
-            @PathVariable String tenantId,
             @PathVariable("businessId") UUID businessId,
             @PathVariable("bookingId") UUID bookingId,
             @RequestHeader(USER_ID_HEADER) UUID userId) {
+        String tenantId = currentTenant.requireTenantId();
         cancelBooking.execute(tenantId, businessId, userId, bookingId);
         return ResponseEntity.noContent().build();
     }
@@ -74,10 +78,10 @@ public class MeBookingsController {
     @PostMapping("/businesses/{businessId}/bookings")
     @Operation(summary = "Crear una reserva confirmada contra un servicio del negocio")
     public ResponseEntity<BookingResponse> create(
-            @PathVariable String tenantId,
             @PathVariable("businessId") UUID businessId,
             @RequestHeader(USER_ID_HEADER) UUID userId,
             @Valid @RequestBody CreateBookingRequest request) {
+        String tenantId = currentTenant.requireTenantId();
         var booking = createBooking.execute(
                 tenantId,
                 businessId,

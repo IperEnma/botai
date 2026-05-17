@@ -44,11 +44,12 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
         jdbc.update(
                 "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo) VALUES (?, ?, 'Negocio Settings', TRUE)",
                 businessId, TENANT_ID);
+        stubAgendaTenant(TENANT_ID);
     }
 
     @Test
     void obtenerSettings_sinFilaEnDB_devuelveDefaults() throws Exception {
-        mockMvc.perform(get("/api/agenda/tenants/{t}/businesses/{b}/settings", TENANT_ID, businessId))
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/settings", businessId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.businessId").value(businessId.toString()))
                 .andExpect(jsonPath("$.hoursCancellationLimit").value(4))
@@ -68,7 +69,7 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
                 "VALUES (?, 8, 10, 90, 3, 1, FALSE)",
                 businessId);
 
-        mockMvc.perform(get("/api/agenda/tenants/{t}/businesses/{b}/settings", TENANT_ID, businessId))
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/settings", businessId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hoursCancellationLimit").value(8))
                 .andExpect(jsonPath("$.loyaltyMinAttendances").value(10))
@@ -93,7 +94,7 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
                 }
                 """;
 
-        mockMvc.perform(put("/api/agenda/tenants/{t}/businesses/{b}/settings", TENANT_ID, businessId)
+        mockMvc.perform(put("/api/agenda/me/businesses/{b}/settings", businessId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -125,7 +126,7 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
                 }
                 """;
 
-        mockMvc.perform(put("/api/agenda/tenants/{t}/businesses/{b}/settings", TENANT_ID, inexistente)
+        mockMvc.perform(put("/api/agenda/me/businesses/{b}/settings", inexistente)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNotFound())
