@@ -88,6 +88,7 @@ class Booking {
   final String? clienteNombre;
   final String? clienteEmail;
   final String? clienteTelefono;
+  final String? staffMemberId;
 
   const Booking({
     required this.id,
@@ -105,6 +106,7 @@ class Booking {
     this.clienteNombre,
     this.clienteEmail,
     this.clienteTelefono,
+    this.staffMemberId,
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -126,6 +128,7 @@ class Booking {
       clienteNombre: AgendaJson.parseStringOrNull(json['clienteNombre']),
       clienteEmail: AgendaJson.parseStringOrNull(json['clienteEmail']),
       clienteTelefono: AgendaJson.parseStringOrNull(json['clienteTelefono']),
+      staffMemberId: AgendaJson.parseStringOrNull(json['staffMemberId']),
     );
   }
 
@@ -143,6 +146,10 @@ class Booking {
       tipoReserva: tipoReserva,
       notas: notas,
       createdAt: createdAt,
+      clienteNombre: clienteNombre,
+      clienteEmail: clienteEmail,
+      clienteTelefono: clienteTelefono,
+      staffMemberId: staffMemberId,
     );
   }
 

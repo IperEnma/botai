@@ -43,7 +43,7 @@ class BusinessesNotifier extends StateNotifier<BusinessesState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final api = _ref.read(agendaApiServiceProvider);
-      final items = await api.listBusinesses();
+      final items = await api.listBusinesses(_tenantId);
       state = BusinessesState(items: items);
     } on AgendaApiException catch (e) {
       state = BusinessesState(error: e.message);

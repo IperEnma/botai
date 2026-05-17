@@ -94,7 +94,7 @@ class _AgendaNoTenantAdminScreenState
             email: email,
           );
       if (!mounted) return;
-      context.go('/agenda/intent');
+      context.go('/agenda/onboarding');
     } catch (e) {
       if (!mounted) return;
       setState(() => _linkError = e.toString());

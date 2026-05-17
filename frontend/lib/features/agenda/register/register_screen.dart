@@ -108,7 +108,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         nombre: _nameCtrl.text.trim(),
         phone: _phone,
       );
-      if (mounted) context.go('/agenda/intent');
+      if (mounted) context.go('/agenda/onboarding');
     } catch (e) {
       setState(() => _error = 'Código incorrecto. Intentá de nuevo.');
     } finally {

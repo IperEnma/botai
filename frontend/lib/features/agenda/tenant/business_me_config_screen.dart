@@ -4,19 +4,21 @@ import 'package:go_router/go_router.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../../providers/agenda/tenant_admin_resolved_provider.dart';
-import '../../../services/agenda_api_exception.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../navigation/agenda_tenant_nav.dart';
-import 'tenant_home_screen.dart';
+import 'business_detail_screen.dart';
 
-/// Dashboard principal bajo `/agenda/businesses/:businessId` (tenant resuelto por cuenta).
-class BusinessMeGateScreen extends ConsumerWidget {
-  const BusinessMeGateScreen({
+/// Pantalla de configuración del negocio bajo `/agenda/businesses/:businessId/config`.
+/// Resuelve el tenant por cuenta y muestra [BusinessDetailScreen] con sus 7 tabs.
+class BusinessMeConfigScreen extends ConsumerWidget {
+  const BusinessMeConfigScreen({
     super.key,
     required this.businessId,
+    this.initialTabIndex = 0,
   });
 
   final String businessId;
+  final int initialTabIndex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,17 +38,9 @@ class BusinessMeGateScreen extends ConsumerWidget {
         body: AgendaLoadingView(),
       ),
       error: (e, _) {
-        if (e is TenantAdminResolveException &&
-            e.code == 'NOT_AUTHENTICATED') {
+        if (e is TenantAdminResolveException && e.code == 'NOT_AUTHENTICATED') {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) context.go('/login');
-          });
-          return const Scaffold(body: AgendaLoadingView());
-        }
-        final notFound = e is AgendaApiException && e.isNotFound;
-        if (notFound) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/agenda/onboarding');
           });
           return const Scaffold(body: AgendaLoadingView());
         }
@@ -60,9 +54,10 @@ class BusinessMeGateScreen extends ConsumerWidget {
       },
       data: (ctx) => TenantNavScope(
         useMeRoutes: true,
-        child: TenantHomeScreen(
+        child: BusinessDetailScreen(
           tenantId: ctx.tenantId,
           businessId: businessId,
+          initialTabIndex: initialTabIndex,
         ),
       ),
     );

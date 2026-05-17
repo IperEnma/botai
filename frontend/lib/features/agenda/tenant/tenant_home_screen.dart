@@ -4,10 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
+import '../../../models/agenda/booking.dart';
 import '../../../models/agenda/business.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
+import '../../../providers/agenda/tenant/agenda_bookings_provider.dart';
+import '../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../register/konecta_tokens.dart';
@@ -31,9 +34,10 @@ const _kPanelWidth = 280.0;
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 class TenantHomeScreen extends ConsumerStatefulWidget {
-  const TenantHomeScreen({super.key, required this.tenantId});
+  const TenantHomeScreen({super.key, required this.tenantId, this.businessId});
 
   final String tenantId;
+  final String? businessId;
 
   @override
   ConsumerState<TenantHomeScreen> createState() => _TenantHomeScreenState();
@@ -47,6 +51,14 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
   bool    _isSavingSocial = false;
   String? _initBusinessId;
   String? _dashboardBusinessId;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.businessId != null) {
+      _dashboardBusinessId = widget.businessId;
+    }
+  }
 
   @override
   void dispose() {
@@ -196,7 +208,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
                 nombre:              nombre,
                 isWide:              true,
                 onAdd:               () => _createBusiness(context),
-                onTap:               (b) => context.push(
+                onTap:               (b) => context.go(
                   agendaTenantBusinessPath(context, widget.tenantId, b.id),
                 ),
                 onFilterSelect: (b) => setState(() =>
@@ -205,7 +217,10 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
                 ),
               ),
             ),
-            _RightPanel(tenantId: widget.tenantId),
+            _RightPanel(
+              tenantId: widget.tenantId,
+              businessId: effectiveDashboardBusinessId,
+            ),
           ],
         ),
       );
@@ -221,7 +236,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
         nombre:              nombre,
         isWide:              false,
         onAdd:               () => _createBusiness(context),
-        onTap:               (b) => context.push(
+        onTap:               (b) => context.go(
           agendaTenantBusinessPath(context, widget.tenantId, b.id),
         ),
         onFilterSelect: (b) => setState(() =>
@@ -244,11 +259,9 @@ class _LeftNav extends ConsumerWidget {
   final String? tenantId;
   final String? businessId;
 
-  void _goTab(BuildContext context, int tab) {
+  void _goConfig(BuildContext context) {
     if (tenantId == null || businessId == null) return;
-    context.push(
-      agendaTenantBusinessPath(context, tenantId!, businessId!, tab: tab),
-    );
+    context.push('/agenda/businesses/$businessId/config');
   }
 
   @override
@@ -260,9 +273,10 @@ class _LeftNav extends ConsumerWidget {
     final loc = GoRouterState.of(context).matchedLocation;
     final section = GoRouterState.of(context).uri.queryParameters['section'] ?? '';
     final selectedInicio =
-        (loc == '/home' || loc.startsWith('/home/businesses/')) && section != 'agenda';
+        loc.startsWith('/agenda/businesses/') && !loc.contains('/config') && section.isEmpty;
     final selectedBots = loc.startsWith('/home/bots');
-    final selectedAgenda = loc == '/home' && section == 'agenda';
+    final selectedAgenda =
+        loc.startsWith('/agenda/businesses/') && section == 'agenda';
 
     return Container(
       width: _kNavWidth,
@@ -292,7 +306,11 @@ class _LeftNav extends ConsumerWidget {
             icon: Icons.home_outlined,
             label: 'Inicio',
             selected: selectedInicio,
-            onTap: () => context.go('/home'),
+            onTap: () {
+              if (businessId != null) {
+                context.go('/agenda/businesses/$businessId');
+              }
+            },
           ),
           _NavItem(
             icon: Icons.smart_toy_outlined,
@@ -303,31 +321,52 @@ class _LeftNav extends ConsumerWidget {
           _NavItem(
             icon: Icons.calendar_today_outlined,
             label: 'Agenda',
-            // Vista PRIVADA (empresa): panel interno bajo `/home/**`.
             selected: selectedAgenda,
-            onTap: () => context.go('/home?section=agenda'),
+            onTap: () {
+              if (businessId != null) {
+                context.go('/agenda/businesses/$businessId?section=agenda');
+              }
+            },
           ),
-          _NavItem(icon: Icons.people_outline,           label: 'Clientes'),
+          _NavItem(icon: Icons.people_outline, label: 'Clientes'),
           _NavItem(
-            icon:  Icons.design_services_outlined,
-            label: 'Servicios',
-            onTap: () => _goTab(context, 2),
-          ),
-          _NavItem(
-            icon:  Icons.schedule_outlined,
+            icon: Icons.schedule_outlined,
             label: 'Horarios',
-            onTap: () => _goTab(context, 0),
+            onTap: businessId != null
+                ? () => context.push(
+                    '/agenda/businesses/$businessId/section/hours')
+                : null,
           ),
           _NavItem(
-            icon:  Icons.group_outlined,
+            icon: Icons.palette_outlined,
+            label: 'Estilos',
+            onTap: businessId != null
+                ? () => context.push(
+                    '/agenda/businesses/$businessId/section/styles')
+                : null,
+          ),
+          _NavItem(
+            icon: Icons.room_service_outlined,
+            label: 'Servicios',
+            onTap: businessId != null
+                ? () => context.push(
+                    '/agenda/businesses/$businessId/section/services')
+                : null,
+          ),
+          _NavItem(icon: Icons.card_membership_outlined, label: 'Planes'),
+          _NavItem(
+            icon: Icons.people_outline,
             label: 'Equipo',
-            onTap: () => _goTab(context, 6),
+            onTap: businessId != null
+                ? () => context.push(
+                    '/agenda/businesses/$businessId/section/staff')
+                : null,
           ),
-          _NavItem(icon: Icons.bar_chart_outlined,       label: 'Reportes'),
+          _NavItem(icon: Icons.loyalty_outlined, label: 'Fidelizaciones'),
           _NavItem(
-            icon:  Icons.settings_outlined,
+            icon: Icons.settings_outlined,
             label: 'Configuración',
-            onTap: () => _goTab(context, 4),
+            onTap: () => _goConfig(context),
           ),
           const Spacer(),
           // User profile
@@ -471,14 +510,17 @@ class _NavItem extends StatelessWidget {
 
 // ── Right Panel ───────────────────────────────────────────────────────────────
 
-class _RightPanel extends StatelessWidget {
-  const _RightPanel({required this.tenantId});
+class _RightPanel extends ConsumerWidget {
+  const _RightPanel({required this.tenantId, this.businessId});
 
-  final String tenantId;
+  final String  tenantId;
+  final String? businessId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final topPad = MediaQuery.of(context).padding.top;
+    final section = GoRouterState.of(context).uri.queryParameters['section'] ?? '';
+    final showAgenda = section == 'agenda';
 
     return Container(
       width: _kPanelWidth,
@@ -491,45 +533,60 @@ class _RightPanel extends StatelessWidget {
         children: [
           SizedBox(height: topPad + 20),
 
-          // ── PRÓXIMAS AGENDAS ──────────────────────────────────────────────
+          // ── PRÓXIMOS TURNOS ───────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: Row(
               children: [
                 Text(
-                  'PRÓXIMAS AGENDAS',
+                  'PRÓXIMOS TURNOS',
                   style: KTokens.tEyebrow.copyWith(
                     letterSpacing: 1.2,
                     color: KTokens.inkSoft,
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  'Ver todos',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: KTokens.accent,
+                if (!showAgenda) ...[
+                  const Spacer(),
+                  _PanelLink(
+                    label: 'ver todos',
+                    onTap: businessId == null
+                        ? null
+                        : () => context.go(
+                              '/agenda/businesses/$businessId?section=agenda',
+                            ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
 
           Expanded(
             flex: 5,
-            child: _ProximasAgendasSection(),
+            child: businessId == null
+                ? Center(
+                    child: Text(
+                      'Seleccioná un negocio',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: KTokens.inkMuted,
+                      ),
+                    ),
+                  )
+                : _ProximosTurnosSection(
+                    tenantId: tenantId,
+                    businessId: businessId!,
+                  ),
           ),
 
           Divider(height: 1, color: KTokens.border),
 
-          // ── RENDIMIENTO DE NEGOCIOS ───────────────────────────────────────
+          // ── EQUIPO ────────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: Row(
               children: [
                 Text(
-                  'RENDIMIENTO DE NEGOCIOS',
+                  'EQUIPO',
                   style: KTokens.tEyebrow.copyWith(
                     letterSpacing: 1.0,
                     color: KTokens.inkSoft,
@@ -537,21 +594,26 @@ class _RightPanel extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  'Ver reportes',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: KTokens.accent,
-                  ),
+                _PanelLink(
+                  label: 'gestionar',
+                  onTap: businessId == null
+                      ? null
+                      : () => context.go(
+                            '/agenda/businesses/$businessId/section/staff',
+                          ),
                 ),
               ],
             ),
           ),
 
           Expanded(
-            flex: 4,
-            child: const _RendimientoNegociosSection(),
+            flex: 3,
+            child: businessId == null
+                ? const SizedBox()
+                : _EquipoSection(
+                    tenantId: tenantId,
+                    businessId: businessId!,
+                  ),
           ),
 
           // Bottom note
@@ -586,188 +648,295 @@ class _RightPanel extends StatelessWidget {
   }
 }
 
-class _ProximasAgendasSection extends StatelessWidget {
-  const _ProximasAgendasSection();
+// ── Próximos Turnos ────────────────────────────────────────────────────────────
 
-  static const _rows = [
-    _AgendaRow(name: 'Lucía Méndez',   time: 'Hoy · 10:00',   confirmed: true),
-    _AgendaRow(name: 'Martín Da Silva', time: 'Hoy · 11:50',   confirmed: true),
-    _AgendaRow(name: 'Carlo Beñaraux', time: 'Mañana · 09:30', confirmed: false),
-  ];
+class _ProximosTurnosSection extends ConsumerWidget {
+  const _ProximosTurnosSection({
+    required this.tenantId,
+    required this.businessId,
+  });
+
+  final String tenantId;
+  final String businessId;
+
+  static String _fmt2(int v) => v.toString().padLeft(2, '0');
+
+  String _timeLabel(Booking b) {
+    final now = DateTime.now();
+    final d = b.fechaHoraInicio;
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final bStart = DateTime(d.year, d.month, d.day);
+    final diff = bStart.difference(todayStart).inDays;
+    final timeStr = '${_fmt2(d.hour)}:${_fmt2(d.minute)}';
+    if (diff == 0) return 'Hoy · $timeStr';
+    if (diff == 1) return 'Mañana · $timeStr';
+    return '${_fmt2(d.day)}/${_fmt2(d.month)} · $timeStr';
+  }
+
+  Color _colorFor(String? staffId, List<dynamic> staff) {
+    if (staffId == null) return KTokens.inkPlaceholder;
+    final idx = staff.indexWhere((s) => (s as dynamic).id == staffId);
+    if (idx < 0) return KTokens.inkPlaceholder;
+    return KTokens.proPalette[idx % KTokens.proPalette.length];
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _rows.length,
-      separatorBuilder: (_, _) => Divider(height: 1, color: KTokens.border),
-      itemBuilder: (_, i) => _rows[i],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final bookingsAsync = ref.watch(agendaBookingsProvider((
+      businessId: businessId,
+      day: today,
+    )));
+    final staffState = ref.watch(
+      businessStaffProvider((tenantId: tenantId, businessId: businessId)),
+    );
+
+    return bookingsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      error: (_, e) => Center(
+        child: Text('Sin datos', style: GoogleFonts.inter(fontSize: 12, color: KTokens.inkMuted)),
+      ),
+      data: (bookings) {
+        final now = DateTime.now();
+        final upcoming = bookings
+            .where((b) => b.fechaHoraInicio.isAfter(now))
+            .toList()
+          ..sort((a, b) => a.fechaHoraInicio.compareTo(b.fechaHoraInicio));
+        final shown = upcoming.take(5).toList();
+
+        if (shown.isEmpty) {
+          return Center(
+            child: Text(
+              'Sin turnos próximos',
+              style: GoogleFonts.inter(fontSize: 12, color: KTokens.inkMuted),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: shown.length,
+          separatorBuilder: (_, i) => Divider(height: 1, color: KTokens.border),
+          itemBuilder: (_, i) {
+            final b = shown[i];
+            final color = _colorFor(b.staffMemberId, staffState.members);
+            final clientName = b.clienteNombre?.trim() ?? '—';
+            final initials = () {
+              final parts = clientName.split(' ');
+              if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+              return clientName.substring(0, clientName.length.clamp(1, 2)).toUpperCase();
+            }();
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: color.withValues(alpha: 0.15),
+                    ),
+                    child: Center(
+                      child: Text(
+                        initials,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          clientName,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: KTokens.ink,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          _timeLabel(b),
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: KTokens.inkSoft,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _EstadoBadge(estado: b.estado),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
 
-class _AgendaRow extends StatelessWidget {
-  const _AgendaRow({
-    required this.name,
-    required this.time,
-    required this.confirmed,
-  });
-
-  final String name;
-  final String time;
-  final bool   confirmed;
-
-  String get _initials {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    return name.substring(0, name.length.clamp(1, 2)).toUpperCase();
-  }
-
-  Color get _color => _palette[name.hashCode.abs() % _palette.length];
+class _EstadoBadge extends StatelessWidget {
+  const _EstadoBadge({required this.estado});
+  final BookingEstado estado;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _color.withValues(alpha: 0.15),
-            ),
-            child: Center(
-              child: Text(
-                _initials,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _color,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Name + time
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: KTokens.ink,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  time,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: KTokens.inkSoft,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Status badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color: confirmed
-                  ? const Color(0xFF22C55E).withValues(alpha: 0.10)
-                  : KTokens.border,
-              borderRadius: BorderRadius.circular(KTokens.rPill),
-            ),
-            child: Text(
-              confirmed ? 'Confirmado' : 'Pendiente',
-              style: GoogleFonts.inter(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: confirmed
-                    ? const Color(0xFF16A34A)
-                    : KTokens.inkMuted,
-              ),
-            ),
-          ),
-        ],
+    Color bg;
+    Color fg;
+    switch (estado) {
+      case BookingEstado.confirmada:
+        bg = KTokens.stateConfirmedBg;
+        fg = KTokens.stateConfirmedText;
+      case BookingEstado.cancelada:
+        bg = KTokens.stateCanceledBg;
+        fg = KTokens.stateCanceledText;
+      case BookingEstado.pendiente:
+      case BookingEstado.completada:
+        bg = KTokens.statePendingBg;
+        fg = KTokens.statePendingText;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(KTokens.rPill),
+      ),
+      child: Text(
+        estado.label,
+        style: GoogleFonts.inter(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
       ),
     );
   }
 }
 
-class _RendimientoNegociosSection extends StatelessWidget {
-  const _RendimientoNegociosSection();
+// ── Panel link (hover + pointer cursor) ───────────────────────────────────────
 
-  static const _rows = [
-    (name: 'Corte de cabello', count: 32),
-    (name: 'Coloración',       count: 24),
-    (name: 'Manicure',         count: 18),
-    (name: 'Barba',            count: 15),
-    (name: 'Otros servicios',  count: 8),
-  ];
+class _PanelLink extends StatelessWidget {
+  const _PanelLink({required this.label, this.onTap});
+
+  final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final max = _rows.map((r) => r.count).reduce((a, b) => a > b ? a : b);
+    const radius = BorderRadius.all(Radius.circular(4));
+    return MouseRegion(
+      cursor: onTap == null ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: radius,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          hoverColor: KTokens.accentSoft.withValues(alpha: 0.55),
+          splashColor: KTokens.accentSoft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: onTap == null ? KTokens.inkMuted : KTokens.accent,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Equipo ─────────────────────────────────────────────────────────────────────
+
+class _EquipoSection extends ConsumerWidget {
+  const _EquipoSection({
+    required this.tenantId,
+    required this.businessId,
+  });
+
+  final String tenantId;
+  final String businessId;
+
+  Color _colorFor(int idx) => KTokens.proPalette[idx % KTokens.proPalette.length];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final staffState = ref.watch(
+      businessStaffProvider((tenantId: tenantId, businessId: businessId)),
+    );
+
+    if (staffState.isLoading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+
+    final activeStaff = staffState.members.where((s) => s.activo).toList()
+      ..sort((a, b) => a.nombre.compareTo(b.nombre));
+
+    if (activeStaff.isEmpty) {
+      return Center(
+        child: Text(
+          'Sin miembros de equipo',
+          style: GoogleFonts.inter(fontSize: 12, color: KTokens.inkMuted),
+        ),
+      );
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _rows.length,
+      itemCount: activeStaff.length,
       itemBuilder: (_, i) {
-        final row = _rows[i];
-        final frac = row.count / max;
+        final s = activeStaff[i];
+        final color = _colorFor(i);
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: 7),
           child: Row(
             children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(
-                flex: 5,
                 child: Text(
-                  row.name,
+                  s.nombre,
                   style: GoogleFonts.inter(
-                    fontSize: 11,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                     color: KTokens.ink,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 4,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(KTokens.rPill),
-                  child: LinearProgressIndicator(
-                    value: frac,
-                    minHeight: 5,
-                    backgroundColor: KTokens.border,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      KTokens.accent.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 22,
-                child: Text(
-                  '${row.count}',
-                  textAlign: TextAlign.right,
+              if (s.rol != null)
+                Text(
+                  s.rol!,
                   style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: KTokens.inkMuted,
+                    fontSize: 10,
+                    color: KTokens.inkSoft,
                   ),
                 ),
-              ),
             ],
           ),
         );
@@ -807,139 +976,145 @@ class _MainContent extends StatelessWidget {
     final section = GoRouterState.of(context).uri.queryParameters['section'] ?? '';
     final showAgenda = section == 'agenda';
 
+    // Agenda: devolver directo para que el padre (Expanded/Scaffold.body) le
+    // proporcione altura acotada. CustomScrollView + SliverFillRemaining puede
+    // fallar en web cuando el viewport restante no se calcula bien.
+    if (showAgenda) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(hPad, 24, hPad, 0),
+        child: AgendaSection(
+          tenantId: tenantId,
+          businesses: businesses,
+          businessId: dashboardBusinessId,
+          onBusinessSelected: (id) => onFilterSelect(
+            businesses.firstWhere((b) => b.id == id),
+          ),
+        ),
+      );
+    }
+
     return CustomScrollView(
       slivers: [
-        if (!showAgenda)
-          // ── Header (solo Inicio) ──────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 28, hPad, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Mobile top bar
-                    if (!isWide && onBack != null) ...[
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: onBack,
-                            child: Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: KTokens.borderStrong),
-                              ),
-                              child: const Icon(
-                                Icons.arrow_back_rounded,
-                                size: 18,
-                                color: KTokens.inkMuted,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'konecta',
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 18,
-                              fontStyle: FontStyle.italic,
-                              color: KTokens.accent,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // Eyebrow + "Nueva agenda" button
+        // ── Header ───────────────────────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(hPad, 28, hPad, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Mobile top bar
+                  if (!isWide && onBack != null) ...[
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          nombre != null
-                              ? 'DASHBOARD · ${nombre!.split(' ').first.toUpperCase()}'
-                              : 'DASHBOARD',
-                          style: KTokens.tEyebrow,
+                        GestureDetector(
+                          onTap: onBack,
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: KTokens.borderStrong),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_rounded,
+                              size: 18,
+                              color: KTokens.inkMuted,
+                            ),
+                          ),
                         ),
-                        const Spacer(),
-                        _NewAgendaButton(),
+                        const SizedBox(width: 12),
+                        Text(
+                          'konecta',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 18,
+                            fontStyle: FontStyle.italic,
+                            color: KTokens.accent,
+                          ),
+                        ),
                       ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Headline
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'Este es el resumen de ',
-                            style: GoogleFonts.inter(
-                              fontSize: isWide ? 28 : 22,
-                              fontWeight: FontWeight.w700,
-                              color: KTokens.ink,
-                              letterSpacing: -0.5,
-                              height: 1.15,
-                            ),
-                          ),
-                          TextSpan(
-                            text: 'tu negocio.',
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: isWide ? 32 : 26,
-                              fontStyle: FontStyle.italic,
-                              color: KTokens.accent,
-                              height: 1.15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Más info de tu agenda y rendimiento de tu negocio.',
-                      style: KTokens.tHint,
                     ),
                     const SizedBox(height: 24),
                   ],
-                ),
+
+                  // Eyebrow + "Nueva agenda" button
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        nombre != null
+                            ? 'DASHBOARD · ${nombre!.split(' ').first.toUpperCase()}'
+                            : 'DASHBOARD',
+                        style: KTokens.tEyebrow,
+                      ),
+                      const Spacer(),
+                      _NewAgendaButton(),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Headline
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Este es el resumen de ',
+                          style: GoogleFonts.inter(
+                            fontSize: isWide ? 28 : 22,
+                            fontWeight: FontWeight.w700,
+                            color: KTokens.ink,
+                            letterSpacing: -0.5,
+                            height: 1.15,
+                          ),
+                        ),
+                        TextSpan(
+                          text: 'tu negocio.',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: isWide ? 32 : 26,
+                            fontStyle: FontStyle.italic,
+                            color: KTokens.accent,
+                            height: 1.15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Más info de tu agenda y rendimiento de tu negocio.',
+                    style: KTokens.tHint,
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
             ),
           ),
+        ),
 
-        if (!showAgenda)
-          // ── TUS UBICACIONES carousel (solo Inicio) ─────────────────────────
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-            sliver: SliverToBoxAdapter(
-              child: _SucursalesSection(
-                tenantId:           tenantId,
-                businesses:         businesses,
-                selectedBusinessId: dashboardBusinessId,
-                onAdd:              onAdd,
-                onTap:              onTap,
-                onFilterSelect:     onFilterSelect,
-              ),
+        // ── TUS UBICACIONES carousel ──────────────────────────────────────────
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+          sliver: SliverToBoxAdapter(
+            child: _SucursalesSection(
+              tenantId:           tenantId,
+              businesses:         businesses,
+              selectedBusinessId: dashboardBusinessId,
+              onAdd:              onAdd,
+              onTap:              onTap,
+              onFilterSelect:     onFilterSelect,
             ),
           ),
+        ),
 
-        // ── Inicio: stats / Agenda: calendario full ─────────────────────────
+        // ── Dashboard ─────────────────────────────────────────────────────────
         SliverPadding(
           padding: EdgeInsets.fromLTRB(hPad, 24, hPad, 0),
           sliver: SliverToBoxAdapter(
-            child: showAgenda
-                ? AgendaSection(
-                    tenantId: tenantId,
-                    businesses: businesses,
-                    businessId: dashboardBusinessId,
-                    onBusinessSelected: (id) => onFilterSelect(
-                      businesses.firstWhere((b) => b.id == id),
-                    ),
-                  )
-                : DashboardSection(
-                    tenantId: tenantId,
-                    businesses: businesses,
-                  ),
+            child: DashboardSection(
+              tenantId: tenantId,
+              businesses: businesses,
+            ),
           ),
         ),
       ],

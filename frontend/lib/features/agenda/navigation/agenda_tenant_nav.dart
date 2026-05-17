@@ -28,5 +28,5 @@ String agendaTenantBusinessPath(
 }) {
   final tabQ =
       tab != null && tab != 0 ? '?tab=$tab' : '';
-  return '/home/businesses/$businessId$tabQ';
+  return '/agenda/businesses/$businessId$tabQ';
 }
