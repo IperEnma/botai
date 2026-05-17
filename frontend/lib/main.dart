@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/config.dart';
 import 'core/google_sign_in_web_meta_stub.dart'
     if (dart.library.html) 'core/google_sign_in_web_meta_web.dart';
+import 'core/auth_session_coordinator.dart';
 import 'core/theme.dart';
 import 'core/router.dart';
 
@@ -21,13 +22,15 @@ class BotAIApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    return MaterialApp.router(
-      title: 'BotAI Admin',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light,
-      routerConfig: router,
+    return AuthSessionCoordinator(
+      child: MaterialApp.router(
+        title: 'BotAI Admin',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.light,
+        routerConfig: router,
+      ),
     );
   }
 }

@@ -45,7 +45,8 @@ class PublicLandingScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 64), // navbar height placeholder
+                SizedBox(
+                    height: MediaQuery.paddingOf(context).top + 56),
                 const _HeroSection(),
                 const _StatsStrip(),
                 const _BenefitsSection(),
@@ -70,119 +71,180 @@ class PublicLandingScreen extends StatelessWidget {
 class _Navbar extends StatelessWidget {
   const _Navbar();
 
+  static void _openMobileMenu(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.login, color: _kPrimary),
+                title: Text('Iniciar sesión',
+                    style: _b(16, w: FontWeight.w600, c: _kText)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.go('/login');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.store_outlined, color: _kPrimary),
+                title: Text('Registrá tu negocio',
+                    style: _b(16, w: FontWeight.w600, c: _kText)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.go('/agenda/register');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.search, color: _kPrimary),
+                title: Text('Ver negocios',
+                    style: _b(16, w: FontWeight.w600, c: _kText)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.go('/agenda/search');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final wide = _isWide(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = width < 400;
 
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: wide ? 24 : 12),
-            child: Row(
-              children: [
-                Flexible(
-                  child: GestureDetector(
-                    onTap: () => context.go('/'),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [_kPrimary, _kAccent],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+    return Material(
+      color: Colors.white,
+      elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.06),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 56,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: wide ? 24 : 8),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => context.go('/'),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [_kPrimary, _kAccent],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(9),
                             ),
-                            borderRadius: BorderRadius.circular(9),
+                            child: const Icon(Icons.calendar_month,
+                                color: Colors.white, size: 18),
                           ),
-                          child: const Icon(Icons.calendar_month,
-                              color: Colors.white, size: 18),
-                        ),
-                        if (wide) ...[
-                          const SizedBox(width: 10),
-                          Flexible(
-                            child: Text(
-                              'AgendaKonecta',
-                              style: _h(16, w: FontWeight.w800, c: _kText),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          if (wide) ...[
+                            const SizedBox(width: 10),
+                            Text('AgendaKonecta',
+                                style: _h(16, w: FontWeight.w800, c: _kText)),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
+                    const Spacer(),
+                    if (wide) ...[
+                      _NavLink(label: 'Cómo funciona', onTap: () {}),
+                      _NavLink(
+                          label: 'Ver negocios',
+                          onTap: () => context.go('/agenda/search')),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: () => context.go('/login'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _kPrimary,
+                          side: const BorderSide(color: _kPrimary),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 0),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          minimumSize: const Size(0, 38),
+                        ),
+                        child: Text('Iniciar sesión',
+                            style: _b(13,
+                                w: FontWeight.w600, c: _kPrimary)),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () => context.go('/agenda/register'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _kPrimary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 0),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          minimumSize: const Size(0, 38),
+                        ),
+                        child: Text('Registrá tu negocio',
+                            style: _b(13,
+                                w: FontWeight.w600, c: Colors.white)),
+                      ),
+                    ] else if (compact) ...[
+                      IconButton(
+                        tooltip: 'Menú',
+                        icon: const Icon(Icons.menu, color: _kText),
+                        onPressed: () => _openMobileMenu(context),
+                      ),
+                    ] else ...[
+                      OutlinedButton(
+                        onPressed: () => context.go('/login'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _kPrimary,
+                          side: const BorderSide(color: _kPrimary, width: 1.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          visualDensity: VisualDensity.compact,
+                          minimumSize: const Size(0, 36),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: Text('Entrar',
+                            style: _b(12,
+                                w: FontWeight.w700, c: _kPrimary)),
+                      ),
+                      const SizedBox(width: 6),
+                      FilledButton(
+                        onPressed: () => context.go('/agenda/register'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _kPrimary,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          visualDensity: VisualDensity.compact,
+                          minimumSize: const Size(0, 36),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: Text('Registro',
+                            style: _b(12,
+                                w: FontWeight.w700, c: Colors.white)),
+                      ),
+                    ],
+                  ],
                 ),
-
-                const Spacer(),
-
-                if (wide) ...[
-                  _NavLink(label: 'Cómo funciona', onTap: () {}),
-                  _NavLink(
-                      label: 'Ver negocios',
-                      onTap: () => context.go('/agenda/search')),
-                  const SizedBox(width: 8),
-                ],
-
-                if (wide)
-                  OutlinedButton(
-                    onPressed: () => context.go('/login'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _kPrimary,
-                      side: const BorderSide(color: _kPrimary),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 0),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      minimumSize: const Size(0, 38),
-                    ),
-                    child: Text('Iniciar sesión',
-                        style: _b(13,
-                            w: FontWeight.w600, c: _kPrimary)),
-                  )
-                else
-                  TextButton(
-                    onPressed: () => context.go('/login'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: _kPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: const Size(0, 38),
-                    ),
-                    child: Text('Entrar',
-                        style: _b(13,
-                            w: FontWeight.w600, c: _kPrimary)),
-                  ),
-                const SizedBox(width: 4),
-                FilledButton(
-                  onPressed: () => context.go('/agenda/register'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kPrimary,
-                    padding: EdgeInsets.symmetric(
-                        horizontal: wide ? 16 : 10, vertical: 0),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    minimumSize: const Size(0, 38),
-                  ),
-                  child: Text(
-                      wide ? 'Registrá tu negocio' : 'Registro',
-                      style: _b(13,
-                          w: FontWeight.w600, c: Colors.white)),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -352,6 +414,25 @@ class _HeroCopy extends StatelessWidget {
                       fontSize: 15, fontWeight: FontWeight.w600),
                 ),
                 onPressed: () => ctx.go('/agenda/register'),
+              );
+            }),
+            Builder(builder: (ctx) {
+              return OutlinedButton.icon(
+                icon: const Icon(Icons.login, size: 18),
+                label: Text(wide ? 'Iniciar sesión' : 'Ya tengo cuenta'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      width: 1.5),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  textStyle: GoogleFonts.poppins(
+                      fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () => ctx.go('/login'),
               );
             }),
           ],

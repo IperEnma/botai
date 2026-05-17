@@ -42,40 +42,12 @@ class AuthService {
       final GoogleSignInAccount? googleUser = await _googleSignIn
           .signIn()
           .timeout(const Duration(seconds: 45));
-      
-      if (googleUser == null) return null;
 
-      final googleAuth = await googleUser.authentication
-          .timeout(const Duration(seconds: 45));
-      final idToken = googleAuth.idToken;
-      final accessToken = googleAuth.accessToken;
-      final candidate = normalizeGoogleBearer(idToken) ??
-          (isGoogleIdJwtShape(accessToken ?? '')
-              ? normalizeGoogleBearer(accessToken)
-              : null);
-      if (candidate == null || !isGoogleIdJwtShape(candidate)) {
-        throw StateError(
-          'Google no devolvió id_token (JWT). Revisá GOOGLE_CLIENT_ID_WEB y serverClientId en móvil. '
-          'Si ya habías entrado antes, cerrá sesión y volvé a entrar.',
-        );
-      }
-      final bearer = candidate;
+      // En móvil, al volver del selector a veces signIn() devuelve null pero currentUser ya está.
+      final account = googleUser ?? _googleSignIn.currentUser;
+      if (account == null) return null;
 
-      final user = User(
-        id: googleUser.id,
-        email: googleUser.email,
-        name: googleUser.displayName,
-        photoUrl: googleUser.photoUrl,
-        accessToken: bearer,
-      );
-      
-      await _storage.write(key: 'access_token', value: user.accessToken);
-      await _storage.write(key: 'user_id', value: user.id);
-      await _storage.write(key: 'user_email', value: user.email);
-      await _storage.write(key: 'user_name', value: user.name);
-      await _storage.write(key: 'user_photo', value: user.photoUrl);
-
-      return user;
+      return handleGoogleSignInAccount(account);
     } on TimeoutException catch (_) {
       throw StateError(
         'Google Sign-In no respondió a tiempo. Reintentá o revisá la conexión.',
