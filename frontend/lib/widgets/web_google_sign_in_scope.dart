@@ -28,7 +28,10 @@ class WebGoogleSignInScope extends ConsumerStatefulWidget {
 
 class _WebGoogleSignInScopeState extends ConsumerState<WebGoogleSignInScope> {
   StreamSubscription<GoogleSignInAccount?>? _sub;
-  bool _handling = false;
+
+  // Static: shared across ALL instances so that two simultaneous WebGoogleSignInScope
+  // widgets (e.g. LoginScreen + RegisterScreen) cannot both process the same GIS event.
+  static bool _handling = false;
 
   @override
   void initState() {
@@ -42,32 +45,40 @@ class _WebGoogleSignInScopeState extends ConsumerState<WebGoogleSignInScope> {
   }
 
   Future<void> _onGoogleUser(GoogleSignInAccount? account) async {
+    debugPrint('[GIS] onCurrentUserChanged — account=${account?.email} mounted=$mounted handling=$_handling');
     if (!kIsWeb || !mounted || _handling) return;
     if (account == null) return;
 
-    final auth = ref.read(authStateProvider);
-    if (auth.isAuthenticated && auth.user?.email == account.email) {
-      return;
-    }
-
     _handling = true;
     try {
-      await ref
-          .read(authStateProvider.notifier)
-          .completeGoogleSignInFromAccount(account);
-      if (!mounted) return;
-      final after = ref.read(authStateProvider);
-      if (after.error != null) {
-        await showApiErrorDialog(
-          context,
-          Exception(after.error!),
-          title: widget.errorDialogTitle,
-        );
-        return;
+      // If not yet authenticated as this account, complete the sign-in.
+      // If already authenticated (e.g. session restored from storage on app
+      // start), skip the auth update but still call onSignedIn so the user
+      // is routed to the right screen (home vs onboarding).
+      final auth = ref.read(authStateProvider);
+      debugPrint('[GIS] auth.isAuthenticated=${auth.isAuthenticated} auth.email=${auth.user?.email}');
+      if (!auth.isAuthenticated || auth.user?.email != account.email) {
+        debugPrint('[GIS] completando completeGoogleSignInFromAccount');
+        await ref
+            .read(authStateProvider.notifier)
+            .completeGoogleSignInFromAccount(account);
+        if (!mounted) return;
+        final after = ref.read(authStateProvider);
+        if (after.error != null) {
+          debugPrint('[GIS] error tras completeGoogleSignInFromAccount: ${after.error}');
+          await showApiErrorDialog(
+            context,
+            Exception(after.error!),
+            title: widget.errorDialogTitle,
+          );
+          return;
+        }
+        if (!after.isAuthenticated) return;
+      } else {
+        debugPrint('[GIS] sesión ya activa con este email — saltando completeGoogleSignInFromAccount');
       }
-      if (after.isAuthenticated) {
-        await widget.onSignedIn(context);
-      }
+      debugPrint('[GIS] llamando onSignedIn');
+      await widget.onSignedIn(context);
     } finally {
       _handling = false;
     }

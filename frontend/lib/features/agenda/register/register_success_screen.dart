@@ -5,9 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'konecta_tokens.dart';
 
 class RegisterSuccessScreen extends StatelessWidget {
-  const RegisterSuccessScreen({super.key, required this.tenantId});
+  const RegisterSuccessScreen({super.key, required this.businessId});
 
-  final String tenantId;
+  final String businessId;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +65,7 @@ class RegisterSuccessScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => context.go('/home'),
+                    onPressed: () => context.go('/agenda/businesses/$businessId'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: KTokens.ink,
                       foregroundColor: Colors.white,

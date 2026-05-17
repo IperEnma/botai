@@ -28,8 +28,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
 
   // Controllers for each field
   late final TextEditingController _cancellationCtrl;
-  late final TextEditingController _loyaltyMinCtrl;
-  late final TextEditingController _loyaltyWindowCtrl;
   late final TextEditingController _alertDaysCtrl;
   late final TextEditingController _alertCreditsCtrl;
   bool _autoNotify = false;
@@ -43,8 +41,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   void initState() {
     super.initState();
     _cancellationCtrl = TextEditingController();
-    _loyaltyMinCtrl = TextEditingController();
-    _loyaltyWindowCtrl = TextEditingController();
     _alertDaysCtrl = TextEditingController();
     _alertCreditsCtrl = TextEditingController();
   }
@@ -52,8 +48,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   @override
   void dispose() {
     _cancellationCtrl.dispose();
-    _loyaltyMinCtrl.dispose();
-    _loyaltyWindowCtrl.dispose();
     _alertDaysCtrl.dispose();
     _alertCreditsCtrl.dispose();
     super.dispose();
@@ -63,8 +57,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
     if (_initialized) return;
     _initialized = true;
     _cancellationCtrl.text = s.hoursCancellationLimit.toString();
-    _loyaltyMinCtrl.text = s.loyaltyMinAttendances.toString();
-    _loyaltyWindowCtrl.text = s.loyaltyWindowDays.toString();
     _alertDaysCtrl.text = s.expirationAlertDays.toString();
     _alertCreditsCtrl.text = s.expirationAlertCredits.toString();
     setState(() => _autoNotify = s.autoNotifyEnabled);
@@ -74,8 +66,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
     if (!_formKey.currentState!.validate()) return;
     final updated = current.copyWith(
       hoursCancellationLimit: int.parse(_cancellationCtrl.text.trim()),
-      loyaltyMinAttendances: int.parse(_loyaltyMinCtrl.text.trim()),
-      loyaltyWindowDays: int.parse(_loyaltyWindowCtrl.text.trim()),
       expirationAlertDays: int.parse(_alertDaysCtrl.text.trim()),
       expirationAlertCredits: int.parse(_alertCreditsCtrl.text.trim()),
       autoNotifyEnabled: _autoNotify,
@@ -204,29 +194,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
               controller: _cancellationCtrl,
               label: 'Horas límite de cancelación *',
               min: 0,
-            ),
-            const SizedBox(height: 20),
-            Text('Fidelización',
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _NumField(
-                    controller: _loyaltyMinCtrl,
-                    label: 'Asistencias mínimas *',
-                    min: 1,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _NumField(
-                    controller: _loyaltyWindowCtrl,
-                    label: 'Ventana (días) *',
-                    min: 1,
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: 20),
             Text('Alertas de vencimiento',

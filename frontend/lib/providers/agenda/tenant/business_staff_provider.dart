@@ -55,6 +55,8 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
       state = BusinessStaffState(members: members);
     } on AgendaApiException catch (e) {
       state = BusinessStaffState(error: e.message);
+    } catch (e) {
+      state = BusinessStaffState(error: e.toString());
     }
   }
 

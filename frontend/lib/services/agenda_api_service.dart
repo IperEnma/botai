@@ -574,8 +574,8 @@ class AgendaApiService {
   // TENANT — businesses
   // =====================================================================
 
-  /// `GET /me/businesses`
-  Future<List<Business>> listBusinesses() async {
+  /// `GET /tenants/{tenantId}/businesses`
+  Future<List<Business>> listBusinesses(String tenantId) async {
     final r = await _send(() => _client.get(
           _uri('/me/businesses'),
           headers: _headers(),

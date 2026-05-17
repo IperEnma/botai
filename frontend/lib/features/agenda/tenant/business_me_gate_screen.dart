@@ -7,18 +7,16 @@ import '../../../providers/agenda/tenant_admin_resolved_provider.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../navigation/agenda_tenant_nav.dart';
-import 'business_detail_screen.dart';
+import 'tenant_home_screen.dart';
 
-/// Detalle de negocio bajo `/home/businesses/:businessId` (tenant resuelto por cuenta).
+/// Dashboard principal bajo `/agenda/businesses/:businessId` (tenant resuelto por cuenta).
 class BusinessMeGateScreen extends ConsumerWidget {
   const BusinessMeGateScreen({
     super.key,
     required this.businessId,
-    this.initialTabIndex = 0,
   });
 
   final String businessId;
-  final int initialTabIndex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,7 +46,7 @@ class BusinessMeGateScreen extends ConsumerWidget {
         final notFound = e is AgendaApiException && e.isNotFound;
         if (notFound) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/home');
+            if (context.mounted) context.go('/agenda/onboarding');
           });
           return const Scaffold(body: AgendaLoadingView());
         }
@@ -62,10 +60,9 @@ class BusinessMeGateScreen extends ConsumerWidget {
       },
       data: (ctx) => TenantNavScope(
         useMeRoutes: true,
-        child: BusinessDetailScreen(
+        child: TenantHomeScreen(
           tenantId: ctx.tenantId,
           businessId: businessId,
-          initialTabIndex: initialTabIndex,
         ),
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
@@ -7,6 +8,7 @@ import '../features/bot_detail/bot_detail_screen.dart';
 // Agenda module — paquete paralelo, no toca el bot.
 import '../features/agenda/register/register_screen.dart';
 import '../features/agenda/register/business_register_screen.dart';
+import '../features/agenda/register/register_success_screen.dart';
 import '../features/agenda/register/intent_screen.dart';
 import '../features/agenda/public/category_businesses_screen.dart';
 import '../features/agenda/public/public_business_detail_screen.dart';
@@ -17,6 +19,8 @@ import '../features/agenda/home/agenda_home_shell.dart';
 // Sprint FE-2 — Tenant admin
 import '../features/agenda/tenant/tenant_me_gate_screen.dart';
 import '../features/agenda/tenant/business_me_gate_screen.dart';
+import '../features/agenda/tenant/business_me_config_screen.dart';
+import '../features/agenda/tenant/business_section_screen.dart';
 // Sprint FE-3 — Me
 import '../features/agenda/me/my_subscriptions_screen.dart';
 import '../features/agenda/me/wallet_screen.dart';
@@ -25,32 +29,39 @@ import '../features/agenda/me/create_booking_screen.dart';
 import '../features/agenda/me/my_notifications_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
-
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.isAuthenticated;
       final loc = state.matchedLocation;
       final isLoggingIn = loc == '/login';
       final legacyTenantsMe = loc.startsWith('/agenda/tenants/me');
       final homeTenantArea =
-          loc == '/home' || loc.startsWith('/home/businesses/');
+          loc == '/home' || loc.startsWith('/home/businesses/') ||
+          loc.startsWith('/agenda/businesses/');
       final isAgendaRoute = loc == '/' || loc.startsWith('/agenda');
 
+      debugPrint('[ROUTER] redirect — loc=$loc isLoggedIn=$isLoggedIn');
+
       if (isLoggedIn && loc == '/dashboard') {
+        debugPrint('[ROUTER] → /home/bots (dashboard)');
         return '/home/bots';
       }
       if (!isLoggedIn && legacyTenantsMe) {
+        debugPrint('[ROUTER] → /login (legacyTenantsMe, not logged in)');
         return '/login';
       }
       if (!isLoggedIn && homeTenantArea) {
+        debugPrint('[ROUTER] → /login (homeTenantArea, not logged in)');
         return '/login';
       }
       if (!isLoggedIn && !isLoggingIn && !isAgendaRoute) {
+        debugPrint('[ROUTER] → /login (not agenda, not logged in)');
         return '/login';
       }
       if (isLoggedIn && (isLoggingIn || loc == '/agenda/register')) {
+        debugPrint('[ROUTER] → /home (logged in at /login or /register)');
         return '/home';
       }
       final meBizPrefix = '/agenda/tenants/me/businesses/';
@@ -60,14 +71,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             Uri.decodeComponent(after.split('?').first.split('/').first);
         final tab = state.uri.queryParameters['tab'];
         if (tab != null && tab.isNotEmpty) {
-          return '/home/businesses/$businessId?tab=$tab';
+          return '/agenda/businesses/$businessId?tab=$tab';
         }
-        return '/home/businesses/$businessId';
+        return '/agenda/businesses/$businessId';
       }
 
       if (isLoggedIn && loc == '/agenda/tenants/me') {
+        debugPrint('[ROUTER] → /home (legacyTenantsMe, logged in)');
         return '/home';
       }
+      debugPrint('[ROUTER] → null (sin redirect)');
       return null;
     },
     routes: [
@@ -83,14 +96,32 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const TenantMeGateScreen(),
           ),
           GoRoute(
-            path: '/home/businesses/:businessId',
+            path: '/agenda/businesses/:businessId',
+            builder: (context, state) {
+              final businessId = state.pathParameters['businessId']!;
+              return BusinessMeGateScreen(businessId: businessId);
+            },
+          ),
+          GoRoute(
+            path: '/agenda/businesses/:businessId/config',
             builder: (context, state) {
               final businessId = state.pathParameters['businessId']!;
               final tab =
                   int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
-              return BusinessMeGateScreen(
+              return BusinessMeConfigScreen(
                 businessId: businessId,
                 initialTabIndex: tab,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/agenda/businesses/:businessId/section/:section',
+            builder: (context, state) {
+              final businessId = state.pathParameters['businessId']!;
+              final section    = state.pathParameters['section']!;
+              return BusinessSectionScreen(
+                businessId: businessId,
+                section:    section,
               );
             },
           ),
@@ -136,8 +167,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const BusinessRegisterScreen(),
       ),
       GoRoute(
-        path: '/agenda/intent',
+        path: '/agenda/register-success',
+        builder: (context, state) {
+          final businessId = state.uri.queryParameters['businessId'] ?? '';
+          return RegisterSuccessScreen(businessId: businessId);
+        },
+      ),
+      GoRoute(
+        path: '/agenda/onboarding',
         builder: (context, state) => const IntentScreen(),
+      ),
+      GoRoute(
+        path: '/agenda/intent',
+        redirect: (context, state) => '/agenda/onboarding',
       ),
       GoRoute(
         path: '/agenda/public/categories/:slug',
@@ -198,4 +240,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Refrescar el redirect solo en logout. En login, la navegación la maneja
+  // agendaNavigateAfterGoogleSignIn directamente; si router.refresh() se llamara
+  // al autenticarse, el redirect isLoggedIn&&isLoggingIn→'/home' desmontaría
+  // LoginScreen antes de que el callback async pudiera navegar al onboarding.
+  ref.listen<AuthState>(authStateProvider, (prev, next) {
+    if (prev != null && prev.isAuthenticated && !next.isAuthenticated) {
+      router.refresh();
+    }
+  });
+  ref.onDispose(router.dispose);
+
+  return router;
 });

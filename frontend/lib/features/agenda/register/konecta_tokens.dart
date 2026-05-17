@@ -54,4 +54,28 @@ class KTokens {
 
   static TextStyle get tError =>
       GoogleFonts.inter(fontSize: 12, color: errorColor);
+
+  static TextStyle get tBody =>
+      GoogleFonts.inter(fontSize: 14, color: ink);
+
+  // ── Paleta de profesionales (6 colores rotativos) ─────────────────────────
+  static const List<Color> proPalette = [
+    Color(0xFFA78BFA), // lila
+    Color(0xFF34D399), // verde
+    Color(0xFFFB923C), // naranja
+    Color(0xFF60A5FA), // azul
+    Color(0xFFF472B6), // rosa
+    Color(0xFFFACC15), // amarillo
+  ];
+
+  static Color blockBg(Color c) => c.withValues(alpha: 0.18);
+  static Color blockBorder(Color c) => c.withValues(alpha: 0.50);
+
+  static const stateConfirmedBg   = Color(0x2634D399);
+  static const stateConfirmedText = Color(0xFF0A8C5B);
+  static const statePendingBg     = Color(0x26FB923C);
+  static const statePendingText   = Color(0xFFA3501A);
+  static const stateCanceledBg    = Color(0x26EF4444);
+  static const stateCanceledText  = Color(0xFFB23A3A);
+  static const nowIndicator       = Color(0xFFEF4444);
 }

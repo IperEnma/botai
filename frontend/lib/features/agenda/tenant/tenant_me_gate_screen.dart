@@ -3,15 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../providers/auth_provider.dart';
-import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../providers/agenda/tenant_admin_resolved_provider.dart';
+import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
-import '../navigation/agenda_tenant_nav.dart';
-import 'tenant_home_screen.dart';
+import '../home/agenda_no_tenant_admin_screen.dart';
 
-/// Resuelve el tenant del admin por email y muestra el mismo dashboard que
-/// `/agenda/tenants/:tenantId`. La ruta principal es [`/home`].
+/// Resuelve el tenant del admin por email y redirige al primer negocio bajo
+/// `/agenda/businesses/:businessId`. Si no tiene negocios va a `/agenda/onboarding`.
 class TenantMeGateScreen extends ConsumerWidget {
   const TenantMeGateScreen({super.key});
 
@@ -44,31 +43,11 @@ class TenantMeGateScreen extends ConsumerWidget {
         }
         final notFound = e is AgendaApiException && e.isNotFound;
         if (notFound) {
-          // Primera vez con Google: no hay cuenta Agenda todavía → ir directo al onboarding
-          // (mismo flujo que WhatsApp). Evitamos mostrar una pantalla técnica intermedia.
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            if (!context.mounted) return;
-            final auth = ref.read(authStateProvider);
-            final user = auth.user;
-            final email = user?.email.trim() ?? '';
-            if (!auth.isAuthenticated || user == null || email.isEmpty) {
-              context.go('/login');
-              return;
-            }
-            final trimmedName = user.name?.trim();
-            final nombre = (trimmedName != null && trimmedName.isNotEmpty)
-                ? trimmedName
-                : email.split('@').first;
-            await ref.read(agendaUserProvider.notifier).saveGoogleRegistration(
-                  nombre: nombre,
-                  email: email,
-                );
-            if (!context.mounted) return;
-            context.go('/agenda/intent');
-          });
-          return const Scaffold(
-            backgroundColor: Color(0xFFFBFAF7),
-            body: AgendaLoadingView(),
+          return Scaffold(
+            backgroundColor: const Color(0xFFFBFAF7),
+            body: AgendaNoTenantAdminScreen(
+              onRetry: () => ref.invalidate(tenantAdminResolvedProvider),
+            ),
           );
         }
         return Scaffold(
@@ -79,10 +58,41 @@ class TenantMeGateScreen extends ConsumerWidget {
           ),
         );
       },
-      data: (ctx) => TenantNavScope(
-        useMeRoutes: true,
-        child: TenantHomeScreen(tenantId: ctx.tenantId),
-      ),
+      data: (ctx) {
+        final bizState = ref.watch(businessesProvider(ctx.tenantId));
+
+        if (bizState.isLoading) {
+          return const Scaffold(
+            backgroundColor: Color(0xFFFBFAF7),
+            body: AgendaLoadingView(),
+          );
+        }
+
+        if (bizState.error != null) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFFBFAF7),
+            body: AgendaErrorView(
+              message: bizState.error!,
+              onRetry: () =>
+                  ref.read(businessesProvider(ctx.tenantId).notifier).load(),
+            ),
+          );
+        }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          if (bizState.items.isNotEmpty) {
+            context.go('/agenda/businesses/${bizState.items.first.id}');
+          } else {
+            context.go('/agenda/onboarding');
+          }
+        });
+
+        return const Scaffold(
+          backgroundColor: Color(0xFFFBFAF7),
+          body: AgendaLoadingView(),
+        );
+      },
     );
   }
 }

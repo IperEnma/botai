@@ -12,7 +12,6 @@ import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import 'business_registration_model.dart';
 import 'konecta_tokens.dart';
-import 'register_success_screen.dart';
 import 'steps/step_category.dart';
 import 'steps/step_department.dart';
 import 'steps/step_description.dart';
@@ -308,16 +307,26 @@ class _BusinessRegisterScreenState
         );
       } else {
         final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-        final numero = digits.isNotEmpty
-            ? digits
-            : _reg.name!.trim().replaceAll(RegExp(r'\D'), '');
-        if (numero.length < 8) {
-          throw StateError('Número demasiado corto para registrar la cuenta.');
+        if (digits.length < 8) {
+          if (mounted) {
+            if (phone.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Debés registrarte antes de continuar.'),
+              ));
+              context.go('/agenda/register');
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('El número de WhatsApp guardado no es válido.'),
+                backgroundColor: KTokens.errorColor,
+              ));
+            }
+          }
+          return;
         }
         registration = await api.registerTenant(
           nombrePropietario: nombre,
-          numero: numero,
-          telefono: phone.isNotEmpty ? phone : null,
+          numero: digits,
+          telefono: phone,
           nombreNegocio: _reg.name!.trim(),
           categoriaSlug: _reg.categories.isNotEmpty
               ? _reg.categories.first.slug
@@ -349,11 +358,7 @@ class _BusinessRegisterScreenState
 
       if (!mounted) return;
 
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => RegisterSuccessScreen(tenantId: tenantId),
-        ),
-      );
+      context.go('/agenda/businesses/$businessId');
     } on Exception catch (e) {
       if (mounted) {
         final emailReg = regEmail.isNotEmpty;
