@@ -201,7 +201,11 @@ management:
       show-details: when-authorized
 
 # =============================================================================
-# Embeddings por API (OpenRouter, OpenAI, Ollama /v1, …)
+# API OpenAI-compatible (OpenRouter, OpenAI, Ollama /v1, …) — chat + embeddings
+# Activa con bot.embedding.provider=api
+#   base-url  ← BOT_API_BASE_URL (o BOT_EMBEDDING_API_BASE_URL, legacy)
+#   api-key   ← OPENROUTER_API_KEY
+#   modelos   ← BOT_EMBEDDING_API_MODEL / BOT_CHAT_API_MODEL
 # =============================================================================
 ---
 spring.config.activate.on-property:
@@ -211,10 +215,14 @@ spring:
   ai:
     model:
       embedding: openai
+      chat: openai
     openai:
       # Ollama ignora la key; OpenRouter/OpenAI la requieren.
       api-key: ${OPENROUTER_API_KEY:${OPENAI_API_KEY:ollama}}
-      base-url: ${BOT_EMBEDDING_API_BASE_URL:https://openrouter.ai/api}
+      base-url: ${BOT_API_BASE_URL:${BOT_EMBEDDING_API_BASE_URL:https://openrouter.ai/api}}
       embedding:
         options:
           model: ${BOT_EMBEDDING_API_MODEL:openai/text-embedding-3-small}
+      chat:
+        options:
+          model: ${BOT_CHAT_API_MODEL:meta-llama/llama-3.3-70b-instruct}

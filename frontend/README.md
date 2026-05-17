@@ -25,6 +25,10 @@ Para que un cliente reserve en un negocio:
 
 - `http://localhost:5173/#/agenda/public/business/{businessId}`
 
+## Despliegue en Vercel
+
+Ver [deploy/VERCEL.md](../deploy/VERCEL.md). Resumen: root directory `frontend`, variables `API_BASE_URL` y `GOOGLE_CLIENT_ID_WEB`.
+
 ## Reglas clave
 
 - El panel AGENDA **no usa** `tenantId` en URLs (`/home/...`), ni en llamadas admin: el backend resuelve el tenant desde el contexto de seguridad.

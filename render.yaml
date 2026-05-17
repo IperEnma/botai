@@ -19,10 +19,12 @@ services:
         value: false
       - key: BOT_EMBEDDING_PROVIDER
         value: api
-      - key: BOT_EMBEDDING_API_BASE_URL
+      - key: BOT_API_BASE_URL
         value: https://openrouter.ai/api
       - key: BOT_EMBEDDING_API_MODEL
         value: openai/text-embedding-3-small
+      - key: BOT_CHAT_API_MODEL
+        value: meta-llama/llama-3.3-70b-instruct
       # Neon → tres variables (ver backend/.env.render.example). No uses DATABASE_URL.
       - key: SPRING_DATASOURCE_URL
         sync: false
@@ -42,8 +44,3 @@ services:
         sync: false
       - key: AGENDA_SECURITY_ENABLED
         value: "true"
-      # Chat LLM: URL pública de Ollama (no localhost). Sin Ollama, el chat falla al usarlo.
-      - key: OLLAMA_BASE_URL
-        sync: false
-      - key: OLLAMA_MODEL
-        value: llama3.2

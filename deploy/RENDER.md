@@ -72,18 +72,15 @@ Si preferís seguir con **384** dims, elegí en OpenRouter un modelo que devuelv
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://HOST:5432/neondb?sslmode=require` (sin usuario en la URL) |
 | `SPRING_DATASOURCE_USERNAME` | usuario Neon |
 | `SPRING_DATASOURCE_PASSWORD` | contraseña Neon |
-| `AGENDA_PUBLIC_BASE_URL` | URL del front Flutter/web |
+| `AGENDA_PUBLIC_BASE_URL` | URL del front en Vercel (ej. `https://tu-app.vercel.app`) — ver [VERCEL.md](./VERCEL.md) |
 | `AGENDA_UPLOADS_BASE_URL` | `https://TU-SERVICIO.onrender.com/uploads` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | OAuth |
 
 WhatsApp: credenciales en el panel del bot (`bot.whatsapp_*` en BD), no variables de entorno.
 
-### Chat (Ollama)
+### Chat (OpenRouter)
 
-El chat del bot usa **Ollama** (`OLLAMA_BASE_URL`). En Render **no** hay Ollama local.
-
-- Poné una URL **pública** de Ollama, o
-- Dejá la app levantada y probá solo endpoints Agenda / health hasta tener LLM.
+Con `BOT_EMBEDDING_PROVIDER=api`, el chat del bot también va por **OpenRouter** (`OPENROUTER_API_KEY`, `BOT_CHAT_API_MODEL`). No hace falta Ollama en Render.
 
 ---
 

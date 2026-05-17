@@ -32,7 +32,7 @@ BOT_EMBEDDING_API_MODEL=nomic-embed-text
 
 Antes de usar el modelo: `ollama pull nomic-embed-text` (768 dims → alinear columna `knowledge_chunk.embedding`).
 
-El **chat** del bot sigue usando el cliente nativo Ollama (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`); solo los **vectores RAG** van por `api` en este ejemplo.
+Con `BOT_EMBEDDING_PROVIDER=api`, el **chat** del bot también usa OpenRouter (`BOT_CHAT_API_MODEL`). En local con `djl`, el chat sigue en Ollama (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`).
 
 ---
 
