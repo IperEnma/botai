@@ -6,7 +6,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import com.botai.testsupport.PostgresExtensions;
+import com.botai.infrastructure.agenda.config.AgendaPostgresExtensions;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -52,7 +52,7 @@ public abstract class AbstractAgendaIntegrationTest {
 
     @Container
     @SuppressWarnings("resource")
-    /** Misma imagen que docker-compose (pgvector). Extensiones vía {@link PostgresExtensions}. */
+    /** Misma imagen que docker-compose (pgvector). V1 antes del contexto vía {@link AgendaPostgresExtensions}. */
     protected static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>(DockerImageName.parse("pgvector/pgvector:pg16"))
                     .withDatabaseName("agenda_test")
@@ -62,7 +62,8 @@ public abstract class AbstractAgendaIntegrationTest {
 
     @DynamicPropertySource
     static void registerDatasource(DynamicPropertyRegistry registry) {
-        PostgresExtensions.ensure(POSTGRES);
+        AgendaPostgresExtensions.apply(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);

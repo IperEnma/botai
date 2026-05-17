@@ -14,8 +14,8 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
 
-  # Flyway: V1 extensiones, V2 semilla, V3 EXCLUDE, V4 índices/FKs. Tablas = JPA.
-  # Local: start-dev.ps1 ejecuta V1 antes del backend (Hibernate va antes que Flyway por defer).
+  # Flyway: V1–V4 vía AgendaFlywayConfig (extensiones → Hibernate → V2–V4). Tablas = JPA.
+  # Local: start-dev.ps1 también aplica V1 antes del JAR (arranque más rápido en dev).
   # repair-on-migrate: AgendaFlywayConfig aplica repair() antes de migrate() si hace falta.
   flyway:
     repair-on-migrate: ${FLYWAY_REPAIR_ON_MIGRATE:true}
@@ -29,7 +29,7 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
-    defer-datasource-initialization: true
+    defer-datasource-initialization: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect

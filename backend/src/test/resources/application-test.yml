@@ -5,7 +5,7 @@
 # con @DynamicPropertySource a partir del PostgreSQLContainer.
 #
 # Tablas agenda_* = Hibernate (ddl-auto=update). Flyway: semilla, EXCLUDE, índices/FKs.
-# Extensiones PG: PostgresExtensions aplica Flyway V1 antes del contexto (igual que start-dev.ps1).
+# Extensiones V1: AbstractAgendaIntegrationTest + AgendaFlywayConfig (igual que prod).
 # ============================================================================
 
 spring:
@@ -67,8 +67,6 @@ bot:
 
 agenda:
   enabled: true
-  test:
-    flyway-after-jpa: true
   security:
     enabled: false
   outbox:
