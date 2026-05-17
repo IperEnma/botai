@@ -23,8 +23,12 @@ services:
         value: https://openrouter.ai/api
       - key: BOT_EMBEDDING_API_MODEL
         value: openai/text-embedding-3-small
-      # Neon → pegar connection string tal cual (postgresql://...); el backend antepone jdbc: solo.
-      - key: DATABASE_URL
+      # Neon → tres variables (ver backend/.env.render.example). No uses DATABASE_URL.
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false

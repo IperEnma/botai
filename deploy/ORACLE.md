@@ -30,7 +30,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 ### A3. Esquema (automático al arrancar)
 
-No ejecutes `schema.sql` manual. Con `DATABASE_URL` apuntando a Neon, el primer arranque del backend:
+No ejecutes `schema.sql` manual. Con `SPRING_DATASOURCE_*` apuntando a Neon, el primer arranque del backend:
 
 1. Aplica extensiones PG (Flyway V1 + `AgendaPostgresExtensions`).
 2. Crea/actualiza tablas del **bot** y **agenda** con Hibernate (`ddl-auto=update`).
@@ -42,7 +42,9 @@ En Neon → **Connection details** → copiá el **connection string** completo:
 
 | Variable | Valor |
 |----------|--------|
-| `DATABASE_URL` | `postgresql://...` o `jdbc:postgresql://...` (ambos valen) |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://HOST:5432/neondb?sslmode=require` |
+| `SPRING_DATASOURCE_USERNAME` | usuario Neon |
+| `SPRING_DATASOURCE_PASSWORD` | contraseña Neon |
 
 ---
 
@@ -193,7 +195,7 @@ Tras cambiar de `djl` a `api`, en Neon conviene **regenerar embeddings** (column
 
 | Síntoma | Solución |
 |---------|----------|
-| Backend no conecta a Neon | Revisá `DATABASE_URL`, SSL (`sslmode=require`), password |
+| Backend no conecta a Neon | Revisá `SPRING_DATASOURCE_*`, SSL (`sslmode=require`), password |
 | `vector` extension missing | Activar pgvector en Neon o `CREATE EXTENSION vector` |
 | RAG sin chunks | Revisar logs `[RAG-EMBED]`; tabla `knowledge_chunk` la crea Hibernate al arrancar |
 | OOM en VM | `BOT_EMBEDDING_PROVIDER=api` y bajar `mem_limit` del backend en compose |

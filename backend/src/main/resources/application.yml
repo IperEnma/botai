@@ -8,7 +8,10 @@ spring:
     name: chatbot-engine
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://chatbot:chatbot@localhost:5444/chatbot}
+    # Local: defaults abajo. Render/Neon: SPRING_DATASOURCE_URL, USERNAME, PASSWORD (sin user:pass en la URL).
+    url: jdbc:postgresql://localhost:5444/chatbot
+    username: chatbot
+    password: chatbot
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
