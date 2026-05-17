@@ -54,8 +54,12 @@ public class KnowledgeChunkEntity {
     @Column(name = "created_at")
     private Instant createdAt;
 
-    /** Vectores RAG; dimensión 384 = DJL MiniLM (ver EMBEDDING_SETUP.md). */
-    @Column(name = "embedding", columnDefinition = "vector(384)")
+    /**
+     * Vectores RAG (pgvector). Solo se escribe vía JDBC ({@code CAST(? AS vector)} en
+     * {@link com.botai.infrastructure.chatbot.rag.KnowledgeChunkEmbeddingSync}); JPA no puede
+     * persistir {@code vector} como {@code String} sin romper el INSERT.
+     */
+    @Column(name = "embedding", columnDefinition = "vector(384)", insertable = false, updatable = false)
     private String embedding;
 
     public Long getId() {

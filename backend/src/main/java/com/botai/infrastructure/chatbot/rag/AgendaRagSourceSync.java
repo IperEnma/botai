@@ -57,7 +57,7 @@ public class AgendaRagSourceSync {
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
+    @Transactional(noRollbackFor = DataAccessException.class)
     public void syncAgendaIntoChunks() {
         try {
             Set<String> tenantIds = loadAgendaTenantIds();
