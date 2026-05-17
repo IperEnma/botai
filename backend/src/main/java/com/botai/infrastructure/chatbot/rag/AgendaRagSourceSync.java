@@ -74,8 +74,15 @@ public class AgendaRagSourceSync {
             }
             if (embeddingSync != null) {
                 int filled = embeddingSync.syncPendingEmbeddings();
+                long pending = embeddingSync.countPendingEmbeddings();
                 if (filled > 0) {
-                    log.info("[AGENDA-RAG-SYNC] {} embedding(s) generados tras sync agenda", filled);
+                    log.info("[AGENDA-RAG-SYNC] {} embedding(s) generados tras sync agenda (pendientes={})",
+                            filled, pending);
+                } else if (pending > 0) {
+                    log.error("[AGENDA-RAG-SYNC] {} chunk(s) activos sin vector tras sync. "
+                            + "RAG no encontrará contexto hasta que OpenRouter genere embeddings "
+                            + "(revisá OPENROUTER_API_KEY y cuota del modelo de embeddings).",
+                            pending);
                 }
             }
         } catch (DataAccessException e) {

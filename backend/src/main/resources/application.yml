@@ -74,12 +74,19 @@ bot:
     djl:
       model-url: ${BOT_EMBEDDING_DJL_MODEL_URL:djl://ai.djl.huggingface.pytorch/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
 
+  # Chat LLM: ollama (local, default con DJL) | api (OpenRouter/OpenAI sin Ollama en Render).
+  # En Render $0: BOT_EMBEDDING_PROVIDER=djl + BOT_CHAT_PROVIDER=api + BOT_CHAT_API_MODEL=openrouter/free
+  chat:
+    provider: ${BOT_CHAT_PROVIDER:ollama}
+
   # RAG (pgvector): usa el mismo EmbeddingModel que embedding.provider.
   rag:
     max-chunks: 3
     # Con embeddings tipo MiniLM (384 dims), 0.7 suele ser demasiado estricto y filtra incluso chunks correctos.
     # 0 = sin filtro (dev); en prod calibrar con logs y subir gradualmente.
     min-similarity: 0.0
+    # Reintento de embeddings NULL (OpenRouter caído al arranque, cuota, etc.)
+    embed-retry-delay-ms: ${BOT_RAG_EMBED_RETRY_DELAY_MS:600000}
     # Paso de razonamiento post-respuesta (RAG + hilo + borrador → texto final). Ver backend/docs/BOT_AGENDA_INTENTS.md
     self-review-enabled: true
 
@@ -203,11 +210,8 @@ management:
       show-details: when-authorized
 
 # =============================================================================
-# API OpenAI-compatible (OpenRouter, OpenAI, Ollama /v1, …) — chat + embeddings
+# Embeddings por API (OpenRouter, OpenAI, Ollama /v1, …) — de pago en OpenRouter salvo Ollama local
 # Activa con bot.embedding.provider=api
-#   base-url  ← BOT_API_BASE_URL (o BOT_EMBEDDING_API_BASE_URL, legacy)
-#   api-key   ← OPENROUTER_API_KEY
-#   modelos   ← BOT_EMBEDDING_API_MODEL / BOT_CHAT_API_MODEL
 # =============================================================================
 ---
 spring.config.activate.on-property:
@@ -219,7 +223,6 @@ spring:
       embedding: openai
       chat: openai
     openai:
-      # Ollama ignora la key; OpenRouter/OpenAI la requieren.
       api-key: ${OPENROUTER_API_KEY:${OPENAI_API_KEY:ollama}}
       base-url: ${BOT_API_BASE_URL:${BOT_EMBEDDING_API_BASE_URL:https://openrouter.ai/api}}
       embedding:
@@ -227,4 +230,23 @@ spring:
           model: ${BOT_EMBEDDING_API_MODEL:openai/text-embedding-3-small}
       chat:
         options:
-          model: ${BOT_CHAT_API_MODEL:meta-llama/llama-3.3-70b-instruct}
+          model: ${BOT_CHAT_API_MODEL:openrouter/free}
+
+# =============================================================================
+# Chat por API sin embeddings de pago (Render $0: DJL + OpenRouter free)
+# Activa con bot.chat.provider=api (p. ej. BOT_CHAT_PROVIDER=api y BOT_EMBEDDING_PROVIDER=djl)
+# =============================================================================
+---
+spring.config.activate.on-property:
+  name: bot.chat.provider
+  having-value: api
+spring:
+  ai:
+    model:
+      chat: openai
+    openai:
+      api-key: ${OPENROUTER_API_KEY:${OPENAI_API_KEY:ollama}}
+      base-url: ${BOT_API_BASE_URL:${BOT_EMBEDDING_API_BASE_URL:https://openrouter.ai/api}}
+      chat:
+        options:
+          model: ${BOT_CHAT_API_MODEL:openrouter/free}

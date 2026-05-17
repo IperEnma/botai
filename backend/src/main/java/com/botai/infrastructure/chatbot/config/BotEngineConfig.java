@@ -15,6 +15,7 @@ import com.botai.domain.chatbot.repository.KnowledgeRepository;
 import com.botai.domain.chatbot.service.BotAction;
 import com.botai.infrastructure.chatbot.ai.AgendarTools;
 import com.botai.infrastructure.chatbot.ai.ConsultaTools;
+import com.botai.infrastructure.chatbot.rag.KnowledgeChunkEmbeddingSync;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.PromptChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -45,8 +46,13 @@ public class BotEngineConfig {
     @Bean
     public KnowledgeService knowledgeService(KnowledgeRepository knowledgeRepository,
                                              Optional<EmbeddingModel> embeddingModel,
+                                             Optional<KnowledgeChunkEmbeddingSync> embeddingSync,
                                              @Value("${bot.rag.min-similarity:0}") double minSimilarity) {
-        return new KnowledgeService(knowledgeRepository, embeddingModel.orElse(null), minSimilarity);
+        return new KnowledgeService(
+                knowledgeRepository,
+                embeddingModel.orElse(null),
+                minSimilarity,
+                () -> embeddingSync.map(KnowledgeChunkEmbeddingSync::syncPendingEmbeddings).orElse(0));
     }
 
     /**

@@ -36,11 +36,19 @@ public class KnowledgeChunkEmbeddingSync {
         this.vectorStore = vectorStore;
     }
 
+    public long countPendingEmbeddings() {
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM knowledge_chunk WHERE active = true AND "
+                        + vectorStore.columnName() + " IS NULL",
+                Long.class);
+        return count != null ? count : 0L;
+    }
+
     public int syncPendingEmbeddings() {
         List<Row> rows = jdbcTemplate.query(vectorStore.selectPendingEmbeddingsSql(),
             (rs, rowNum) -> new Row(rs.getLong("id"), rs.getString("topic"), rs.getString("content")));
         if (rows.isEmpty()) {
-            log.info("[RAG-EMBED] Sin chunks pendientes en {} (columna activa, dims={})",
+            log.debug("[RAG-EMBED] Sin chunks pendientes en {} (columna activa, dims={})",
                     vectorStore.columnName(), vectorStore.dimensions());
             return 0;
         }
@@ -72,7 +80,12 @@ public class KnowledgeChunkEmbeddingSync {
                 failed++;
             }
         }
-        log.info("[RAG-EMBED] Fin sync {}: actualizados={} fallidos={}", vectorStore.columnName(), updated, failed);
+        log.info("[RAG-EMBED] Fin sync {}: actualizados={} fallidos={} pendientes_restantes={}",
+                vectorStore.columnName(), updated, failed, countPendingEmbeddings());
+        if (failed > 0) {
+            log.warn("[RAG-EMBED] Falló la generación de {} vector(es). Revisá OPENROUTER_API_KEY, cuota del modelo "
+                    + "({}) y logs [RAG-EMBED] anteriores.", failed, vectorStore.columnName());
+        }
         return updated;
     }
 
