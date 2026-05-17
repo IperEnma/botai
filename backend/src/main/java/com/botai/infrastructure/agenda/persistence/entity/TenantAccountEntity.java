@@ -3,7 +3,10 @@ package com.botai.infrastructure.agenda.persistence.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import org.hibernate.annotations.Check;
 
 /**
  * Cuenta de tenant en {@code agenda_tenant_accounts}.
@@ -14,7 +17,17 @@ import jakarta.persistence.Table;
  * </ul>
  */
 @Entity
-@Table(name = "agenda_tenant_accounts")
+@Table(
+        name = "agenda_tenant_accounts",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_agenda_tenant_accounts_access_code",
+                columnNames = "access_code"),
+        indexes = @Index(name = "idx_agenda_tenant_accounts_access_code", columnList = "access_code"))
+@Check(constraints = "access_code ~ '^[A-Z0-9]{8}$'")
+@Check(constraints = "numero IS NOT NULL OR email IS NOT NULL")
+@Check(constraints = "email IS NULL OR email ~* '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'")
+@Check(constraints = "google_linked_email IS NULL OR google_linked_email ~* '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'")
+@Check(constraints = "numero IS NULL OR numero ~ '^[0-9]{8,32}$'")
 public class TenantAccountEntity extends BaseAuditableEntity {
 
     @Id

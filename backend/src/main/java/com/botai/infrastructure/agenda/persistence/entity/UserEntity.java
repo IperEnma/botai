@@ -4,13 +4,20 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.Index;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.util.UUID;
 
 @Entity
-@Table(name = "agenda_users")
+@Table(
+        name = "agenda_users",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_agenda_users_tenant_email",
+                columnNames = {"tenant_id", "email"}),
+        indexes = @Index(name = "idx_agenda_users_tenant", columnList = "tenant_id"))
 public class UserEntity extends BaseAuditableEntity {
 
     public enum UserType { ADMIN, CLIENT }

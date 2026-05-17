@@ -2,13 +2,15 @@ package com.botai.infrastructure.chatbot.persistence.entity;
 
 import jakarta.persistence.*;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "knowledge_chunk", indexes = {
     @Index(name = "idx_knowledge_tenant", columnList = "tenant_id"),
     @Index(name = "idx_knowledge_topic", columnList = "topic"),
-    @Index(name = "idx_knowledge_active", columnList = "active")
+    @Index(name = "idx_knowledge_active", columnList = "active"),
+    @Index(name = "idx_knowledge_chunk_business_id", columnList = "business_id")
 })
 public class KnowledgeChunkEntity {
 
@@ -49,6 +51,13 @@ public class KnowledgeChunkEntity {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
+    @Column(name = "created_at")
+    private Instant createdAt;
+
+    /** Vectores RAG; dimensión 384 = DJL MiniLM (ver EMBEDDING_SETUP.md). */
+    @Column(name = "embedding", columnDefinition = "vector(384)")
+    private String embedding;
+
     public Long getId() {
         return id;
     }
@@ -87,5 +96,21 @@ public class KnowledgeChunkEntity {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public String getEmbedding() {
+        return embedding;
+    }
+
+    public void setEmbedding(String embedding) {
+        this.embedding = embedding;
     }
 }

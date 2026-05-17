@@ -5,7 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.Check;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,7 +17,14 @@ import com.botai.domain.agenda.model.PlanTier;
 import com.botai.domain.agenda.model.PlanTipo;
 
 @Entity
-@Table(name = "agenda_plans")
+@Table(
+        name = "agenda_plans",
+        indexes = @Index(name = "idx_agenda_plans_business_activo", columnList = "business_id, activo"))
+@Check(constraints = "tipo IN ('ILIMITADO_MENSUAL','POR_CREDITOS','SOLO_RESERVA','MIXTO')")
+@Check(constraints = "tier IS NULL OR tier IN ('VIP','GOLDEN','PLATA')")
+@Check(constraints = "validez_dias > 0")
+@Check(constraints = "precio >= 0")
+@Check(constraints = "total_creditos IS NULL OR total_creditos >= 0")
 public class PlanEntity extends BaseAuditableEntity {
 
     @Id

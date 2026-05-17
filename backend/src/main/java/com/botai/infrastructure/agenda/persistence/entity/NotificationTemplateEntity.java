@@ -6,12 +6,19 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.util.UUID;
 
 @Entity
-@Table(name = "agenda_notification_templates")
+@Table(
+        name = "agenda_notification_templates",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_agenda_notif_template",
+                columnNames = {"business_id", "codigo", "canal"}),
+        indexes = @Index(name = "idx_agenda_notif_tmpl_biz", columnList = "business_id"))
 public class NotificationTemplateEntity extends BaseAuditableEntity {
 
     @Id

@@ -4,11 +4,15 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.Check;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "agenda_business_settings")
+@Check(constraints = "hours_cancellation_limit >= 0")
+@Check(constraints = "loyalty_min_attendances > 0")
+@Check(constraints = "loyalty_window_days > 0")
 public class BusinessSettingsEntity extends BaseAuditableEntity {
 
     @Id

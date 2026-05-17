@@ -6,13 +6,27 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.Check;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Esquema vía JPA. Anti doble reserva: {@code excl_agenda_bookings_slot} en
+ * {@code V3__agenda_booking_slot_exclusion.sql} (EXCLUDE GiST no tiene equivalente en JPA).
+ * Índices parciales (slot, suscripción) y FK staff: {@code V4__agenda_indexes_and_constraints.sql}.
+ */
 @Entity
-@Table(name = "agenda_bookings")
+@Table(
+        name = "agenda_bookings",
+        indexes = {
+                @Index(name = "idx_agenda_bookings_business_fecha", columnList = "business_id, fecha_hora_inicio"),
+                @Index(name = "idx_agenda_bookings_user_estado", columnList = "user_id, estado, fecha_hora_inicio")
+        })
+@Check(constraints = "estado IN ('PENDING','CONFIRMED','CANCELLED','COMPLETED','NO_SHOW')")
+@Check(constraints = "fecha_hora_fin > fecha_hora_inicio")
 public class BookingEntity extends BaseAuditableEntity {
 
     @Id

@@ -23,9 +23,11 @@ public class DataSourceLogger {
 
     @PostConstruct
     public void logConnectionInfo() {
-        String host = env.getProperty("BOTAI_DB_HOST", "127.0.0.1");
-        String port = env.getProperty("BOTAI_DB_PORT", "5444");
-        String db = env.getProperty("BOTAI_DB_NAME", "chatbot");
-        log.info("[chatbot-engine] Conexion BD: {}:{}/{}", host, port, db);
+        String url = env.getProperty("spring.datasource.url", "");
+        log.info("[chatbot-engine] Conexion BD: {}", maskPassword(url));
+    }
+
+    private static String maskPassword(String jdbcUrl) {
+        return jdbcUrl.replaceAll("://([^:]+):([^@]+)@", "://$1:***@");
     }
 }

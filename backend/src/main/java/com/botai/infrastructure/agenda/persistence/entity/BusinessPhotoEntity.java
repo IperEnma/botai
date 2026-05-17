@@ -3,13 +3,16 @@ package com.botai.infrastructure.agenda.persistence.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity(name = "AgendaBusinessPhotoEntity")
-@Table(name = "agenda_business_photos")
+@Table(
+        name = "agenda_business_photos",
+        indexes = @Index(name = "idx_agenda_business_photos_business", columnList = "business_id, orden"))
 public class BusinessPhotoEntity {
 
     @Id

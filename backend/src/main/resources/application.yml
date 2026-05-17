@@ -8,20 +8,21 @@ spring:
     name: chatbot-engine
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5444}/${DB_NAME:chatbot}${DB_JDBC_PARAMS:}
-    username: ${DB_USER:chatbot}
-    password: ${DB_PASSWORD:chatbot}
+    url: ${DATABASE_URL:jdbc:postgresql://chatbot:chatbot@localhost:5444/chatbot}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
 
-  # Flyway (módulo Agenda: tabla agenda_flyway_schema_history, locations vía AgendaEnvironmentPostProcessor).
-  # Si reescribís migraciones ya aplicadas, los checksums cambian. Spring Boot 3.2 no enlaza repair-on-migrate al
-  # bean Flyway; AgendaFlywayConfig aplica repair() antes de migrate() cuando esta propiedad es true.
-  # En prod/CI podés fijar FLYWAY_REPAIR_ON_MIGRATE=false y correr flyway repair manualmente.
+  # Flyway: extensiones PG, semilla, EXCLUDE (V3) e índices/FKs que JPA no modela (V4). Tablas = JPA.
+  # repair-on-migrate: AgendaFlywayConfig aplica repair() antes de migrate() si hace falta.
   flyway:
     repair-on-migrate: ${FLYWAY_REPAIR_ON_MIGRATE:true}
+    locations: classpath:db/migration/agenda
+    table: agenda_flyway_schema_history
+    baseline-on-migrate: true
+    baseline-version: 0
+    validate-on-migrate: true
 
   jpa:
     hibernate:
@@ -36,7 +37,7 @@ spring:
 
   sql:
     init:
-      mode: always
+      mode: never
 
   servlet:
     multipart:

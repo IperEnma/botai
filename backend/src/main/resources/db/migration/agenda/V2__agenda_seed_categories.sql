@@ -1,9 +1,3 @@
--- ============================================================================
--- V2__agenda_seed_categories.sql
--- Seed del catálogo global de categorías con sus sinónimos maestros.
--- Idempotente vía ON CONFLICT (slug) DO NOTHING — tolera reruns.
--- ============================================================================
-
 INSERT INTO agenda_categories (id, nombre, slug, icono, synonyms) VALUES
     (gen_random_uuid(), 'Peluquería',  'peluqueria',  'scissors',
         '["peluqueria","peluquero","peluquera","pelu","corte de pelo","cabello","salón de belleza","salon"]'::jsonb),

@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -12,7 +13,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "agenda_categories")
+@Table(
+        name = "agenda_categories",
+        uniqueConstraints = @UniqueConstraint(name = "uk_agenda_categories_slug", columnNames = "slug"))
 public class CategoryEntity extends BaseAuditableEntity {
 
     @Id
@@ -22,7 +25,7 @@ public class CategoryEntity extends BaseAuditableEntity {
     @Column(name = "nombre", nullable = false, length = 120)
     private String nombre;
 
-    @Column(name = "slug", nullable = false, length = 120, unique = true)
+    @Column(name = "slug", nullable = false, length = 120)
     private String slug;
 
     @Column(name = "icono", length = 64)

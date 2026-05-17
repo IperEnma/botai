@@ -7,12 +7,18 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.util.UUID;
 
 @Entity
-@Table(name = "agenda_notifications")
+@Table(
+        name = "agenda_notifications",
+        indexes = {
+                @Index(name = "idx_agenda_notif_user_estado", columnList = "user_id, estado, created_at"),
+                @Index(name = "idx_agenda_notif_biz_created", columnList = "business_id, created_at")
+        })
 public class NotificationEntity extends BaseAuditableEntity {
 
     @Id

@@ -3,6 +3,7 @@ package com.botai.infrastructure.agenda.persistence.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -12,9 +13,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** Columnas alineadas al {@code CREATE TABLE agenda_businesses} en Flyway V1 (esquema de primer arranque). */
 @Entity
-@Table(name = "agenda_businesses")
+@Table(
+        name = "agenda_businesses",
+        indexes = @Index(name = "idx_agenda_businesses_bot_id", columnList = "bot_id"))
 public class BusinessEntity extends BaseAuditableEntity {
 
     @Id

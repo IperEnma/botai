@@ -11,9 +11,6 @@ services:
       - "5444:5432"   # Host 5444 para no chocar con Postgres local (5432/5433/5434)
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Init: schema y datos; usuario/contraseña chatbot/chatbot los fija la imagen.
-      - ./backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./backend/src/main/resources/data.sql:/docker-entrypoint-initdb.d/02-data.sql
     healthcheck:
       test: ["CMD-SHELL", "PGPASSWORD=chatbot psql -h localhost -U chatbot -d chatbot -c 'SELECT 1'"]
       interval: 5s

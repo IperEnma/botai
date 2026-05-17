@@ -5,7 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.Check;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -13,7 +15,15 @@ import java.util.UUID;
 import com.botai.domain.agenda.model.SubscriptionEstado;
 
 @Entity
-@Table(name = "agenda_user_subscriptions")
+@Table(
+        name = "agenda_user_subscriptions",
+        indexes = {
+                @Index(name = "idx_aus_user_business_estado", columnList = "user_id, business_id, estado"),
+                @Index(name = "idx_aus_business_estado", columnList = "business_id, estado")
+        })
+@Check(constraints = "estado IN ('ACTIVE','EXPIRED','CANCELLED')")
+@Check(constraints = "saldo_actual >= 0")
+@Check(constraints = "fecha_expiracion >= fecha_inicio")
 public class UserSubscriptionEntity extends BaseAuditableEntity {
 
     @Id

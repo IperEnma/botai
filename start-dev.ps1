@@ -85,6 +85,25 @@ function Invoke-DockerComposeUp {
     }
 }
 
+function Ensure-PostgresExtensions {
+  $sql = @(
+        "CREATE EXTENSION IF NOT EXISTS vector;",
+        "CREATE EXTENSION IF NOT EXISTS pgcrypto;",
+        "CREATE EXTENSION IF NOT EXISTS unaccent;",
+        "CREATE EXTENSION IF NOT EXISTS btree_gist;"
+    ) -join " "
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        docker exec chatbot-postgres psql -U chatbot -d chatbot -v ON_ERROR_STOP=1 -c $sql 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  Extensiones PG listas (vector, pgcrypto, unaccent, btree_gist)" -ForegroundColor DarkGray
+        }
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+}
+
 function Wait-PostgresReady {
     param([int]$MaxSeconds = 90)
     $deadline = (Get-Date).AddSeconds($MaxSeconds)
@@ -165,6 +184,7 @@ if (-not $SkipDocker) {
     if (-not (Wait-PostgresReady)) {
         throw "Postgres no quedo listo. Revisa: docker logs chatbot-postgres"
     }
+    Ensure-PostgresExtensions
     Write-Host "  Postgres OK en localhost:5444 (user/pass/db: chatbot)" -ForegroundColor Green
 } elseif (-not $FrontendOnly) {
     Write-Host ""

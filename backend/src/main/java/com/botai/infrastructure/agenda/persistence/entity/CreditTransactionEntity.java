@@ -5,7 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.Check;
 
 import java.util.UUID;
 
@@ -17,7 +19,10 @@ import com.botai.domain.agenda.model.CreditMotivo;
  * {@code updated_at} solo se setea al insertar y queda estable.
  */
 @Entity
-@Table(name = "agenda_credit_transactions")
+@Table(
+        name = "agenda_credit_transactions",
+        indexes = @Index(name = "idx_act_subscription_created", columnList = "subscription_id, created_at"))
+@Check(constraints = "motivo IN ('RESERVA','CANCELACION_DEVUELTA','AJUSTE_ADMIN','COMPRA')")
 public class CreditTransactionEntity extends BaseAuditableEntity {
 
     @Id

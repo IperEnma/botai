@@ -3,13 +3,20 @@ package com.botai.infrastructure.agenda.persistence.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import org.hibernate.annotations.Check;
 
 import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity(name = "AgendaBusinessHoursEntity")
-@Table(name = "agenda_business_hours")
+@Table(
+        name = "agenda_business_hours",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"business_id", "dia_semana"}),
+        indexes = @Index(name = "idx_business_hours_business_id", columnList = "business_id"))
+@Check(constraints = "dia_semana BETWEEN 0 AND 6")
 public class BusinessHoursEntity {
 
     @Id

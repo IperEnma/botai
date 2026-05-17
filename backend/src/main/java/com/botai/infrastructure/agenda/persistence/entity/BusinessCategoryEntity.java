@@ -3,12 +3,15 @@ package com.botai.infrastructure.agenda.persistence.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "agenda_business_categories")
+@Table(
+        name = "agenda_business_categories",
+        indexes = @Index(name = "idx_abc_category", columnList = "category_id"))
 public class BusinessCategoryEntity {
 
     @EmbeddedId

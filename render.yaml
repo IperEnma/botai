@@ -25,18 +25,8 @@ services:
         value: https://openrouter.ai/api
       - key: BOT_EMBEDDING_API_MODEL
         value: openai/text-embedding-3-small
-      - key: DB_JDBC_PARAMS
-        value: ?sslmode=require
-      # Secretos: definir en Render Dashboard (sync: false)
-      - key: DB_HOST
-        sync: false
-      - key: DB_PORT
-        value: "5432"
-      - key: DB_NAME
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
+      # Neon → Connection string (Direct). Si empieza con postgresql://, anteponer jdbc:
+      - key: DATABASE_URL
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false

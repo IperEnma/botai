@@ -6,12 +6,18 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.util.UUID;
 
 @Entity
-@Table(name = "agenda_loyalty_suggestions")
+@Table(
+        name = "agenda_loyalty_suggestions",
+        indexes = {
+                @Index(name = "idx_agenda_loyalty_biz_user_estado", columnList = "business_id, user_id, estado"),
+                @Index(name = "idx_agenda_loyalty_biz_created", columnList = "business_id, created_at")
+        })
 public class LoyaltySuggestionEntity extends BaseAuditableEntity {
 
     @Id

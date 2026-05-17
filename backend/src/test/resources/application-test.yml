@@ -35,6 +35,8 @@ spring:
 
   flyway:
     enabled: true
+    locations: classpath:db/migration/agenda
+    table: agenda_flyway_schema_history
 
   # Desactivamos Spring AI en tests: no necesitamos el modelo Ollama para
   # ejercitar endpoints de AGENDA. Al evitar el autoconfigure, el contexto

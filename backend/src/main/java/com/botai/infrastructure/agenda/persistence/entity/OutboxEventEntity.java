@@ -13,6 +13,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/** Índice parcial {@code idx_agenda_outbox_pending}: V4__agenda_indexes_and_constraints.sql */
 @Entity
 @Table(name = "agenda_outbox_events")
 public class OutboxEventEntity {
