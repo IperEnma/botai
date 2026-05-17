@@ -10,3 +10,12 @@ spring:
   sql:
     init:
       mode: always
+  jpa:
+    hibernate:
+      # create-drop: Hibernate crea todas las tablas al arrancar y las elimina al apagar.
+      # Cada reinicio parte de cero — útil para probar el flujo de onboarding en limpio.
+      ddl-auto: create-drop
+  flyway:
+    # Deshabilitado porque Hibernate ya gestiona el schema con create-drop.
+    # Si lo dejamos activo intentaría crear tablas que Hibernate acaba de crear → conflicto.
+    enabled: false
