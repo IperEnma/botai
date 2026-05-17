@@ -2,9 +2,7 @@ package com.botai.infrastructure.agenda.api;
 
 import com.botai.application.agenda.dto.NotificationTemplateRequest;
 import com.botai.application.agenda.dto.NotificationTemplateResponse;
-import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.NotificationTemplate;
-import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.NotificationTemplateRepository;
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,14 +29,11 @@ import java.util.UUID;
 @Validated
 public class NotificationTemplateController {
 
-    private final BusinessRepository businessRepository;
     private final NotificationTemplateRepository templateRepository;
     private final AgendaCurrentTenantService currentTenant;
 
-    public NotificationTemplateController(BusinessRepository businessRepository,
-                                          NotificationTemplateRepository templateRepository,
+    public NotificationTemplateController(NotificationTemplateRepository templateRepository,
                                           AgendaCurrentTenantService currentTenant) {
-        this.businessRepository = businessRepository;
         this.templateRepository = templateRepository;
         this.currentTenant = currentTenant;
     }
@@ -97,9 +92,7 @@ public class NotificationTemplateController {
     }
 
     private void validateBusiness(UUID businessId) {
-        String tenantId = currentTenant.requireTenantId();
-        businessRepository.findByIdAndTenantId(businessId, tenantId)
-                .orElseThrow(() -> new BusinessNotFoundException(businessId));
+        currentTenant.requireBusinessOwnedByCurrentTenant(businessId);
     }
 
     private NotificationTemplateResponse toResponse(NotificationTemplate t) {

@@ -64,7 +64,7 @@ class AgendaFeatureGuardTest {
     }
 
     @Test
-    void rutaMeSinTenantTodaviaPermitePasar() throws Exception {
+    void rutaOnboardingSinTenantPermitePasar() throws Exception {
         HttpServletRequest req = mock(HttpServletRequest.class);
         HttpServletResponse res = mock(HttpServletResponse.class);
         when(req.getRequestURI()).thenReturn("/api/agenda/me/tenant-admin");
@@ -72,6 +72,29 @@ class AgendaFeatureGuardTest {
 
         assertTrue(guard.preHandle(req, res, new Object()));
         verify(flagService, never()).isEnabled(any(), anyString());
+        verify(res, never()).sendError(any(Integer.class));
+    }
+
+    @Test
+    void rutaPanelNegocioSinTenantResponde404() throws Exception {
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        HttpServletResponse res = mock(HttpServletResponse.class);
+        when(req.getRequestURI()).thenReturn("/api/agenda/me/businesses/00000000-0000-0000-0000-000000000001/services");
+        when(currentTenant.findTenantId()).thenReturn(Optional.empty());
+
+        assertFalse(guard.preHandle(req, res, new Object()));
+        verify(res).sendError(HttpServletResponse.SC_NOT_FOUND);
+        verify(flagService, never()).isEnabled(any(), anyString());
+    }
+
+    @Test
+    void reservasClienteSinTenantPermitenPasar() throws Exception {
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        HttpServletResponse res = mock(HttpServletResponse.class);
+        when(req.getRequestURI()).thenReturn("/api/agenda/me/businesses/00000000-0000-0000-0000-000000000001/bookings");
+        when(currentTenant.findTenantId()).thenReturn(Optional.empty());
+
+        assertTrue(guard.preHandle(req, res, new Object()));
         verify(res, never()).sendError(any(Integer.class));
     }
 

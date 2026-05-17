@@ -1,7 +1,5 @@
 package com.botai.infrastructure.agenda.api;
 
-import com.botai.domain.agenda.exception.BusinessNotFoundException;
-import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.infrastructure.agenda.config.AgendaUploadProperties;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,14 +27,11 @@ import java.util.UUID;
 @Tag(name = "Agenda Tenant", description = "Administración de negocios por tenant")
 public class BusinessAvatarController {
 
-    private final BusinessRepository businessRepository;
     private final AgendaUploadProperties uploadProps;
     private final AgendaCurrentTenantService currentTenant;
 
-    public BusinessAvatarController(BusinessRepository businessRepository,
-                                    AgendaUploadProperties uploadProps,
+    public BusinessAvatarController(AgendaUploadProperties uploadProps,
                                     AgendaCurrentTenantService currentTenant) {
-        this.businessRepository = businessRepository;
         this.uploadProps = uploadProps;
         this.currentTenant = currentTenant;
     }
@@ -47,9 +42,7 @@ public class BusinessAvatarController {
             @PathVariable UUID businessId,
             @RequestParam("file") MultipartFile file) throws IOException {
 
-        String tenantId = currentTenant.requireTenantId();
-        businessRepository.findByIdAndTenantId(businessId, tenantId)
-                .orElseThrow(() -> new BusinessNotFoundException(businessId));
+        currentTenant.requireBusinessOwnedByCurrentTenant(businessId);
 
         String originalName = file.getOriginalFilename();
         String ext = (originalName != null && originalName.contains("."))

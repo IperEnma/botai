@@ -19,6 +19,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * Si el flag está off, responde <b>404</b> uniforme para no revelar la existencia
  * del módulo — concordante con la sección 5 del plan.</p>
  *
+ * <p>Recursos del panel ({@code /me/businesses/...} salvo reservas/suscripciones de
+ * cliente) exigen tenant resuelto desde el JWT; sin cuenta Agenda → 404.</p>
+ *
  * <p>El método {@code afterCompletion} limpia el {@link ThreadTenantContext}
  * para evitar leaks en el pool de threads.</p>
  */
@@ -50,8 +53,14 @@ public class AgendaFeatureGuard implements HandlerInterceptor {
         }
 
         String tenantId = currentTenant.findTenantId().orElse(null);
+        if (requiresResolvedTenant(uri) && (tenantId == null || tenantId.isBlank())) {
+            log.debug("AgendaFeatureGuard: sin tenant para uri={}", uri);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return false;
+        }
+
         if (tenantId == null || tenantId.isBlank()) {
-            // Usuario autenticado pero todavía sin tenant (primer login / onboarding).
+            // Onboarding: tenant-admin, public-link, etc.
             return true;
         }
 
@@ -59,6 +68,33 @@ public class AgendaFeatureGuard implements HandlerInterceptor {
         if (!featureFlagService.isEnabled(AgendaFeatures.AGENDA_ENABLED, tenantId)) {
             log.debug("AgendaFeatureGuard: AGENDA_ENABLED off para tenant={} uri={}", tenantId, uri);
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Rutas del panel de negocio: exigen cuenta Agenda vinculada al JWT.
+     * Excluye flujos de cliente final (reservas/suscripciones por {@code X-User-Id}).
+     */
+    static boolean requiresResolvedTenant(String uri) {
+        if (uri.startsWith("/api/agenda/me/tenant-admin")
+                || uri.startsWith("/api/agenda/me/public-link")) {
+            return false;
+        }
+        if (uri.equals("/api/agenda/me/businesses")) {
+            return true;
+        }
+        if (!uri.startsWith("/api/agenda/me/businesses/")) {
+            return false;
+        }
+        if (uri.contains("/agenda/bookings")) {
+            return true;
+        }
+        if (uri.contains("/bookings")) {
+            return false;
+        }
+        if (uri.contains("/subscriptions")) {
             return false;
         }
         return true;

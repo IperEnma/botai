@@ -3,7 +3,6 @@ package com.botai.infrastructure.agenda.api;
 import com.botai.application.agenda.dto.LoyaltySuggestionResponse;
 import com.botai.application.agenda.dto.UpdateLoyaltySuggestionRequest;
 import com.botai.application.agenda.usecase.loyalty.SendLoyaltySuggestionUseCase;
-import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.LoyaltySuggestion;
 import com.botai.domain.agenda.model.LoyaltySuggestionEstado;
 import com.botai.domain.agenda.repository.BusinessRepository;
@@ -36,16 +35,13 @@ import java.util.UUID;
 @Validated
 public class LoyaltySuggestionController {
 
-    private final BusinessRepository businessRepository;
     private final LoyaltySuggestionRepository suggestionRepository;
     private final SendLoyaltySuggestionUseCase sendSuggestion;
     private final AgendaCurrentTenantService currentTenant;
 
-    public LoyaltySuggestionController(BusinessRepository businessRepository,
-                                       LoyaltySuggestionRepository suggestionRepository,
+    public LoyaltySuggestionController(LoyaltySuggestionRepository suggestionRepository,
                                        SendLoyaltySuggestionUseCase sendSuggestion,
                                        AgendaCurrentTenantService currentTenant) {
-        this.businessRepository = businessRepository;
         this.suggestionRepository = suggestionRepository;
         this.sendSuggestion = sendSuggestion;
         this.currentTenant = currentTenant;
@@ -56,9 +52,7 @@ public class LoyaltySuggestionController {
     public ResponseEntity<List<LoyaltySuggestionResponse>> list(
             @PathVariable("businessId") UUID businessId,
             @RequestParam(value = "estado", required = false) LoyaltySuggestionEstado estado) {
-        String tenantId = currentTenant.requireTenantId();
-        businessRepository.findByIdAndTenantId(businessId, tenantId)
-                .orElseThrow(() -> new BusinessNotFoundException(businessId));
+        currentTenant.requireBusinessOwnedByCurrentTenant(businessId);
 
         List<LoyaltySuggestion> suggestions = estado != null
                 ? suggestionRepository.findAllByBusinessIdAndEstado(businessId, estado)
@@ -73,9 +67,7 @@ public class LoyaltySuggestionController {
             @PathVariable("businessId") UUID businessId,
             @PathVariable("suggestionId") UUID suggestionId,
             @Valid @RequestBody UpdateLoyaltySuggestionRequest request) {
-        String tenantId = currentTenant.requireTenantId();
-        businessRepository.findByIdAndTenantId(businessId, tenantId)
-                .orElseThrow(() -> new BusinessNotFoundException(businessId));
+        currentTenant.requireBusinessOwnedByCurrentTenant(businessId);
 
         LoyaltySuggestion suggestion = suggestionRepository.findById(suggestionId)
                 .filter(s -> s.getBusinessId().equals(businessId))
@@ -92,7 +84,7 @@ public class LoyaltySuggestionController {
     public ResponseEntity<LoyaltySuggestionResponse> send(
             @PathVariable("businessId") UUID businessId,
             @PathVariable("suggestionId") UUID suggestionId) {
-        String tenantId = currentTenant.requireTenantId();
+        String tenantId = currentTenant.requireBusinessOwnedByCurrentTenant(businessId).getTenantId();
         LoyaltySuggestion updated = sendSuggestion.execute(tenantId, businessId, suggestionId);
         return ResponseEntity.ok(toResponse(updated));
     }

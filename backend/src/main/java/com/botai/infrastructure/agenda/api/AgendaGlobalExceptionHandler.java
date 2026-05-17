@@ -1,6 +1,7 @@
 package com.botai.infrastructure.agenda.api;
 
 import com.botai.domain.agenda.exception.AgendaBotNotFoundException;
+import com.botai.domain.agenda.exception.AgendaTenantNotResolvedException;
 import com.botai.domain.agenda.exception.BookingNotCancellableException;
 import com.botai.domain.agenda.exception.BookingNotFoundException;
 import com.botai.domain.agenda.exception.BookingSlotTakenException;
@@ -52,6 +53,11 @@ public class AgendaGlobalExceptionHandler {
     @ExceptionHandler(BusinessNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleBusinessNotFound(BusinessNotFoundException ex) {
         return response(HttpStatus.NOT_FOUND, "BUSINESS_NOT_FOUND", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(AgendaTenantNotResolvedException.class)
+    public ResponseEntity<Map<String, Object>> handleTenantNotResolved(AgendaTenantNotResolvedException ex) {
+        return response(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage(), null);
     }
 
     @ExceptionHandler(AgendaBotNotFoundException.class)

@@ -4,9 +4,9 @@ import com.botai.application.agenda.dto.BookingResponse;
 import com.botai.application.agenda.mapper.BookingDtoMapper;
 import com.botai.application.agenda.usecase.booking.ListBusinessBookingsUseCase;
 import com.botai.domain.agenda.model.User;
-import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
 import com.botai.domain.agenda.repository.UserRepository;
+import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -34,16 +34,16 @@ import java.util.UUID;
 public class TenantAgendaBookingsController {
 
     private final ListBusinessBookingsUseCase listBusinessBookings;
-    private final BusinessRepository businessRepository;
+    private final AgendaCurrentTenantService currentTenant;
     private final ServiceRepository serviceRepository;
     private final UserRepository userRepository;
 
     public TenantAgendaBookingsController(ListBusinessBookingsUseCase listBusinessBookings,
-                                          BusinessRepository businessRepository,
+                                          AgendaCurrentTenantService currentTenant,
                                           ServiceRepository serviceRepository,
                                           UserRepository userRepository) {
         this.listBusinessBookings = listBusinessBookings;
-        this.businessRepository = businessRepository;
+        this.currentTenant = currentTenant;
         this.serviceRepository = serviceRepository;
         this.userRepository = userRepository;
     }
@@ -57,9 +57,7 @@ public class TenantAgendaBookingsController {
             @RequestParam("to")
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
     ) {
-        String tenantId = businessRepository.findById(businessId)
-                .map(b -> b.getTenantId())
-                .orElseThrow(() -> new IllegalArgumentException("Negocio no encontrado: " + businessId));
+        String tenantId = currentTenant.requireBusinessOwnedByCurrentTenant(businessId).getTenantId();
 
         List<BookingResponse> responses = listBusinessBookings.execute(tenantId, businessId, from, to)
                 .stream()
