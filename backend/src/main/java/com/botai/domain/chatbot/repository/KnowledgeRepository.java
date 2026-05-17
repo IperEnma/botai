@@ -17,7 +17,7 @@ public interface KnowledgeRepository {
     long countActiveByTenantId(String tenantId);
 
     /**
-     * Búsqueda por similitud (cosine) usando la columna embedding. Solo devuelve chunks con embedding no nulo.
+     * Búsqueda por similitud (cosine) en la columna del proveedor activo (embedding_384 / embedding_1536).
      * Filtra por tenantId cuando no es nulo.
      *
      * @param maxCosineDistance si no es {@code null}, descarta filas con distancia coseno mayor (pgvector {@code <=>});

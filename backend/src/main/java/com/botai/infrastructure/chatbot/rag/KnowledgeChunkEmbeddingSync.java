@@ -16,8 +16,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 /**
- * Rellena la columna embedding de knowledge_chunk para chunks activos que aún no la tienen.
- * Se ejecuta al arranque si hay un EmbeddingModel disponible.
+ * Rellena la columna de embedding activa ({@link EmbeddingVectorStore}) para chunks sin vector.
  */
 @Component
 @ConditionalOnBean(EmbeddingModel.class)
@@ -25,32 +24,27 @@ public class KnowledgeChunkEmbeddingSync {
 
     private static final Logger log = LoggerFactory.getLogger(KnowledgeChunkEmbeddingSync.class);
 
-    private static final String SELECT_NEEDING_EMBEDDING =
-        "SELECT id, topic, content FROM knowledge_chunk WHERE active = true AND embedding IS NULL";
-    private static final String UPDATE_EMBEDDING =
-        "UPDATE knowledge_chunk SET embedding = CAST(? AS vector) WHERE id = ?";
-
     private final JdbcTemplate jdbcTemplate;
     private final EmbeddingModel embeddingModel;
+    private final EmbeddingVectorStore vectorStore;
 
-    public KnowledgeChunkEmbeddingSync(JdbcTemplate jdbcTemplate, EmbeddingModel embeddingModel) {
+    public KnowledgeChunkEmbeddingSync(JdbcTemplate jdbcTemplate,
+                                       EmbeddingModel embeddingModel,
+                                       EmbeddingVectorStore vectorStore) {
         this.jdbcTemplate = jdbcTemplate;
         this.embeddingModel = embeddingModel;
+        this.vectorStore = vectorStore;
     }
 
-    /**
-     * Rellena embeddings de chunks que tienen embedding IS NULL.
-     * Se llama al arranque y también tras refrescar horario/servicios para que la búsqueda semántica los encuentre.
-     */
     public int syncPendingEmbeddings() {
-        List<Row> rows = jdbcTemplate.query(SELECT_NEEDING_EMBEDDING,
+        List<Row> rows = jdbcTemplate.query(vectorStore.selectPendingEmbeddingsSql(),
             (rs, rowNum) -> new Row(rs.getLong("id"), rs.getString("topic"), rs.getString("content")));
         if (rows.isEmpty()) {
-            log.info("[RAG-EMBED] Sin chunks pendientes de embedding (todos tienen vector o no hay chunks activos)");
+            log.info("[RAG-EMBED] Sin chunks pendientes en {} (columna activa, dims={})",
+                    vectorStore.columnName(), vectorStore.dimensions());
             return 0;
         }
-        log.info("[RAG-EMBED] Iniciando sync: {} chunks sin vector (ids: {})", rows.size(),
-            rows.stream().map(r -> r.id).toList());
+        log.info("[RAG-EMBED] Sync en {}: {} chunks sin vector", vectorStore.columnName(), rows.size());
         int updated = 0;
         int failed = 0;
         for (Row row : rows) {
@@ -63,21 +57,22 @@ public class KnowledgeChunkEmbeddingSync {
                     continue;
                 }
                 List<Double> vector = toListOfDouble(resp.getResults().get(0).getOutput());
+                vectorStore.requireMatchingSize(vector.size());
                 if (vector.isEmpty()) {
                     log.warn("[RAG-EMBED] Chunk id={} topic='{}': vector vacío", row.id, row.topic);
                     failed++;
                     continue;
                 }
                 String vectorStr = toVectorString(vector);
-                jdbcTemplate.update(UPDATE_EMBEDDING, vectorStr, row.id);
+                jdbcTemplate.update(vectorStore.updateEmbeddingSql(), vectorStr, row.id);
                 updated++;
-                log.debug("[RAG-EMBED] Chunk id={} topic='{}': embedding guardado", row.id, row.topic);
             } catch (Exception e) {
-                log.error("[RAG-EMBED] Chunk id={} topic='{}': {} — {}", row.id, row.topic, e.getMessage(), e.getClass().getSimpleName(), e);
+                log.error("[RAG-EMBED] Chunk id={} topic='{}': {} — {}", row.id, row.topic, e.getMessage(),
+                        e.getClass().getSimpleName(), e);
                 failed++;
             }
         }
-        log.info("[RAG-EMBED] Fin sync: actualizados={} fallidos={} total={}", updated, failed, rows.size());
+        log.info("[RAG-EMBED] Fin sync {}: actualizados={} fallidos={}", vectorStore.columnName(), updated, failed);
         return updated;
     }
 

@@ -24,7 +24,7 @@ public class ApiEmbeddingStartupLogger {
             @Value("${spring.ai.openai.base-url}") String baseUrl,
             @Value("${spring.ai.openai.embedding.options.model}") String model) {
         return (ApplicationArguments args) -> log.info(
-                "[EMBED-API] Embeddings RAG por HTTPS: baseUrl={} model={} (columna knowledge_chunk.embedding debe coincidir en dimensiones)",
+                "[EMBED-API] Embeddings RAG por HTTPS: baseUrl={} model={} (columna embedding_* según bot.embedding.api-dimensions)",
                 baseUrl,
                 model);
     }

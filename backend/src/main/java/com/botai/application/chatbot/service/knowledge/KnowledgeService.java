@@ -52,7 +52,7 @@ public class KnowledgeService {
         List<KnowledgeChunk> result = findRelevantByEmbedding(query, limit, tenantId);
         if (result.isEmpty() && tenantId != null && !tenantId.isBlank()) {
             long total = knowledgeRepository.countActiveByTenantId(tenantId);
-            log.warn("[RAG] 0 chunks para tenantId={} query='{}' (chunks activos: {}). Revisar: embeddings generados (sync), modelo y dimensión de vector vs columna knowledge_chunk.embedding.", tenantId, query, total);
+            log.warn("[RAG] 0 chunks para tenantId={} query='{}' (chunks activos: {}). Revisar: sync RAG, proveedor activo y columna embedding_384 / embedding_1536.", tenantId, query, total);
         } else if (!result.isEmpty()) {
             log.info("[RAG] {} chunks para tenantId={} query='{}'", result.size(), tenantId, query);
         }

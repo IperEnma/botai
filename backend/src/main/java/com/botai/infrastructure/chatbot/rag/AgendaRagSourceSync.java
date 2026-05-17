@@ -46,12 +46,15 @@ public class AgendaRagSourceSync {
     private final KnowledgeChunkJpaRepository knowledgeChunkJpaRepository;
     private final JdbcTemplate jdbcTemplate;
     private final KnowledgeChunkEmbeddingSync embeddingSync;
+    private final KnowledgeChunkEmbeddingClearer embeddingClearer;
 
     public AgendaRagSourceSync(KnowledgeChunkJpaRepository knowledgeChunkJpaRepository,
                                JdbcTemplate jdbcTemplate,
+                               KnowledgeChunkEmbeddingClearer embeddingClearer,
                                @Autowired(required = false) KnowledgeChunkEmbeddingSync embeddingSync) {
         this.knowledgeChunkJpaRepository = knowledgeChunkJpaRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.embeddingClearer = embeddingClearer;
         this.embeddingSync = embeddingSync;
     }
 
@@ -310,8 +313,8 @@ public class AgendaRagSourceSync {
         chunk.setBusinessId(businessId);
         knowledgeChunkJpaRepository.save(chunk);
         if (contentChanged && chunk.getId() != null) {
-            jdbcTemplate.update("UPDATE knowledge_chunk SET embedding = NULL WHERE id = ?", chunk.getId());
-            log.info("[AGENDA-RAG-SYNC] Chunk tenant={} businessId={} topic='{}' id={} -> embedding=NULL",
+            embeddingClearer.clearEmbeddingForChunk(chunk.getId());
+            log.info("[AGENDA-RAG-SYNC] Chunk tenant={} businessId={} topic='{}' id={} -> vector invalidado",
                 tenantId, businessId, topic, chunk.getId());
         } else if (isNew) {
             log.info("[AGENDA-RAG-SYNC] Chunk creado tenant={} businessId={} topic='{}' id={}",

@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Embeddings locales con DJL + PyTorch + modelo Hugging Face (p. ej. paraphrase-multilingual-MiniLM-L12-v2).
- * No pasa por Ollama; la dimensión del vector debe coincidir con {@code knowledge_chunk.embedding} en PostgreSQL.
+ * No pasa por Ollama; la dimensión del vector debe coincidir con {@code knowledge_chunk.embedding_384} en PostgreSQL.
  */
 public class DjlEmbeddingModel extends AbstractEmbeddingModel {
 

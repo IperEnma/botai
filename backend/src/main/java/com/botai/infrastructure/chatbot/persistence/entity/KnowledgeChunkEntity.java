@@ -55,12 +55,14 @@ public class KnowledgeChunkEntity {
     private Instant createdAt;
 
     /**
-     * Vectores RAG (pgvector). Solo se escribe vía JDBC ({@code CAST(? AS vector)} en
-     * {@link com.botai.infrastructure.chatbot.rag.KnowledgeChunkEmbeddingSync}); JPA no puede
-     * persistir {@code vector} como {@code String} sin romper el INSERT.
+     * Vectores RAG por dimensión (pgvector). Solo JDBC — ver {@link com.botai.infrastructure.chatbot.rag.EmbeddingVectorStore}.
+     * DJL local → {@code embedding_384}; OpenRouter/API → {@code embedding_1536}.
      */
-    @Column(name = "embedding", columnDefinition = "vector(384)", insertable = false, updatable = false)
-    private String embedding;
+    @Column(name = "embedding_384", columnDefinition = "vector(384)", insertable = false, updatable = false)
+    private String embedding384;
+
+    @Column(name = "embedding_1536", columnDefinition = "vector(1536)", insertable = false, updatable = false)
+    private String embedding1536;
 
     public Long getId() {
         return id;
@@ -110,11 +112,11 @@ public class KnowledgeChunkEntity {
         this.createdAt = createdAt;
     }
 
-    public String getEmbedding() {
-        return embedding;
+    public String getEmbedding384() {
+        return embedding384;
     }
 
-    public void setEmbedding(String embedding) {
-        this.embedding = embedding;
+    public String getEmbedding1536() {
+        return embedding1536;
     }
 }

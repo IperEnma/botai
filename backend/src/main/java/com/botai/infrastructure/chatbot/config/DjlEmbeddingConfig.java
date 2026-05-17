@@ -28,7 +28,7 @@ public class DjlEmbeddingConfig {
     public EmbeddingModel embeddingModel(
             @Value("${bot.embedding.djl.model-url:djl://ai.djl.huggingface.pytorch/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}") String modelUrl)
         throws ModelException, IOException {
-        log.info("[DJL-EMBED] Registrando EmbeddingModel DJL (MiniLM multilingüe típico: 384 dims → alinear knowledge_chunk.embedding)");
+        log.info("[DJL-EMBED] Registrando EmbeddingModel DJL (384 dims → columna knowledge_chunk.embedding_384)");
         return new DjlEmbeddingModel(modelUrl);
     }
 }

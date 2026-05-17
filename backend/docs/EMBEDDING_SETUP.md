@@ -30,45 +30,44 @@ BOT_EMBEDDING_API_MODEL=nomic-embed-text
 # Ollama no valida la key; el default "ollama" alcanza si no definís OPENROUTER_API_KEY
 ```
 
-Antes de usar el modelo: `ollama pull nomic-embed-text` (768 dims → alinear columna `knowledge_chunk.embedding`).
+Antes de usar el modelo: `ollama pull nomic-embed-text` (768 dims — hoy solo soportamos columnas 384 y 1536).
 
 Con `BOT_EMBEDDING_PROVIDER=api`, el **chat** del bot también usa OpenRouter (`BOT_CHAT_API_MODEL`). En local con `djl`, el chat sigue en Ollama (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`).
 
 ---
 
-## Dimensiones en PostgreSQL
+## Dimensiones en PostgreSQL (dos columnas)
 
-Si cambiás de proveedor o modelo, la columna `embedding` debe tener las **mismas dimensiones** que el modelo. Tras cambiar: vaciar/regenerar vectores (`embedding IS NULL` y reiniciar el backend).
+`knowledge_chunk` tiene **dos columnas** de vectores (el arranque las crea si faltan):
 
-| Modelo típico | Dimensiones |
-|---------------|-------------|
-| DJL MiniLM (default) | 384 |
-| Ollama `nomic-embed-text` | 768 |
-| OpenAI `text-embedding-3-small` | 1536 |
+| Columna | Uso |
+|---------|-----|
+| `embedding_384` | DJL local (`BOT_EMBEDDING_PROVIDER=djl`) |
+| `embedding_1536` | API / OpenRouter (`BOT_EMBEDDING_PROVIDER=api`, modelo 1536-d) |
+
+Solo se lee/escribe la columna del proveedor activo. Podés usar **la misma Neon** en Render (API) y Postgres local (DJL) sin `ALTER` que rompa el otro entorno.
+
+Opcional en Render: `BOT_EMBEDDING_API_DIMENSIONS=1536` (default).
+
+Si cambiás de modelo API a otra dimensión no soportada (384 o 1536), hay que extender el código; hoy solo esas dos.
 
 ---
 
 ## Base de datos (PostgreSQL + pgvector)
 
 - Imagen con pgvector (ej. `pgvector/pgvector:pg16`).
-- Hibernate crea `knowledge_chunk.embedding` como `vector(384)` por defecto (DJL MiniLM).
-
-Si la base ya existía sin pgvector:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-ALTER TABLE knowledge_chunk ADD COLUMN IF NOT EXISTS embedding vector(384);
-```
+- Flyway agenda V1 crea la extensión `vector`.
+- Hibernate (`ddl-auto=update`) crea `knowledge_chunk` con `embedding_384` y `embedding_1536` según `KnowledgeChunkEntity` (BD nueva o tras borrar tablas).
 
 ## Arranque
 
-1. **RagSourceSync** crea/actualiza chunks sintéticos (`embedding = NULL`).
-2. **KnowledgeChunkEmbeddingSync** rellena vectores si hay `EmbeddingModel`.
+1. **AgendaRagSourceSync** crea/actualiza chunks (vectores vía JDBC en la columna del proveedor activo).
+2. **KnowledgeChunkEmbeddingSync** rellena la columna que corresponda (`embedding_384` o `embedding_1536`).
 
 Sin modelo configurado, el RAG semántico no devuelve chunks (no hay fallback por palabras clave en producción).
 
 ## Si ves "RAG Búsqueda semántica: 0 chunks"
 
-1. Chunks con `embedding IS NULL` → revisar logs `[RAG-EMBED]` / `[EMBED-API]`.
+1. Chunks sin vector en la columna activa → revisar logs `[RAG-EMBED]` / `[EMBED-API]`.
 2. Sin chunks para el `tenant_id`.
 3. Dimensiones del vector ≠ modelo actual.

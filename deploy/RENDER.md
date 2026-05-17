@@ -19,18 +19,11 @@ Render da HTTPS; no hace falta Caddy ni `docker-compose.prod.yml`.
 
 Al **primer deploy**, el backend crea tablas del bot y agenda con **Hibernate** y aplica **Flyway** (V1–V4). No hace falta ejecutar `schema.sql` manual.
 
-### Dimensiones de embeddings (importante)
+### Embeddings (dos columnas en BD)
 
-Por defecto la entidad JPA usa **`vector(384)`** (DJL MiniLM local).
+El backend usa **`embedding_384`** (DJL, local) y **`embedding_1536`** (API/OpenRouter en Render). Al arrancar crea las columnas si faltan; **no hace falta** `ALTER` manual en Neon.
 
-`openai/text-embedding-3-small` en OpenRouter devuelve **1536** dimensiones. Antes del primer embed en prod, en Neon:
-
-```sql
-ALTER TABLE knowledge_chunk ALTER COLUMN embedding TYPE vector(1536);
-UPDATE knowledge_chunk SET embedding = NULL;
-```
-
-Si preferís seguir con **384** dims, elegí en OpenRouter un modelo que devuelva 384 y ajustá `BOT_EMBEDDING_API_MODEL` (debe coincidir con la columna).
+Render: `BOT_EMBEDDING_PROVIDER=api` y `BOT_EMBEDDING_API_MODEL=openai/text-embedding-3-small` (1536 dims). Ver `backend/docs/EMBEDDING_SETUP.md`.
 
 ---
 

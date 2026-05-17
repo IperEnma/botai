@@ -69,6 +69,8 @@ bot:
   # api cubre OpenRouter, OpenAI y Ollama (/v1/embeddings) — solo cambia base-url y modelo.
   embedding:
     provider: ${BOT_EMBEDDING_PROVIDER:djl}
+    # Solo con provider=api. 1536 = OpenAI text-embedding-3-small; 384 si usás un modelo 384-d en prod.
+    api-dimensions: ${BOT_EMBEDDING_API_DIMENSIONS:1536}
     djl:
       model-url: ${BOT_EMBEDDING_DJL_MODEL_URL:djl://ai.djl.huggingface.pytorch/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
 
