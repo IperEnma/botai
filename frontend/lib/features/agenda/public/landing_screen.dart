@@ -90,55 +90,54 @@ class _Navbar extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: EdgeInsets.symmetric(horizontal: wide ? 24 : 12),
             child: Row(
               children: [
-                // Logo
-                GestureDetector(
-                  onTap: () => context.go('/'),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [_kPrimary, _kAccent],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                Flexible(
+                  child: GestureDetector(
+                    onTap: () => context.go('/'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [_kPrimary, _kAccent],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(9),
                           ),
-                          borderRadius: BorderRadius.circular(9),
+                          child: const Icon(Icons.calendar_month,
+                              color: Colors.white, size: 18),
                         ),
-                        child: const Icon(Icons.calendar_month,
-                            color: Colors.white, size: 18),
-                      ),
-                      const SizedBox(width: 10),
-                      Text('AgendaKonecta',
-                          style: _h(16, w: FontWeight.w800, c: _kText)),
-                    ],
+                        if (wide) ...[
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              'AgendaKonecta',
+                              style: _h(16, w: FontWeight.w800, c: _kText),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
 
                 const Spacer(),
 
-                // Nav links (desktop only)
                 if (wide) ...[
-                  _NavLink(
-                      label: 'Cómo funciona',
-                      onTap: () {}),
+                  _NavLink(label: 'Cómo funciona', onTap: () {}),
                   _NavLink(
                       label: 'Ver negocios',
                       onTap: () => context.go('/agenda/search')),
                   const SizedBox(width: 8),
                 ],
 
-                // CTAs (login visible también en móvil)
-                if (!wide)
-                  IconButton(
-                    tooltip: 'Iniciar sesión',
-                    onPressed: () => context.go('/login'),
-                    icon: const Icon(Icons.login, color: _kPrimary),
-                  ),
                 if (wide)
                   OutlinedButton(
                     onPressed: () => context.go('/login'),
@@ -154,20 +153,32 @@ class _Navbar extends StatelessWidget {
                     child: Text('Iniciar sesión',
                         style: _b(13,
                             w: FontWeight.w600, c: _kPrimary)),
+                  )
+                else
+                  TextButton(
+                    onPressed: () => context.go('/login'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _kPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 38),
+                    ),
+                    child: Text('Entrar',
+                        style: _b(13,
+                            w: FontWeight.w600, c: _kPrimary)),
                   ),
-                if (wide) const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 FilledButton(
                   onPressed: () => context.go('/agenda/register'),
                   style: FilledButton.styleFrom(
                     backgroundColor: _kPrimary,
                     padding: EdgeInsets.symmetric(
-                        horizontal: wide ? 16 : 12, vertical: 0),
+                        horizontal: wide ? 16 : 10, vertical: 0),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                     minimumSize: const Size(0, 38),
                   ),
                   child: Text(
-                      wide ? 'Registrá tu negocio' : 'Registrarse',
+                      wide ? 'Registrá tu negocio' : 'Registro',
                       style: _b(13,
                           w: FontWeight.w600, c: Colors.white)),
                 ),

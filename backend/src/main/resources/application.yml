@@ -69,13 +69,13 @@ bot:
   # api cubre OpenRouter, OpenAI y Ollama (/v1/embeddings) — solo cambia base-url y modelo.
   embedding:
     provider: ${BOT_EMBEDDING_PROVIDER:djl}
-    # Solo con provider=api. 1536 = OpenAI text-embedding-3-small; 384 si usás un modelo 384-d en prod.
-    api-dimensions: ${BOT_EMBEDDING_API_DIMENSIONS:1536}
+    # Solo con provider=api. 384 = Nemotron free (Matryoshka); 1536 = text-embedding-3-small.
+    api-dimensions: ${BOT_EMBEDDING_API_DIMENSIONS:384}
     djl:
       model-url: ${BOT_EMBEDDING_DJL_MODEL_URL:djl://ai.djl.huggingface.pytorch/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
 
-  # Chat LLM: ollama (local, default con DJL) | api (OpenRouter/OpenAI sin Ollama en Render).
-  # En Render $0: BOT_EMBEDDING_PROVIDER=djl + BOT_CHAT_PROVIDER=api + BOT_CHAT_API_MODEL=openrouter/free
+  # Chat LLM: ollama (local, default con DJL) | api (OpenRouter sin Ollama en Render).
+  # Render $0: BOT_EMBEDDING_PROVIDER=api + modelos free (ver .env.render.example).
   chat:
     provider: ${BOT_CHAT_PROVIDER:ollama}
 
@@ -210,8 +210,8 @@ management:
       show-details: when-authorized
 
 # =============================================================================
-# Embeddings por API (OpenRouter, OpenAI, Ollama /v1, …) — de pago en OpenRouter salvo Ollama local
-# Activa con bot.embedding.provider=api
+# Embeddings por API (OpenRouter, OpenAI, Ollama /v1, …)
+# Render $0: BOT_EMBEDDING_API_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2:free + BOT_EMBEDDING_API_DIMENSIONS=384
 # =============================================================================
 ---
 spring.config.activate.on-property:
@@ -227,14 +227,14 @@ spring:
       base-url: ${BOT_API_BASE_URL:${BOT_EMBEDDING_API_BASE_URL:https://openrouter.ai/api}}
       embedding:
         options:
-          model: ${BOT_EMBEDDING_API_MODEL:openai/text-embedding-3-small}
+          model: ${BOT_EMBEDDING_API_MODEL:nvidia/llama-nemotron-embed-vl-1b-v2:free}
+          dimensions: ${BOT_EMBEDDING_API_DIMENSIONS:384}
       chat:
         options:
           model: ${BOT_CHAT_API_MODEL:openrouter/free}
 
 # =============================================================================
-# Chat por API sin embeddings de pago (Render $0: DJL + OpenRouter free)
-# Activa con bot.chat.provider=api (p. ej. BOT_CHAT_PROVIDER=api y BOT_EMBEDDING_PROVIDER=djl)
+# Chat por API sin Ollama (local con DJL: BOT_CHAT_PROVIDER=api)
 # =============================================================================
 ---
 spring.config.activate.on-property:

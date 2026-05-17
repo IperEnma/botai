@@ -23,13 +23,16 @@ import '../features/agenda/me/wallet_screen.dart';
 import '../features/agenda/me/my_bookings_screen.dart';
 import '../features/agenda/me/create_booking_screen.dart';
 import '../features/agenda/me/my_notifications_screen.dart';
+import 'router_refresh.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final refresh = ref.watch(routerRefreshListenableProvider);
 
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: refresh,
     redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.isAuthenticated;
       final loc = state.matchedLocation;
       final isLoggingIn = loc == '/login';
