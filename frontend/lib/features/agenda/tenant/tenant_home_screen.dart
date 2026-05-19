@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
 import '../../../models/agenda/booking.dart';
 import '../../../models/agenda/business.dart';
-import '../../../providers/auth_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../providers/agenda/tenant/agenda_bookings_provider.dart';
@@ -14,6 +13,7 @@ import '../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../register/konecta_tokens.dart';
+import 'widgets/agenda_left_nav.dart';
 import 'widgets/business_form_dialog.dart';
 import 'widgets/category_multi_select_dialog.dart';
 import 'widgets/agenda_section.dart';
@@ -28,7 +28,6 @@ const _palette = [
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const _kBreakpoint = 1024.0;
-const _kNavWidth   = 200.0;
 const _kPanelWidth = 280.0;
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -194,7 +193,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
         body: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _LeftNav(
+            AgendaLeftNav(
               nombre:       nombre,
               businessName: first?.nombre,
               tenantId:     widget.tenantId,
@@ -244,265 +243,6 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
               _dashboardBusinessId == b.id ? null : b.id,
         ),
         onBack: onBack,
-      ),
-    );
-  }
-}
-
-// ── Left Nav ──────────────────────────────────────────────────────────────────
-
-class _LeftNav extends ConsumerWidget {
-  const _LeftNav({this.nombre, this.businessName, this.tenantId, this.businessId});
-
-  final String? nombre;
-  final String? businessName;
-  final String? tenantId;
-  final String? businessId;
-
-  void _goConfig(BuildContext context) {
-    if (tenantId == null || businessId == null) return;
-    context.push('/agenda/businesses/$businessId/config');
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final topPad = MediaQuery.of(context).padding.top;
-    final initials = (nombre?.isNotEmpty == true)
-        ? nombre![0].toUpperCase()
-        : 'U';
-    final loc = GoRouterState.of(context).matchedLocation;
-    final section = GoRouterState.of(context).uri.queryParameters['section'] ?? '';
-    final selectedInicio =
-        loc.startsWith('/agenda/businesses/') && !loc.contains('/config') && section.isEmpty;
-    final selectedBots = loc.startsWith('/home/bots');
-    final selectedAgenda =
-        loc.startsWith('/agenda/businesses/') && section == 'agenda';
-
-    return Container(
-      width: _kNavWidth,
-      decoration: BoxDecoration(
-        color: KTokens.surface,
-        border: Border(right: BorderSide(color: KTokens.border)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: topPad + 24),
-          // Logo
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'konecta',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontStyle: FontStyle.italic,
-                color: KTokens.accent,
-              ),
-            ),
-          ),
-          const SizedBox(height: 28),
-          // Nav items
-          _NavItem(
-            icon: Icons.home_outlined,
-            label: 'Inicio',
-            selected: selectedInicio,
-            onTap: () {
-              if (businessId != null) {
-                context.go('/agenda/businesses/$businessId');
-              }
-            },
-          ),
-          _NavItem(
-            icon: Icons.smart_toy_outlined,
-            label: 'Mis bots',
-            selected: selectedBots,
-            onTap: () => context.go('/home/bots'),
-          ),
-          _NavItem(
-            icon: Icons.calendar_today_outlined,
-            label: 'Agenda',
-            selected: selectedAgenda,
-            onTap: () {
-              if (businessId != null) {
-                context.go('/agenda/businesses/$businessId?section=agenda');
-              }
-            },
-          ),
-          _NavItem(icon: Icons.people_outline, label: 'Clientes'),
-          _NavItem(
-            icon: Icons.schedule_outlined,
-            label: 'Horarios',
-            onTap: businessId != null
-                ? () => context.push(
-                    '/agenda/businesses/$businessId/section/hours')
-                : null,
-          ),
-          _NavItem(
-            icon: Icons.palette_outlined,
-            label: 'Estilos',
-            onTap: businessId != null
-                ? () => context.push(
-                    '/agenda/businesses/$businessId/section/styles')
-                : null,
-          ),
-          _NavItem(
-            icon: Icons.room_service_outlined,
-            label: 'Servicios',
-            onTap: businessId != null
-                ? () => context.push(
-                    '/agenda/businesses/$businessId/section/services')
-                : null,
-          ),
-          _NavItem(icon: Icons.card_membership_outlined, label: 'Planes'),
-          _NavItem(
-            icon: Icons.people_outline,
-            label: 'Equipo',
-            onTap: businessId != null
-                ? () => context.push(
-                    '/agenda/businesses/$businessId/section/staff')
-                : null,
-          ),
-          _NavItem(icon: Icons.loyalty_outlined, label: 'Fidelizaciones'),
-          _NavItem(
-            icon: Icons.settings_outlined,
-            label: 'Configuración',
-            onTap: () => _goConfig(context),
-          ),
-          const Spacer(),
-          // User profile
-          Container(
-            margin: const EdgeInsets.fromLTRB(10, 0, 10, 20),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            decoration: BoxDecoration(
-              color: KTokens.bg,
-              borderRadius: BorderRadius.circular(KTokens.rMd),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: KTokens.accentSoft,
-                  ),
-                  child: Center(
-                    child: Text(
-                      initials,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: KTokens.accent,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        nombre?.isNotEmpty == true ? nombre! : 'Usuario',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: KTokens.ink,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (businessName != null) ...[
-                        const SizedBox(height: 1),
-                        Text(
-                          businessName!,
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: KTokens.inkSoft,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-            child: TextButton.icon(
-              onPressed: () {
-                ref.read(authStateProvider.notifier).signOut();
-                context.go('/');
-              },
-              icon: const Icon(Icons.logout, size: 18),
-              label: const Text('Salir'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    this.selected = false,
-    this.onTap,
-  });
-
-  final IconData      icon;
-  final String        label;
-  final bool          selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(KTokens.rMd);
-    return MouseRegion(
-      cursor: onTap == null
-          ? SystemMouseCursors.basic
-          : SystemMouseCursors.click,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(8, 1, 8, 1),
-        decoration: BoxDecoration(
-          borderRadius: borderRadius,
-        ),
-        child: Material(
-          color: selected ? KTokens.accentSoft : Colors.transparent,
-          borderRadius: borderRadius,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: borderRadius,
-            hoverColor: KTokens.accentSoft.withValues(alpha: 0.55),
-            splashColor: KTokens.accentSoft,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-              child: Row(
-                children: [
-                  Icon(
-                    icon,
-                    size: 17,
-                    color: selected ? KTokens.accent : KTokens.inkSoft,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      color: selected ? KTokens.accent : KTokens.inkMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
