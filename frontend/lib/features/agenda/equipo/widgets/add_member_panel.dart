@@ -79,16 +79,21 @@ class _AddMemberPanelState extends ConsumerState<_AddMemberPanel> {
 
     setState(() => _isCreating = true);
 
-    final result = await ref
-        .read(businessStaffProvider((
-          tenantId: widget.equipoKey.tenantId,
-          businessId: widget.equipoKey.businessId,
-        )).notifier)
-        .addMember(name, rol, null);
+    final staffKey = (
+      tenantId: widget.equipoKey.tenantId,
+      businessId: widget.equipoKey.businessId,
+    );
+    final notifier = ref.read(businessStaffProvider(staffKey).notifier);
+
+    final phone = _phoneCtrl.text.trim();
+    final result = await notifier.addMember(name, rol, null, telefono: phone.isEmpty ? null : phone);
 
     if (!mounted) return;
 
     if (result != null) {
+      if (_selectedServices.isNotEmpty) {
+        await notifier.updateMemberServices(result.id, _selectedServices.toList());
+      }
       Navigator.of(context).pop();
     } else {
       setState(() => _isCreating = false);

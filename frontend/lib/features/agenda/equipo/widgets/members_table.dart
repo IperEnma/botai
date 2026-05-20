@@ -1,26 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../../providers/agenda/tenant/services_provider.dart';
 import '../../register/konecta_tokens.dart';
 import '../models/member.dart';
 import '../providers/equipo_provider.dart';
 import 'member_row.dart';
 
-class MembersTable extends StatelessWidget {
+class MembersTable extends ConsumerWidget {
   const MembersTable({
     super.key,
     required this.state,
+    required this.tenantId,
+    required this.businessId,
     required this.onMemberTap,
     required this.onStatusChange,
   });
 
   final EquipoState state;
+  final String tenantId;
+  final String businessId;
   final void Function(Member) onMemberTap;
   final void Function(String memberId, MemberStatus status) onStatusChange;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final members = state.filtered;
+    final servicesState = ref.watch(
+      servicesProvider((tenantId: tenantId, businessId: businessId)),
+    );
+    final services = servicesState.items;
 
     return Container(
       decoration: BoxDecoration(
@@ -43,6 +53,7 @@ class MembersTable extends StatelessWidget {
                 children: [
                   MemberRow(
                     member: m,
+                    services: services,
                     onTap: () => onMemberTap(m),
                     onStatusChange: (status) => onStatusChange(m.id, status),
                   ),
@@ -69,26 +80,11 @@ class _TableHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          SizedBox(
-            width: 220,
-            child: _HeaderLabel('MIEMBRO'),
-          ),
-          Expanded(
-            flex: 3,
-            child: _HeaderLabel('SERVICIOS'),
-          ),
-          SizedBox(
-            width: 160,
-            child: _HeaderLabel('HORARIO'),
-          ),
-          SizedBox(
-            width: 110,
-            child: _HeaderLabel('ESTADO'),
-          ),
-          SizedBox(
-            width: 80,
-            child: _HeaderLabel('TURNOS'),
-          ),
+          Expanded(flex: 2, child: _HeaderLabel('MIEMBRO')),
+          Expanded(flex: 3, child: _HeaderLabel('SERVICIOS')),
+          Expanded(flex: 2, child: _HeaderLabel('HORARIO')),
+          Expanded(flex: 2, child: _HeaderLabel('ESTADO')),
+          Expanded(flex: 1, child: _HeaderLabel('TURNOS')),
           const SizedBox(width: 40),
         ],
       ),

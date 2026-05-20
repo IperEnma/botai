@@ -94,4 +94,14 @@ class KTokens {
   static const excModifiedBg = Color(0x26FB923C);
   static const excOpen       = Color(0xFF0A8C5B);
   static const excOpenBg     = Color(0x2634D399);
+
+  // ── Trend ────────────────────────────────────────────────────────────────────
+  static const trendUp      = Color(0xFF0A8C5B);
+  static const trendDown    = Color(0xFFB23A3A);
+  static const trendNeutral = Color(0xFFBDBAB2);
+
+  // ── Warning ──────────────────────────────────────────────────────────────────
+  static const warn       = Color(0xFFA3501A);
+  static const warnBg     = Color(0x14FB923C);
+  static const warnBorder = Color(0x40FB923C);
 }

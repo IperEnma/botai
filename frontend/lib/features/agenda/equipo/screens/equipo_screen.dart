@@ -83,6 +83,8 @@ class EquipoScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             MembersTable(
               state: state,
+              tenantId: tenantId,
+              businessId: businessId,
               onMemberTap: (member) =>
                   _openDetail(context, member, notifier, key),
               onStatusChange: (id, status) => notifier.setStatus(id, status),

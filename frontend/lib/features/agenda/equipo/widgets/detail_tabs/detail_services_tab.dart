@@ -104,8 +104,7 @@ class _DetailServicesTabState extends ConsumerState<DetailServicesTab> {
             )
           else
             _ServicesCard(
-              services:
-                  servicesState.items.where((s) => s.activo).toList(),
+              services: servicesState.items.where((s) => s.activo).toList(),
               selectedIds: _selectedIds,
               onToggle: _toggle,
             ),

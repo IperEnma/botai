@@ -21,10 +21,13 @@ class EquipoToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _SearchPill(onSearch: onSearch)),
-        const SizedBox(width: 12),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: _SearchPill(onSearch: onSearch),
+        ),
+        const SizedBox(width: 20),
         _FilterTabs(state: state, onFilter: onFilter),
-        const SizedBox(width: 24),
+        const Spacer(),
         _CounterLabel(state: state),
       ],
     );
@@ -39,16 +42,15 @@ class _SearchPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
-      constraints: const BoxConstraints(minWidth: 260),
+      height: 38,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: KTokens.surface,
         borderRadius: BorderRadius.circular(KTokens.rSm),
         border: Border.all(color: KTokens.border),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
+          const SizedBox(width: 12),
           const Icon(Icons.search_rounded, size: 16, color: KTokens.inkSoft),
           const SizedBox(width: 8),
           Expanded(
@@ -57,22 +59,19 @@ class _SearchPill extends StatelessWidget {
               style: GoogleFonts.inter(fontSize: 13, color: KTokens.ink),
               decoration: InputDecoration(
                 hintText: 'Buscar por nombre o servicio...',
-                hintStyle:
-                    GoogleFonts.inter(fontSize: 13, color: KTokens.inkPlaceholder),
+                hintStyle: GoogleFonts.inter(
+                    fontSize: 13, color: KTokens.inkPlaceholder),
                 isDense: true,
+                filled: true,
+                fillColor: Colors.transparent,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            '⌘ K',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 11,
-              color: KTokens.inkPlaceholder,
-            ),
-          ),
+          const SizedBox(width: 12),
         ],
       ),
     );
@@ -99,7 +98,7 @@ class _FilterTabs extends StatelessWidget {
         color: const Color(0xFFF2F0EC),
         borderRadius: BorderRadius.circular(8),
       ),
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(3),
       child: Row(
         children: tabs.map((tab) {
           final (status, label, count) = tab;
@@ -155,26 +154,16 @@ class _FilterTab extends StatelessWidget {
               label,
               style: GoogleFonts.inter(
                 fontSize: 13,
-                fontWeight:
-                    isActive ? FontWeight.w500 : FontWeight.w400,
+                fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
                 color: isActive ? KTokens.ink : KTokens.inkMuted,
               ),
             ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? const Color(0xFFF2F0EC)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(KTokens.rPill),
-              ),
-              child: Text(
-                '$count',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  color: isActive ? KTokens.ink : KTokens.inkMuted,
-                ),
+            const SizedBox(width: 5),
+            Text(
+              '$count',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 11,
+                color: isActive ? KTokens.ink : KTokens.inkMuted,
               ),
             ),
           ],

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../../models/agenda/agenda_service.dart';
 import '../../register/konecta_tokens.dart';
-import '../data/equipo_mock_data.dart';
 import '../models/member.dart';
 import 'member_status_badge.dart';
 
@@ -10,11 +10,13 @@ class MemberRow extends StatefulWidget {
   const MemberRow({
     super.key,
     required this.member,
+    required this.services,
     required this.onTap,
     required this.onStatusChange,
   });
 
   final Member member;
+  final List<AgendaService> services;
   final VoidCallback onTap;
   final void Function(MemberStatus) onStatusChange;
 
@@ -108,9 +110,9 @@ class _MemberRowState extends State<MemberRow> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                // Avatar
-                SizedBox(
-                  width: 220,
+                // MIEMBRO — flex 2
+                Expanded(
+                  flex: 2,
                   child: Row(
                     children: [
                       _Avatar(member: member),
@@ -143,30 +145,33 @@ class _MemberRowState extends State<MemberRow> {
                   ),
                 ),
 
-                // Services
+                // SERVICIOS — flex 3
                 Expanded(
                   flex: 3,
-                  child: _ServiceChips(member: member),
+                  child: _ServiceChips(member: member, services: widget.services),
                 ),
 
-                // Schedule
-                SizedBox(
-                  width: 160,
+                // HORARIO — flex 2
+                Expanded(
+                  flex: 2,
                   child: _ScheduleCell(
                     member: member,
                     scheduleLabel: _buildScheduleLabel(),
                   ),
                 ),
 
-                // Status
-                SizedBox(
-                  width: 110,
-                  child: MemberStatusBadge(status: member.status),
+                // ESTADO — flex 2
+                Expanded(
+                  flex: 2,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: MemberStatusBadge(status: member.status),
+                  ),
                 ),
 
-                // Turnos
-                SizedBox(
-                  width: 80,
+                // TURNOS — flex 1
+                Expanded(
+                  flex: 1,
                   child: Text(
                     member.turnosHoy == 0 ? '—' : '${member.turnosHoy} hoy',
                     style: GoogleFonts.jetBrainsMono(
@@ -178,11 +183,14 @@ class _MemberRowState extends State<MemberRow> {
                   ),
                 ),
 
-                // Menu
-                _MoreMenu(
-                  member: member,
-                  onStatusChange: widget.onStatusChange,
-                  onEdit: widget.onTap,
+                // Menu — ancho fijo para coincidir con SizedBox(40) del header
+                SizedBox(
+                  width: 40,
+                  child: _MoreMenu(
+                    member: member,
+                    onStatusChange: widget.onStatusChange,
+                    onEdit: widget.onTap,
+                  ),
                 ),
               ],
             ),
@@ -226,9 +234,10 @@ class _Avatar extends StatelessWidget {
 // ─── Service chips ────────────────────────────────────────────────────────────
 
 class _ServiceChips extends StatelessWidget {
-  const _ServiceChips({required this.member});
+  const _ServiceChips({required this.member, required this.services});
 
   final Member member;
+  final List<AgendaService> services;
 
   @override
   Widget build(BuildContext context) {
@@ -243,18 +252,19 @@ class _ServiceChips extends StatelessWidget {
       );
     }
 
+    final serviceMap = {for (final s in services) s.id: s};
     const maxVisible = 3;
-    final visible = member.serviceIds.take(maxVisible).toList();
+    final visibleIds = member.serviceIds.take(maxVisible).toList();
     final overflow = member.serviceIds.length - maxVisible;
 
     return Wrap(
       spacing: 4,
       runSpacing: 4,
       children: [
-        ...visible.map((sid) {
-          final info = kMockServices[sid];
-          if (info == null) return const SizedBox.shrink();
-          return _ServiceChip(label: info.name);
+        ...visibleIds.map((sid) {
+          final svc = serviceMap[sid];
+          if (svc == null) return const SizedBox.shrink();
+          return _ServiceChip(label: svc.nombre);
         }),
         if (overflow > 0) _ServiceChip(label: '+$overflow', isOverflow: true),
       ],

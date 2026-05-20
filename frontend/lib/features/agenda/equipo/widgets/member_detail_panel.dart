@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../register/konecta_tokens.dart';
 import '../models/member.dart';
 import '../providers/equipo_provider.dart';
@@ -134,6 +135,7 @@ class _MemberDetailPanelState extends ConsumerState<_MemberDetailPanel>
                 _PanelFooter(
                   member: _member,
                   notifier: widget.notifier,
+                  equipoKey: widget.equipoKey,
                   onClose: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -349,19 +351,54 @@ class _TabBar extends StatelessWidget {
 
 // ─── Panel footer ─────────────────────────────────────────────────────────────
 
-class _PanelFooter extends StatelessWidget {
+class _PanelFooter extends ConsumerWidget {
   const _PanelFooter({
     required this.member,
     required this.notifier,
+    required this.equipoKey,
     required this.onClose,
   });
 
   final Member member;
   final EquipoNotifier notifier;
+  final EquipoKey equipoKey;
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final staffKey = (tenantId: equipoKey.tenantId, businessId: equipoKey.businessId);
+    final isSaving = ref.watch(businessStaffProvider(staffKey)).isSaving;
+
+    Future<void> save() async {
+      final staffNotifier = ref.read(businessStaffProvider(staffKey).notifier);
+      final statusStr = switch (member.status) {
+        MemberStatus.activo => 'ACTIVO',
+        MemberStatus.pausado => 'PAUSADO',
+        MemberStatus.archivado => 'ARCHIVADO',
+      };
+
+      // Guardar perfil + status + schedule
+      final colorHex =
+          '#${(member.color.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+      await staffNotifier.updateMember(
+        member.id,
+        member.name,
+        member.title,
+        member.avatarUrl,
+        member.phone,
+        member.email,
+        member.bio,
+        colorHex,
+        statusStr,
+        member.customSchedule?.toJson(),
+      );
+
+      // Guardar servicios
+      final ok = await staffNotifier.updateMemberServices(
+          member.id, member.serviceIds);
+      if (ok && context.mounted) onClose();
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: const BoxDecoration(
@@ -420,7 +457,7 @@ class _PanelFooter extends StatelessWidget {
             ),
           const SizedBox(width: 8),
           ElevatedButton(
-            onPressed: () => onClose(),
+            onPressed: isSaving ? null : save,
             style: ElevatedButton.styleFrom(
               backgroundColor: KTokens.ink,
               foregroundColor: Colors.white,
@@ -433,7 +470,14 @@ class _PanelFooter extends StatelessWidget {
               textStyle: GoogleFonts.inter(
                   fontSize: 13, fontWeight: FontWeight.w500),
             ),
-            child: const Text('Guardar cambios'),
+            child: isSaving
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Guardar cambios'),
           ),
         ],
       ),

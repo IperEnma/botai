@@ -1209,6 +1209,7 @@ class AgendaApiService {
     required String nombre,
     String? rol,
     String? avatarUrl,
+    String? telefono,
   }) async {
     final r = await _send(() => _client.post(
           _uri('/me/businesses/$businessId/staff'),
@@ -1217,6 +1218,7 @@ class AgendaApiService {
             'nombre': nombre,
             if (rol != null && rol.isNotEmpty) 'rol': rol,
             if (avatarUrl != null && avatarUrl.isNotEmpty) 'avatarUrl': avatarUrl,
+            if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
           }),
         ));
     return _decode(r, (body) => StaffMember.fromJson(body as Map<String, dynamic>));
@@ -1229,7 +1231,12 @@ class AgendaApiService {
     required String nombre,
     String? rol,
     String? avatarUrl,
-    required bool activo,
+    String? telefono,
+    String? email,
+    String? bio,
+    String? color,
+    required String status,
+    Map<String, dynamic>? customSchedule,
   }) async {
     final r = await _send(() => _client.put(
           _uri('/me/businesses/$businessId/staff/$staffId'),
@@ -1238,8 +1245,27 @@ class AgendaApiService {
             'nombre': nombre,
             if (rol != null && rol.isNotEmpty) 'rol': rol,
             if (avatarUrl != null && avatarUrl.isNotEmpty) 'avatarUrl': avatarUrl,
-            'activo': activo,
+            if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
+            if (email != null && email.isNotEmpty) 'email': email,
+            if (bio != null && bio.isNotEmpty) 'bio': bio,
+            if (color != null && color.isNotEmpty) 'color': color,
+            'status': status,
+            if (customSchedule != null) 'customSchedule': customSchedule,
           }),
+        ));
+    return _decode(r, (body) => StaffMember.fromJson(body as Map<String, dynamic>));
+  }
+
+  /// `PUT /me/businesses/{businessId}/staff/{staffId}/services`
+  Future<StaffMember> updateStaffServices({
+    required String businessId,
+    required String staffId,
+    required List<String> serviceIds,
+  }) async {
+    final r = await _send(() => _client.put(
+          _uri('/me/businesses/$businessId/staff/$staffId/services'),
+          headers: _headers(),
+          body: jsonEncode({'serviceIds': serviceIds}),
         ));
     return _decode(r, (body) => StaffMember.fromJson(body as Map<String, dynamic>));
   }

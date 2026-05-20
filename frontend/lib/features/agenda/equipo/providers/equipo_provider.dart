@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show Color;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../models/agenda/staff_member.dart';
@@ -96,12 +97,24 @@ Member _toMember(StaffMember sm, int index) {
     id: sm.id,
     name: sm.nombre,
     type: type,
-    status: sm.activo ? MemberStatus.activo : MemberStatus.archivado,
+    status: switch (sm.status) {
+      'PAUSADO' => MemberStatus.pausado,
+      'ARCHIVADO' => MemberStatus.archivado,
+      _ => MemberStatus.activo,
+    },
     role: role,
-    color: KTokens.proPalette[index % KTokens.proPalette.length],
+    color: sm.color != null
+        ? Color(0xFF000000 | int.parse(sm.color!.replaceFirst('#', ''), radix: 16))
+        : KTokens.proPalette[index % KTokens.proPalette.length],
     avatarUrl: sm.avatarUrl,
+    phone: sm.telefono,
+    email: sm.email,
+    bio: sm.bio,
     title: sm.rol,
-    serviceIds: const [],
+    serviceIds: sm.serviceIds,
+    customSchedule: sm.customSchedule != null
+        ? WeekSchedule.fromJson(sm.customSchedule!)
+        : null,
     joinedAt: DateTime.now(),
     turnosCompletados: 0,
     avgRating: 0,
@@ -166,6 +179,29 @@ class EquipoNotifier extends StateNotifier<EquipoState> {
     final list = List<Member>.from(state.members);
     list[idx] = list[idx].copyWith(status: status);
     state = state.copyWith(members: list);
+    _persistStatus(memberId, list[idx]);
+  }
+
+  void _persistStatus(String memberId, Member member) {
+    final statusStr = switch (member.status) {
+      MemberStatus.activo => 'ACTIVO',
+      MemberStatus.pausado => 'PAUSADO',
+      MemberStatus.archivado => 'ARCHIVADO',
+    };
+    _ref.read(businessStaffProvider(
+      (tenantId: _key.tenantId, businessId: _key.businessId),
+    ).notifier).updateMember(
+      memberId,
+      member.name,
+      member.title,
+      member.avatarUrl,
+      member.phone,
+      member.email,
+      member.bio,
+      _colorToHex(member.color),
+      statusStr,
+      member.customSchedule?.toJson(),
+    );
   }
 
   void updateServiceIds(String memberId, List<String> serviceIds) {
@@ -180,6 +216,11 @@ class EquipoNotifier extends StateNotifier<EquipoState> {
     state = state.copyWith(members: [...state.members, member]);
   }
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+String _colorToHex(Color c) =>
+    '#${(c.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 

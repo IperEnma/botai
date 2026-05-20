@@ -6,7 +6,7 @@ import '../../../register/konecta_tokens.dart';
 import '../../models/member.dart';
 import '../../providers/equipo_provider.dart';
 
-class DetailProfileTab extends StatelessWidget {
+class DetailProfileTab extends StatefulWidget {
   const DetailProfileTab({
     super.key,
     required this.member,
@@ -17,8 +17,102 @@ class DetailProfileTab extends StatelessWidget {
   final EquipoNotifier notifier;
 
   @override
+  State<DetailProfileTab> createState() => _DetailProfileTabState();
+}
+
+class _DetailProfileTabState extends State<DetailProfileTab> {
+  late TextEditingController _phoneCtrl;
+  late TextEditingController _emailCtrl;
+  late TextEditingController _titleCtrl;
+  late TextEditingController _bioCtrl;
+
+  late FocusNode _phoneFocus;
+  late FocusNode _emailFocus;
+  late FocusNode _titleFocus;
+  late FocusNode _bioFocus;
+
+  String? _activeField; // 'phone' | 'email' | 'title' | 'bio'
+
+  @override
+  void initState() {
+    super.initState();
+    _initAll(widget.member);
+  }
+
+  void _initAll(Member m) {
+    _phoneCtrl = TextEditingController(text: m.phone ?? '');
+    _emailCtrl = TextEditingController(text: m.email ?? '');
+    _titleCtrl = TextEditingController(text: m.title ?? '');
+    _bioCtrl = TextEditingController(text: m.bio ?? '');
+
+    _phoneFocus = FocusNode();
+    _emailFocus = FocusNode();
+    _titleFocus = FocusNode();
+    _bioFocus = FocusNode();
+
+    // Attach blur listeners after all nodes are initialized
+    for (final pair in [
+      ('phone', _phoneFocus),
+      ('email', _emailFocus),
+      ('title', _titleFocus),
+      ('bio', _bioFocus),
+    ]) {
+      final key = pair.$1;
+      final node = pair.$2;
+      node.addListener(() {
+        if (!mounted) return;
+        if (!node.hasFocus && _activeField == key) {
+          setState(() => _activeField = null);
+        }
+      });
+    }
+  }
+
+  void _activate(String key, FocusNode node) {
+    setState(() => _activeField = key);
+    node.requestFocus();
+  }
+
+  @override
+  void didUpdateWidget(covariant DetailProfileTab old) {
+    super.didUpdateWidget(old);
+    if (old.member.id != widget.member.id) {
+      _disposeAll();
+      _initAll(widget.member);
+    }
+  }
+
+  void _disposeAll() {
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    _titleCtrl.dispose();
+    _bioCtrl.dispose();
+    _phoneFocus.dispose();
+    _emailFocus.dispose();
+    _titleFocus.dispose();
+    _bioFocus.dispose();
+  }
+
+  @override
+  void dispose() {
+    _disposeAll();
+    super.dispose();
+  }
+
+  void _propagate() {
+    widget.notifier.updateMember(widget.member.copyWith(
+      phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+      email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+      title: _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text.trim(),
+      bio: _bioCtrl.text.trim().isEmpty ? null : _bioCtrl.text.trim(),
+    ));
+  }
+
+  bool _dimmed(String key) => _activeField != null && _activeField != key;
+
+  @override
   Widget build(BuildContext context) {
-    final slug = member.name
+    final slug = widget.member.name
         .toLowerCase()
         .replaceAll(' ', '-')
         .replaceAll(RegExp(r'[^a-z0-9-]'), '');
@@ -31,19 +125,66 @@ class DetailProfileTab extends StatelessWidget {
           // DATOS BÁSICOS
           _SectionLabel('DATOS BÁSICOS'),
           const SizedBox(height: 10),
-          _FieldGrid(member: member),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 3.2,
+            children: [
+              // NOMBRE — always read-only, dims when others are active
+              _FieldBox(
+                label: 'NOMBRE',
+                value: widget.member.name,
+                isDimmed: _activeField != null,
+              ),
+              _EditableFieldBox(
+                label: 'WHATSAPP',
+                ctrl: _phoneCtrl,
+                focusNode: _phoneFocus,
+                isDimmed: _dimmed('phone'),
+                keyboard: TextInputType.phone,
+                onTap: () => _activate('phone', _phoneFocus),
+                onChanged: _propagate,
+              ),
+              _EditableFieldBox(
+                label: 'EMAIL',
+                ctrl: _emailCtrl,
+                focusNode: _emailFocus,
+                isDimmed: _dimmed('email'),
+                keyboard: TextInputType.emailAddress,
+                onTap: () => _activate('email', _emailFocus),
+                onChanged: _propagate,
+              ),
+              _EditableFieldBox(
+                label: 'TÍTULO PROFESIONAL',
+                ctrl: _titleCtrl,
+                focusNode: _titleFocus,
+                isDimmed: _dimmed('title'),
+                onTap: () => _activate('title', _titleFocus),
+                onChanged: _propagate,
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
 
           // BIO
           _SectionLabel('BIO PÚBLICA · opcional'),
           const SizedBox(height: 10),
-          _BioBox(bio: member.bio),
+          _EditableBioBox(
+            ctrl: _bioCtrl,
+            focusNode: _bioFocus,
+            isDimmed: _dimmed('bio'),
+            onTap: () => _activate('bio', _bioFocus),
+            onChanged: _propagate,
+          ),
           const SizedBox(height: 20),
 
           // COLOR
           _SectionLabel('COLOR IDENTIFICADOR'),
           const SizedBox(height: 10),
-          _ColorSection(member: member, notifier: notifier),
+          _ColorSection(member: widget.member, notifier: widget.notifier),
           const SizedBox(height: 20),
 
           // LINK
@@ -76,99 +217,192 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ─── Field grid ───────────────────────────────────────────────────────────────
-
-class _FieldGrid extends StatelessWidget {
-  const _FieldGrid({required this.member});
-  final Member member;
-
-  @override
-  Widget build(BuildContext context) {
-    final fields = [
-      ('NOMBRE', member.name),
-      ('WHATSAPP', member.phone ?? '—'),
-      ('EMAIL', member.email ?? '—'),
-      ('TÍTULO PROFESIONAL', member.title ?? '—'),
-    ];
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 3.2,
-      children: fields
-          .map((f) => _FieldBox(label: f.$1, value: f.$2))
-          .toList(),
-    );
-  }
-}
+// ─── Read-only field box (NOMBRE) ─────────────────────────────────────────────
 
 class _FieldBox extends StatelessWidget {
-  const _FieldBox({required this.label, required this.value});
+  const _FieldBox({
+    required this.label,
+    required this.value,
+    required this.isDimmed,
+  });
+
   final String label;
   final String value;
+  final bool isDimmed;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: KTokens.surface,
-        border: Border.all(color: KTokens.border),
-        borderRadius: BorderRadius.circular(KTokens.rSm),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              color: KTokens.inkSoft,
-              letterSpacing: 0.8,
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 150),
+      opacity: isDimmed ? 0.35 : 1.0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: KTokens.surface,
+          border: Border.all(color: KTokens.border),
+          borderRadius: BorderRadius.circular(KTokens.rSm),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10,
+                color: KTokens.inkSoft,
+                letterSpacing: 0.8,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: KTokens.ink,
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: KTokens.ink,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// ─── Bio box ──────────────────────────────────────────────────────────────────
+// ─── Editable field box ───────────────────────────────────────────────────────
 
-class _BioBox extends StatelessWidget {
-  const _BioBox({required this.bio});
-  final String? bio;
+class _EditableFieldBox extends StatelessWidget {
+  const _EditableFieldBox({
+    required this.label,
+    required this.ctrl,
+    required this.focusNode,
+    required this.isDimmed,
+    required this.onTap,
+    required this.onChanged,
+    this.keyboard,
+  });
+
+  final String label;
+  final TextEditingController ctrl;
+  final FocusNode focusNode;
+  final bool isDimmed;
+  final VoidCallback onTap;
+  final VoidCallback onChanged;
+  final TextInputType? keyboard;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: KTokens.surface,
-        border: Border.all(color: KTokens.border),
-        borderRadius: BorderRadius.circular(KTokens.rSm),
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 150),
+      opacity: isDimmed ? 0.35 : 1.0,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: KTokens.surface,
+            border: Border.all(color: KTokens.border),
+            borderRadius: BorderRadius.circular(KTokens.rSm),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 10,
+                  color: KTokens.inkSoft,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 2),
+              TextField(
+                controller: ctrl,
+                focusNode: focusNode,
+                onChanged: (_) => onChanged(),
+                keyboardType: keyboard,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: KTokens.ink,
+                ),
+                decoration: const InputDecoration(
+                  filled: false,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      child: Text(
-        bio ?? 'Sin bio aún.',
-        style: GoogleFonts.inter(
-          fontSize: 13,
-          color: KTokens.inkSoft,
-          height: 1.5,
+    );
+  }
+}
+
+// ─── Editable bio box ─────────────────────────────────────────────────────────
+
+class _EditableBioBox extends StatelessWidget {
+  const _EditableBioBox({
+    required this.ctrl,
+    required this.focusNode,
+    required this.isDimmed,
+    required this.onTap,
+    required this.onChanged,
+  });
+
+  final TextEditingController ctrl;
+  final FocusNode focusNode;
+  final bool isDimmed;
+  final VoidCallback onTap;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 150),
+      opacity: isDimmed ? 0.35 : 1.0,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: KTokens.surface,
+            border: Border.all(color: KTokens.border),
+            borderRadius: BorderRadius.circular(KTokens.rSm),
+          ),
+          child: TextField(
+            controller: ctrl,
+            focusNode: focusNode,
+            onChanged: (_) => onChanged(),
+            maxLines: 3,
+            minLines: 2,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: KTokens.inkSoft,
+              height: 1.5,
+            ),
+            decoration: InputDecoration(
+              filled: false,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              hintText: 'Sin bio aún.',
+              hintStyle: GoogleFonts.inter(
+                fontSize: 13,
+                color: KTokens.inkMuted,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -200,7 +434,6 @@ class _ColorSection extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Current swatch with ring
           Container(
             width: 26,
             height: 26,
@@ -238,9 +471,7 @@ class _ColorSection extends StatelessWidget {
             children: KTokens.proPalette.map((c) {
               final isSelected = c == member.color;
               return GestureDetector(
-                onTap: () {
-                  notifier.updateMember(member.copyWith(color: c));
-                },
+                onTap: () => notifier.updateMember(member.copyWith(color: c)),
                 child: Container(
                   width: 22,
                   height: 22,

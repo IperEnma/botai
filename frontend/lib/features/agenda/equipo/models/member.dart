@@ -12,6 +12,18 @@ class DaySchedule {
   final String? to;
 
   const DaySchedule({required this.open, this.from, this.to});
+
+  Map<String, dynamic> toJson() => {
+        'open': open,
+        if (from != null) 'from': from,
+        if (to != null) 'to': to,
+      };
+
+  factory DaySchedule.fromJson(Map<String, dynamic> json) => DaySchedule(
+        open: json['open'] as bool? ?? false,
+        from: json['from'] as String?,
+        to: json['to'] as String?,
+      );
 }
 
 class WeekSchedule {
@@ -32,6 +44,33 @@ class WeekSchedule {
     required this.sabado,
     required this.domingo,
   });
+
+  Map<String, dynamic> toJson() => {
+        'lunes': lunes.toJson(),
+        'martes': martes.toJson(),
+        'miercoles': miercoles.toJson(),
+        'jueves': jueves.toJson(),
+        'viernes': viernes.toJson(),
+        'sabado': sabado.toJson(),
+        'domingo': domingo.toJson(),
+      };
+
+  factory WeekSchedule.fromJson(Map<String, dynamic> json) => WeekSchedule(
+        lunes: DaySchedule.fromJson(
+            (json['lunes'] as Map<String, dynamic>?) ?? {}),
+        martes: DaySchedule.fromJson(
+            (json['martes'] as Map<String, dynamic>?) ?? {}),
+        miercoles: DaySchedule.fromJson(
+            (json['miercoles'] as Map<String, dynamic>?) ?? {}),
+        jueves: DaySchedule.fromJson(
+            (json['jueves'] as Map<String, dynamic>?) ?? {}),
+        viernes: DaySchedule.fromJson(
+            (json['viernes'] as Map<String, dynamic>?) ?? {}),
+        sabado: DaySchedule.fromJson(
+            (json['sabado'] as Map<String, dynamic>?) ?? {}),
+        domingo: DaySchedule.fromJson(
+            (json['domingo'] as Map<String, dynamic>?) ?? {}),
+      );
 }
 
 class Member {
