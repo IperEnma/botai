@@ -15,7 +15,14 @@ public final class StaffMemberDtoMapper {
                 s.getNombre(),
                 s.getRol(),
                 s.getAvatarUrl(),
+                s.getTelefono(),
+                s.getEmail(),
+                s.getBio(),
+                s.getColor(),
                 s.isActivo(),
+                s.getStatus(),
+                s.getCustomSchedule(),
+                s.getServiceIds(),
                 s.getCreatedAt(),
                 s.getUpdatedAt()
         );

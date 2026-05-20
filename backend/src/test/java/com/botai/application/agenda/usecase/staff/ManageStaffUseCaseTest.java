@@ -76,7 +76,7 @@ class ManageStaffUseCaseTest {
 
     @Test
     void create_guardaStaffMemberConCamposCorrectos() {
-        var req = new CreateStaffMemberRequest("Juan Perez", "Estilista", null);
+        var req = new CreateStaffMemberRequest("Juan Perez", "Estilista", null, null);
         StaffMember saved = staffMember(BUSINESS_ID);
         when(staffMemberRepository.save(any())).thenReturn(saved);
 
@@ -91,7 +91,7 @@ class ManageStaffUseCaseTest {
         when(businessRepository.findByIdAndTenantId(BUSINESS_ID, TENANT))
                 .thenReturn(Optional.empty());
 
-        var req = new CreateStaffMemberRequest("Juan", null, null);
+        var req = new CreateStaffMemberRequest("Juan", null, null, null);
         assertThrows(BusinessNotFoundException.class,
                 () -> useCase.create(TENANT, BUSINESS_ID, req));
     }
@@ -105,10 +105,10 @@ class ManageStaffUseCaseTest {
         when(staffMemberRepository.findById(staffId)).thenReturn(Optional.of(existing));
 
         StaffMember updatedSaved = new StaffMember(staffId, BUSINESS_ID,
-                "Nuevo Nombre", "Nuevo Rol", null, false, null, null, null);
+                "Nuevo Nombre", "Nuevo Rol", null, null, null, null, null, "ACTIVO", null, null, null, null, null);
         when(staffMemberRepository.save(any())).thenReturn(updatedSaved);
 
-        var req = new UpdateStaffMemberRequest("Nuevo Nombre", "Nuevo Rol", null, false);
+        var req = new UpdateStaffMemberRequest("Nuevo Nombre", "Nuevo Rol", null, null, null, null, null, "ACTIVO", null);
         StaffMember result = useCase.update(TENANT, BUSINESS_ID, staffId, req);
 
         assertEquals("Nuevo Nombre", result.getNombre());
@@ -120,7 +120,7 @@ class ManageStaffUseCaseTest {
         UUID staffId = UUID.randomUUID();
         when(staffMemberRepository.findById(staffId)).thenReturn(Optional.empty());
 
-        var req = new UpdateStaffMemberRequest("Nombre", null, null, true);
+        var req = new UpdateStaffMemberRequest("Nombre", null, null, null, null, null, null, "ACTIVO", null);
         assertThrows(StaffMemberNotFoundException.class,
                 () -> useCase.update(TENANT, BUSINESS_ID, staffId, req));
     }
@@ -132,7 +132,7 @@ class ManageStaffUseCaseTest {
         StaffMember staffDeOtro = staffMemberWithId(staffId, otroNegocio);
         when(staffMemberRepository.findById(staffId)).thenReturn(Optional.of(staffDeOtro));
 
-        var req = new UpdateStaffMemberRequest("Nombre", null, null, true);
+        var req = new UpdateStaffMemberRequest("Nombre", null, null, null, null, null, null, "ACTIVO", null);
         assertThrows(StaffMemberNotFoundException.class,
                 () -> useCase.update(TENANT, BUSINESS_ID, staffId, req));
     }
@@ -169,13 +169,13 @@ class ManageStaffUseCaseTest {
 
     private StaffMember staffMember(UUID businessId) {
         return new StaffMember(UUID.randomUUID(), businessId, "Staff Test",
-                "Rol", null, true, null,
-                LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1));
+                "Rol", null, null, null, null, null, "ACTIVO", null,
+                null, LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1), null);
     }
 
     private StaffMember staffMemberWithId(UUID id, UUID businessId) {
         return new StaffMember(id, businessId, "Staff Test",
-                "Rol", null, true, null,
-                LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1));
+                "Rol", null, null, null, null, null, "ACTIVO", null,
+                null, LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1), null);
     }
 }

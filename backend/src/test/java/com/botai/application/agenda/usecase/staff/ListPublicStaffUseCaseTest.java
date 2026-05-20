@@ -56,7 +56,7 @@ class ListPublicStaffUseCaseTest {
 
     private StaffMember staffMember(UUID businessId, boolean activo) {
         return new StaffMember(UUID.randomUUID(), businessId, "Staff Test",
-                "Estilista", null, activo, null,
-                LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1));
+                "Estilista", null, null, null, null, null, activo ? "ACTIVO" : "ARCHIVADO", null,
+                null, LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1), null);
     }
 }
