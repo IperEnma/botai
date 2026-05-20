@@ -32,16 +32,16 @@ class ServiciosScreen extends ConsumerWidget {
     final notifier = ref.read(serviciosProvider(_key).notifier);
 
     if (state.isLoading) {
-      return const Scaffold(
-        backgroundColor: KTokens.bg,
-        body: AgendaLoadingView(message: 'Cargando servicios…'),
+      return const ColoredBox(
+        color: KTokens.bg,
+        child: AgendaLoadingView(message: 'Cargando servicios…'),
       );
     }
 
     if (state.error != null) {
-      return Scaffold(
-        backgroundColor: KTokens.bg,
-        body: AgendaErrorView(
+      return ColoredBox(
+        color: KTokens.bg,
+        child: AgendaErrorView(
           message: state.error!,
           onRetry: () => notifier.reload(),
         ),

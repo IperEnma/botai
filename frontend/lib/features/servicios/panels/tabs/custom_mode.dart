@@ -64,6 +64,10 @@ class _CustomModeState extends State<CustomMode> {
   final _durCtrl = TextEditingController(text: '60');
   final _priceCtrl = TextEditingController(text: '0');
 
+  final _durFocus = FocusNode();
+  final _priceFocus = FocusNode();
+  final _descFocus = FocusNode();
+
   String? _selectedGroupId;
   bool _flexibleDuration = false;
   bool _priceFrom = false;
@@ -73,6 +77,10 @@ class _CustomModeState extends State<CustomMode> {
   @override
   void initState() {
     super.initState();
+    _durFocus.addListener(() => setState(() {}));
+    _priceFocus.addListener(() => setState(() {}));
+    _descFocus.addListener(() => setState(() {}));
+
     final initial = widget.initial;
     if (initial != null) {
       _nameCtrl.text = initial.name;
@@ -94,6 +102,9 @@ class _CustomModeState extends State<CustomMode> {
     _descCtrl.dispose();
     _durCtrl.dispose();
     _priceCtrl.dispose();
+    _durFocus.dispose();
+    _priceFocus.dispose();
+    _descFocus.dispose();
     super.dispose();
   }
 
@@ -116,7 +127,7 @@ class _CustomModeState extends State<CustomMode> {
     final ctrl = TextEditingController();
     showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: Text(
           'Nueva sub-categoría',
           style: GoogleFonts.inter(
@@ -134,16 +145,16 @@ class _CustomModeState extends State<CustomMode> {
             hintStyle: GoogleFonts.inter(
                 fontSize: 14, color: KTokens.inkPlaceholder),
           ),
-          onSubmitted: (v) => Navigator.pop(context, v),
+          onSubmitted: (v) => Navigator.pop(dialogCtx, v),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text('Cancelar',
                 style: GoogleFonts.inter(color: KTokens.inkMuted)),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, ctrl.text),
+            onPressed: () => Navigator.pop(dialogCtx, ctrl.text),
             style: ElevatedButton.styleFrom(
               backgroundColor: KTokens.accent,
               foregroundColor: Colors.white,
@@ -209,6 +220,7 @@ class _CustomModeState extends State<CustomMode> {
               color: KTokens.ink,
             ),
             decoration: InputDecoration(
+              filled: false,
               hintText: 'Ej: Limpieza facial profunda',
               hintStyle: GoogleFonts.inter(
                 fontSize: 20,
@@ -229,16 +241,18 @@ class _CustomModeState extends State<CustomMode> {
             ),
             onChanged: (_) => _notify(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // 2. Descripción
-          _EyebrowLabel('DESCRIPCIÓN · OPCIONAL'),
+          _EyebrowLabel('DESCRIPCIÓN · opcional'),
           const SizedBox(height: 6),
           _DescriptionField(
             controller: _descCtrl,
+            focusNode: _descFocus,
+            hasFocus: _descFocus.hasFocus,
             onChanged: (_) => _notify(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // 3. Sub-categoría
           _EyebrowLabel('SUB-CATEGORÍA'),
@@ -303,11 +317,9 @@ class _CustomModeState extends State<CustomMode> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // 4. Duración + Precio
-          _EyebrowLabel('DURACIÓN Y PRECIO'),
-          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -316,39 +328,73 @@ class _CustomModeState extends State<CustomMode> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        SizedBox(
-                          width: 64,
-                          child: TextField(
-                            controller: _durCtrl,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
+                    GestureDetector(
+                      onTap: () => _durFocus.requestFocus(),
+                      child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: _durFocus.hasFocus
+                              ? KTokens.ink
+                              : KTokens.border,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(KTokens.rSm),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'DURACIÓN',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              color: KTokens.inkSoft,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              SizedBox(
+                                width: 56,
+                                child: TextField(
+                                  controller: _durCtrl,
+                                  focusNode: _durFocus,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  style: GoogleFonts.inter(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: KTokens.ink,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    filled: false,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  onChanged: (_) => _notify(),
+                                ),
+                              ),
+                              Text(
+                                ' min',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: KTokens.inkSoft,
+                                ),
+                              ),
                             ],
-                            style: GoogleFonts.inter(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: KTokens.ink,
-                            ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            onChanged: (_) => _notify(),
                           ),
-                        ),
-                        Text(
-                          ' min',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: KTokens.inkSoft,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
                     ),
                     const SizedBox(height: 8),
                     _CheckRow(
@@ -362,47 +408,80 @@ class _CustomModeState extends State<CustomMode> {
                   ],
                 ),
               ),
-              const SizedBox(width: 24),
+              const SizedBox(width: 12),
 
               // Precio
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          'UY \$',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: KTokens.inkSoft,
-                          ),
+                    GestureDetector(
+                      onTap: () => _priceFocus.requestFocus(),
+                      child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: _priceFocus.hasFocus
+                              ? KTokens.ink
+                              : KTokens.border,
+                          width: 1.5,
                         ),
-                        const SizedBox(width: 4),
-                        SizedBox(
-                          width: 80,
-                          child: TextField(
-                            controller: _priceCtrl,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
+                        borderRadius: BorderRadius.circular(KTokens.rSm),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PRECIO',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              color: KTokens.inkSoft,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                'UY \$ ',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: KTokens.inkSoft,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 80,
+                                child: TextField(
+                                  controller: _priceCtrl,
+                                  focusNode: _priceFocus,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  style: GoogleFonts.inter(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: KTokens.ink,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    filled: false,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  onChanged: (_) => _notify(),
+                                ),
+                              ),
                             ],
-                            style: GoogleFonts.inter(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: KTokens.ink,
-                            ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            onChanged: (_) => _notify(),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
                     ),
                     const SizedBox(height: 8),
                     _CheckRow(
@@ -418,7 +497,7 @@ class _CustomModeState extends State<CustomMode> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // 5. Profesionales
           _EyebrowLabel('QUIÉN LO OFRECE'),
@@ -484,7 +563,7 @@ class _CustomModeState extends State<CustomMode> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // 6. Summary box
           _SummaryBox(
@@ -522,10 +601,14 @@ class _EyebrowLabel extends StatelessWidget {
 class _DescriptionField extends StatefulWidget {
   const _DescriptionField({
     required this.controller,
+    required this.focusNode,
+    required this.hasFocus,
     required this.onChanged,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool hasFocus;
   final ValueChanged<String> onChanged;
 
   @override
@@ -541,34 +624,48 @@ class _DescriptionFieldState extends State<_DescriptionField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Container(
-          constraints: const BoxConstraints(minHeight: 80),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: KTokens.surface,
-            border: Border.all(color: KTokens.border),
-            borderRadius: BorderRadius.circular(KTokens.rSm),
-          ),
-          child: TextField(
-            controller: widget.controller,
-            maxLines: null,
-            maxLength: _maxChars,
-            buildCounter:
-                (_, {required currentLength, required isFocused, maxLength}) =>
-                    null,
-            style: GoogleFonts.inter(fontSize: 14, color: KTokens.ink),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-              hintText: 'Descripción opcional visible para el cliente…',
-              hintStyle: GoogleFonts.inter(
-                  fontSize: 14, color: KTokens.inkPlaceholder),
+        GestureDetector(
+          onTap: () => widget.focusNode.requestFocus(),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: widget.hasFocus ? KTokens.ink : KTokens.border,
+                width: 1.5,
+              ),
+              borderRadius: BorderRadius.circular(KTokens.rSm),
             ),
-            onChanged: (v) {
-              setState(() {});
-              widget.onChanged(v);
-            },
+            child: TextField(
+              controller: widget.controller,
+              focusNode: widget.focusNode,
+              maxLines: null,
+              minLines: 3,
+              maxLength: _maxChars,
+              buildCounter:
+                  (_, {required currentLength, required isFocused, maxLength}) =>
+                      null,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: KTokens.inkSoft,
+                height: 1.5,
+              ),
+              decoration: InputDecoration(
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                hintText: 'Descripción opcional visible para el cliente…',
+                hintStyle: GoogleFonts.inter(
+                    fontSize: 13, color: KTokens.inkPlaceholder),
+              ),
+              onChanged: (v) {
+                setState(() {});
+                widget.onChanged(v);
+              },
+            ),
           ),
         ),
         const SizedBox(height: 4),

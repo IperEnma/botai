@@ -13,23 +13,23 @@ public final class StaffMemberMapper {
 
     public static StaffMember toDomain(StaffMemberEntity e) {
         if (e == null) return null;
-        return new StaffMember(
-                e.getId(),
-                e.getBusinessId(),
-                e.getNombre(),
-                e.getRol(),
-                e.getAvatarUrl(),
-                e.getTelefono(),
-                e.getEmail(),
-                e.getBio(),
-                e.getColor(),
-                e.getStatus() != null ? e.getStatus() : (e.isActivo() ? "ACTIVO" : "ARCHIVADO"),
-                e.getCustomSchedule(),
-                e.getServiceIds() != null ? new ArrayList<>(e.getServiceIds()) : new ArrayList<>(),
-                e.getDeletedAt(),
-                e.getCreatedAt(),
-                e.getUpdatedAt()
-        );
+        return StaffMember.builder()
+                .id(e.getId())
+                .businessId(e.getBusinessId())
+                .nombre(e.getNombre())
+                .rol(e.getRol())
+                .avatarUrl(e.getAvatarUrl())
+                .telefono(e.getTelefono())
+                .email(e.getEmail())
+                .bio(e.getBio())
+                .color(e.getColor())
+                .status(e.getStatus() != null ? e.getStatus() : (e.isActivo() ? "ACTIVO" : "ARCHIVADO"))
+                .customSchedule(e.getCustomSchedule())
+                .serviceIds(e.getServiceIds() != null ? new ArrayList<>(e.getServiceIds()) : new ArrayList<>())
+                .deletedAt(e.getDeletedAt())
+                .createdAt(e.getCreatedAt())
+                .updatedAt(e.getUpdatedAt())
+                .build();
     }
 
     public static StaffMemberEntity toEntity(StaffMember s) {

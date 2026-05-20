@@ -31,8 +31,6 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
   late FocusNode _titleFocus;
   late FocusNode _bioFocus;
 
-  String? _activeField; // 'phone' | 'email' | 'title' | 'bio'
-
   @override
   void initState() {
     super.initState();
@@ -50,27 +48,11 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
     _titleFocus = FocusNode();
     _bioFocus = FocusNode();
 
-    // Attach blur listeners after all nodes are initialized
-    for (final pair in [
-      ('phone', _phoneFocus),
-      ('email', _emailFocus),
-      ('title', _titleFocus),
-      ('bio', _bioFocus),
-    ]) {
-      final key = pair.$1;
-      final node = pair.$2;
+    for (final node in [_phoneFocus, _emailFocus, _titleFocus, _bioFocus]) {
       node.addListener(() {
-        if (!mounted) return;
-        if (!node.hasFocus && _activeField == key) {
-          setState(() => _activeField = null);
-        }
+        if (mounted) setState(() {});
       });
     }
-  }
-
-  void _activate(String key, FocusNode node) {
-    setState(() => _activeField = key);
-    node.requestFocus();
   }
 
   @override
@@ -108,8 +90,6 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
     ));
   }
 
-  bool _dimmed(String key) => _activeField != null && _activeField != key;
-
   @override
   Widget build(BuildContext context) {
     final slug = widget.member.name
@@ -133,36 +113,28 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
             mainAxisSpacing: 12,
             childAspectRatio: 3.2,
             children: [
-              // NOMBRE — always read-only, dims when others are active
               _FieldBox(
                 label: 'NOMBRE',
                 value: widget.member.name,
-                isDimmed: _activeField != null,
               ),
               _EditableFieldBox(
                 label: 'WHATSAPP',
                 ctrl: _phoneCtrl,
                 focusNode: _phoneFocus,
-                isDimmed: _dimmed('phone'),
                 keyboard: TextInputType.phone,
-                onTap: () => _activate('phone', _phoneFocus),
                 onChanged: _propagate,
               ),
               _EditableFieldBox(
                 label: 'EMAIL',
                 ctrl: _emailCtrl,
                 focusNode: _emailFocus,
-                isDimmed: _dimmed('email'),
                 keyboard: TextInputType.emailAddress,
-                onTap: () => _activate('email', _emailFocus),
                 onChanged: _propagate,
               ),
               _EditableFieldBox(
                 label: 'TÍTULO PROFESIONAL',
                 ctrl: _titleCtrl,
                 focusNode: _titleFocus,
-                isDimmed: _dimmed('title'),
-                onTap: () => _activate('title', _titleFocus),
                 onChanged: _propagate,
               ),
             ],
@@ -175,8 +147,6 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
           _EditableBioBox(
             ctrl: _bioCtrl,
             focusNode: _bioFocus,
-            isDimmed: _dimmed('bio'),
-            onTap: () => _activate('bio', _bioFocus),
             onChanged: _propagate,
           ),
           const SizedBox(height: 20),
@@ -220,26 +190,77 @@ class _SectionLabel extends StatelessWidget {
 // ─── Read-only field box (NOMBRE) ─────────────────────────────────────────────
 
 class _FieldBox extends StatelessWidget {
-  const _FieldBox({
-    required this.label,
-    required this.value,
-    required this.isDimmed,
-  });
+  const _FieldBox({required this.label, required this.value});
 
   final String label;
   final String value;
-  final bool isDimmed;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 150),
-      opacity: isDimmed ? 0.35 : 1.0,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: KTokens.surface,
+        border: Border.all(color: KTokens.border),
+        borderRadius: BorderRadius.circular(KTokens.rSm),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 10,
+              color: KTokens.inkSoft,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: KTokens.ink,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Editable field box ───────────────────────────────────────────────────────
+
+class _EditableFieldBox extends StatelessWidget {
+  const _EditableFieldBox({
+    required this.label,
+    required this.ctrl,
+    required this.focusNode,
+    required this.onChanged,
+    this.keyboard,
+  });
+
+  final String label;
+  final TextEditingController ctrl;
+  final FocusNode focusNode;
+  final VoidCallback onChanged;
+  final TextInputType? keyboard;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => focusNode.requestFocus(),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: KTokens.surface,
-          border: Border.all(color: KTokens.border),
+          border: Border.all(
+            color: focusNode.hasFocus ? KTokens.ink : KTokens.border,
+            width: 1.5,
+          ),
           borderRadius: BorderRadius.circular(KTokens.rSm),
         ),
         child: Column(
@@ -255,91 +276,26 @@ class _FieldBox extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            Text(
-              value,
+            TextField(
+              controller: ctrl,
+              focusNode: focusNode,
+              onChanged: (_) => onChanged(),
+              keyboardType: keyboard,
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: KTokens.ink,
               ),
-              overflow: TextOverflow.ellipsis,
+              decoration: const InputDecoration(
+                filled: false,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Editable field box ───────────────────────────────────────────────────────
-
-class _EditableFieldBox extends StatelessWidget {
-  const _EditableFieldBox({
-    required this.label,
-    required this.ctrl,
-    required this.focusNode,
-    required this.isDimmed,
-    required this.onTap,
-    required this.onChanged,
-    this.keyboard,
-  });
-
-  final String label;
-  final TextEditingController ctrl;
-  final FocusNode focusNode;
-  final bool isDimmed;
-  final VoidCallback onTap;
-  final VoidCallback onChanged;
-  final TextInputType? keyboard;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 150),
-      opacity: isDimmed ? 0.35 : 1.0,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: KTokens.surface,
-            border: Border.all(color: KTokens.border),
-            borderRadius: BorderRadius.circular(KTokens.rSm),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
-                  color: KTokens.inkSoft,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 2),
-              TextField(
-                controller: ctrl,
-                focusNode: focusNode,
-                onChanged: (_) => onChanged(),
-                keyboardType: keyboard,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: KTokens.ink,
-                ),
-                decoration: const InputDecoration(
-                  filled: false,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -352,55 +308,50 @@ class _EditableBioBox extends StatelessWidget {
   const _EditableBioBox({
     required this.ctrl,
     required this.focusNode,
-    required this.isDimmed,
-    required this.onTap,
     required this.onChanged,
   });
 
   final TextEditingController ctrl;
   final FocusNode focusNode;
-  final bool isDimmed;
-  final VoidCallback onTap;
   final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 150),
-      opacity: isDimmed ? 0.35 : 1.0,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: KTokens.surface,
-            border: Border.all(color: KTokens.border),
-            borderRadius: BorderRadius.circular(KTokens.rSm),
+    return GestureDetector(
+      onTap: () => focusNode.requestFocus(),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: KTokens.surface,
+          border: Border.all(
+            color: focusNode.hasFocus ? KTokens.ink : KTokens.border,
+            width: 1.5,
           ),
-          child: TextField(
-            controller: ctrl,
-            focusNode: focusNode,
-            onChanged: (_) => onChanged(),
-            maxLines: 3,
-            minLines: 2,
-            style: GoogleFonts.inter(
+          borderRadius: BorderRadius.circular(KTokens.rSm),
+        ),
+        child: TextField(
+          controller: ctrl,
+          focusNode: focusNode,
+          onChanged: (_) => onChanged(),
+          maxLines: 3,
+          minLines: 2,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: KTokens.inkSoft,
+            height: 1.5,
+          ),
+          decoration: InputDecoration(
+            filled: false,
+            isDense: true,
+            contentPadding: EdgeInsets.zero,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            hintText: 'Sin bio aún.',
+            hintStyle: GoogleFonts.inter(
               fontSize: 13,
-              color: KTokens.inkSoft,
-              height: 1.5,
-            ),
-            decoration: InputDecoration(
-              filled: false,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              hintText: 'Sin bio aún.',
-              hintStyle: GoogleFonts.inter(
-                fontSize: 13,
-                color: KTokens.inkMuted,
-              ),
+              color: KTokens.inkMuted,
             ),
           ),
         ),

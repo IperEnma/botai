@@ -34,9 +34,14 @@ public class ManageStaffUseCase {
     @Transactional
     public StaffMember create(String tenantId, UUID businessId, CreateStaffMemberRequest req) {
         verifyBusiness(tenantId, businessId);
-        StaffMember sm = new StaffMember(
-                null, businessId, req.nombre(), req.rol(), req.avatarUrl(), req.telefono(),
-                null, null, null, "ACTIVO", null, List.of(), null, null, null);
+        StaffMember sm = StaffMember.builder()
+                .businessId(businessId)
+                .nombre(req.nombre())
+                .rol(req.rol())
+                .avatarUrl(req.avatarUrl())
+                .telefono(req.telefono())
+                .status("ACTIVO")
+                .build();
         return staffMemberRepository.save(sm);
     }
 
@@ -52,23 +57,23 @@ public class ManageStaffUseCase {
         String customScheduleJson = req.customSchedule() != null
                 ? req.customSchedule().toString()
                 : null;
-        StaffMember updated = new StaffMember(
-                existing.getId(),
-                existing.getBusinessId(),
-                req.nombre(),
-                req.rol(),
-                req.avatarUrl(),
-                req.telefono(),
-                req.email(),
-                req.bio(),
-                req.color(),
-                req.status(),
-                customScheduleJson,
-                existing.getServiceIds(),
-                existing.getDeletedAt(),
-                existing.getCreatedAt(),
-                existing.getUpdatedAt()
-        );
+        StaffMember updated = StaffMember.builder()
+                .id(existing.getId())
+                .businessId(existing.getBusinessId())
+                .nombre(req.nombre())
+                .rol(req.rol())
+                .avatarUrl(req.avatarUrl())
+                .telefono(req.telefono())
+                .email(req.email())
+                .bio(req.bio())
+                .color(req.color())
+                .status(req.status())
+                .customSchedule(customScheduleJson)
+                .serviceIds(existing.getServiceIds())
+                .deletedAt(existing.getDeletedAt())
+                .createdAt(existing.getCreatedAt())
+                .updatedAt(existing.getUpdatedAt())
+                .build();
         return staffMemberRepository.save(updated);
     }
 
