@@ -60,7 +60,7 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
     }
   }
 
-  Future<StaffMember?> addMember(String nombre, String? rol, String? avatarUrl) async {
+  Future<StaffMember?> addMember(String nombre, String? rol, String? avatarUrl, {String? telefono}) async {
     state = state.copyWith(isSaving: true, error: null);
     try {
       final api = _ref.read(agendaApiServiceProvider);
@@ -69,6 +69,7 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
         nombre: nombre,
         rol: rol,
         avatarUrl: avatarUrl,
+        telefono: telefono,
       );
       state = state.copyWith(
         members: [...state.members, member],
@@ -86,7 +87,12 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
     String nombre,
     String? rol,
     String? avatarUrl,
-    bool activo,
+    String? telefono,
+    String? email,
+    String? bio,
+    String? color,
+    String status,
+    Map<String, dynamic>? customSchedule,
   ) async {
     state = state.copyWith(isSaving: true, error: null);
     try {
@@ -97,7 +103,32 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
         nombre: nombre,
         rol: rol,
         avatarUrl: avatarUrl,
-        activo: activo,
+        telefono: telefono,
+        email: email,
+        bio: bio,
+        color: color,
+        status: status,
+        customSchedule: customSchedule,
+      );
+      state = state.copyWith(
+        members: state.members.map((m) => m.id == staffId ? updated : m).toList(),
+        isSaving: false,
+      );
+      return true;
+    } on AgendaApiException catch (e) {
+      state = state.copyWith(isSaving: false, error: e.message);
+      return false;
+    }
+  }
+
+  Future<bool> updateMemberServices(String staffId, List<String> serviceIds) async {
+    state = state.copyWith(isSaving: true, error: null);
+    try {
+      final api = _ref.read(agendaApiServiceProvider);
+      final updated = await api.updateStaffServices(
+        businessId: _key.businessId,
+        staffId: staffId,
+        serviceIds: serviceIds,
       );
       state = state.copyWith(
         members: state.members.map((m) => m.id == staffId ? updated : m).toList(),
@@ -127,7 +158,12 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
         nombre: member.nombre,
         rol: member.rol,
         avatarUrl: url,
-        activo: member.activo,
+        telefono: member.telefono,
+        email: member.email,
+        bio: member.bio,
+        color: member.color,
+        status: member.status,
+        customSchedule: member.customSchedule,
       );
       state = state.copyWith(
         members: state.members.map((m) => m.id == staffId ? updated : m).toList(),

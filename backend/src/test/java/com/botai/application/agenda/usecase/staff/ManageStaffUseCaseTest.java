@@ -19,16 +19,12 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Unit tests de {@link ManageStaffUseCase}. Sin Spring.
- */
 class ManageStaffUseCaseTest {
 
     private BusinessRepository businessRepository;
@@ -76,7 +72,7 @@ class ManageStaffUseCaseTest {
 
     @Test
     void create_guardaStaffMemberConCamposCorrectos() {
-        var req = new CreateStaffMemberRequest("Juan Perez", "Estilista", null);
+        var req = new CreateStaffMemberRequest("Juan Perez", "Estilista", null, null);
         StaffMember saved = staffMember(BUSINESS_ID);
         when(staffMemberRepository.save(any())).thenReturn(saved);
 
@@ -91,7 +87,7 @@ class ManageStaffUseCaseTest {
         when(businessRepository.findByIdAndTenantId(BUSINESS_ID, TENANT))
                 .thenReturn(Optional.empty());
 
-        var req = new CreateStaffMemberRequest("Juan", null, null);
+        var req = new CreateStaffMemberRequest("Juan", null, null, null);
         assertThrows(BusinessNotFoundException.class,
                 () -> useCase.create(TENANT, BUSINESS_ID, req));
     }
@@ -104,11 +100,16 @@ class ManageStaffUseCaseTest {
         StaffMember existing = staffMemberWithId(staffId, BUSINESS_ID);
         when(staffMemberRepository.findById(staffId)).thenReturn(Optional.of(existing));
 
-        StaffMember updatedSaved = new StaffMember(staffId, BUSINESS_ID,
-                "Nuevo Nombre", "Nuevo Rol", null, false, null, null, null);
+        StaffMember updatedSaved = StaffMember.builder()
+                .id(staffId)
+                .businessId(BUSINESS_ID)
+                .nombre("Nuevo Nombre")
+                .rol("Nuevo Rol")
+                .status("ACTIVO")
+                .build();
         when(staffMemberRepository.save(any())).thenReturn(updatedSaved);
 
-        var req = new UpdateStaffMemberRequest("Nuevo Nombre", "Nuevo Rol", null, false);
+        var req = new UpdateStaffMemberRequest("Nuevo Nombre", "Nuevo Rol", null, null, null, null, null, "ACTIVO", null);
         StaffMember result = useCase.update(TENANT, BUSINESS_ID, staffId, req);
 
         assertEquals("Nuevo Nombre", result.getNombre());
@@ -120,7 +121,7 @@ class ManageStaffUseCaseTest {
         UUID staffId = UUID.randomUUID();
         when(staffMemberRepository.findById(staffId)).thenReturn(Optional.empty());
 
-        var req = new UpdateStaffMemberRequest("Nombre", null, null, true);
+        var req = new UpdateStaffMemberRequest("Nombre", null, null, null, null, null, null, "ACTIVO", null);
         assertThrows(StaffMemberNotFoundException.class,
                 () -> useCase.update(TENANT, BUSINESS_ID, staffId, req));
     }
@@ -132,7 +133,7 @@ class ManageStaffUseCaseTest {
         StaffMember staffDeOtro = staffMemberWithId(staffId, otroNegocio);
         when(staffMemberRepository.findById(staffId)).thenReturn(Optional.of(staffDeOtro));
 
-        var req = new UpdateStaffMemberRequest("Nombre", null, null, true);
+        var req = new UpdateStaffMemberRequest("Nombre", null, null, null, null, null, null, "ACTIVO", null);
         assertThrows(StaffMemberNotFoundException.class,
                 () -> useCase.update(TENANT, BUSINESS_ID, staffId, req));
     }
@@ -168,14 +169,26 @@ class ManageStaffUseCaseTest {
     }
 
     private StaffMember staffMember(UUID businessId) {
-        return new StaffMember(UUID.randomUUID(), businessId, "Staff Test",
-                "Rol", null, true, null,
-                LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1));
+        return StaffMember.builder()
+                .id(UUID.randomUUID())
+                .businessId(businessId)
+                .nombre("Staff Test")
+                .rol("Rol")
+                .status("ACTIVO")
+                .createdAt(LocalDateTime.now().minusDays(1))
+                .updatedAt(LocalDateTime.now().minusDays(1))
+                .build();
     }
 
     private StaffMember staffMemberWithId(UUID id, UUID businessId) {
-        return new StaffMember(id, businessId, "Staff Test",
-                "Rol", null, true, null,
-                LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1));
+        return StaffMember.builder()
+                .id(id)
+                .businessId(businessId)
+                .nombre("Staff Test")
+                .rol("Rol")
+                .status("ACTIVO")
+                .createdAt(LocalDateTime.now().minusDays(1))
+                .updatedAt(LocalDateTime.now().minusDays(1))
+                .build();
     }
 }

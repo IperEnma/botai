@@ -16,6 +16,8 @@ public interface StaffMemberRepository {
 
     StaffMember save(StaffMember staffMember);
 
+    StaffMember updateServiceIds(UUID staffId, List<UUID> serviceIds);
+
     void softDelete(UUID id);
 
     boolean existsByIdAndBusinessId(UUID id, UUID businessId);

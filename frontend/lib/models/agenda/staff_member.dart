@@ -4,7 +4,14 @@ class StaffMember {
   final String nombre;
   final String? rol;
   final String? avatarUrl;
+  final String? telefono;
+  final String? email;
+  final String? bio;
+  final String? color;
   final bool activo;
+  final String status; // 'ACTIVO', 'PAUSADO', 'ARCHIVADO'
+  final Map<String, dynamic>? customSchedule;
+  final List<String> serviceIds;
 
   const StaffMember({
     required this.id,
@@ -12,7 +19,14 @@ class StaffMember {
     required this.nombre,
     this.rol,
     this.avatarUrl,
+    this.telefono,
+    this.email,
+    this.bio,
+    this.color,
     required this.activo,
+    required this.status,
+    this.customSchedule,
+    this.serviceIds = const [],
   });
 
   factory StaffMember.fromJson(Map<String, dynamic> json) => StaffMember(
@@ -21,6 +35,17 @@ class StaffMember {
         nombre: json['nombre'] as String,
         rol: json['rol'] as String?,
         avatarUrl: json['avatarUrl'] as String?,
-        activo: json['activo'] as bool,
+        telefono: json['telefono'] as String?,
+        email: json['email'] as String?,
+        bio: json['bio'] as String?,
+        color: json['color'] as String?,
+        activo: json['activo'] as bool? ?? true,
+        status: json['status'] as String? ??
+            ((json['activo'] as bool?) == true ? 'ACTIVO' : 'ARCHIVADO'),
+        customSchedule: json['customSchedule'] as Map<String, dynamic>?,
+        serviceIds: (json['serviceIds'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            const [],
       );
 }

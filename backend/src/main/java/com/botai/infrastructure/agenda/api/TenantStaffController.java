@@ -3,6 +3,7 @@ package com.botai.infrastructure.agenda.api;
 import com.botai.application.agenda.dto.CreateStaffMemberRequest;
 import com.botai.application.agenda.dto.StaffMemberResponse;
 import com.botai.application.agenda.dto.UpdateStaffMemberRequest;
+import com.botai.application.agenda.dto.UpdateStaffServicesRequest;
 import com.botai.application.agenda.mapper.StaffMemberDtoMapper;
 import com.botai.application.agenda.usecase.staff.ManageStaffUseCase;
 import com.botai.domain.agenda.exception.StaffMemberNotFoundException;
@@ -88,6 +89,17 @@ public class TenantStaffController {
         String tenantId = currentTenant.requireTenantId();
         listBusinesses.findOne(tenantId, businessId);
         var updated = manageStaff.update(tenantId, businessId, staffId, request);
+        return StaffMemberDtoMapper.toResponse(updated);
+    }
+
+    @PutMapping("/{staffId}/services")
+    @Operation(summary = "Actualizar los servicios asignados a un miembro del equipo")
+    public StaffMemberResponse updateServices(@PathVariable UUID businessId,
+                                              @PathVariable UUID staffId,
+                                              @RequestBody UpdateStaffServicesRequest request) {
+        String tenantId = currentTenant.requireTenantId();
+        listBusinesses.findOne(tenantId, businessId);
+        var updated = manageStaff.updateServices(tenantId, businessId, staffId, request);
         return StaffMemberDtoMapper.toResponse(updated);
     }
 

@@ -78,4 +78,30 @@ class KTokens {
   static const stateCanceledBg    = Color(0x26EF4444);
   static const stateCanceledText  = Color(0xFFB23A3A);
   static const nowIndicator       = Color(0xFFEF4444);
+
+  // ── Member status badges ─────────────────────────────────────────────────────
+  static const memberActiveBg     = Color(0x2634D399);
+  static const memberActiveText   = Color(0xFF0A8C5B);
+  static const memberPausedBg     = Color(0x26FB923C);
+  static const memberPausedText   = Color(0xFFA3501A);
+  static const memberArchivedBg   = Color(0x0D000000);
+  static const memberArchivedText = Color(0xFF9A978F);
+
+  // ── Badge de excepción ───────────────────────────────────────────────────────
+  static const excClosed     = Color(0xFFB23A3A);
+  static const excClosedBg   = Color(0x1FEF4444);
+  static const excModified   = Color(0xFFA3501A);
+  static const excModifiedBg = Color(0x26FB923C);
+  static const excOpen       = Color(0xFF0A8C5B);
+  static const excOpenBg     = Color(0x2634D399);
+
+  // ── Trend ────────────────────────────────────────────────────────────────────
+  static const trendUp      = Color(0xFF0A8C5B);
+  static const trendDown    = Color(0xFFB23A3A);
+  static const trendNeutral = Color(0xFFBDBAB2);
+
+  // ── Warning ──────────────────────────────────────────────────────────────────
+  static const warn       = Color(0xFFA3501A);
+  static const warnBg     = Color(0x14FB923C);
+  static const warnBorder = Color(0x40FB923C);
 }

@@ -2,6 +2,7 @@ package com.botai.application.agenda.usecase.staff;
 
 import com.botai.application.agenda.dto.CreateStaffMemberRequest;
 import com.botai.application.agenda.dto.UpdateStaffMemberRequest;
+import com.botai.application.agenda.dto.UpdateStaffServicesRequest;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.exception.StaffMemberNotFoundException;
 import com.botai.domain.agenda.model.StaffMember;
@@ -33,9 +34,14 @@ public class ManageStaffUseCase {
     @Transactional
     public StaffMember create(String tenantId, UUID businessId, CreateStaffMemberRequest req) {
         verifyBusiness(tenantId, businessId);
-        StaffMember sm = new StaffMember(
-                null, businessId, req.nombre(), req.rol(), req.avatarUrl(),
-                true, null, null, null);
+        StaffMember sm = StaffMember.builder()
+                .businessId(businessId)
+                .nombre(req.nombre())
+                .rol(req.rol())
+                .avatarUrl(req.avatarUrl())
+                .telefono(req.telefono())
+                .status("ACTIVO")
+                .build();
         return staffMemberRepository.save(sm);
     }
 
@@ -48,18 +54,37 @@ public class ManageStaffUseCase {
         if (!existing.getBusinessId().equals(businessId)) {
             throw new StaffMemberNotFoundException(staffId);
         }
-        StaffMember updated = new StaffMember(
-                existing.getId(),
-                existing.getBusinessId(),
-                req.nombre(),
-                req.rol(),
-                req.avatarUrl(),
-                req.activo(),
-                existing.getDeletedAt(),
-                existing.getCreatedAt(),
-                existing.getUpdatedAt()
-        );
+        String customScheduleJson = req.customSchedule() != null
+                ? req.customSchedule().toString()
+                : null;
+        StaffMember updated = StaffMember.builder()
+                .id(existing.getId())
+                .businessId(existing.getBusinessId())
+                .nombre(req.nombre())
+                .rol(req.rol())
+                .avatarUrl(req.avatarUrl())
+                .telefono(req.telefono())
+                .email(req.email())
+                .bio(req.bio())
+                .color(req.color())
+                .status(req.status())
+                .customSchedule(customScheduleJson)
+                .serviceIds(existing.getServiceIds())
+                .deletedAt(existing.getDeletedAt())
+                .createdAt(existing.getCreatedAt())
+                .updatedAt(existing.getUpdatedAt())
+                .build();
         return staffMemberRepository.save(updated);
+    }
+
+    @Transactional
+    public StaffMember updateServices(String tenantId, UUID businessId, UUID staffId,
+                                      UpdateStaffServicesRequest req) {
+        verifyBusiness(tenantId, businessId);
+        if (!staffMemberRepository.existsByIdAndBusinessId(staffId, businessId)) {
+            throw new StaffMemberNotFoundException(staffId);
+        }
+        return staffMemberRepository.updateServiceIds(staffId, req.serviceIds());
     }
 
     @Transactional

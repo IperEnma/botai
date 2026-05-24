@@ -15,9 +15,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Unit tests de {@link ListPublicStaffUseCase}. Sin Spring.
- */
 class ListPublicStaffUseCaseTest {
 
     private StaffMemberRepository staffMemberRepository;
@@ -55,8 +52,14 @@ class ListPublicStaffUseCaseTest {
     }
 
     private StaffMember staffMember(UUID businessId, boolean activo) {
-        return new StaffMember(UUID.randomUUID(), businessId, "Staff Test",
-                "Estilista", null, activo, null,
-                LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1));
+        return StaffMember.builder()
+                .id(UUID.randomUUID())
+                .businessId(businessId)
+                .nombre("Staff Test")
+                .rol("Estilista")
+                .status(activo ? "ACTIVO" : "ARCHIVADO")
+                .createdAt(LocalDateTime.now().minusDays(1))
+                .updatedAt(LocalDateTime.now().minusDays(1))
+                .build();
     }
 }

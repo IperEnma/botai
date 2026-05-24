@@ -8,24 +8,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
-/**
- * Invariantes del domain POJO {@link StaffMember}.
- */
 class StaffMemberTest {
 
     @Test
     void construccionValida_guarda_todosLosCampos() {
         UUID id = UUID.randomUUID();
         UUID businessId = UUID.randomUUID();
-        var sm = new StaffMember(id, businessId, "Ana Garcia", "Recepcionista",
-                "https://img.url/foto.jpg", true, null, null, null);
+        var sm = StaffMember.builder()
+                .id(id)
+                .businessId(businessId)
+                .nombre("Ana Garcia")
+                .rol("Recepcionista")
+                .avatarUrl("https://img.url/foto.jpg")
+                .status("ACTIVO")
+                .build();
 
         assertEquals(id, sm.getId());
         assertEquals(businessId, sm.getBusinessId());
         assertEquals("Ana Garcia", sm.getNombre());
         assertEquals("Recepcionista", sm.getRol());
         assertEquals("https://img.url/foto.jpg", sm.getAvatarUrl());
+        assertEquals("ACTIVO", sm.getStatus());
         assertTrue(sm.isActivo());
         assertNull(sm.getDeletedAt());
     }
@@ -33,29 +38,56 @@ class StaffMemberTest {
     @Test
     void construccionSinBusinessId_lanzaIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
-                new StaffMember(null, null, "Ana", null, null, true, null, null, null));
+                StaffMember.builder().nombre("Ana").build());
     }
 
     @Test
     void construccionConNombreVacio_lanzaIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
-                new StaffMember(null, UUID.randomUUID(), "  ", null, null, true, null, null, null));
+                StaffMember.builder().businessId(UUID.randomUUID()).nombre("  ").build());
     }
 
     @Test
     void construccionConNombreNull_lanzaIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
-                new StaffMember(null, UUID.randomUUID(), null, null, null, true, null, null, null));
+                StaffMember.builder().businessId(UUID.randomUUID()).build());
     }
 
     @Test
     void camposOpcionalesAceptanNull() {
-        var sm = new StaffMember(null, UUID.randomUUID(), "Pedro", null, null, true, null, null, null);
+        var sm = StaffMember.builder()
+                .businessId(UUID.randomUUID())
+                .nombre("Pedro")
+                .build();
 
         assertNull(sm.getId());
         assertNull(sm.getRol());
         assertNull(sm.getAvatarUrl());
+        assertNull(sm.getCustomSchedule());
         assertNull(sm.getCreatedAt());
         assertNull(sm.getUpdatedAt());
+    }
+
+    @Test
+    void isActivo_derivadoDe_status() {
+        UUID bizId = UUID.randomUUID();
+        var activo    = StaffMember.builder().businessId(bizId).nombre("Ana").status("ACTIVO").build();
+        var pausado   = StaffMember.builder().businessId(bizId).nombre("Ana").status("PAUSADO").build();
+        var archivado = StaffMember.builder().businessId(bizId).nombre("Ana").status("ARCHIVADO").build();
+
+        assertTrue(activo.isActivo());
+        assertFalse(pausado.isActivo());
+        assertFalse(archivado.isActivo());
+    }
+
+    @Test
+    void statusNullDefaultsToActivo() {
+        var sm = StaffMember.builder()
+                .businessId(UUID.randomUUID())
+                .nombre("Ana")
+                .build();
+
+        assertEquals("ACTIVO", sm.getStatus());
+        assertTrue(sm.isActivo());
     }
 }
