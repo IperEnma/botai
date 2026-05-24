@@ -126,6 +126,24 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       final services = results[0] as List<AgendaService>;
       final staff = results[1] as List<StaffMember>;
 
+      // Build reverse map: serviceId → [staffId, ...] from each member's serviceIds
+      final Map<String, List<String>> staffByService = {};
+      for (final member in staff) {
+        for (final serviceId in member.serviceIds) {
+          staffByService.putIfAbsent(serviceId, () => []).add(member.id);
+        }
+      }
+
+      // Pre-populate _extras with the resolved professionalIds
+      for (final service in services) {
+        final ids = staffByService[service.id];
+        if (ids != null && ids.isNotEmpty) {
+          _extras[service.id] =
+              (_extras[service.id] ?? const ServicioExtras())
+                  .copyWith(professionalIds: ids);
+        }
+      }
+
       state = state.copyWith(
         items: services.map((s) => _toItem(s)).toList(),
         staff: staff,
@@ -227,12 +245,40 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       precio: precio.toDouble(),
       activo: activo,
     );
+
+    // Sync staff-service assignments if professionalIds changed
+    final oldIds =
+        (state.items.where((s) => s.id == id).firstOrNull?.professionalIds ??
+                [])
+            .toSet();
+    final newIds = extras.professionalIds.toSet();
+    final added = newIds.difference(oldIds);
+    final removed = oldIds.difference(newIds);
+
+    var updatedStaff = List<StaffMember>.from(state.staff);
+    for (final memberId in {...added, ...removed}) {
+      final memberIdx = updatedStaff.indexWhere((m) => m.id == memberId);
+      if (memberIdx < 0) continue;
+      final member = updatedStaff[memberIdx];
+      final currentSvcIds = member.serviceIds.toSet();
+      final newSvcIds = added.contains(memberId)
+          ? {...currentSvcIds, id}
+          : currentSvcIds.difference({id});
+      final savedMember = await api.updateStaffServices(
+        businessId: _key.businessId,
+        staffId: memberId,
+        serviceIds: newSvcIds.toList(),
+      );
+      updatedStaff[memberIdx] = savedMember;
+    }
+
     _extras[id] = extras;
     state = state.copyWith(
       items: [
         for (final s in state.items)
           if (s.id == id) _toItem(updated) else s,
       ],
+      staff: updatedStaff,
     );
   }
 

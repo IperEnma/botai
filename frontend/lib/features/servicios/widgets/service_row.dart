@@ -62,49 +62,52 @@ class _ServiceRowState extends State<ServiceRow> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                // Toggle
-                SizedBox(
-                  width: 36,
-                  child: _ServicioToggle(
-                    value: s.active,
-                    onChanged: (_) => _handleToggle(context),
-                  ),
-                ),
-
-                // Nombre + descripción
+                // Toggle + Nombre (40%)
                 Expanded(
-                  flex: 5,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  flex: 20,
+                  child: Row(
                     children: [
-                      Text(
-                        s.name,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: KTokens.ink,
+                      _ServicioToggle(
+                        value: s.active,
+                        onChanged: (_) => _handleToggle(context),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              s.name,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: KTokens.ink,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (s.description != null &&
+                                s.description!.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                s.description!,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: KTokens.inkSoft,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      if (s.description != null &&
-                          s.description!.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          s.description!,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: KTokens.inkSoft,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
                     ],
                   ),
                 ),
 
-                // Duración
-                SizedBox(
-                  width: 100,
+                // Duración (14%)
+                Expanded(
+                  flex: 6,
                   child: s.flexibleDuration
                       ? RichText(
                           text: TextSpan(
@@ -135,15 +138,15 @@ class _ServiceRowState extends State<ServiceRow> {
                         ),
                 ),
 
-                // Profesionales
-                SizedBox(
-                  width: 120,
+                // Profesionales (14%)
+                Expanded(
+                  flex: 6,
                   child: ProAvatarStack(staff: widget.assignedStaff),
                 ),
 
-                // Precio
-                SizedBox(
-                  width: 120,
+                // Precio (14%)
+                Expanded(
+                  flex: 6,
                   child: s.priceFrom
                       ? RichText(
                           text: TextSpan(
@@ -176,9 +179,9 @@ class _ServiceRowState extends State<ServiceRow> {
                         ),
                 ),
 
-                // Turnos + trend
-                SizedBox(
-                  width: 50,
+                // Turnos + trend (14%)
+                Expanded(
+                  flex: 6,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -197,17 +200,20 @@ class _ServiceRowState extends State<ServiceRow> {
                   ),
                 ),
 
-                // Menu
-                SizedBox(
-                  width: 36,
-                  child: _ServiceMenu(
-                    service: s,
-                    availableGroups: widget.availableGroups,
-                    onEdit: widget.onTap,
-                    onDuplicate: widget.onDuplicate,
-                    onToggle: () => _handleToggle(context),
-                    onDelete: widget.onDelete,
-                    onMoveToGroup: widget.onMoveToGroup,
+                // Menu (14%)
+                Expanded(
+                  flex: 6,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: _ServiceMenu(
+                      service: s,
+                      availableGroups: widget.availableGroups,
+                      onEdit: widget.onTap,
+                      onDuplicate: widget.onDuplicate,
+                      onToggle: () => _handleToggle(context),
+                      onDelete: widget.onDelete,
+                      onMoveToGroup: widget.onMoveToGroup,
+                    ),
                   ),
                 ),
               ],

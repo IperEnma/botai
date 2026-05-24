@@ -35,67 +35,71 @@ class DayRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fullName = _kDayFull[day.diaSemana];
     final abbr = _kDayAbbr[day.diaSemana];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          // Toggle
+          // Custom pill toggle
+          _DayToggle(value: day.open, onChanged: (_) => onToggle()),
+          const SizedBox(width: 12),
+          // Full name + abbreviation
           SizedBox(
-            width: 36,
-            height: 36,
-            child: Transform.scale(
-              scale: 0.75,
-              child: Switch(
-                value: day.open,
-                onChanged: (_) => onToggle(),
-                activeThumbColor: KTokens.accent,
-                activeTrackColor: KTokens.accentSoft,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Day abbreviation (mono)
-          SizedBox(
-            width: 28,
-            child: Text(
-              abbr.toUpperCase(),
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
-                letterSpacing: 0.8,
-                color: day.open ? KTokens.ink : KTokens.inkSoft,
-                fontWeight: FontWeight.w500,
-              ),
+            width: 76,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  fullName,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: day.open ? KTokens.ink : KTokens.inkSoft,
+                  ),
+                ),
+                Text(
+                  abbr.toUpperCase(),
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9,
+                    letterSpacing: 0.8,
+                    color: KTokens.inkSoft,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
           // Time chips or CERRADO
           Expanded(
-            child: day.open ? _OpenRow(
-              day: day,
-              onPickFrom1: onPickFrom1,
-              onPickTo1: onPickTo1,
-              onPickFrom2: onPickFrom2,
-              onPickTo2: onPickTo2,
-              onAddBreak: onAddBreak,
-              onRemoveBreak: onRemoveBreak,
-            ) : Opacity(
-              opacity: 0.55,
-              child: Text(
-                'CERRADO',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
-                  letterSpacing: 1.2,
-                  color: KTokens.ink,
-                ),
-              ),
-            ),
+            child: day.open
+                ? _OpenRow(
+                    day: day,
+                    onPickFrom1: onPickFrom1,
+                    onPickTo1: onPickTo1,
+                    onPickFrom2: onPickFrom2,
+                    onPickTo2: onPickTo2,
+                    onAddBreak: onAddBreak,
+                    onRemoveBreak: onRemoveBreak,
+                  )
+                : Opacity(
+                    opacity: 0.55,
+                    child: Text(
+                      'CERRADO',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        letterSpacing: 1.2,
+                        color: KTokens.ink,
+                      ),
+                    ),
+                  ),
           ),
           // Copy icon
           IconButton(
             onPressed: onCopy,
-            icon: const Icon(Icons.content_copy_rounded, size: 15),
+            icon: const Icon(Icons.drag_handle, size: 16),
             color: KTokens.inkSoft,
             tooltip: 'Copiar ${_kDayFull[day.diaSemana]}',
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -106,6 +110,46 @@ class DayRow extends StatelessWidget {
     );
   }
 }
+
+// ─── Custom pill toggle ───────────────────────────────────────────────────────
+
+class _DayToggle extends StatelessWidget {
+  const _DayToggle({required this.value, required this.onChanged});
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 36,
+        height: 20,
+        decoration: BoxDecoration(
+          color: value ? KTokens.accent : const Color(0xFFD8D6D0),
+          borderRadius: BorderRadius.circular(KTokens.rPill),
+        ),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 16,
+            height: 16,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Open row (time chips + pausa) ───────────────────────────────────────────
 
 class _OpenRow extends StatelessWidget {
   const _OpenRow({
@@ -140,10 +184,7 @@ class _OpenRow extends StatelessWidget {
         _Arrow(),
         _TimeChip(label: _fmt(day.to1), onTap: onPickTo1),
         if (!day.hasBreak)
-          _DashedChip(
-            label: '+ pausa',
-            onTap: onAddBreak,
-          )
+          _DashedChip(label: '+ pausa', onTap: onAddBreak)
         else ...[
           _DashedLabel(),
           _TimeChip(label: _fmt(day.from2), onTap: onPickFrom2),
@@ -155,6 +196,8 @@ class _OpenRow extends StatelessWidget {
     );
   }
 }
+
+// ─── Time chip ────────────────────────────────────────────────────────────────
 
 class _TimeChip extends StatelessWidget {
   const _TimeChip({required this.label, required this.onTap});
@@ -185,6 +228,8 @@ class _TimeChip extends StatelessWidget {
   }
 }
 
+// ─── Arrow ────────────────────────────────────────────────────────────────────
+
 class _Arrow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -195,19 +240,7 @@ class _Arrow extends StatelessWidget {
   }
 }
 
-class _DashedLabel extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      '+ pausa',
-      style: GoogleFonts.inter(
-        fontSize: 11,
-        color: KTokens.inkMuted,
-        fontStyle: FontStyle.italic,
-      ),
-    );
-  }
-}
+// ─── Dashed chip (+ pausa button) ────────────────────────────────────────────
 
 class _DashedChip extends StatelessWidget {
   const _DashedChip({required this.label, required this.onTap});
@@ -223,23 +256,34 @@ class _DashedChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(KTokens.rSm),
-          border: Border.all(
-            color: KTokens.inkPlaceholder,
-            style: BorderStyle.solid,
-            width: 1,
-          ),
+          border: Border.all(color: KTokens.inkPlaceholder),
         ),
         child: Text(
           label,
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            color: KTokens.inkSoft,
-          ),
+          style: GoogleFonts.inter(fontSize: 11, color: KTokens.inkSoft),
         ),
       ),
     );
   }
 }
+
+// ─── Dashed label (separator between two ranges) ─────────────────────────────
+
+class _DashedLabel extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '· pausa ·',
+      style: GoogleFonts.inter(
+        fontSize: 11,
+        color: KTokens.inkMuted,
+        fontStyle: FontStyle.italic,
+      ),
+    );
+  }
+}
+
+// ─── Remove pausa button ──────────────────────────────────────────────────────
 
 class _RemovePausaBtn extends StatelessWidget {
   const _RemovePausaBtn({required this.onRemove});

@@ -26,13 +26,11 @@ class PreviewPanel extends ConsumerStatefulWidget {
 }
 
 class _PreviewPanelState extends ConsumerState<PreviewPanel> {
-  // Selected day index (0=Mon..6=Sun) for preview. Default to today.
   late int _selectedDia;
 
   @override
   void initState() {
     super.initState();
-    // weekday: 1=Mon..7=Sun → convert to 0..6
     _selectedDia = (DateTime.now().weekday - 1).clamp(0, 6);
   }
 
@@ -52,10 +50,9 @@ class _PreviewPanelState extends ConsumerState<PreviewPanel> {
     final rules = state.rules;
     final slotsResult = generateSlots(day: selectedDay, rules: rules);
 
-    // Build a preview date: next occurrence of _selectedDia from today
     final now = DateTime.now();
-    final todayWd = now.weekday - 1; // 0-6
-    int diff = (_selectedDia - todayWd + 7) % 7;
+    final todayWd = now.weekday - 1;
+    final diff = (_selectedDia - todayWd + 7) % 7;
     final previewDate = now.add(Duration(days: diff));
 
     return Container(
@@ -114,43 +111,51 @@ class _PreviewPanelState extends ConsumerState<PreviewPanel> {
             ),
           ),
           const Divider(height: 1, color: KTokens.border),
-          // Selected day label
+          // Slots or closed message
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 6),
-            child: Text(
-              _buildLabel(selectedDay, previewDate),
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
-                color: KTokens.inkMuted,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          // Slots grid
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
             child: selectedDay.open && slotsResult.all.isNotEmpty
-                ? _SlotsSection(result: slotsResult)
+                ? _SlotsSection(
+                    result: slotsResult,
+                    day: selectedDay,
+                    previewDate: previewDate,
+                    selectedDia: _selectedDia,
+                  )
                 : _ClosedMsg(dayName: _kDayFull[_selectedDia]),
           ),
           // Footer count
           if (selectedDay.open && slotsResult.all.isNotEmpty)
             Container(
               margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: KTokens.bg,
                 borderRadius: BorderRadius.circular(KTokens.rSm),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(
-                    '${slotsResult.all.length} SLOTS DISPONIBLES',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
-                      color: KTokens.ink,
-                      letterSpacing: 0.6,
-                      fontWeight: FontWeight.w600,
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${slotsResult.all.length}',
+                          style: GoogleFonts.inter(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: KTokens.ink,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' SLOTS DISPONIBLES',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 9,
+                            color: KTokens.inkSoft,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const Spacer(),
@@ -161,6 +166,7 @@ class _PreviewPanelState extends ConsumerState<PreviewPanel> {
                         fontSize: 9,
                         color: KTokens.excOpen,
                         letterSpacing: 0.6,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                 ],
@@ -170,14 +176,9 @@ class _PreviewPanelState extends ConsumerState<PreviewPanel> {
       ),
     );
   }
-
-  String _buildLabel(DayDraft day, DateTime date) {
-    final dayName = _kDayFull[day.diaSemana].toUpperCase();
-    final dateStr = '${date.day}/${date.month}';
-    final period = day.open ? 'MAÑANA' : 'CERRADO';
-    return '$dayName $dateStr · $period | Servicio: Corte (30m)';
-  }
 }
+
+// ─── Day picker ───────────────────────────────────────────────────────────────
 
 class _DayPicker extends StatelessWidget {
   const _DayPicker({
@@ -199,7 +200,7 @@ class _DayPicker extends StatelessWidget {
       children: days.map((d) {
         final now = DateTime.now();
         final todayWd = now.weekday - 1;
-        int diff = (d.diaSemana - todayWd + 7) % 7;
+        final diff = (d.diaSemana - todayWd + 7) % 7;
         final date = now.add(Duration(days: diff));
         final isSelected = d.diaSemana == selectedDia;
 
@@ -210,12 +211,8 @@ class _DayPicker extends StatelessWidget {
             width: 36,
             height: 48,
             decoration: BoxDecoration(
-              color: isSelected ? KTokens.accentSoft : Colors.transparent,
+              color: isSelected ? KTokens.accent : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isSelected ? KTokens.accent : Colors.transparent,
-                width: 1.5,
-              ),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -224,7 +221,9 @@ class _DayPicker extends StatelessWidget {
                   _kDayLetters[d.diaSemana],
                   style: GoogleFonts.inter(
                     fontSize: 10,
-                    color: isSelected ? KTokens.accent : KTokens.inkSoft,
+                    color: isSelected
+                        ? Colors.white
+                        : KTokens.inkSoft,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -235,7 +234,7 @@ class _DayPicker extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: isSelected
-                        ? KTokens.accent
+                        ? Colors.white
                         : d.open
                             ? KTokens.ink
                             : KTokens.inkPlaceholder,
@@ -250,15 +249,86 @@ class _DayPicker extends StatelessWidget {
   }
 }
 
+// ─── Slots section ────────────────────────────────────────────────────────────
+
 class _SlotsSection extends StatelessWidget {
-  const _SlotsSection({required this.result});
+  const _SlotsSection({
+    required this.result,
+    required this.day,
+    required this.previewDate,
+    required this.selectedDia,
+  });
+
   final SlotsResult result;
+  final DayDraft day;
+  final DateTime previewDate;
+  final int selectedDia;
 
   @override
   Widget build(BuildContext context) {
-    return _SlotsGrid(slots: result.all);
+    final dayName = _kDayFull[selectedDia].toUpperCase();
+    final dayNum = previewDate.day;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (result.range1.isNotEmpty) ...[
+          _SlotSectionHeader(
+            left: '$dayName $dayNum · MAÑANA',
+            right: 'Servicio: Corte (30m)',
+          ),
+          const SizedBox(height: 8),
+          _SlotsGrid(slots: result.range1),
+        ],
+        if (result.range2.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _SlotSectionHeader(
+            left: 'TARDE',
+            right:
+                '${day.to1.hour}–${day.from2.hour} PAUSA',
+          ),
+          const SizedBox(height: 8),
+          _SlotsGrid(slots: result.range2),
+        ],
+      ],
+    );
   }
 }
+
+// ─── Section header row ───────────────────────────────────────────────────────
+
+class _SlotSectionHeader extends StatelessWidget {
+  const _SlotSectionHeader({required this.left, required this.right});
+  final String left;
+  final String right;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          left,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 9,
+            color: KTokens.inkMuted,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          right,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 9,
+            color: KTokens.inkMuted,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Slots grid (4 columns) ───────────────────────────────────────────────────
 
 class _SlotsGrid extends StatelessWidget {
   const _SlotsGrid({required this.slots});
@@ -269,28 +339,61 @@ class _SlotsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: slots.map((s) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          decoration: BoxDecoration(
-            color: s.available ? KTokens.accentSoft : KTokens.bg,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: s.available
-                  ? KTokens.accent.withValues(alpha: 0.3)
-                  : KTokens.border,
-            ),
-          ),
-          child: Text(
-            _fmt(s.time),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              color: s.available ? KTokens.accent : KTokens.inkPlaceholder,
-              decoration: s.available ? null : TextDecoration.lineThrough,
-            ),
+    const cols = 4;
+    final rows = <List<SlotPreview?>>[];
+    for (var i = 0; i < slots.length; i += cols) {
+      final row = <SlotPreview?>[];
+      for (var j = i; j < i + cols; j++) {
+        row.add(j < slots.length ? slots[j] : null);
+      }
+      rows.add(row);
+    }
+
+    return Column(
+      children: rows.asMap().entries.map((rowEntry) {
+        return Padding(
+          padding: EdgeInsets.only(
+              bottom: rowEntry.key < rows.length - 1 ? 4 : 0),
+          child: Row(
+            children: rowEntry.value.asMap().entries.map((cellEntry) {
+              final s = cellEntry.value;
+              final isLast = cellEntry.key == cols - 1;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: isLast ? 0 : 4),
+                  child: s != null
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: s.available
+                                ? KTokens.accentSoft
+                                : KTokens.bg,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: s.available
+                                  ? KTokens.accent.withValues(alpha: 0.3)
+                                  : KTokens.border,
+                            ),
+                          ),
+                          child: Text(
+                            _fmt(s.time),
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              color: s.available
+                                  ? KTokens.accent
+                                  : KTokens.inkPlaceholder,
+                              decoration: s.available
+                                  ? null
+                                  : TextDecoration.lineThrough,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              );
+            }).toList(),
           ),
         );
       }).toList(),
@@ -298,27 +401,29 @@ class _SlotsGrid extends StatelessWidget {
   }
 }
 
+// ─── Closed message ───────────────────────────────────────────────────────────
+
 class _ClosedMsg extends StatelessWidget {
   const _ClosedMsg({required this.dayName});
   final String dayName;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Column(
-        children: [
-          const Icon(Icons.lock_outline, size: 24, color: KTokens.inkPlaceholder),
-          const SizedBox(height: 6),
-          Text(
-            '$dayName cerrado',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: KTokens.inkMuted,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          children: [
+            const Icon(Icons.lock_outline,
+                size: 24, color: KTokens.inkPlaceholder),
+            const SizedBox(height: 6),
+            Text(
+              '$dayName cerrado',
+              style: GoogleFonts.inter(fontSize: 12, color: KTokens.inkMuted),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
