@@ -208,7 +208,7 @@ final List<Member> kMockMembers = [
     id: 'm6',
     name: 'Emilia Ortiz',
     type: MemberType.profesionalConCuenta,
-    status: MemberStatus.archivado,
+    status: MemberStatus.pausado,
     role: MemberRole.profesional,
     color: KTokens.proPalette[5],
     phone: '+598 96 789 012',

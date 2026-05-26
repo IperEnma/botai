@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../register/konecta_tokens.dart';
@@ -92,10 +91,6 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
 
   @override
   Widget build(BuildContext context) {
-    final slug = widget.member.name
-        .toLowerCase()
-        .replaceAll(' ', '-')
-        .replaceAll(RegExp(r'[^a-z0-9-]'), '');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -155,12 +150,6 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
           _SectionLabel('COLOR IDENTIFICADOR'),
           const SizedBox(height: 10),
           _ColorSection(member: widget.member, notifier: widget.notifier),
-          const SizedBox(height: 20),
-
-          // LINK
-          _SectionLabel('LINK PERSONAL DE RESERVA'),
-          const SizedBox(height: 10),
-          _LinkRow(slug: slug),
         ],
       ),
     );
@@ -444,62 +433,3 @@ class _ColorSection extends StatelessWidget {
   }
 }
 
-// ─── Link row ─────────────────────────────────────────────────────────────────
-
-class _LinkRow extends StatelessWidget {
-  const _LinkRow({required this.slug});
-  final String slug;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: KTokens.surface,
-        border: Border.all(color: KTokens.border),
-        borderRadius: BorderRadius.circular(KTokens.rSm),
-      ),
-      child: Row(
-        children: [
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: 'konecta.uy/',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 13,
-                    color: KTokens.inkSoft,
-                  ),
-                ),
-                TextSpan(
-                  text: slug,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 13,
-                    color: KTokens.ink,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: 'konecta.uy/$slug'));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Link copiado')),
-              );
-            },
-            icon: const Icon(Icons.copy, size: 14),
-            label: const Text('Copiar'),
-            style: TextButton.styleFrom(
-              foregroundColor: KTokens.accent,
-              textStyle: GoogleFonts.inter(fontSize: 13),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

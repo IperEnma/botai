@@ -87,7 +87,7 @@ public class JpaStaffMemberRepository implements StaffMemberRepository {
         jpaRepository.findById(id).ifPresent(entity -> {
             entity.setDeletedAt(LocalDateTime.now());
             entity.setActivo(false);
-            entity.setStatus("ARCHIVADO");
+            entity.setStatus("PAUSADO");
             jpaRepository.save(entity);
         });
     }

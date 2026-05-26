@@ -48,8 +48,6 @@ class EquipoState {
       members.where((m) => m.status == MemberStatus.activo).length;
   int get countPausados =>
       members.where((m) => m.status == MemberStatus.pausado).length;
-  int get countArchivados =>
-      members.where((m) => m.status == MemberStatus.archivado).length;
 
   int get totalTurnosHoy =>
       members.where((m) => m.status == MemberStatus.activo).fold(
@@ -99,7 +97,6 @@ Member _toMember(StaffMember sm, int index) {
     type: type,
     status: switch (sm.status) {
       'PAUSADO' => MemberStatus.pausado,
-      'ARCHIVADO' => MemberStatus.archivado,
       _ => MemberStatus.activo,
     },
     role: role,
@@ -186,7 +183,6 @@ class EquipoNotifier extends StateNotifier<EquipoState> {
     final statusStr = switch (member.status) {
       MemberStatus.activo => 'ACTIVO',
       MemberStatus.pausado => 'PAUSADO',
-      MemberStatus.archivado => 'ARCHIVADO',
     };
     _ref.read(businessStaffProvider(
       (tenantId: _key.tenantId, businessId: _key.businessId),

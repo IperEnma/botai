@@ -29,7 +29,6 @@ class _MemberRowState extends State<MemberRow> {
 
   double get _opacity => switch (widget.member.status) {
         MemberStatus.pausado => 0.65,
-        MemberStatus.archivado => 0.45,
         _ => 1.0,
       };
 
@@ -310,16 +309,6 @@ class _ScheduleCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (member.status == MemberStatus.archivado) {
-      return Text(
-        'Archivado',
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 11,
-          color: KTokens.inkPlaceholder,
-        ),
-      );
-    }
-
     if (!member.isCustomSchedule || scheduleLabel.isEmpty) {
       return Text(
         'Hereda negocio',
@@ -382,8 +371,6 @@ class _MoreMenu extends StatelessWidget {
             onStatusChange(MemberStatus.pausado);
           case 'reactivate':
             onStatusChange(MemberStatus.activo);
-          case 'archive':
-            onStatusChange(MemberStatus.archivado);
         }
       },
       itemBuilder: (_) => [
@@ -396,19 +383,10 @@ class _MoreMenu extends StatelessWidget {
             value: 'pause',
             child: Text('Pausar', style: GoogleFonts.inter(fontSize: 13)),
           ),
-        if (member.status == MemberStatus.pausado ||
-            member.status == MemberStatus.archivado)
+        if (member.status == MemberStatus.pausado)
           PopupMenuItem(
             value: 'reactivate',
             child: Text('Reactivar', style: GoogleFonts.inter(fontSize: 13)),
-          ),
-        if (member.status != MemberStatus.archivado)
-          PopupMenuItem(
-            value: 'archive',
-            child: Text(
-              'Archivar',
-              style: GoogleFonts.inter(fontSize: 13, color: KTokens.excClosed),
-            ),
           ),
       ],
     );

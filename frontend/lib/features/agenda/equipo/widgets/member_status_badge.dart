@@ -22,11 +22,6 @@ class MemberStatusBadge extends StatelessWidget {
           KTokens.memberPausedText,
           'PAUSADO',
         ),
-      MemberStatus.archivado => (
-          KTokens.memberArchivedBg,
-          KTokens.memberArchivedText,
-          'ARCHIVADO',
-        ),
     };
 
     return Container(

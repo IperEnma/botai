@@ -374,7 +374,6 @@ class _PanelFooter extends ConsumerWidget {
       final statusStr = switch (member.status) {
         MemberStatus.activo => 'ACTIVO',
         MemberStatus.pausado => 'PAUSADO',
-        MemberStatus.archivado => 'ARCHIVADO',
       };
 
       // Guardar perfil + status + schedule
@@ -406,19 +405,6 @@ class _PanelFooter extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          if (member.status != MemberStatus.archivado)
-            TextButton(
-              onPressed: () {
-                notifier.setStatus(member.id, MemberStatus.archivado);
-                onClose();
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: KTokens.excClosed,
-                textStyle: GoogleFonts.inter(fontSize: 13),
-                padding: EdgeInsets.zero,
-              ),
-              child: const Text('Archivar miembro'),
-            ),
           const Spacer(),
           if (member.status == MemberStatus.activo)
             OutlinedButton(
@@ -437,8 +423,7 @@ class _PanelFooter extends ConsumerWidget {
               ),
               child: const Text('Pausar'),
             ),
-          if (member.status == MemberStatus.pausado ||
-              member.status == MemberStatus.archivado)
+          if (member.status == MemberStatus.pausado)
             OutlinedButton(
               onPressed: () {
                 notifier.setStatus(member.id, MemberStatus.activo);

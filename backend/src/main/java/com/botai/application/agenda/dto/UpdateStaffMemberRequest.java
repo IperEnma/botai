@@ -13,8 +13,8 @@ public record UpdateStaffMemberRequest(
         @Size(max = 200) String email,
         String bio,
         @Size(max = 7) String color,
-        @NotBlank @Pattern(regexp = "ACTIVO|PAUSADO|ARCHIVADO",
-                message = "status debe ser ACTIVO, PAUSADO o ARCHIVADO") String status,
+        @NotBlank @Pattern(regexp = "ACTIVO|PAUSADO",
+                message = "status debe ser ACTIVO o PAUSADO") String status,
         JsonNode customSchedule
 ) {
 }

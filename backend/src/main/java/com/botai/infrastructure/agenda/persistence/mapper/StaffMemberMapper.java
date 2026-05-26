@@ -23,7 +23,7 @@ public final class StaffMemberMapper {
                 .email(e.getEmail())
                 .bio(e.getBio())
                 .color(e.getColor())
-                .status(e.getStatus() != null ? e.getStatus() : (e.isActivo() ? "ACTIVO" : "ARCHIVADO"))
+                .status(e.getStatus() != null ? e.getStatus() : (e.isActivo() ? "ACTIVO" : "PAUSADO"))
                 .customSchedule(e.getCustomSchedule())
                 .serviceIds(e.getServiceIds() != null ? new ArrayList<>(e.getServiceIds()) : new ArrayList<>())
                 .deletedAt(e.getDeletedAt())

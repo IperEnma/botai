@@ -90,7 +90,6 @@ class _FilterTabs extends StatelessWidget {
       (null, 'Todos', state.members.length),
       (MemberStatus.activo, 'Activos', state.countActivos),
       (MemberStatus.pausado, 'Pausados', state.countPausados),
-      (MemberStatus.archivado, 'Archivados', state.countArchivados),
     ];
 
     return Container(

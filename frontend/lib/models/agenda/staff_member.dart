@@ -9,7 +9,7 @@ class StaffMember {
   final String? bio;
   final String? color;
   final bool activo;
-  final String status; // 'ACTIVO', 'PAUSADO', 'ARCHIVADO'
+  final String status; // 'ACTIVO', 'PAUSADO'
   final Map<String, dynamic>? customSchedule;
   final List<String> serviceIds;
 
@@ -41,7 +41,7 @@ class StaffMember {
         color: json['color'] as String?,
         activo: json['activo'] as bool? ?? true,
         status: json['status'] as String? ??
-            ((json['activo'] as bool?) == true ? 'ACTIVO' : 'ARCHIVADO'),
+            ((json['activo'] as bool?) == true ? 'ACTIVO' : 'PAUSADO'),
         customSchedule: json['customSchedule'] as Map<String, dynamic>?,
         serviceIds: (json['serviceIds'] as List<dynamic>?)
                 ?.map((e) => e as String)

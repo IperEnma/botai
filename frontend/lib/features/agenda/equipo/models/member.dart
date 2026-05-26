@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 enum MemberType { profesionalConCuenta, profesionalSoloPerfil, recepcion }
 
-enum MemberStatus { activo, pausado, archivado }
+enum MemberStatus { activo, pausado }
 
 enum MemberRole { duenio, profesional, recepcion }
 

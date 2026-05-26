@@ -44,7 +44,7 @@ class AgendaSection extends ConsumerStatefulWidget {
 }
 
 class _AgendaSectionState extends ConsumerState<AgendaSection> {
-  _AgendaViewMode _mode = _AgendaViewMode.month;
+  _AgendaViewMode _mode = _AgendaViewMode.day;
   DateTime _focusDate = DateTime.now();
   String? _selectedProId;
 
@@ -473,9 +473,9 @@ class _ViewTabs extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _Tab(
-            label: 'Mes',
-            selected: mode == _AgendaViewMode.month,
-            onTap: () => onModeChange(_AgendaViewMode.month),
+            label: 'Día',
+            selected: mode == _AgendaViewMode.day,
+            onTap: () => onModeChange(_AgendaViewMode.day),
           ),
           _Tab(
             label: 'Semana',
@@ -483,9 +483,9 @@ class _ViewTabs extends StatelessWidget {
             onTap: () => onModeChange(_AgendaViewMode.week),
           ),
           _Tab(
-            label: 'Día',
-            selected: mode == _AgendaViewMode.day,
-            onTap: () => onModeChange(_AgendaViewMode.day),
+            label: 'Mes',
+            selected: mode == _AgendaViewMode.month,
+            onTap: () => onModeChange(_AgendaViewMode.month),
           ),
         ],
       ),
