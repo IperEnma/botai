@@ -1,6 +1,13 @@
 # Perfil "local": usa usuario postgres (típico en instalación local).
 # Ejecutar desde IDE con: -Dspring.profiles.active=local
 # No hace falta crear usuario/BD; usa la BD "postgres" por defecto.
+#
+# Flujo en cada reinicio:
+#   1. schema.sql aplica extensiones PG (pgvector, pgcrypto, btree_gist).
+#   2. Hibernate (create-drop) recrea todas las tablas de entidades desde cero.
+#   3. AgendaFlywayConfig elimina agenda_flyway_schema_history (clean-history-before-migrate).
+#   4. Flyway corre V1–Vn: siembra categorías, crea FKs/índices, etc.
+# Resultado: esquema limpio en cada arranque; nunca hace falta un ALTER TABLE/COLUMN local.
 
 spring:
   datasource:
@@ -12,10 +19,15 @@ spring:
       mode: always
   jpa:
     hibernate:
-      # create-drop: Hibernate crea todas las tablas al arrancar y las elimina al apagar.
-      # Cada reinicio parte de cero — útil para probar el flujo de onboarding en limpio.
       ddl-auto: create-drop
   flyway:
-    # Deshabilitado porque Hibernate ya gestiona el schema con create-drop.
-    # Si lo dejamos activo intentaría crear tablas que Hibernate acaba de crear → conflicto.
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration/agenda
+    table: agenda_flyway_schema_history
+    baseline-on-migrate: true
+    baseline-version: 0
+    repair-on-migrate: true
+
+agenda:
+  flyway:
+    clean-history-before-migrate: true

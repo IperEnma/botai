@@ -123,6 +123,12 @@ BEGIN
             ADD CONSTRAINT fk_agenda_bookings_staff
                 FOREIGN KEY (staff_member_id) REFERENCES agenda_staff_members (id) ON DELETE SET NULL;
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_staff_status') THEN
+        ALTER TABLE agenda_staff_members
+            ADD CONSTRAINT chk_staff_status
+            CHECK (status IN ('ACTIVO', 'PAUSADO', 'ARCHIVADO'));
+    END IF;
 END $$;
 
 -- ----------------------------------------------------------------------------

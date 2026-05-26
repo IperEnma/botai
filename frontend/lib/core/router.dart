@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../features/auth/login_screen.dart';
-import '../features/dashboard/dashboard_screen.dart';
+import '../features/bots/screens/bots_screen.dart';
 import '../features/bot_detail/bot_detail_screen.dart';
 // Agenda module — paquete paralelo, no toca el bot.
 import '../features/agenda/register/register_screen.dart';
@@ -131,7 +131,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/home/bots',
-            builder: (context, state) => const DashboardScreen(),
+            builder: (context, state) => const BotsScreen(),
           ),
           GoRoute(
             path: '/home/bots/:botId',

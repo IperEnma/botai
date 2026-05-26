@@ -1,3 +1,0 @@
-ALTER TABLE agenda_staff_members
-    ADD COLUMN IF NOT EXISTS email VARCHAR(200),
-    ADD COLUMN IF NOT EXISTS bio   TEXT;

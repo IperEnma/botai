@@ -104,4 +104,21 @@ class KTokens {
   static const warn       = Color(0xFFA3501A);
   static const warnBg     = Color(0x14FB923C);
   static const warnBorder = Color(0x40FB923C);
+
+  // ── Capa badges ──────────────────────────────────────────────────────────────
+  static const capa1Bg   = Color(0x2660A5FA);
+  static const capa1Text = Color(0xFF1E40AF);
+  static const capa2Bg   = Color(0x2EA78BFA);
+  static const capa2Text = Color(0xFF5E3AA5);
+  static const capa3Bg   = Color(0x26FB923C);
+  static const capa3Text = Color(0xFFA3501A);
+
+  // ── WhatsApp ─────────────────────────────────────────────────────────────────
+  static const waGreen     = Color(0xFF25D366);
+  static const waGreenSoft = Color(0x1F25D366);
+  static const waGreenText = Color(0xFF0E6E3A);
+
+  // ── Mock chat bubbles ─────────────────────────────────────────────────────────
+  static const bubbleBotBg   = Color(0xFF9EFF8C);
+  static const bubbleBotText = Color(0xFF0D2A05);
 }
