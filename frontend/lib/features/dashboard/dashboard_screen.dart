@@ -75,7 +75,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     onTap: () {
                       ref.read(selectedBotProvider.notifier).state =
                           botsState.bots[index];
-                      context.go('/home/bots/${botsState.bots[index].id}');
+                      context.go('/bots/${botsState.bots[index].id}');
                     },
                   );
                 },
@@ -507,7 +507,7 @@ class _CreateBotDialogState extends ConsumerState<_CreateBotDialog> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              context.go('/home');
+              context.go('/agenda/panel');
             },
             child: const Text('Ir a Agenda'),
           ),
@@ -595,7 +595,7 @@ class _CreateBotDialogState extends ConsumerState<_CreateBotDialog> {
                         TextButton.icon(
                           onPressed: () {
                             Navigator.pop(context);
-                            context.go('/home');
+                            context.go('/agenda/panel');
                           },
                           icon: const Icon(Icons.storefront_outlined),
                           label: const Text('Ir a mis negocios'),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../agenda/register/konecta_tokens.dart';
-import '../../data/service_group_catalog.dart';
 import '../../data/template_catalog.dart';
 import '../../models/business_category.dart';
 import '../../models/service_template.dart';
@@ -31,13 +30,6 @@ class _SuggestedModeState extends State<SuggestedMode> {
   @override
   Widget build(BuildContext context) {
     final templates = TemplateCatalog.forCategory(widget.category);
-    final groups = ServiceGroupCatalog.forCategory(widget.category);
-
-    // Group templates by groupId
-    final grouped = <String, List<ServiceTemplate>>{};
-    for (final t in templates) {
-      grouped.putIfAbsent(t.groupId, () => []).add(t);
-    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -80,59 +72,41 @@ class _SuggestedModeState extends State<SuggestedMode> {
           ),
           const SizedBox(height: 20),
 
-          // Template groups
-          ...groups.map((group) {
-            final groupTemplates = grouped[group.id] ?? [];
-            if (groupTemplates.isEmpty) return const SizedBox.shrink();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  group.name.toUpperCase(),
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    color: KTokens.inkSoft,
-                    letterSpacing: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 2.3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemCount: groupTemplates.length,
-                  itemBuilder: (_, i) {
-                    final t = groupTemplates[i];
-                    final isSelected = _selected.contains(t.id);
-                    final alreadyAdded = widget.existingIds.contains(t.id);
-                    return _TemplateCard(
-                      template: t,
-                      isSelected: isSelected,
-                      alreadyAdded: alreadyAdded,
-                      onTap: alreadyAdded
-                          ? null
-                          : () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selected.remove(t.id);
-                                } else {
-                                  _selected.add(t.id);
-                                }
-                              });
-                              widget.onSelectionChanged(Set.from(_selected));
-                            },
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-              ],
-            );
-          }),
+          // Template grid (flat)
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 2.3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: templates.length,
+            itemBuilder: (_, i) {
+              final t = templates[i];
+              final isSelected = _selected.contains(t.id);
+              final alreadyAdded = widget.existingIds.contains(t.id);
+              return _TemplateCard(
+                template: t,
+                isSelected: isSelected,
+                alreadyAdded: alreadyAdded,
+                onTap: alreadyAdded
+                    ? null
+                    : () {
+                        setState(() {
+                          if (isSelected) {
+                            _selected.remove(t.id);
+                          } else {
+                            _selected.add(t.id);
+                          }
+                        });
+                        widget.onSelectionChanged(Set.from(_selected));
+                      },
+              );
+            },
+          ),
+          const SizedBox(height: 20),
 
           // Fallback
           GestureDetector(
@@ -194,7 +168,6 @@ class _TemplateCard extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              // Content
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -230,8 +203,6 @@ class _TemplateCard extends StatelessWidget {
                   ),
                 ],
               ),
-
-              // Corner indicator
               Positioned(
                 top: 0,
                 right: 0,
@@ -261,7 +232,5 @@ class _TemplateCard extends StatelessWidget {
     );
   }
 }
-
-// ─── Mock existing IDs helper ─────────────────────────────────────────────────
 
 Set<String> buildExistingIds(List<String> serviceIds) => serviceIds.toSet();

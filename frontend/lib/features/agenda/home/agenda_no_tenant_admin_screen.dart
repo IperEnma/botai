@@ -195,7 +195,7 @@ class _AgendaNoTenantAdminScreenState
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton(
-                    onPressed: () => context.go('/home/bots'),
+                    onPressed: () => context.go('/bots'),
                     child: const Text('Ir a mis bots'),
                   ),
                   const SizedBox(height: 8),

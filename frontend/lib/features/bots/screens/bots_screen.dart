@@ -100,7 +100,7 @@ class _BotsViewState extends ConsumerState<_BotsView> {
         backgroundColor: const Color(0xFFFBFAF7),
         body: BotsListView(
           onCreate: openCreatePanel,
-          onBotTap: (bot) => context.go('/home/bots/${bot.id}'),
+          onBotTap: (bot) => context.go('/bots/${bot.id}'),
         ),
       );
     } else {

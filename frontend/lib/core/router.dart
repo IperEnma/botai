@@ -42,15 +42,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggingIn = loc == '/login';
       final legacyTenantsMe = loc.startsWith('/agenda/tenants/me');
       final homeTenantArea =
-          loc == '/home' || loc.startsWith('/home/businesses/') ||
+          loc == '/agenda/panel' ||
           loc.startsWith('/agenda/businesses/');
       final isAgendaRoute = loc == '/' || loc.startsWith('/agenda');
 
       debugPrint('[ROUTER] redirect — loc=$loc isLoggedIn=$isLoggedIn');
 
       if (isLoggedIn && loc == '/dashboard') {
-        debugPrint('[ROUTER] → /home/bots (dashboard)');
-        return '/home/bots';
+        debugPrint('[ROUTER] → /bots (dashboard)');
+        return '/bots';
       }
       if (!isLoggedIn && legacyTenantsMe) {
         debugPrint('[ROUTER] → /login (legacyTenantsMe, not logged in)');
@@ -66,7 +66,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
       if (isLoggedIn &&
           (loc == '/' || isLoggingIn || loc == '/agenda/register')) {
-        return '/home';
+        return '/agenda/panel';
       }
       final meBizPrefix = '/agenda/tenants/me/businesses/';
       if (isLoggedIn && loc.startsWith(meBizPrefix)) {
@@ -81,8 +81,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (isLoggedIn && loc == '/agenda/tenants/me') {
-        debugPrint('[ROUTER] → /home (legacyTenantsMe, logged in)');
-        return '/home';
+        debugPrint('[ROUTER] → /agenda/panel (legacyTenantsMe, logged in)');
+        return '/agenda/panel';
       }
       debugPrint('[ROUTER] → null (sin redirect)');
       return null;
@@ -96,7 +96,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => AgendaHomeShell(child: child),
         routes: [
           GoRoute(
-            path: '/home',
+            path: '/agenda/panel',
             builder: (context, state) => const TenantMeGateScreen(),
           ),
           GoRoute(
@@ -130,11 +130,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
           GoRoute(
-            path: '/home/bots',
+            path: '/bots',
             builder: (context, state) => const BotsScreen(),
           ),
           GoRoute(
-            path: '/home/bots/:botId',
+            path: '/bots/:botId',
             builder: (context, state) {
               final botId = state.pathParameters['botId']!;
               return BotDetailScreen(botId: botId);
@@ -146,7 +146,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/bot/:botId',
         redirect: (context, state) {
           final botId = state.pathParameters['botId']!;
-          return '/home/bots/$botId';
+          return '/bots/$botId';
         },
       ),
       // ----------- AGENDA module -----------

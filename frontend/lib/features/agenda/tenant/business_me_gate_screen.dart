@@ -46,7 +46,7 @@ class BusinessMeGateScreen extends ConsumerWidget {
         final notFound = e is AgendaApiException && e.isNotFound;
         if (notFound) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/agenda/onboarding');
+            if (context.mounted) context.go('/agenda/business-register');
           });
           return const Scaffold(body: AgendaLoadingView());
         }

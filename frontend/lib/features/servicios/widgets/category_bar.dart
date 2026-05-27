@@ -68,7 +68,7 @@ class CategoryBar extends StatelessWidget {
           const SizedBox(width: 16),
 
           Text(
-            'Define qué sub-categorías y sugerencias aparecen',
+            'Define las sugerencias disponibles',
             style: GoogleFonts.inter(fontSize: 12, color: KTokens.inkMuted),
           ),
           const Spacer(),

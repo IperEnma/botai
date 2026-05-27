@@ -4,9 +4,7 @@ import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../services/agenda_api_exception.dart';
-import '../data/service_group_catalog.dart';
 import '../models/business_category.dart';
-import '../models/service_group.dart';
 import '../models/service_stats.dart';
 import '../models/servicio_item.dart';
 
@@ -21,26 +19,22 @@ enum ServicioFilter { all, active, inactive }
 // ─── UI-only extras (not in backend model yet) ────────────────────────────────
 
 class ServicioExtras {
-  final String groupId;
   final bool flexibleDuration;
   final bool priceFrom;
   final List<String> professionalIds;
 
   const ServicioExtras({
-    this.groupId = 'otros',
     this.flexibleDuration = false,
     this.priceFrom = false,
     this.professionalIds = const [],
   });
 
   ServicioExtras copyWith({
-    String? groupId,
     bool? flexibleDuration,
     bool? priceFrom,
     List<String>? professionalIds,
   }) =>
       ServicioExtras(
-        groupId: groupId ?? this.groupId,
         flexibleDuration: flexibleDuration ?? this.flexibleDuration,
         priceFrom: priceFrom ?? this.priceFrom,
         professionalIds: professionalIds ?? this.professionalIds,
@@ -55,7 +49,6 @@ class ServiciosState {
   final ServicioFilter filter;
   final String query;
   final BusinessCategory category;
-  final List<ServiceGroup> extraGroups;
   final bool isLoading;
   final String? error;
 
@@ -65,7 +58,6 @@ class ServiciosState {
     this.filter = ServicioFilter.all,
     this.query = '',
     this.category = BusinessCategory.otra,
-    this.extraGroups = const [],
     this.isLoading = false,
     this.error,
   });
@@ -76,7 +68,6 @@ class ServiciosState {
     ServicioFilter? filter,
     String? query,
     BusinessCategory? category,
-    List<ServiceGroup>? extraGroups,
     bool? isLoading,
     Object? error = _sentinel,
   }) =>
@@ -86,7 +77,6 @@ class ServiciosState {
         filter: filter ?? this.filter,
         query: query ?? this.query,
         category: category ?? this.category,
-        extraGroups: extraGroups ?? this.extraGroups,
         isLoading: isLoading ?? this.isLoading,
         error: identical(error, _sentinel) ? this.error : error as String?,
       );
@@ -95,7 +85,7 @@ class ServiciosState {
 
   int get countActive => items.where((s) => s.active).length;
   int get countInactive => items.where((s) => !s.active).length;
-  int get totalBookingsThisMonth => 0; // no stats endpoint yet
+  int get totalBookingsThisMonth => 0;
 }
 
 // ─── Notifier ─────────────────────────────────────────────────────────────────
@@ -109,7 +99,6 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
   final Ref _ref;
   final ServiciosKey _key;
 
-  // Extras stored in memory (groupId, flexibleDuration, priceFrom, professionalIds)
   final Map<String, ServicioExtras> _extras = {};
 
   Future<void> reload() => _load();
@@ -126,7 +115,6 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       final services = results[0] as List<AgendaService>;
       final staff = results[1] as List<StaffMember>;
 
-      // Build reverse map: serviceId → [staffId, ...] from each member's serviceIds
       final Map<String, List<String>> staffByService = {};
       for (final member in staff) {
         for (final serviceId in member.serviceIds) {
@@ -134,7 +122,6 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
         }
       }
 
-      // Pre-populate _extras with the resolved professionalIds
       for (final service in services) {
         final ids = staffByService[service.id];
         if (ids != null && ids.isNotEmpty) {
@@ -162,7 +149,6 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       id: s.id,
       name: s.nombre,
       description: s.descripcion,
-      groupId: extras.groupId,
       durationMinutes: s.duracionMin,
       flexibleDuration: extras.flexibleDuration,
       priceUyu: s.precio.round(),
@@ -200,7 +186,6 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
         activo: !s.active,
       );
     } catch (_) {
-      // Revert on failure
       final reverted = List<ServicioItem>.from(state.items);
       reverted[idx] = s;
       state = state.copyWith(items: reverted);
@@ -246,7 +231,6 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       activo: activo,
     );
 
-    // Sync staff-service assignments if professionalIds changed
     final oldIds =
         (state.items.where((s) => s.id == id).firstOrNull?.professionalIds ??
                 [])
@@ -289,29 +273,8 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
     state = state.copyWith(items: state.items.where((s) => s.id != id).toList());
   }
 
-  void moveToGroup(String id, String groupId) {
-    final extras = _extras[id] ?? const ServicioExtras();
-    _extras[id] = extras.copyWith(groupId: groupId);
-    final idx = state.items.indexWhere((s) => s.id == id);
-    if (idx < 0) return;
-    final updated = List<ServicioItem>.from(state.items);
-    updated[idx] = updated[idx].copyWith(groupId: groupId);
-    state = state.copyWith(items: updated);
-  }
-
   void changeCategory(BusinessCategory category) =>
       state = state.copyWith(category: category);
-
-  void addCustomGroup(String name) {
-    final id = 'custom_${DateTime.now().millisecondsSinceEpoch}';
-    final group = ServiceGroup(
-      id: id,
-      name: name,
-      parentCategory: state.category,
-      order: 100 + state.extraGroups.length,
-    );
-    state = state.copyWith(extraGroups: [...state.extraGroups, group]);
-  }
 
   void duplicate(ServicioItem s) async {
     final extras = _extras[s.id] ?? const ServicioExtras();
@@ -329,7 +292,7 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
-  List<({ServiceGroup group, List<ServicioItem> services})> get visibleGrouped {
+  List<ServicioItem> get visibleItems {
     var filtered = state.items;
     switch (state.filter) {
       case ServicioFilter.active:
@@ -349,44 +312,8 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       }).toList();
     }
 
-    final grouped = <String, List<ServicioItem>>{};
-    for (final item in filtered) {
-      grouped.putIfAbsent(item.groupId, () => []).add(item);
-    }
-
-    final catalogGroups = ServiceGroupCatalog.forCategory(state.category);
-    final allGroups = [...catalogGroups, ...state.extraGroups];
-
-    for (final list in grouped.values) {
-      list.sort((a, b) => a.name.compareTo(b.name));
-    }
-
-    final result = <({ServiceGroup group, List<ServicioItem> services})>[];
-    for (final group in allGroups..sort((a, b) => a.order.compareTo(b.order))) {
-      final services = grouped[group.id] ?? [];
-      if (services.isNotEmpty) {
-        result.add((group: group, services: services));
-      }
-    }
-
-    // Orphan groups — services whose groupId isn't in any known group
-    final knownGroupIds = allGroups.map((g) => g.id).toSet();
-    for (final gid in grouped.keys.where((id) => !knownGroupIds.contains(id))) {
-      final services = grouped[gid]!;
-      if (services.isNotEmpty) {
-        result.add((
-          group: ServiceGroup(
-            id: gid,
-            name: gid == 'otros' ? 'Otros' : gid,
-            parentCategory: state.category,
-            order: 999,
-          ),
-          services: services,
-        ));
-      }
-    }
-
-    return result;
+    filtered.sort((a, b) => a.name.compareTo(b.name));
+    return filtered;
   }
 
   List<StaffMember> staffForService(ServicioItem s) {

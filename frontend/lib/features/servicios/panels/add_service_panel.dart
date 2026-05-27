@@ -12,18 +12,14 @@ import 'tabs/suggested_mode.dart';
 
 void showAddServicePanel(
   BuildContext context,
-  ServiciosKey key, {
-  String? prefillGroupId,
-}) {
+  ServiciosKey key,
+) {
   Navigator.of(context).push(
     PageRouteBuilder(
       opaque: false,
       barrierColor: Colors.black.withValues(alpha: 0.35),
       barrierDismissible: true,
-      pageBuilder: (_, _, _) => _AddServicePanel(
-        servKey: key,
-        prefillGroupId: prefillGroupId,
-      ),
+      pageBuilder: (_, _, _) => _AddServicePanel(servKey: key),
       transitionsBuilder: (_, animation, _, child) {
         return SlideTransition(
           position: Tween<Offset>(
@@ -38,10 +34,9 @@ void showAddServicePanel(
 }
 
 class _AddServicePanel extends ConsumerStatefulWidget {
-  const _AddServicePanel({required this.servKey, this.prefillGroupId});
+  const _AddServicePanel({required this.servKey});
 
   final ServiciosKey servKey;
-  final String? prefillGroupId;
 
   @override
   ConsumerState<_AddServicePanel> createState() => _AddServicePanelState();
@@ -83,7 +78,6 @@ class _AddServicePanelState extends ConsumerState<_AddServicePanel>
           duracionMin: t.defaultDurationMinutes,
           precio: t.defaultPriceUyu,
           extras: ServicioExtras(
-            groupId: t.groupId,
             flexibleDuration: t.defaultFlexibleDuration,
             priceFrom: t.defaultPriceFrom,
           ),
@@ -112,7 +106,6 @@ class _AddServicePanelState extends ConsumerState<_AddServicePanel>
         duracionMin: data.durationMinutes,
         precio: data.priceUyu,
         extras: ServicioExtras(
-          groupId: data.groupId ?? 'otros',
           flexibleDuration: data.flexibleDuration,
           priceFrom: data.priceFrom,
           professionalIds: data.professionalIds,
@@ -188,11 +181,7 @@ class _AddServicePanelState extends ConsumerState<_AddServicePanel>
                         onSwitchToCustom: () => _tabCtrl.animateTo(1),
                       ),
                       CustomMode(
-                        category: category,
                         staff: state.staff,
-                        extraGroupNames:
-                            state.extraGroups.map((g) => g.name).toList(),
-                        prefillGroupId: widget.prefillGroupId,
                         onChanged: (data) =>
                             setState(() => _customData = data),
                       ),

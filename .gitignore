@@ -20,4 +20,7 @@ Thumbs.db
 # Logs
 *.log
 
+# Local dev config (credenciales locales, no subir)
+backend/src/main/resources/application-local.yml
+
 .claude/

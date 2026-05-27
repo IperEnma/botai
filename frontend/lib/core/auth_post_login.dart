@@ -6,7 +6,7 @@ import '../providers/auth_provider.dart';
 import 'router.dart';
 import 'router_refresh.dart';
 
-/// Tras autenticación: token Agenda + `/home` (el gate decide panel u onboarding).
+/// Tras autenticación: token Agenda + gate que decide business panel o registro.
 void navigateAfterAuthenticatedSession(WidgetRef ref) {
   final auth = ref.read(authStateProvider);
   final user = auth.user;
@@ -21,6 +21,6 @@ void navigateAfterAuthenticatedSession(WidgetRef ref) {
   final router = ref.read(routerProvider);
   final loc = router.routerDelegate.currentConfiguration.uri.path;
   if (loc == '/login' || loc == '/') {
-    router.go('/home');
+    router.go('/agenda/panel');
   }
 }

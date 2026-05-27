@@ -78,7 +78,6 @@ class _ServiceDetailPanelState extends ConsumerState<_ServiceDetailPanel> {
             precio: data.priceUyu,
             activo: widget.service.active,
             extras: ServicioExtras(
-              groupId: data.groupId ?? widget.service.groupId,
               flexibleDuration: data.flexibleDuration,
               priceFrom: data.priceFrom,
               professionalIds: data.professionalIds,
@@ -119,10 +118,7 @@ class _ServiceDetailPanelState extends ConsumerState<_ServiceDetailPanel> {
                 const Divider(height: 1, color: KTokens.border),
                 Expanded(
                   child: CustomMode(
-                    category: state.category,
                     staff: state.staff,
-                    extraGroupNames:
-                        state.extraGroups.map((g) => g.name).toList(),
                     initial: s,
                     onChanged: (data) => setState(() => _formData = data),
                   ),

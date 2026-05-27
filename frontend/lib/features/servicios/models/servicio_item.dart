@@ -2,7 +2,6 @@ class ServicioItem {
   final String id;
   final String name;
   final String? description;
-  final String groupId;
   final int durationMinutes;
   final bool flexibleDuration;
   final int priceUyu;
@@ -16,7 +15,6 @@ class ServicioItem {
     required this.id,
     required this.name,
     this.description,
-    required this.groupId,
     required this.durationMinutes,
     this.flexibleDuration = false,
     required this.priceUyu,
@@ -30,7 +28,6 @@ class ServicioItem {
   ServicioItem copyWith({
     String? name,
     String? description,
-    String? groupId,
     int? durationMinutes,
     bool? flexibleDuration,
     int? priceUyu,
@@ -42,7 +39,6 @@ class ServicioItem {
         id: id,
         name: name ?? this.name,
         description: description ?? this.description,
-        groupId: groupId ?? this.groupId,
         durationMinutes: durationMinutes ?? this.durationMinutes,
         flexibleDuration: flexibleDuration ?? this.flexibleDuration,
         priceUyu: priceUyu ?? this.priceUyu,

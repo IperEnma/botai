@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../providers/auth_provider.dart';
+import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../providers/agenda/tenant_admin_resolved_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
-import '../home/agenda_no_tenant_admin_screen.dart';
 
 /// Resuelve el tenant del admin por email y redirige al primer negocio bajo
 /// `/agenda/businesses/:businessId`. Si no tiene negocios va a `/agenda/onboarding`.
@@ -43,11 +43,25 @@ class TenantMeGateScreen extends ConsumerWidget {
         }
         final notFound = e is AgendaApiException && e.isNotFound;
         if (notFound) {
-          return Scaffold(
-            backgroundColor: const Color(0xFFFBFAF7),
-            body: AgendaNoTenantAdminScreen(
-              onRetry: () => ref.invalidate(tenantAdminResolvedProvider),
-            ),
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!context.mounted) return;
+            final auth = ref.read(authStateProvider);
+            final user = auth.user;
+            if (auth.isAuthenticated && user != null && user.email.isNotEmpty) {
+              final trimmedName = user.name?.trim();
+              final nombre = (trimmedName != null && trimmedName.isNotEmpty)
+                  ? trimmedName
+                  : user.email.split('@').first;
+              await ref.read(agendaUserProvider.notifier).saveGoogleRegistration(
+                    nombre: nombre,
+                    email: user.email,
+                  );
+            }
+            if (context.mounted) context.go('/agenda/business-register');
+          });
+          return const Scaffold(
+            backgroundColor: Color(0xFFFBFAF7),
+            body: AgendaLoadingView(),
           );
         }
         return Scaffold(
@@ -79,12 +93,24 @@ class TenantMeGateScreen extends ConsumerWidget {
           );
         }
 
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!context.mounted) return;
+          final authUser = ref.read(authStateProvider).user;
+          if (authUser != null && authUser.email.isNotEmpty) {
+            final trimmedName = authUser.name?.trim();
+            final nombre = (trimmedName != null && trimmedName.isNotEmpty)
+                ? trimmedName
+                : authUser.email.split('@').first;
+            await ref.read(agendaUserProvider.notifier).saveGoogleRegistration(
+                  nombre: nombre,
+                  email: authUser.email,
+                );
+          }
           if (!context.mounted) return;
           if (bizState.items.isNotEmpty) {
             context.go('/agenda/businesses/${bizState.items.first.id}');
           } else {
-            context.go('/agenda/onboarding');
+            context.go('/agenda/business-register');
           }
         });
 

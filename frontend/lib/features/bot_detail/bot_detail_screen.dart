@@ -43,7 +43,7 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go('/home/bots'),
+            onPressed: () => context.go('/bots'),
           ),
           title: const Text('Bot no encontrado'),
         ),
@@ -56,7 +56,7 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
               const Text('Este bot no existe o fue eliminado'),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () => context.go('/home/bots'),
+                onPressed: () => context.go('/bots'),
                 child: const Text('Volver al Dashboard'),
               ),
             ],
@@ -69,7 +69,7 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home/bots'),
+          onPressed: () => context.go('/bots'),
         ),
         title: Row(
           children: [

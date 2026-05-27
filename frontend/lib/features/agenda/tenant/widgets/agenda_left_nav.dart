@@ -35,7 +35,7 @@ class AgendaLeftNav extends ConsumerWidget {
         !loc.contains('/section/') &&
         !loc.contains('/config') &&
         section.isEmpty;
-    final selectedBots = loc.startsWith('/home/bots');
+    final selectedBots = loc.startsWith('/bots');
     final selectedAgenda =
         loc.startsWith('/agenda/businesses/') && section == 'agenda';
     final selectedHorarios = loc.contains('/section/hours');
@@ -80,7 +80,7 @@ class AgendaLeftNav extends ConsumerWidget {
             icon: Icons.smart_toy_outlined,
             label: 'Mis bots',
             selected: selectedBots,
-            onTap: () => context.go('/home/bots'),
+            onTap: () => context.go('/bots'),
           ),
           AgendaNavItem(
             icon: Icons.calendar_today_outlined,

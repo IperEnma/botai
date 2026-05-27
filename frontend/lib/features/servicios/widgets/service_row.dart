@@ -16,9 +16,7 @@ class ServiceRow extends StatefulWidget {
     required this.onTap,
     required this.onToggleActive,
     required this.onDuplicate,
-    required this.onMoveToGroup,
     required this.onDelete,
-    required this.availableGroups,
   });
 
   final ServicioItem service;
@@ -27,8 +25,6 @@ class ServiceRow extends StatefulWidget {
   final VoidCallback onToggleActive;
   final VoidCallback onDuplicate;
   final VoidCallback onDelete;
-  final VoidCallback onMoveToGroup;
-  final List<({String id, String name})> availableGroups;
 
   @override
   State<ServiceRow> createState() => _ServiceRowState();
@@ -36,10 +32,6 @@ class ServiceRow extends StatefulWidget {
 
 class _ServiceRowState extends State<ServiceRow> {
   bool _hovering = false;
-
-  void _handleToggle(BuildContext context) {
-    widget.onToggleActive();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +61,7 @@ class _ServiceRowState extends State<ServiceRow> {
                     children: [
                       _ServicioToggle(
                         value: s.active,
-                        onChanged: (_) => _handleToggle(context),
+                        onChanged: (_) => widget.onToggleActive(),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -207,12 +199,10 @@ class _ServiceRowState extends State<ServiceRow> {
                     alignment: Alignment.centerRight,
                     child: _ServiceMenu(
                       service: s,
-                      availableGroups: widget.availableGroups,
                       onEdit: widget.onTap,
                       onDuplicate: widget.onDuplicate,
-                      onToggle: () => _handleToggle(context),
+                      onToggle: widget.onToggleActive,
                       onDelete: widget.onDelete,
-                      onMoveToGroup: widget.onMoveToGroup,
                     ),
                   ),
                 ),
@@ -272,21 +262,17 @@ class _ServicioToggle extends StatelessWidget {
 class _ServiceMenu extends StatelessWidget {
   const _ServiceMenu({
     required this.service,
-    required this.availableGroups,
     required this.onEdit,
     required this.onDuplicate,
     required this.onToggle,
     required this.onDelete,
-    required this.onMoveToGroup,
   });
 
   final ServicioItem service;
-  final List<({String id, String name})> availableGroups;
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
-  final VoidCallback onMoveToGroup;
 
   @override
   Widget build(BuildContext context) {
@@ -309,13 +295,6 @@ class _ServiceMenu extends StatelessWidget {
             style: GoogleFonts.inter(fontSize: 13),
           ),
         ),
-        PopupMenuItem(
-          value: 'move',
-          child: Text(
-            'Mover a otro grupo',
-            style: GoogleFonts.inter(fontSize: 13),
-          ),
-        ),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: 'delete',
@@ -333,8 +312,6 @@ class _ServiceMenu extends StatelessWidget {
             onDuplicate();
           case 'toggle':
             onToggle();
-          case 'move':
-            onMoveToGroup();
           case 'delete':
             onDelete();
         }

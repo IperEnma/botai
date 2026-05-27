@@ -133,7 +133,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       // URL limpia: el panel del admin resuelve tenant por seguridad (token).
       await ref.read(agendaUserProvider.notifier).saveTenantId(tenantId);
       if (!mounted) return;
-      context.go('/home');
+      context.go('/agenda/panel');
     } on AgendaApiException catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(

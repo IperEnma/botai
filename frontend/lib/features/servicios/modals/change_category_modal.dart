@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../agenda/register/konecta_tokens.dart';
 import '../controllers/servicios_controller.dart';
-import '../data/service_group_catalog.dart';
 import '../models/business_category.dart';
 
 void showChangeCategoryModal(BuildContext context, ServiciosKey key) {
@@ -27,24 +26,6 @@ class _ChangeCategoryModal extends ConsumerStatefulWidget {
 
 class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
   BusinessCategory? _target;
-
-  int _countOrphanServices(
-    BusinessCategory current,
-    BusinessCategory target,
-    ServiciosState state,
-  ) {
-    final currentGroupIds =
-        ServiceGroupCatalog.forCategory(current).map((g) => g.id).toSet();
-    final targetGroupIds =
-        ServiceGroupCatalog.forCategory(target).map((g) => g.id).toSet();
-
-    // Orphan = in current category groups but NOT in target category groups
-    final orphanGroupIds = currentGroupIds.difference(targetGroupIds);
-
-    return state.items
-        .where((s) => orphanGroupIds.contains(s.groupId))
-        .length;
-  }
 
   void _confirm() {
     if (_target == null) return;
@@ -69,9 +50,6 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
   Widget build(BuildContext context) {
     final state = ref.watch(serviciosProvider(widget.servKey));
     final current = state.category;
-    final orphans = _target != null && _target != current
-        ? _countOrphanServices(current, _target!, state)
-        : 0;
 
     return Dialog(
       backgroundColor: Colors.white,
@@ -228,10 +206,7 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                     // Warning (visible when target selected and != current)
                     if (_target != null && _target != current) ...[
                       const SizedBox(height: 20),
-                      _WarningBox(
-                        targetName: _target!.displayName,
-                        orphanCount: orphans,
-                      ),
+                      _WarningBox(targetName: _target!.displayName),
                     ],
                   ],
                 ),
@@ -294,7 +269,7 @@ class _ModalHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'La categoría define las sugerencias y sub-categorías disponibles.',
+                  'La categoría define las sugerencias disponibles.',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     color: KTokens.inkMuted,
@@ -318,13 +293,9 @@ class _ModalHeader extends StatelessWidget {
 // ─── Warning box ──────────────────────────────────────────────────────────────
 
 class _WarningBox extends StatelessWidget {
-  const _WarningBox({
-    required this.targetName,
-    required this.orphanCount,
-  });
+  const _WarningBox({required this.targetName});
 
   final String targetName;
-  final int orphanCount;
 
   @override
   Widget build(BuildContext context) {
@@ -355,10 +326,6 @@ class _WarningBox extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          if (orphanCount > 0)
-            _WarnLine(
-              '$orphanCount SERVICIO${orphanCount > 1 ? 'S' : ''} QUEDAN EN UNA SUB-CATEGORÍA HUÉRFANA',
-            ),
           _WarnLine(
             'LAS SUGERENCIAS DE LA CATEGORÍA ACTUAL SE REEMPLAZAN POR LAS DE $targetName'.toUpperCase(),
           ),

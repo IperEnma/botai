@@ -4,8 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../models/agenda/staff_member.dart';
 import '../../../agenda/register/konecta_tokens.dart';
-import '../../data/service_group_catalog.dart';
-import '../../models/business_category.dart';
 import '../../models/servicio_item.dart';
 
 // ─── Public form data ─────────────────────────────────────────────────────────
@@ -13,7 +11,6 @@ import '../../models/servicio_item.dart';
 class CustomFormData {
   final String name;
   final String description;
-  final String? groupId;
   final int durationMinutes;
   final bool flexibleDuration;
   final int priceUyu;
@@ -23,7 +20,6 @@ class CustomFormData {
   const CustomFormData({
     required this.name,
     required this.description,
-    required this.groupId,
     required this.durationMinutes,
     required this.flexibleDuration,
     required this.priceUyu,
@@ -31,7 +27,7 @@ class CustomFormData {
     required this.professionalIds,
   });
 
-  bool get isValid => name.trim().isNotEmpty && groupId != null;
+  bool get isValid => name.trim().isNotEmpty;
 }
 
 // ─── Widget ───────────────────────────────────────────────────────────────────
@@ -39,19 +35,13 @@ class CustomFormData {
 class CustomMode extends StatefulWidget {
   const CustomMode({
     super.key,
-    required this.category,
     required this.staff,
-    required this.extraGroupNames,
     this.initial,
-    this.prefillGroupId,
     required this.onChanged,
   });
 
-  final BusinessCategory category;
   final List<StaffMember> staff;
-  final List<String> extraGroupNames;
   final ServicioItem? initial;
-  final String? prefillGroupId;
   final ValueChanged<CustomFormData> onChanged;
 
   @override
@@ -68,11 +58,9 @@ class _CustomModeState extends State<CustomMode> {
   final _priceFocus = FocusNode();
   final _descFocus = FocusNode();
 
-  String? _selectedGroupId;
   bool _flexibleDuration = false;
   bool _priceFrom = false;
   final Set<String> _selectedPros = {};
-  final List<String> _customGroupNames = [];
 
   @override
   void initState() {
@@ -85,14 +73,11 @@ class _CustomModeState extends State<CustomMode> {
     if (initial != null) {
       _nameCtrl.text = initial.name;
       _descCtrl.text = initial.description ?? '';
-      _selectedGroupId = initial.groupId;
       _durCtrl.text = initial.durationMinutes.toString();
       _priceCtrl.text = initial.priceUyu.toString();
       _flexibleDuration = initial.flexibleDuration;
       _priceFrom = initial.priceFrom;
       _selectedPros.addAll(initial.professionalIds);
-    } else if (widget.prefillGroupId != null) {
-      _selectedGroupId = widget.prefillGroupId;
     }
   }
 
@@ -113,7 +98,6 @@ class _CustomModeState extends State<CustomMode> {
       CustomFormData(
         name: _nameCtrl.text,
         description: _descCtrl.text,
-        groupId: _selectedGroupId,
         durationMinutes: int.tryParse(_durCtrl.text) ?? 60,
         flexibleDuration: _flexibleDuration,
         priceUyu: int.tryParse(_priceCtrl.text) ?? 0,
@@ -123,86 +107,17 @@ class _CustomModeState extends State<CustomMode> {
     );
   }
 
-  void _showNewGroupDialog() {
-    final ctrl = TextEditingController();
-    showDialog<String>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: Text(
-          'Nueva sub-categoría',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: KTokens.ink,
-          ),
-        ),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          style: GoogleFonts.inter(fontSize: 14, color: KTokens.ink),
-          decoration: InputDecoration(
-            hintText: 'Nombre de la sub-categoría',
-            hintStyle: GoogleFonts.inter(
-                fontSize: 14, color: KTokens.inkPlaceholder),
-          ),
-          onSubmitted: (v) => Navigator.pop(dialogCtx, v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: Text('Cancelar',
-                style: GoogleFonts.inter(color: KTokens.inkMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dialogCtx, ctrl.text),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: KTokens.accent,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            child: Text('Crear', style: GoogleFonts.inter()),
-          ),
-        ],
-      ),
-    ).then((name) {
-      if (name != null && name.trim().isNotEmpty) {
-        setState(() {
-          _customGroupNames.add(name.trim());
-          _selectedGroupId = 'custom_${name.trim()}';
-        });
-        _notify();
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final catalogGroups = ServiceGroupCatalog.forCategory(widget.category);
-    final allGroups = [
-      ...catalogGroups.map((g) => (id: g.id, name: g.name)),
-      ..._customGroupNames.map((n) => (id: 'custom_$n', name: n)),
-    ];
-
     final formData = CustomFormData(
       name: _nameCtrl.text,
       description: _descCtrl.text,
-      groupId: _selectedGroupId,
       durationMinutes: int.tryParse(_durCtrl.text) ?? 60,
       flexibleDuration: _flexibleDuration,
       priceUyu: int.tryParse(_priceCtrl.text) ?? 0,
       priceFrom: _priceFrom,
       professionalIds: _selectedPros.toList(),
     );
-
-    final hasNewGroup = _selectedGroupId != null &&
-        _selectedGroupId!.startsWith('custom_');
-    final newGroupName = hasNewGroup
-        ? _selectedGroupId!.replaceFirst('custom_', '')
-        : null;
-    final selectedGroupName = allGroups
-        .where((g) => g.id == _selectedGroupId)
-        .map((g) => g.name)
-        .firstOrNull;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -254,72 +169,7 @@ class _CustomModeState extends State<CustomMode> {
           ),
           const SizedBox(height: 20),
 
-          // 3. Sub-categoría
-          _EyebrowLabel('SUB-CATEGORÍA'),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ...allGroups.map((g) {
-                final isSelected = _selectedGroupId == g.id;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedGroupId = g.id);
-                    _notify();
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 120),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0x143B2F63)
-                          : KTokens.surface,
-                      border: Border.all(
-                        color: isSelected ? KTokens.accent : KTokens.border,
-                        width: isSelected ? 1.5 : 1.0,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      g.name,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: isSelected
-                            ? FontWeight.w500
-                            : FontWeight.w400,
-                        color: isSelected ? KTokens.accent : KTokens.ink,
-                      ),
-                    ),
-                  ),
-                );
-              }),
-              // Create new group chip
-              GestureDetector(
-                onTap: _showNewGroupDialog,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: KTokens.surface,
-                    border: Border.all(color: KTokens.border),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '+ Crear nueva',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: KTokens.inkMuted,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // 4. Duración + Precio
+          // 3. Duración + Precio
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -499,7 +349,7 @@ class _CustomModeState extends State<CustomMode> {
           ),
           const SizedBox(height: 20),
 
-          // 5. Profesionales
+          // 4. Profesionales
           _EyebrowLabel('QUIÉN LO OFRECE'),
           const SizedBox(height: 10),
           Wrap(
@@ -565,13 +415,8 @@ class _CustomModeState extends State<CustomMode> {
           ),
           const SizedBox(height: 20),
 
-          // 6. Summary box
-          _SummaryBox(
-            formData: formData,
-            hasNewGroup: hasNewGroup,
-            newGroupName: newGroupName,
-            selectedGroupName: selectedGroupName,
-          ),
+          // 5. Summary box
+          _SummaryBox(formData: formData),
         ],
       ),
     );
@@ -716,25 +561,14 @@ class _CheckRow extends StatelessWidget {
 }
 
 class _SummaryBox extends StatelessWidget {
-  const _SummaryBox({
-    required this.formData,
-    required this.hasNewGroup,
-    required this.newGroupName,
-    required this.selectedGroupName,
-  });
+  const _SummaryBox({required this.formData});
 
   final CustomFormData formData;
-  final bool hasNewGroup;
-  final String? newGroupName;
-  final String? selectedGroupName;
 
   @override
   Widget build(BuildContext context) {
     final lines = <String>[];
     lines.add('AL CREAR · APARECE COMO OPCIÓN EN /TU-NEGOCIO');
-    if (hasNewGroup && newGroupName != null) {
-      lines.add('SUB-CATEGORÍA NUEVA: ${newGroupName!.toUpperCase()}');
-    }
     if (formData.professionalIds.isEmpty) {
       lines.add('ASIGNÁ PROFESIONALES DESPUÉS EN /EQUIPO');
     } else {

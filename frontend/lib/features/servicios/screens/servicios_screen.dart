@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../agenda/register/konecta_tokens.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../controllers/servicios_controller.dart';
-import '../data/service_group_catalog.dart';
 import '../modals/change_category_modal.dart';
 import '../panels/add_service_panel.dart';
 import '../panels/service_detail_panel.dart';
@@ -48,11 +47,7 @@ class ServiciosScreen extends ConsumerWidget {
       );
     }
 
-    final grouped = notifier.visibleGrouped;
-    final allGroups = [
-      ...ServiceGroupCatalog.forCategory(state.category),
-      ...state.extraGroups,
-    ];
+    final items = notifier.visibleItems;
 
     return Container(
       color: KTokens.bg,
@@ -74,30 +69,18 @@ class ServiciosScreen extends ConsumerWidget {
             ServiciosToolbar(state: state, notifier: notifier),
             const SizedBox(height: 20),
 
-            if (grouped.isEmpty)
+            if (items.isEmpty)
               _EmptyState(filter: state.filter)
             else
-              Column(
-                children: grouped.map((g) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: ServiceGroupCard(
-                      group: g.group,
-                      services: g.services,
-                      allStaff: state.staff,
-                      staffForService: notifier.staffForService,
-                      onTapService: (s) =>
-                          showServiceDetailPanel(context, _key, s),
-                      onAddTo: (groupId) =>
-                          showAddServicePanel(context, _key, prefillGroupId: groupId),
-                      onToggleActive: (id) => notifier.toggleActive(id),
-                      onDuplicateService: (s) => notifier.duplicate(s),
-                      onDeleteService: (id) => notifier.remove(id),
-                      onMoveService: (sid, gid) => notifier.moveToGroup(sid, gid),
-                      allGroups: allGroups,
-                    ),
-                  );
-                }).toList(),
+              ServiciosCard(
+                services: items,
+                allStaff: state.staff,
+                staffForService: notifier.staffForService,
+                onTapService: (s) => showServiceDetailPanel(context, _key, s),
+                onAdd: () => showAddServicePanel(context, _key),
+                onToggleActive: (id) => notifier.toggleActive(id),
+                onDuplicateService: (s) => notifier.duplicate(s),
+                onDeleteService: (id) => notifier.remove(id),
               ),
           ],
         ),

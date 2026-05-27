@@ -366,10 +366,10 @@ class AgendaApiService {
     return _decodeList(r, BusinessSummary.fromJson);
   }
 
-  /// `GET /public/categories`
+  /// `GET /platform/categories`
   Future<List<agenda.Category>> listPublicCategories() async {
     final r = await _send(() => _client.get(
-          _uri('/public/categories'),
+          _uri('/platform/categories'),
           headers: _headers(),
         ));
     return _decodeList(r, agenda.Category.fromJson);

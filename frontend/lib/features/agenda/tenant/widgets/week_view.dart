@@ -13,7 +13,7 @@ import '../../register/konecta_tokens.dart';
 const _kHourStart = 8;
 const _kHourEnd   = 20;
 const _kHourPx    = 64.0;
-const _kColHdrH   = 56.0;
+const _kColHdrH   = 68.0;
 const _kTimeColW  = 48.0;
 const _kDayColW   = 130.0;
 

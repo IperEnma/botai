@@ -7,17 +7,18 @@ import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
 import '../../../models/agenda/booking.dart';
 import '../../../models/agenda/business.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../providers/agenda/tenant/agenda_bookings_provider.dart';
 import '../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
+import '../../../features/inicio/screens/inicio_screen.dart';
 import '../register/konecta_tokens.dart';
 import 'widgets/agenda_left_nav.dart';
 import 'widgets/business_form_dialog.dart';
 import 'widgets/category_multi_select_dialog.dart';
 import 'widgets/agenda_section.dart';
-import 'widgets/dashboard_section.dart';
 
 // ── Palette (for business initials) ──────────────────────────────────────────
 const _palette = [
@@ -159,11 +160,14 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
   Widget build(BuildContext context) {
     final state     = ref.watch(businessesProvider(widget.tenantId));
     final userAsync = ref.watch(agendaUserProvider);
-    final nombre    = userAsync.valueOrNull?.nombre;
+    final googleName = ref.watch(authStateProvider).user?.name?.trim();
+    final nombre = (googleName != null && googleName.isNotEmpty)
+        ? googleName
+        : userAsync.valueOrNull?.nombre;
     final isWide    = MediaQuery.sizeOf(context).width >= _kBreakpoint;
 
     void onBack() =>
-        context.canPop() ? context.pop() : context.go('/home');
+        context.canPop() ? context.pop() : context.go('/agenda/panel');
 
     if (state.isLoading) {
       return Scaffold(
@@ -733,405 +737,12 @@ class _MainContent extends StatelessWidget {
       );
     }
 
-    return CustomScrollView(
-      slivers: [
-        // ── Header ───────────────────────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(hPad, 28, hPad, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Mobile top bar
-                  if (!isWide && onBack != null) ...[
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: onBack,
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: KTokens.borderStrong),
-                            ),
-                            child: const Icon(
-                              Icons.arrow_back_rounded,
-                              size: 18,
-                              color: KTokens.inkMuted,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'konecta',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 18,
-                            fontStyle: FontStyle.italic,
-                            color: KTokens.accent,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // Eyebrow + "Nueva agenda" button
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        nombre != null
-                            ? 'DASHBOARD · ${nombre!.split(' ').first.toUpperCase()}'
-                            : 'DASHBOARD',
-                        style: KTokens.tEyebrow,
-                      ),
-                      const Spacer(),
-                      _NewAgendaButton(),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Headline
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Este es el resumen de ',
-                          style: GoogleFonts.inter(
-                            fontSize: isWide ? 28 : 22,
-                            fontWeight: FontWeight.w700,
-                            color: KTokens.ink,
-                            letterSpacing: -0.5,
-                            height: 1.15,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'tu negocio.',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: isWide ? 32 : 26,
-                            fontStyle: FontStyle.italic,
-                            color: KTokens.accent,
-                            height: 1.15,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Más info de tu agenda y rendimiento de tu negocio.',
-                    style: KTokens.tHint,
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // ── TUS UBICACIONES carousel ──────────────────────────────────────────
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-          sliver: SliverToBoxAdapter(
-            child: _SucursalesSection(
-              tenantId:           tenantId,
-              businesses:         businesses,
-              selectedBusinessId: dashboardBusinessId,
-              onAdd:              onAdd,
-              onTap:              onTap,
-              onFilterSelect:     onFilterSelect,
-            ),
-          ),
-        ),
-
-        // ── Dashboard ─────────────────────────────────────────────────────────
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(hPad, 24, hPad, 0),
-          sliver: SliverToBoxAdapter(
-            child: DashboardSection(
-              tenantId: tenantId,
-              businesses: businesses,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _NewAgendaButton extends StatelessWidget {
-  const _NewAgendaButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: KTokens.accent,
-          borderRadius: BorderRadius.circular(KTokens.rPill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.add, size: 14, color: Colors.white),
-            const SizedBox(width: 5),
-            Text(
-              'Nueva agenda',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Sucursales Section ────────────────────────────────────────────────────────
-
-class _SucursalesSection extends StatelessWidget {
-  const _SucursalesSection({
-    required this.tenantId,
-    required this.businesses,
-    required this.selectedBusinessId,
-    required this.onAdd,
-    required this.onTap,
-    required this.onFilterSelect,
-  });
-
-  final String              tenantId;
-  final List<Business>      businesses;
-  final String?             selectedBusinessId;
-  final VoidCallback        onAdd;
-  final void Function(Business) onTap;
-  final void Function(Business) onFilterSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              'TUS UBICACIONES',
-              style: KTokens.tEyebrow,
-            ),
-            const Spacer(),
-            Text(
-              'Toca para filtrar',
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                color: KTokens.inkSoft,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 130,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: businesses.length + 1,
-            itemBuilder: (ctx, i) {
-              if (i < businesses.length) {
-                final b = businesses[i];
-                return _BusinessCircle(
-                  business:    b,
-                  selected:    selectedBusinessId == b.id,
-                  onTap:       () => onFilterSelect(b),
-                  onLongPress: () => onTap(b),
-                );
-              }
-              return _NewSucursalButton(onTap: onAdd);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Business Circle ───────────────────────────────────────────────────────────
-
-class _BusinessCircle extends StatelessWidget {
-  const _BusinessCircle({
-    required this.business,
-    required this.selected,
-    required this.onTap,
-    required this.onLongPress,
-  });
-
-  final Business     business;
-  final bool         selected;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-
-  int get _idx => business.nombre.hashCode.abs() % _palette.length;
-  Color get _color => _palette[_idx];
-
-  String get _initials {
-    final words = business.nombre.trim().split(RegExp(r'\s+'));
-    if (words.length >= 2) {
-      return '${words[0][0]}${words[1][0]}'.toUpperCase();
-    }
-    return business.nombre
-        .substring(0, business.nombre.length.clamp(1, 2))
-        .toUpperCase();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap:       onTap,
-      onLongPress: onLongPress,
-      behavior:    HitTestBehavior.opaque,
-      child: Container(
-        width:  90,
-        margin: const EdgeInsets.only(right: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width:  72,
-              height: 72,
-              decoration: BoxDecoration(
-                shape:  BoxShape.circle,
-                color:  KTokens.surface,
-                border: selected
-                    ? Border.all(color: KTokens.accent, width: 2.5)
-                    : Border.all(color: KTokens.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: selected
-                        ? KTokens.accent.withValues(alpha: 0.18)
-                        : Colors.black.withValues(alpha: 0.06),
-                    blurRadius: selected ? 14 : 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: ClipOval(
-                child: business.logoUrl != null
-                    ? Image.network(
-                        business.logoUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (ctx, e, trace) => _InitialsCircle(
-                          initials: _initials,
-                          color:    _color,
-                        ),
-                      )
-                    : _InitialsCircle(
-                        initials: _initials,
-                        color:    _color,
-                      ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              business.nombre,
-              textAlign: TextAlign.center,
-              maxLines:  2,
-              overflow:  TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                fontSize:   11,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color:      selected ? KTokens.accent : KTokens.ink,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── New Sucursal Button ───────────────────────────────────────────────────────
-
-class _NewSucursalButton extends StatelessWidget {
-  const _NewSucursalButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap:    onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width:  90,
-        margin: const EdgeInsets.only(right: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width:  72,
-              height: 72,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: KTokens.surface,
-                border: Border.all(
-                  color: KTokens.accent.withValues(alpha: 0.25),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.add, size: 26, color: KTokens.accent),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Agregar',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize:   11,
-                fontWeight: FontWeight.w500,
-                color:      KTokens.inkSoft,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Initials Circle ───────────────────────────────────────────────────────────
-
-class _InitialsCircle extends StatelessWidget {
-  const _InitialsCircle({required this.initials, required this.color});
-
-  final String initials;
-  final Color  color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: color.withValues(alpha: 0.12),
-      child: Center(
-        child: Text(
-          initials,
-          style: GoogleFonts.inter(
-            fontSize:   20,
-            fontWeight: FontWeight.w700,
-            color:      color,
-          ),
-        ),
-      ),
+    // ── Inicio (dashboard del dueño) ──────────────────────────────────────────
+    return InicioScreen(
+      businessId: dashboardBusinessId ?? '',
+      tenantId: tenantId,
+      businessName: businesses.isEmpty ? null : businesses.first.nombre,
+      ownerName: nombre,
     );
   }
 }

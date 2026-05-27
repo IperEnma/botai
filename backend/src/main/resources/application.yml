@@ -30,7 +30,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     show-sql: false
     defer-datasource-initialization: false
     properties:
@@ -41,7 +41,7 @@ spring:
 
   sql:
     init:
-      mode: never
+      mode: always
 
   servlet:
     multipart:
@@ -150,6 +150,8 @@ logging:
 # [AGENDA] — Configuración del módulo AGENDA (aislada del bot).
 # ============================================================
 agenda:
+  flyway:
+    clean-history-before-migrate: true
   enabled: ${AGENDA_ENABLED:true}
   public:
     # Base URL del FRONTEND (no el backend) para construir el link público que se comparte.
