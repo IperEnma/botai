@@ -14,7 +14,9 @@ services:
       - key: JAVA_OPTS
         value: -Xmx384m
       - key: FLYWAY_REPAIR_ON_MIGRATE
-        value: false
+        value: "true"
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
       - key: BOT_EMBEDDING_PROVIDER
         value: api
       - key: BOT_API_BASE_URL

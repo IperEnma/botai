@@ -56,6 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_agenda_bookings_subscription
     ON agenda_bookings (subscription_id)
     WHERE subscription_id IS NOT NULL;
 
+-- Outbox: tabla = OutboxEventEntity (Hibernate). Solo el índice parcial que JPA no declara.
 CREATE INDEX IF NOT EXISTS idx_agenda_outbox_pending
     ON agenda_outbox_events (status, created_at)
     WHERE status = 'PENDING';
