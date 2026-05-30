@@ -117,11 +117,18 @@ bot:
     # ai-hint: "💬 También puedes escribir tu pregunta y te responderé."
     # greeting: "Hola, ¿en qué podemos ayudarte?"   # saludo cuando solo IA (sin menú/FAQ)
 
+  # WhatsApp webhook: secreto HMAC (servidor) + URL pública. Verify token por bot = derivado, no en BD.
+  whatsapp:
+    verify-secret: ${BOT_WHATSAPP_VERIFY_SECRET:dev-insecure-change-me}
+    encryption-secret: ${BOT_WHATSAPP_ENCRYPTION_SECRET:dev-insecure-change-me}
+    verify-token: ${BOT_WHATSAPP_VERIFY_TOKEN:}
+    public-base-url: ${BOT_PUBLIC_BASE_URL:http://localhost:8080}
+
   # Features por tenant están en BD (feature_config / bot). Aquí solo canales.
   channels:
     web:
       base-path: /api/v1/webhook
-    # WhatsApp: credenciales por bot en BD (bot.whatsapp_*), no variables de entorno.
+    # WhatsApp: phone id por bot; access token cifrado (AES-GCM); verify token derivado (HMAC).
 
 # -----------------------------------------------------------------------------
 # HTTP

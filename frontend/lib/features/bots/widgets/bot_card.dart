@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../features/agenda/register/konecta_tokens.dart';
 import '../../../../models/bot.dart';
 import '../models/bot.dart';
+import 'bot_branch_utils.dart';
 import 'capa_badge.dart';
 import 'channel_chip.dart';
 
@@ -14,12 +15,14 @@ class BotCard extends StatefulWidget {
     required this.onTap,
     required this.onArchive,
     required this.onDuplicate,
+    this.branchNames = const [],
   });
 
   final Bot bot;
   final VoidCallback onTap;
   final VoidCallback onArchive;
   final VoidCallback onDuplicate;
+  final List<String> branchNames;
 
   @override
   State<BotCard> createState() => _BotCardState();
@@ -100,6 +103,27 @@ class _BotCardState extends State<BotCard> {
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.storefront_outlined,
+                      size: 14, color: KTokens.inkSoft),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      formatBranchSummary(widget.branchNames),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: widget.branchNames.isEmpty
+                            ? KTokens.excClosed
+                            : KTokens.inkMuted,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
               // Footer

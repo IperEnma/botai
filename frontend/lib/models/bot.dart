@@ -8,6 +8,7 @@ class Bot {
   final BotTier tier;
   final String? whatsappPhoneNumberId;
   final String? whatsappAccessToken;
+  final bool whatsappAccessTokenConfigured;
   final String? whatsappVerifyToken;
   final bool faqEnabled;
   final bool aiEnabled;
@@ -25,6 +26,7 @@ class Bot {
     required this.tier,
     this.whatsappPhoneNumberId,
     this.whatsappAccessToken,
+    this.whatsappAccessTokenConfigured = false,
     this.whatsappVerifyToken,
     this.faqEnabled = true,
     this.aiEnabled = false,
@@ -42,7 +44,10 @@ class Bot {
       description: json['description'] as String?,
       tier: _parseTier(json['tier']),
       whatsappPhoneNumberId: _toStringOrNull(json['whatsappPhoneNumberId']),
-      whatsappAccessToken: _toStringOrNull(json['whatsappAccessToken']),
+      whatsappAccessToken: null,
+      whatsappAccessTokenConfigured:
+          json['whatsappAccessTokenConfigured'] as bool? ??
+              (_toStringOrNull(json['whatsappAccessToken']) != null),
       whatsappVerifyToken: _toStringOrNull(json['whatsappVerifyToken']),
       faqEnabled: json['faqEnabled'] as bool? ?? true,
       aiEnabled: json['aiEnabled'] as bool? ?? false,
@@ -101,8 +106,8 @@ class Bot {
       'description': description,
       'tier': tier.name,
       'whatsappPhoneNumberId': whatsappPhoneNumberId,
-      'whatsappAccessToken': whatsappAccessToken,
-      'whatsappVerifyToken': whatsappVerifyToken,
+      if (whatsappAccessToken != null && whatsappAccessToken!.isNotEmpty)
+        'whatsappAccessToken': whatsappAccessToken,
       'faqEnabled': faqEnabled,
       'aiEnabled': aiEnabled,
       'actionsEnabled': actionsEnabled,
@@ -119,6 +124,7 @@ class Bot {
     BotTier? tier,
     String? whatsappPhoneNumberId,
     String? whatsappAccessToken,
+    bool? whatsappAccessTokenConfigured,
     String? whatsappVerifyToken,
     bool? faqEnabled,
     bool? aiEnabled,
@@ -135,6 +141,8 @@ class Bot {
       tier: tier ?? this.tier,
       whatsappPhoneNumberId: whatsappPhoneNumberId ?? this.whatsappPhoneNumberId,
       whatsappAccessToken: whatsappAccessToken ?? this.whatsappAccessToken,
+      whatsappAccessTokenConfigured:
+          whatsappAccessTokenConfigured ?? this.whatsappAccessTokenConfigured,
       whatsappVerifyToken: whatsappVerifyToken ?? this.whatsappVerifyToken,
       faqEnabled: faqEnabled ?? this.faqEnabled,
       aiEnabled: aiEnabled ?? this.aiEnabled,

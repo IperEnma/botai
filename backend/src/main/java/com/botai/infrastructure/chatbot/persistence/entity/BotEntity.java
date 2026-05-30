@@ -1,6 +1,7 @@
 package com.botai.infrastructure.chatbot.persistence.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -95,9 +96,16 @@ public class BotEntity {
     public String getWhatsappPhoneNumberId() { return whatsappPhoneNumberId; }
     public void setWhatsappPhoneNumberId(String whatsappPhoneNumberId) { this.whatsappPhoneNumberId = whatsappPhoneNumberId; }
 
+    @JsonIgnore
     public String getWhatsappAccessToken() { return whatsappAccessToken; }
     public void setWhatsappAccessToken(String whatsappAccessToken) { this.whatsappAccessToken = whatsappAccessToken; }
 
+    /** Indica si hay token guardado (sin exponer el valor). */
+    public boolean isWhatsappAccessTokenConfigured() {
+        return whatsappAccessToken != null && !whatsappAccessToken.isBlank();
+    }
+
+    @JsonIgnore
     public String getWhatsappVerifyToken() { return whatsappVerifyToken; }
     public void setWhatsappVerifyToken(String whatsappVerifyToken) { this.whatsappVerifyToken = whatsappVerifyToken; }
 

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/bot.dart';
+import '../models/whatsapp_webhook_setup.dart';
 import '../services/api_service.dart';
 import 'auth_provider.dart';
 
@@ -64,10 +65,13 @@ class BotsNotifier extends StateNotifier<BotsState> {
     }
   }
 
-  Future<Bot?> updateBot(Bot bot) async {
+  Future<Bot?> updateBot(Bot bot, {String? whatsappAccessTokenPlain}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final updatedBot = await _apiService.updateBot(bot);
+      final updatedBot = await _apiService.updateBot(
+        bot,
+        whatsappAccessTokenPlain: whatsappAccessTokenPlain,
+      );
       final bots = state.bots.map((b) => b.id == bot.id ? updatedBot : b).toList();
       state = state.copyWith(bots: bots, isLoading: false);
       return updatedBot;
@@ -86,5 +90,9 @@ class BotsNotifier extends StateNotifier<BotsState> {
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
+  }
+
+  Future<WhatsAppWebhookSetupInfo> fetchWhatsAppWebhookSetup(String botId) {
+    return _apiService.getWhatsAppWebhookSetup(botId);
   }
 }

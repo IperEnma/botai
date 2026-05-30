@@ -99,6 +99,7 @@ class _BotsViewState extends ConsumerState<_BotsView> {
       content = Scaffold(
         backgroundColor: const Color(0xFFFBFAF7),
         body: BotsListView(
+          tenantId: widget.tenantId,
           onCreate: openCreatePanel,
           onBotTap: (bot) => context.go('/bots/${bot.id}'),
         ),

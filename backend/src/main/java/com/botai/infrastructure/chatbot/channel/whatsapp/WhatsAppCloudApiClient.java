@@ -1,6 +1,7 @@
 package com.botai.infrastructure.chatbot.channel.whatsapp;
 
 import com.botai.infrastructure.chatbot.persistence.entity.BotEntity;
+import com.botai.infrastructure.chatbot.persistence.entity.BotEntity;
 import com.botai.infrastructure.chatbot.persistence.jpa.BotJpaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,9 +36,12 @@ public class WhatsAppCloudApiClient {
 
     private final RestTemplate restTemplate = createUtf8RestTemplate();
     private final BotJpaRepository botRepository;
+    private final WhatsAppAccessTokenCipher accessTokenCipher;
 
-    public WhatsAppCloudApiClient(BotJpaRepository botRepository) {
+    public WhatsAppCloudApiClient(BotJpaRepository botRepository,
+                                  WhatsAppAccessTokenCipher accessTokenCipher) {
         this.botRepository = botRepository;
+        this.accessTokenCipher = accessTokenCipher;
     }
 
     /**
@@ -67,7 +71,14 @@ public class WhatsAppCloudApiClient {
         }
 
         BotEntity bot = botOpt.get();
-        String accessToken = bot.getWhatsappAccessToken();
+        String storedToken = bot.getWhatsappAccessToken();
+        String migrated = accessTokenCipher.migratePlaintextIfNeeded(storedToken);
+        if (migrated != null && !migrated.equals(storedToken)) {
+            bot.setWhatsappAccessToken(migrated);
+            botRepository.save(bot);
+            storedToken = migrated;
+        }
+        String accessToken = accessTokenCipher.decrypt(storedToken);
         String phoneNumberId = bot.getWhatsappPhoneNumberId();
         log.info("[WA-API] Usando config del bot '{}' (tenant={})", bot.getName(), tenantId);
 

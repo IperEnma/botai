@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../models/agenda/business.dart';
 import '../../../models/bot.dart';
+import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../providers/bot_provider.dart';
 import '../../agenda/register/konecta_tokens.dart';
 import '../widgets/add_bot_card.dart';
+import '../widgets/bot_branch_utils.dart';
 import '../widgets/bot_card.dart';
 import '../widgets/channels_roadmap.dart';
 import '../widgets/plan_bar.dart';
@@ -13,10 +16,12 @@ import '../widgets/plan_bar.dart';
 class BotsListView extends ConsumerWidget {
   const BotsListView({
     super.key,
+    required this.tenantId,
     required this.onCreate,
     required this.onBotTap,
   });
 
+  final String tenantId;
   final VoidCallback onCreate;
   final ValueChanged<Bot> onBotTap;
 
@@ -24,6 +29,7 @@ class BotsListView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(botsProvider);
     final notifier = ref.read(botsProvider.notifier);
+    final businesses = ref.watch(businessesProvider(tenantId)).items;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
@@ -36,6 +42,7 @@ class BotsListView extends ConsumerWidget {
           const SizedBox(height: 28),
           _BotsGrid(
             bots: state.bots,
+            businesses: businesses,
             notifier: notifier,
             onBotTap: onBotTap,
             onCreate: onCreate,
@@ -53,12 +60,14 @@ class BotsListView extends ConsumerWidget {
 class _BotsGrid extends StatelessWidget {
   const _BotsGrid({
     required this.bots,
+    required this.businesses,
     required this.notifier,
     required this.onBotTap,
     required this.onCreate,
   });
 
   final List<Bot> bots;
+  final List<Business> businesses;
   final BotsNotifier notifier;
   final ValueChanged<Bot> onBotTap;
   final VoidCallback onCreate;
@@ -67,6 +76,7 @@ class _BotsGrid extends StatelessWidget {
     if (bot == null) return AddBotCard(onTap: onCreate);
     return BotCard(
       bot: bot,
+      branchNames: branchNamesForBot(businesses, bot.id),
       onTap: () => onBotTap(bot),
       onArchive: () => notifier.deleteBot(bot.id),
       onDuplicate: () => notifier.createBot(bot.copyWith(
@@ -151,7 +161,7 @@ class _PageHeader extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Asistentes que responden a tus clientes en WhatsApp. Cada uno tiene un propósito distinto — saludar, agendar, dar soporte.',
+                'Asistentes de WhatsApp vinculados a tus sucursales. Cada bot debe atender al menos una sucursal (podés asignarle todas).',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   color: KTokens.inkMuted,

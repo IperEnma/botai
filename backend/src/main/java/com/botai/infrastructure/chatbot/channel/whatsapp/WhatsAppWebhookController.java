@@ -2,7 +2,7 @@ package com.botai.infrastructure.chatbot.channel.whatsapp;
 
 import com.botai.domain.chatbot.model.InboundMessage;
 import com.botai.infrastructure.chatbot.channel.MessageBufferService;
-import com.botai.infrastructure.chatbot.persistence.jpa.BotJpaRepository;
+import com.botai.infrastructure.chatbot.channel.whatsapp.WhatsAppVerifyTokenService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -27,18 +27,18 @@ public class WhatsAppWebhookController {
     private static final Logger log = LoggerFactory.getLogger(WhatsAppWebhookController.class);
 
     private final WhatsAppAdapter adapter;
-    private final BotJpaRepository botRepository;
     private final MessageBufferService bufferService;
     private final ObjectMapper objectMapper;
+    private final WhatsAppVerifyTokenService verifyTokenService;
 
     public WhatsAppWebhookController(WhatsAppAdapter adapter,
-                                     BotJpaRepository botRepository,
                                      MessageBufferService bufferService,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper,
+                                     WhatsAppVerifyTokenService verifyTokenService) {
         this.adapter = adapter;
-        this.botRepository = botRepository;
         this.bufferService = bufferService;
         this.objectMapper = objectMapper;
+        this.verifyTokenService = verifyTokenService;
     }
 
     /**
@@ -50,7 +50,7 @@ public class WhatsAppWebhookController {
             @RequestParam(name = "hub.mode", required = false) String mode,
             @RequestParam(name = "hub.verify_token", required = false) String token,
             @RequestParam(name = "hub.challenge", required = false) String challenge) {
-        if ("subscribe".equals(mode) && token != null && botRepository.existsByWhatsappVerifyToken(token)) {
+        if ("subscribe".equals(mode) && verifyTokenService.accepts(token)) {
             return ResponseEntity.ok(challenge != null ? challenge : "");
         }
         return ResponseEntity.status(403).body("Invalid verify token");

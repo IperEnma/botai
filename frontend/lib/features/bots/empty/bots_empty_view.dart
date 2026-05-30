@@ -62,7 +62,7 @@ class _PageHeader extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Asistentes que responden a tus clientes en WhatsApp. Cada uno tiene un propósito distinto — saludar, agendar, dar soporte.',
+          'Asistentes de WhatsApp vinculados a tus sucursales. Al crear uno, elegís al menos una sucursal (o todas).',
           style: GoogleFonts.inter(
             fontSize: 14,
             color: KTokens.inkMuted,
@@ -156,7 +156,7 @@ class _HeroLeft extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: Text(
-            'Conectá WhatsApp, elegí un propósito y tu bot empieza a responder. No necesita programación — vos contás qué hace tu negocio y aprende.',
+            'Conectá WhatsApp, vinculá el bot a una o todas tus sucursales, y empieza a responder. No necesita programación.',
             style: GoogleFonts.inter(
               fontSize: 14,
               color: KTokens.inkMuted,

@@ -564,16 +564,65 @@ class _CreateBotDialogState extends ConsumerState<_CreateBotDialog> {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Sucursales (Agenda)',
-                    style: Theme.of(context).textTheme.titleSmall,
+                    'Sucursales (Agenda) · obligatorio',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Elegí al menos una. El tenant del bot será el mismo que tu espacio Agenda.',
+                    'El bot atiende solo las sucursales que marques (mínimo 1). Mismo tenant que Agenda.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey[700],
                         ),
                   ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade100),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 18, color: Colors.blue.shade700),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Obligatorio: cada bot debe estar vinculado a al menos una sucursal de Agenda. '
+                            'Podés elegir una o marcar todas.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.blue.shade900,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (bizState.items.length > 1)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedBusinessIds
+                              ..clear()
+                              ..addAll(
+                                bizState.items
+                                    .where((b) => b.activo)
+                                    .map((b) => b.id),
+                              );
+                          });
+                        },
+                        child: const Text('Seleccionar todas las sucursales'),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   if (bizState.isLoading)
                     const Padding(

@@ -1315,6 +1315,19 @@ class AgendaApiService {
     _ensureOk(r);
   }
 
+  /// `PUT /me/bots/{botId}/linked-businesses` → 204
+  Future<void> replaceBotLinkedBusinesses({
+    required int botId,
+    required List<String> businessIds,
+  }) async {
+    final r = await _send(() => _client.put(
+          _uri('/me/bots/$botId/linked-businesses'),
+          headers: _headers(),
+          body: jsonEncode({'businessIds': businessIds}),
+        ));
+    _ensureOk(r);
+  }
+
   /// Cierra el http client subyacente (testing).
   void close() => _client.close();
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -11,6 +10,7 @@ import '../../../providers/bot_provider.dart';
 import '../controllers/bots_controller.dart';
 import '../models/bot.dart';
 import '../widgets/capa_badge.dart';
+import '../widgets/whatsapp_webhook_setup.dart';
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ List<String> _stepTitles(bool hasBizStep) => hasBizStep
 
 List<String> _stepSubtitles(bool hasBizStep) => hasBizStep
     ? [
-        '¿A qué sucursal pertenece este bot?',
+        'Obligatorio: vinculá el bot a una o todas tus sucursales.',
         'Dale nombre, propósito y un avatar.',
         'Tu plan define qué tipo de respuestas puede dar.',
         'Ingresá las credenciales de tu cuenta Business.',
@@ -151,7 +151,6 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
   // Step 2
   final TextEditingController _phoneIdCtrl = TextEditingController();
   final TextEditingController _accessTokenCtrl = TextEditingController();
-  final TextEditingController _verifyTokenCtrl = TextEditingController();
   bool _obscureToken = true;
   bool _isCreating = false;
 
@@ -171,7 +170,6 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
     _purposeCtrl.dispose();
     _phoneIdCtrl.dispose();
     _accessTokenCtrl.dispose();
-    _verifyTokenCtrl.dispose();
     super.dispose();
   }
 
@@ -186,12 +184,21 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
 
   void _create() async {
     if (_isCreating) return;
+    if (_selectedBusinessIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Elegí al menos una sucursal. Un bot siempre debe estar vinculado a una o más.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _isCreating = true);
 
     final tier = tierFromCapa(_capa);
     final phoneId = _phoneIdCtrl.text.trim();
     final token = _accessTokenCtrl.text.trim();
-    final verify = _verifyTokenCtrl.text.trim();
 
     final bot = api_bot.Bot(
       id: '',
@@ -204,7 +211,6 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
       actionsEnabled: _capa == BotCapa.capa3,
       whatsappPhoneNumberId: phoneId.isEmpty ? null : phoneId,
       whatsappAccessToken: token.isEmpty ? null : token,
-      whatsappVerifyToken: verify.isEmpty ? null : verify,
       linkedAgendaBusinessIds: _selectedBusinessIds.toList(),
       createdAt: DateTime.now(),
     );
@@ -225,20 +231,77 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
   @override
   Widget build(BuildContext context) {
     final bizState = ref.watch(businessesProvider(widget.tenantId));
-    final businesses = bizState.items;
+    final businesses = bizState.items.where((b) => b.activo).toList();
 
-    // Auto-select when there's exactly one business
     if (!_autoSelected && !bizState.isLoading && businesses.length == 1) {
       _autoSelected = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _selectedBusinessIds = {businesses.first.id});
       });
-    } else if (!_autoSelected && !bizState.isLoading && businesses.length > 1) {
+    } else if (!_autoSelected && !bizState.isLoading && businesses.isNotEmpty) {
       _autoSelected = true;
     }
 
-    final hasBizStep = businesses.length > 1;
-    final totalSteps = hasBizStep ? 4 : 3;
+    if (bizState.isLoading) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Material(
+          color: const Color(0xFFFBFAF7),
+          child: SizedBox(
+            width: 480,
+            height: double.infinity,
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+        ),
+      );
+    }
+
+    if (businesses.isEmpty) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Material(
+          color: const Color(0xFFFBFAF7),
+          child: SizedBox(
+            width: 480,
+            height: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Primero creá una sucursal',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 26,
+                      fontStyle: FontStyle.italic,
+                      color: KTokens.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Todo bot debe estar vinculado a al menos una sucursal de Agenda. '
+                    'Creá un negocio en el panel y volvé a intentar.',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: KTokens.inkMuted,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    const hasBizStep = true;
+    const totalSteps = 4;
     final lastStep = totalSteps - 1;
     final titles = _stepTitles(hasBizStep);
     final subtitles = _stepSubtitles(hasBizStep);
@@ -296,6 +359,9 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
             _selectedBusinessIds.remove(id);
           }
         }),
+        onSelectAll: () => setState(() {
+          _selectedBusinessIds = businesses.map((b) => b.id).toSet();
+        }),
       );
     }
     final identidadStep = hasBizStep ? 1 : 0;
@@ -318,7 +384,6 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
     return _StepCanales(
       phoneIdCtrl: _phoneIdCtrl,
       accessTokenCtrl: _accessTokenCtrl,
-      verifyTokenCtrl: _verifyTokenCtrl,
       obscureToken: _obscureToken,
       onToggleObscure: () => setState(() => _obscureToken = !_obscureToken),
     );
@@ -656,18 +721,14 @@ class _StepCanales extends StatelessWidget {
   const _StepCanales({
     required this.phoneIdCtrl,
     required this.accessTokenCtrl,
-    required this.verifyTokenCtrl,
     required this.obscureToken,
     required this.onToggleObscure,
   });
 
   final TextEditingController phoneIdCtrl;
   final TextEditingController accessTokenCtrl;
-  final TextEditingController verifyTokenCtrl;
   final bool obscureToken;
   final VoidCallback onToggleObscure;
-
-  static const _webhookUrl = 'https://tu-dominio.com/webhook/whatsapp';
 
   @override
   Widget build(BuildContext context) {
@@ -706,7 +767,7 @@ class _StepCanales extends StatelessWidget {
                 '2. Crea una app de tipo "Business"\n'
                 '3. Agrega el producto "WhatsApp"\n'
                 '4. En WhatsApp › API Setup encontrarás Phone Number ID y Access Token\n'
-                '5. Configura el Webhook con la URL de abajo y el Verify Token',
+                '5. Después de crear el bot, copiá URL y Verify Token desde Configuración',
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   color: KTokens.ink,
@@ -741,67 +802,9 @@ class _StepCanales extends StatelessWidget {
           obscure: obscureToken,
           onToggle: onToggleObscure,
         ),
-        const SizedBox(height: 20),
-
-        // Verify Token
-        Text(
-          'VERIFY TOKEN',
-          style: GoogleFonts.jetBrainsMono(
-              fontSize: 10, color: KTokens.inkSoft, letterSpacing: 0.8),
-        ),
-        const SizedBox(height: 8),
-        _UnderlineTextField(
-          controller: verifyTokenCtrl,
-          hint: 'Token secreto que vos inventás para verificar el webhook',
-        ),
         const SizedBox(height: 24),
-
-        // Webhook URL
-        Text(
-          'URL DEL WEBHOOK',
-          style: GoogleFonts.jetBrainsMono(
-              fontSize: 10, color: KTokens.inkSoft, letterSpacing: 0.8),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-          decoration: BoxDecoration(
-            color: KTokens.surface,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: KTokens.border),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: SelectableText(
-                  _webhookUrl,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 12,
-                    color: KTokens.ink,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.copy, size: 16, color: KTokens.inkSoft),
-                splashRadius: 16,
-                tooltip: 'Copiar',
-                onPressed: () {
-                  Clipboard.setData(const ClipboardData(text: _webhookUrl));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('URL copiada'),
-                        duration: Duration(seconds: 2)),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Pegá esta URL en Meta for Developers › WhatsApp › Configuration › Webhook. Usá el mismo Verify Token de arriba.',
-          style: GoogleFonts.inter(
-              fontSize: 12, color: KTokens.inkMuted, height: 1.5),
+        const WhatsAppWebhookSetupPending(
+          style: WhatsAppWebhookSetupStyle.konecta,
         ),
         const SizedBox(height: 16),
 
@@ -1214,19 +1217,50 @@ class _StepSucursal extends StatelessWidget {
     required this.businesses,
     required this.selected,
     required this.onToggle,
+    required this.onSelectAll,
   });
 
   final List<Business> businesses;
   final Set<String> selected;
   final void Function(String id, bool selected) onToggle;
+  final VoidCallback onSelectAll;
 
   @override
   Widget build(BuildContext context) {
+    final single = businesses.length == 1;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: KTokens.accentSoft,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: KTokens.accent.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline, size: 18, color: KTokens.accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Requisito: cada bot atiende una o más sucursales (mínimo una). '
+                  'Elegí una sola o todas las de tu cuenta.',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: KTokens.ink,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
         Text(
-          '¿A qué sucursal va este bot?',
+          single ? 'Sucursal de este bot' : '¿Qué sucursales atiende este bot?',
           style: GoogleFonts.playfairDisplay(
             fontSize: 26,
             fontStyle: FontStyle.italic,
@@ -1235,11 +1269,30 @@ class _StepSucursal extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'El bot solo gestionará turnos y consultas de las sucursales que seleccionés acá.',
+          single
+              ? 'Tenés una sucursal activa: este bot quedará vinculado a ella.'
+              : 'Marcá una o más. Podés usar «Todas las sucursales» para atenderlas todas.',
           style: GoogleFonts.inter(
               fontSize: 13, color: KTokens.inkMuted, height: 1.5),
         ),
-        const SizedBox(height: 24),
+        if (!single) ...[
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onSelectAll,
+              child: Text(
+                'Todas las sucursales (${businesses.length})',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: KTokens.accent,
+                ),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
         for (final biz in businesses) ...[
           _BizTile(
             business: biz,

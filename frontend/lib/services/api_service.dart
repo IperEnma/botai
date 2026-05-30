@@ -7,6 +7,7 @@ import '../models/bot.dart';
 import '../models/menu.dart';
 import '../models/knowledge.dart';
 import '../models/appointment.dart';
+import '../models/whatsapp_webhook_setup.dart';
 
 class ApiService {
   final String baseUrl;
@@ -96,11 +97,17 @@ class ApiService {
     return null;
   }
 
-  Future<Bot> updateBot(Bot bot) async {
+  Future<Bot> updateBot(Bot bot, {String? whatsappAccessTokenPlain}) async {
+    final body = bot.toJson();
+    body.remove('whatsappAccessToken');
+    if (whatsappAccessTokenPlain != null &&
+        whatsappAccessTokenPlain.trim().isNotEmpty) {
+      body['whatsappAccessToken'] = whatsappAccessTokenPlain.trim();
+    }
     final response = await _with401Retry(() => http.put(
           Uri.parse('$baseUrl/bots/${bot.id}'),
           headers: _headers,
-          body: jsonEncode(bot.toJson()),
+          body: jsonEncode(body),
         ));
 
     if (response.statusCode == 200) {
@@ -119,6 +126,20 @@ class ApiService {
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Error deleting bot: ${response.body}');
     }
+  }
+
+  Future<WhatsAppWebhookSetupInfo> getWhatsAppWebhookSetup(String botId) async {
+    final response = await _with401Retry(() => http.get(
+          Uri.parse('$baseUrl/bots/$botId/whatsapp-webhook-setup'),
+          headers: _headers,
+        ));
+
+    if (response.statusCode == 200) {
+      return WhatsAppWebhookSetupInfo.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+      );
+    }
+    throw Exception('Error fetching WhatsApp webhook setup: ${response.body}');
   }
 
   // Menu CRUD

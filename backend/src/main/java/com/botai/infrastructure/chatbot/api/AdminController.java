@@ -2,6 +2,9 @@ package com.botai.infrastructure.chatbot.api;
 
 import com.botai.application.agenda.usecase.bot.LinkBotToAgendaBusinessesUseCase;
 import com.botai.application.chatbot.service.knowledge.KnowledgeChunkAdminService;
+import com.botai.infrastructure.chatbot.config.BotWhatsAppConfig;
+import com.botai.infrastructure.chatbot.channel.whatsapp.WhatsAppAccessTokenCipher;
+import com.botai.infrastructure.chatbot.channel.whatsapp.WhatsAppVerifyTokenService;
 import com.botai.infrastructure.chatbot.booking.CustomerDocumentNormalizer;
 import com.botai.infrastructure.chatbot.persistence.entity.*;
 import com.botai.infrastructure.chatbot.persistence.jpa.*;
@@ -30,6 +33,9 @@ public class AdminController {
     private final KnowledgeChunkAdminService knowledgeChunkAdminService;
     private final AppointmentJpaRepository appointmentRepository;
     private final LinkBotToAgendaBusinessesUseCase linkBotToAgendaBusinessesUseCase;
+    private final BotWhatsAppConfig botWhatsAppConfig;
+    private final WhatsAppVerifyTokenService whatsAppVerifyTokenService;
+    private final WhatsAppAccessTokenCipher whatsAppAccessTokenCipher;
 
     public AdminController(
             MenuJpaRepository menuRepository,
@@ -38,7 +44,10 @@ public class AdminController {
             BotJpaRepository botRepository,
             KnowledgeChunkAdminService knowledgeChunkAdminService,
             AppointmentJpaRepository appointmentRepository,
-            LinkBotToAgendaBusinessesUseCase linkBotToAgendaBusinessesUseCase) {
+            LinkBotToAgendaBusinessesUseCase linkBotToAgendaBusinessesUseCase,
+            BotWhatsAppConfig botWhatsAppConfig,
+            WhatsAppVerifyTokenService whatsAppVerifyTokenService,
+            WhatsAppAccessTokenCipher whatsAppAccessTokenCipher) {
         this.menuRepository = menuRepository;
         this.triggerRepository = triggerRepository;
         this.featureConfigRepository = featureConfigRepository;
@@ -46,6 +55,9 @@ public class AdminController {
         this.knowledgeChunkAdminService = knowledgeChunkAdminService;
         this.appointmentRepository = appointmentRepository;
         this.linkBotToAgendaBusinessesUseCase = linkBotToAgendaBusinessesUseCase;
+        this.botWhatsAppConfig = botWhatsAppConfig;
+        this.whatsAppVerifyTokenService = whatsAppVerifyTokenService;
+        this.whatsAppAccessTokenCipher = whatsAppAccessTokenCipher;
     }
 
     // ============ AUTH ============
@@ -97,6 +109,8 @@ public class AdminController {
         if (bot.getUserId() == null || bot.getUserId().isEmpty()) {
             bot.setUserId("default_user");
         }
+        bot.setWhatsappVerifyToken(null);
+        applyWhatsappAccessTokenFromRequest(bot, bot.getWhatsappAccessToken());
         bot.setCreatedAt(LocalDateTime.now());
         BotEntity saved = botRepository.save(bot);
         String tenantId = saved.getTenantId();
@@ -116,6 +130,20 @@ public class AdminController {
             .orElse(ResponseEntity.notFound().build());
     }
 
+    /**
+     * Datos para configurar el webhook en Meta (URL + verify token derivado para este bot).
+     */
+    @GetMapping("/bots/{botId}/whatsapp-webhook-setup")
+    public ResponseEntity<?> whatsappWebhookSetup(@PathVariable Long botId) {
+        return botRepository.findById(botId)
+            .map(bot -> ResponseEntity.ok(Map.of(
+                    "webhookUrl", botWhatsAppConfig.webhookUrl(),
+                    "verifyToken", whatsAppVerifyTokenService.tokenForBot(botId),
+                    "hint", "Pegá estos valores en Meta › WhatsApp › Configuration › Webhook"
+            )))
+            .orElse(ResponseEntity.notFound().build());
+    }
+
     @PutMapping("/bots/{botId}")
     public ResponseEntity<BotEntity> updateBot(
             @PathVariable Long botId,
@@ -131,8 +159,8 @@ public class AdminController {
                 existing.setAiEnabled(bot.isAiEnabled());
                 existing.setActionsEnabled(bot.isActionsEnabled());
                 existing.setWhatsappPhoneNumberId(trimToNull(bot.getWhatsappPhoneNumberId()));
-                existing.setWhatsappAccessToken(trimToNull(bot.getWhatsappAccessToken()));
-                existing.setWhatsappVerifyToken(trimToNull(bot.getWhatsappVerifyToken()));
+                applyWhatsappAccessTokenFromRequest(existing, bot.getWhatsappAccessToken());
+                // verify token: derivado (HMAC); access token: cifrado en reposo.
                 String ph = existing.getWhatsappPhoneNumberId();
                 log.info("[BOT] Update bot id={} tenant={} whatsappPhoneNumberId guardado={}", botId, existing.getTenantId(), ph != null && !ph.isEmpty() ? "***" + (ph.length() >= 4 ? ph.substring(ph.length() - 4) : ph) : "null");
                 updateFeatureFlags(existing.getTenantId(), existing);
@@ -157,6 +185,15 @@ public class AdminController {
         if (value == null) return null;
         String s = value.strip();
         return s.isEmpty() ? null : s;
+    }
+
+    /** Si viene valor nuevo, cifra y guarda; null/vacío = mantener el existente (PUT). */
+    private void applyWhatsappAccessTokenFromRequest(BotEntity target, String incomingPlain) {
+        String plain = trimToNull(incomingPlain);
+        if (plain == null) {
+            return;
+        }
+        target.setWhatsappAccessToken(whatsAppAccessTokenCipher.encrypt(plain));
     }
 
     private void createDefaultFeatureFlags(String tenantId, BotEntity bot) {

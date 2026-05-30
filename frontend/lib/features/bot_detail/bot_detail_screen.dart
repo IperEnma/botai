@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/bot_provider.dart';
@@ -7,6 +6,8 @@ import '../../models/bot.dart';
 import '../../core/theme.dart';
 import '../menus/menus_screen.dart';
 import '../knowledge/knowledge_screen.dart';
+import '../bots/widgets/bot_linked_branches_card.dart';
+import '../bots/widgets/whatsapp_webhook_setup.dart';
 
 class BotDetailScreen extends ConsumerStatefulWidget {
   final String botId;
@@ -163,7 +164,6 @@ class BotConfigContent extends ConsumerStatefulWidget {
 class _BotConfigContentState extends ConsumerState<BotConfigContent> {
   late TextEditingController _phoneIdController;
   late TextEditingController _accessTokenController;
-  late TextEditingController _verifyTokenController;
   late bool _faqEnabled;
   late bool _aiEnabled;
   late bool _actionsEnabled;
@@ -174,8 +174,7 @@ class _BotConfigContentState extends ConsumerState<BotConfigContent> {
   void initState() {
     super.initState();
     _phoneIdController = TextEditingController(text: widget.bot.whatsappPhoneNumberId ?? '');
-    _accessTokenController = TextEditingController(text: widget.bot.whatsappAccessToken ?? '');
-    _verifyTokenController = TextEditingController(text: widget.bot.whatsappVerifyToken ?? '');
+    _accessTokenController = TextEditingController();
     _faqEnabled = widget.bot.faqEnabled;
     _aiEnabled = widget.bot.aiEnabled;
     _actionsEnabled = widget.bot.actionsEnabled;
@@ -185,7 +184,6 @@ class _BotConfigContentState extends ConsumerState<BotConfigContent> {
   void dispose() {
     _phoneIdController.dispose();
     _accessTokenController.dispose();
-    _verifyTokenController.dispose();
     super.dispose();
   }
 
@@ -196,6 +194,8 @@ class _BotConfigContentState extends ConsumerState<BotConfigContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          BotLinkedBranchesCard(bot: widget.bot),
+          const SizedBox(height: 24),
           // WhatsApp Config
           Card(
             child: Padding(
@@ -229,7 +229,9 @@ class _BotConfigContentState extends ConsumerState<BotConfigContent> {
                     controller: _accessTokenController,
                     decoration: InputDecoration(
                       labelText: 'Access Token',
-                      hintText: 'EAAxxxxxxx...',
+                      hintText: widget.bot.whatsappAccessTokenConfigured
+                          ? 'Token guardado — dejá vacío para no cambiarlo'
+                          : 'EAAxxxxxxx...',
                       prefixIcon: const Icon(Icons.key),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -242,17 +244,16 @@ class _BotConfigContentState extends ConsumerState<BotConfigContent> {
                     ),
                     obscureText: _obscureToken,
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _verifyTokenController,
-                    decoration: const InputDecoration(
-                      labelText: 'Verify Token',
-                      hintText: 'Token secreto para verificar el webhook (invéntalo tú)',
-                      prefixIcon: Icon(Icons.verified_user),
+                  if (widget.bot.whatsappAccessTokenConfigured)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Access Token configurado (cifrado en el servidor).',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _WebhookUrlCard(tenantId: widget.bot.tenantId),
+                  const SizedBox(height: 20),
+                  WhatsAppWebhookSetup(botId: widget.bot.id),
                 ],
               ),
             ),
@@ -330,16 +331,21 @@ class _BotConfigContentState extends ConsumerState<BotConfigContent> {
   Future<void> _saveConfig() async {
     setState(() => _isLoading = true);
 
+    final newAccessToken = _accessTokenController.text.trim();
     final updatedBot = widget.bot.copyWith(
       whatsappPhoneNumberId: _phoneIdController.text.trim().isEmpty ? null : _phoneIdController.text.trim(),
-      whatsappAccessToken: _accessTokenController.text.trim().isEmpty ? null : _accessTokenController.text.trim(),
-      whatsappVerifyToken: _verifyTokenController.text.trim().isEmpty ? null : _verifyTokenController.text.trim(),
       faqEnabled: _faqEnabled,
       aiEnabled: _aiEnabled,
       actionsEnabled: _actionsEnabled,
+      whatsappAccessTokenConfigured: widget.bot.whatsappAccessTokenConfigured ||
+          newAccessToken.isNotEmpty,
     );
 
-    await ref.read(botsProvider.notifier).updateBot(updatedBot);
+    await ref.read(botsProvider.notifier).updateBot(
+          updatedBot,
+          whatsappAccessTokenPlain:
+              newAccessToken.isEmpty ? null : newAccessToken,
+        );
 
     if (mounted) {
       setState(() => _isLoading = false);
@@ -386,70 +392,12 @@ class _WhatsAppTutorialCard extends StatelessWidget {
             '4. En WhatsApp > API Setup encontrarás:\n'
             '   • Phone number ID\n'
             '   • Access Token (temporal o permanente)\n'
-            '5. Configura el Webhook con tu URL y el Verify Token (invéntalo tú)',
+            '5. Después de crear el bot, copiá URL y Verify Token desde Configuración',
             style: TextStyle(
               color: Colors.blue[900],
               fontSize: 13,
               height: 1.5,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WebhookUrlCard extends StatelessWidget {
-  final String tenantId;
-
-  const _WebhookUrlCard({required this.tenantId});
-
-  @override
-  Widget build(BuildContext context) {
-    const baseUrl = 'https://tu-dominio.com';
-    final webhookUrl = '$baseUrl/webhook/whatsapp';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'URL del Webhook',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: SelectableText(
-                  webhookUrl,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.copy, size: 20),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: webhookUrl));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('URL copiada')),
-                  );
-                },
-                tooltip: 'Copiar',
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Configura esta URL en Meta for Developers > WhatsApp > Configuration > Webhook. Usa el mismo Verify Token que guardes arriba.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
         ],
       ),

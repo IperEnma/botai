@@ -5,6 +5,15 @@ class AppConfig {
 
   static String get apiBaseUrl => dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api';
 
+  /// Raíz del backend (sin sufijo /api).
+  static String get serverBaseUrl {
+    final api = apiBaseUrl;
+    if (api.endsWith('/api')) {
+      return api.substring(0, api.length - 4);
+    }
+    return api;
+  }
+
   static String get googleClientIdWeb =>
       dotenv.env['GOOGLE_CLIENT_ID_WEB'] ?? '';
 
