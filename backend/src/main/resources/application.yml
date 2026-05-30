@@ -17,9 +17,8 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
 
-  # Flyway: V1–V4 vía AgendaFlywayConfig (extensiones → Hibernate → V2–V4). Tablas = JPA.
-  # Local: start-dev.ps1 también aplica V1 antes del JAR (arranque más rápido en dev).
-  # repair-on-migrate: AgendaFlywayConfig aplica repair() antes de migrate() si hace falta.
+  # Flyway agenda (después de Hibernate): V1 extensiones, V2 semilla, V3 complementos ORM (EXCLUDE, etc.).
+  # Tablas agenda_* = JPA ddl-auto update. repair-on-migrate vía AgendaFlywayConfig.
   flyway:
     repair-on-migrate: ${FLYWAY_REPAIR_ON_MIGRATE:true}
     locations: classpath:db/migration/agenda
@@ -151,7 +150,7 @@ logging:
 # ============================================================
 agenda:
   flyway:
-    clean-history-before-migrate: true
+    clean-history-before-migrate: false
   enabled: ${AGENDA_ENABLED:true}
   public:
     # Base URL del FRONTEND (no el backend) para construir el link público que se comparte.

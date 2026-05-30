@@ -1,3 +1,5 @@
+-- Semilla de categorías globales (tabla creada por Hibernate en el mismo arranque).
+
 INSERT INTO agenda_categories (id, nombre, slug, icono, synonyms, activo, created_at, updated_at) VALUES
     (gen_random_uuid(), 'Peluquería',  'peluqueria',  'scissors',
         '["peluqueria","peluquero","peluquera","pelu","corte de pelo","cabello","salón de belleza","salon"]'::jsonb, true, now(), now()),

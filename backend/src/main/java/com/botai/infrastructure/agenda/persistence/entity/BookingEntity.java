@@ -14,9 +14,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Esquema vía JPA. Anti doble reserva: {@code excl_agenda_bookings_slot} en
- * {@code V3__agenda_booking_slot_exclusion.sql} (EXCLUDE GiST no tiene equivalente en JPA).
- * Índices parciales (slot, suscripción) y FK staff: {@code V4__agenda_indexes_and_constraints.sql}.
+ * Tabla creada por Hibernate. Anti doble reserva: {@code excl_agenda_bookings_slot} en
+ * {@code V3__agenda_orm_supplements.sql} (EXCLUDE GiST; JPA no lo modela).
  */
 @Entity
 @Table(

@@ -247,7 +247,7 @@ class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationT
      * Escenario del bug original: dos USUARIOS DISTINTOS (suscripciones
      * distintas) compiten por el MISMO slot del mismo servicio.
      *
-     * <p>Antes del constraint {@code excl_agenda_bookings_slot} (V6), ambos
+     * <p>Antes del constraint {@code excl_agenda_bookings_slot} (V3 supplements), ambos
      * podían pasar el check de aplicación simultáneamente y ambos insertaban
      * un booking — double-booking real. Ahora la segunda inserción falla con
      * {@code DataIntegrityViolationException} que el adapter convierte en

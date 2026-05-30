@@ -25,11 +25,8 @@ import static org.mockito.Mockito.when;
  * {@code classpath:db/migration/agenda/} automáticamente al arrancar el contexto
  * gracias a {@code AgendaFlywayConfig}.</p>
  *
- * <p><b>Por qué {@code ddl-auto=update}:</b> el bot también tiene entidades JPA
- * cuyas tablas NO están declaradas como migraciones Flyway. Con {@code validate}
- * el startup fallaría. En cambio, con {@code update}, Flyway crea primero las
- * tablas {@code agenda_*} y Hibernate luego crea las del bot — cada módulo vive
- * en su carril.</p>
+ * <p><b>Por qué {@code ddl-auto=update}:</b> Hibernate crea/actualiza bot y agenda desde entidades;
+ * Flyway solo aplica semilla y complementos SQL (EXCLUDE, idempotencia).</p>
  *
  * <p><b>Opt-in para ejecutarse:</b> estos tests solo corren si la variable de
  * entorno {@code AGENDA_IT=true}. Sin eso quedan <em>skipped</em>. Motivo: no

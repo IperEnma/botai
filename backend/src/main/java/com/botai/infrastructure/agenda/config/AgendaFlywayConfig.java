@@ -17,31 +17,24 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Orden de arranque con JPA + Flyway:
- * <ol>
- *   <li>{@code schema.sql} — extensiones PG (vector, pgcrypto, …) vía Spring SQL init</li>
- *   <li>Hibernate {@code ddl-auto} — crea/actualiza tablas desde entidades</li>
- *   <li>Flyway V1–Vn — semilla de categorías, FKs, índices, etc.</li>
- * </ol>
+ * Esquema {@code agenda_*}: lo crea Hibernate ({@code ddl-auto=update}) desde las entidades JPA.
+ * Flyway corre <strong>después</strong> de JPA y solo aplica lo que el ORM no puede:
+ * extensiones (V1), semilla, EXCLUDE GiST, tabla de idempotencia, índices GIN/parciales.
  *
- * <p>Con {@code agenda.flyway.clean-history-before-migrate=true} (perfil local) el historial
- * de Flyway se elimina antes de migrar, forzando que todas las migraciones corran de nuevo.
- * Combinado con {@code ddl-auto: create-drop} garantiza un esquema limpio en cada reinicio
- * sin necesidad de migraciones ALTER TABLE/COLUMN en desarrollo.
+ * <p>En el primer arranque (prod o dev) Hibernate materializa tablas; Flyway completa en el mismo boot.</p>
  */
 @Configuration
 @ConditionalOnClass(Flyway.class)
 @ConditionalOnProperty(name = "spring.flyway.enabled", havingValue = "true", matchIfMissing = true)
 public class AgendaFlywayConfig {
 
-    /** Suprime la migración automática de Spring Boot; Flyway corre después de JPA. */
+    /** Evita que Spring Boot migre antes de JPA; la migración real va en {@link AgendaFlywayAfterJpaMigrator}. */
     @Bean
     @ConditionalOnMissingBean(FlywayMigrationStrategy.class)
     public FlywayMigrationStrategy agendaFlywayMigrationStrategy() {
-        return flyway -> { /* migración completa en agendaFlywayAfterJpaMigrator */ };
+        return flyway -> { /* post-JPA */ };
     }
 
-    /** Dispara Flyway tras la inicialización completa del contexto (JPA ya creó las tablas). */
     @Bean
     public ApplicationListener<ContextRefreshedEvent> agendaFlywayAfterJpaMigrator(
             Flyway flyway,
@@ -52,8 +45,7 @@ public class AgendaFlywayConfig {
         return new AgendaFlywayAfterJpaMigrator(flyway, dataSource, repairOnMigrate, historyTable, cleanHistoryBeforeMigrate);
     }
 
-    private static final class AgendaFlywayAfterJpaMigrator
-            implements ApplicationListener<ContextRefreshedEvent> {
+    private static final class AgendaFlywayAfterJpaMigrator implements ApplicationListener<ContextRefreshedEvent> {
 
         private final Flyway flyway;
         private final DataSource dataSource;
@@ -63,8 +55,8 @@ public class AgendaFlywayConfig {
         private volatile boolean migrated;
 
         AgendaFlywayAfterJpaMigrator(Flyway flyway, DataSource dataSource,
-                                      boolean repairOnMigrate, String historyTable,
-                                      boolean cleanHistoryBeforeMigrate) {
+                                     boolean repairOnMigrate, String historyTable,
+                                     boolean cleanHistoryBeforeMigrate) {
             this.flyway = flyway;
             this.dataSource = dataSource;
             this.repairOnMigrate = repairOnMigrate;
@@ -74,9 +66,15 @@ public class AgendaFlywayConfig {
 
         @Override
         public void onApplicationEvent(ContextRefreshedEvent event) {
-            if (migrated || event.getApplicationContext().getParent() != null) return;
-            if (cleanHistoryBeforeMigrate) dropHistoryTable();
-            if (repairOnMigrate) flyway.repair();
+            if (migrated || event.getApplicationContext().getParent() != null) {
+                return;
+            }
+            if (cleanHistoryBeforeMigrate) {
+                dropHistoryTable();
+            }
+            if (repairOnMigrate) {
+                flyway.repair();
+            }
             flyway.migrate();
             migrated = true;
         }

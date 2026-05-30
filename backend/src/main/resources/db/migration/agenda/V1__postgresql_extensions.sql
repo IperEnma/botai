@@ -1,7 +1,4 @@
--- Extensiones PG del módulo AGENDA (y RAG pgvector en knowledge_chunk).
--- Flyway aplica esta migración al arrancar (idempotente).
--- En local, start-dev.ps1 la ejecuta también ANTES del backend: Hibernate corre antes que Flyway
--- (defer-datasource-initialization) y necesita vector al crear columnas embedding.
+-- Extensiones PG (RAG pgvector, EXCLUDE btree_gist). Flyway V1; tablas = Hibernate.
 
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
