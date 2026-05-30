@@ -17,7 +17,7 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
 
-  # Flyway agenda (después de Hibernate): V1 extensiones, V2 semilla, V3 complementos ORM (EXCLUDE, etc.).
+  # Flyway agenda (ApplicationReady, tras Hibernate): V1 extensiones, V2 semilla SQL, V3 complementos ORM.
   # Tablas agenda_* = JPA ddl-auto update. repair-on-migrate vía AgendaFlywayConfig.
   flyway:
     repair-on-migrate: ${FLYWAY_REPAIR_ON_MIGRATE:true}
@@ -149,8 +149,6 @@ logging:
 # [AGENDA] — Configuración del módulo AGENDA (aislada del bot).
 # ============================================================
 agenda:
-  flyway:
-    clean-history-before-migrate: false
   enabled: ${AGENDA_ENABLED:true}
   public:
     # Base URL del FRONTEND (no el backend) para construir el link público que se comparte.

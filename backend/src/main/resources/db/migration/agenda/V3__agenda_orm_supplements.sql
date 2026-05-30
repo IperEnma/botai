@@ -1,5 +1,5 @@
--- Complementos que JPA no modela (misma filosofía: tablas = entidades Hibernate).
--- IF NOT EXISTS: solo para re-ejecutar Flyway en dev (clean-history); en prod cada script corre una vez.
+-- Complementos que JPA no modela (tablas = entidades Hibernate).
+-- IF NOT EXISTS: scripts idempotentes si Flyway repair re-aplica la versión.
 
 -- Anti doble reserva (EXCLUDE GiST)
 DO $$

@@ -6,7 +6,6 @@
 #   1. schema.sql — extensiones PG.
 #   2. Hibernate (update) — crea/actualiza tablas bot + agenda desde entidades JPA.
 #   3. Flyway V1–V3 — semilla, EXCLUDE, idempotencia, índices que JPA no expresa.
-# clean-history-before-migrate: solo dev; reejecuta scripts Flyway sin tocar el esquema JPA.
 
 spring:
   datasource:
@@ -26,7 +25,3 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     repair-on-migrate: true
-
-agenda:
-  flyway:
-    clean-history-before-migrate: true
