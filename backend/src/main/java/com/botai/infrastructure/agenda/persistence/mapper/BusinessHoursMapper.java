@@ -9,7 +9,9 @@ public final class BusinessHoursMapper {
 
     public static BusinessHours toDomain(BusinessHoursEntity e) {
         return new BusinessHours(e.getId(), e.getBusinessId(), e.getDiaSemana(),
-                e.getApertura(), e.getCierre(), e.isCerrado());
+                e.getApertura(), e.getCierre(),
+                e.getApertura2(), e.getCierre2(),
+                e.isCerrado());
     }
 
     public static BusinessHoursEntity toEntity(BusinessHours h) {
@@ -19,6 +21,8 @@ public final class BusinessHoursMapper {
         e.setDiaSemana(h.getDiaSemana());
         e.setApertura(h.getApertura());
         e.setCierre(h.getCierre());
+        e.setApertura2(h.getApertura2());
+        e.setCierre2(h.getCierre2());
         e.setCerrado(h.isCerrado());
         return e;
     }

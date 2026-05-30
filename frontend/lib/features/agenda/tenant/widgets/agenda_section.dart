@@ -108,16 +108,29 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
     });
   }
 
-  void _openNewTurno({DateTime? start, String? proId}) {
+  Future<void> _openNewTurno({DateTime? start, String? proId}) async {
     final businessId = widget.businessId;
     if (businessId == null) return;
-    showNewTurnoPanel(
+    await showNewTurnoPanel(
       context,
       tenantId: widget.tenantId,
       businessId: businessId,
       initialDate: start,
       initialProId: proId,
     );
+    if (!mounted) return;
+    _refreshCurrentView(businessId);
+  }
+
+  void _refreshCurrentView(String businessId) {
+    final ws = _weekStart(_focusDate);
+    ref.invalidate(agendaBookingsProvider((businessId: businessId, day: _focusDate)));
+    ref.invalidate(agendaWeekBookingsProvider((businessId: businessId, weekStart: ws)));
+    ref.invalidate(agendaMonthBookingsProvider((
+      businessId: businessId,
+      year: _focusDate.year,
+      month: _focusDate.month,
+    )));
   }
 
   String _monthTitle() => '${_kMonths[_focusDate.month]} ${_focusDate.year}';

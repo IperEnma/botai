@@ -4,8 +4,10 @@ class BusinessHours {
   final String id;
   final String businessId;
   final int diaSemana;
-  final String? apertura;  // "HH:mm"
-  final String? cierre;    // "HH:mm"
+  final String? apertura;   // "HH:mm"
+  final String? cierre;     // "HH:mm"
+  final String? apertura2;  // "HH:mm" — start of second range (after break)
+  final String? cierre2;    // "HH:mm" — end of second range (after break)
   final bool cerrado;
 
   const BusinessHours({
@@ -14,6 +16,8 @@ class BusinessHours {
     required this.diaSemana,
     this.apertura,
     this.cierre,
+    this.apertura2,
+    this.cierre2,
     required this.cerrado,
   });
 
@@ -24,6 +28,8 @@ class BusinessHours {
       diaSemana: (json['diaSemana'] as num).toInt(),
       apertura: _parseTime(json['apertura']),
       cierre: _parseTime(json['cierre']),
+      apertura2: _parseTime(json['apertura2']),
+      cierre2: _parseTime(json['cierre2']),
       cerrado: json['cerrado'] as bool? ?? false,
     );
   }
@@ -32,6 +38,8 @@ class BusinessHours {
         'diaSemana': diaSemana,
         if (apertura != null) 'apertura': apertura,
         if (cierre != null) 'cierre': cierre,
+        if (apertura2 != null) 'apertura2': apertura2,
+        if (cierre2 != null) 'cierre2': cierre2,
         'cerrado': cerrado,
       };
 

@@ -10,11 +10,11 @@ class Greeting extends ConsumerWidget {
   const Greeting({
     super.key,
     required this.ownerName,
-    required this.businessId,
+    required this.tenantId,
   });
 
   final String? ownerName;
-  final String businessId;
+  final String tenantId;
 
   String _greeting() {
     final hour = DateTime.now().hour;
@@ -30,7 +30,7 @@ class Greeting extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(inicioControllerProvider);
+    final state = ref.watch(inicioControllerProvider(tenantId));
     final snapshot = state.snapshot;
     final isWide = MediaQuery.sizeOf(context).width >= 800;
 

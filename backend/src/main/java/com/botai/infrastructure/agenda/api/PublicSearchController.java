@@ -210,13 +210,13 @@ public class PublicSearchController {
     private Optional<BusinessHours> defaultHours(UUID businessId, int diaSemana) {
         if (diaSemana == 6) {
             return Optional.of(new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
-                    LocalTime.of(9, 0), LocalTime.of(13, 0), true));
+                    LocalTime.of(9, 0), LocalTime.of(13, 0), null, null, true));
         }
         if (diaSemana == 5) {
             return Optional.of(new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
-                    LocalTime.of(9, 0), LocalTime.of(13, 0), false));
+                    LocalTime.of(9, 0), LocalTime.of(13, 0), null, null, false));
         }
         return Optional.of(new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
-                LocalTime.of(9, 0), LocalTime.of(18, 0), false));
+                LocalTime.of(9, 0), LocalTime.of(18, 0), null, null, false));
     }
 }

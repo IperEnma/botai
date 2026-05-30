@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../models/agenda/booking.dart';
+import '../../../../models/agenda/business_hours.dart';
 import '../../../../models/agenda/staff_member.dart';
 import '../../../../providers/agenda/tenant/agenda_week_provider.dart';
+import '../../../../providers/agenda/tenant/business_hours_provider.dart';
 import '../../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../register/konecta_tokens.dart';
 
@@ -72,6 +74,11 @@ class _WeekViewState extends ConsumerState<WeekView> {
     final staff = staffState.members.where((s) => s.activo).toList()
       ..sort((a, b) => a.nombre.compareTo(b.nombre));
 
+    final hoursState = ref.watch(businessHoursProvider((
+      tenantId: widget.tenantId,
+      businessId: widget.businessId,
+    )));
+
     return bookingsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
       error: (e, _) => Center(
@@ -86,6 +93,7 @@ class _WeekViewState extends ConsumerState<WeekView> {
           days: days,
           bookings: bookings,
           staff: staff,
+          hours: hoursState.hours,
           now: _now,
           isToday: _isToday,
           onSlotTap: widget.onSlotTap,
@@ -96,11 +104,12 @@ class _WeekViewState extends ConsumerState<WeekView> {
   }
 }
 
-class _WeekGrid extends StatelessWidget {
+class _WeekGrid extends StatefulWidget {
   const _WeekGrid({
     required this.days,
     required this.bookings,
     required this.staff,
+    required this.hours,
     required this.now,
     required this.isToday,
     required this.onSlotTap,
@@ -110,19 +119,62 @@ class _WeekGrid extends StatelessWidget {
   final List<DateTime> days;
   final List<Booking> bookings;
   final List<StaffMember> staff;
+  final List<BusinessHours> hours;
   final DateTime now;
   final bool Function(DateTime) isToday;
   final void Function(DateTime, String?) onSlotTap;
   final void Function(Booking) onTurnoTap;
 
+  @override
+  State<_WeekGrid> createState() => _WeekGridState();
+}
+
+class _WeekGridState extends State<_WeekGrid> {
+  late final ScrollController _scrollCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToInitial());
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _scrollToInitial() {
+    if (!_scrollCtrl.hasClients) return;
+    final viewport = _scrollCtrl.position.viewportDimension;
+    final hasToday = widget.days.any(widget.isToday);
+
+    double anchorTop;
+    if (hasToday) {
+      final n = widget.now;
+      anchorTop = ((n.hour - _kHourStart) * 60 + n.minute) / 60 * _kHourPx;
+    } else {
+      // center on 09:00
+      anchorTop = (9 - _kHourStart) * _kHourPx;
+    }
+
+    final target = (anchorTop - viewport / 2).clamp(0.0, _totalH - viewport);
+    _scrollCtrl.animateTo(
+      target,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+    );
+  }
+
   Color _colorFor(String? staffId) {
     if (staffId == null) return KTokens.inkPlaceholder;
-    final idx = staff.indexWhere((s) => s.id == staffId);
+    final idx = widget.staff.indexWhere((s) => s.id == staffId);
     if (idx < 0) return KTokens.inkPlaceholder;
     return KTokens.proPalette[idx % KTokens.proPalette.length];
   }
 
-  List<Booking> _bookingsForDay(DateTime day) => bookings
+  List<Booking> _bookingsForDay(DateTime day) => widget.bookings
       .where((b) =>
           b.fechaHoraInicio.year == day.year &&
           b.fechaHoraInicio.month == day.month &&
@@ -137,7 +189,7 @@ class _WeekGrid extends StatelessWidget {
   double get _totalH => (_kHourEnd - _kHourStart) * _kHourPx;
 
   double get _nowTop {
-    final m = (now.hour - _kHourStart) * 60 + now.minute;
+    final m = (widget.now.hour - _kHourStart) * 60 + widget.now.minute;
     return (m / 60) * _kHourPx;
   }
 
@@ -146,15 +198,46 @@ class _WeekGrid extends StatelessWidget {
     return (durationMin / 60) * _kHourPx;
   }
 
+  BusinessHours? _hoursForDay(DateTime day) {
+    final diaSemana = day.weekday - 1;
+    try {
+      return widget.hours.firstWhere((h) => h.diaSemana == diaSemana);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int _parseTimeToMinutes(String time) {
+    final parts = time.split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
+
+  bool _isSlotOpen(DateTime day, int hour) {
+    final bh = _hoursForDay(day);
+    if (bh == null) return true;
+    if (bh.cerrado) return false;
+    final slotMin = hour * 60;
+    if (bh.apertura != null && slotMin < _parseTimeToMinutes(bh.apertura!)) return false;
+    if (bh.cierre != null && slotMin >= _parseTimeToMinutes(bh.cierre!)) return false;
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasToday = days.any(isToday);
-    final totalW = _kTimeColW + days.length * _kDayColW;
+    final hasToday = widget.days.any(widget.isToday);
+    final totalW = _kTimeColW + widget.days.length * _kDayColW;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SizedBox(
-        width: totalW,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final leftPad = constraints.maxWidth > totalW
+            ? (constraints.maxWidth - totalW) / 2
+            : 0.0;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Padding(
+            padding: EdgeInsets.only(left: leftPad),
+            child: SizedBox(
+              width: totalW,
         child: Column(
           children: [
             // ── Day headers ────────────────────────────────────────────────────
@@ -163,9 +246,9 @@ class _WeekGrid extends StatelessWidget {
               child: Row(
                 children: [
                   SizedBox(width: _kTimeColW),
-                  ...days.map((day) => _DayColHeader(
+                  ...widget.days.map((day) => _DayColHeader(
                         day: day,
-                        isToday: isToday(day),
+                        isToday: widget.isToday(day),
                         bookingCount: _bookingsForDay(day).length,
                       )),
                 ],
@@ -175,6 +258,7 @@ class _WeekGrid extends StatelessWidget {
             // ── Timeline ──────────────────────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
+                controller: _scrollCtrl,
                 child: SizedBox(
                   height: _totalH,
                   child: Stack(
@@ -185,7 +269,7 @@ class _WeekGrid extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(width: _kTimeColW),
-                          ...days.map((day) {
+                          ...widget.days.map((day) {
                             final dayBookings = _bookingsForDay(day);
                             return SizedBox(
                               width: _kDayColW,
@@ -202,7 +286,7 @@ class _WeekGrid extends StatelessWidget {
                                     ),
                                   ),
                                   // Today highlight
-                                  if (isToday(day))
+                                  if (widget.isToday(day))
                                     Positioned.fill(
                                       child: Container(
                                         color: KTokens.accentSoft.withValues(alpha: 0.35),
@@ -212,16 +296,32 @@ class _WeekGrid extends StatelessWidget {
                                   GestureDetector(
                                     behavior: HitTestBehavior.translucent,
                                     onTapDown: (details) {
-                                      final hour = _kHourStart +
-                                          (details.localPosition.dy / _kHourPx)
-                                              .floor();
+                                      final hour = (_kHourStart +
+                                              (details.localPosition.dy /
+                                                      _kHourPx)
+                                                  .floor())
+                                          .clamp(_kHourStart, _kHourEnd - 1);
+                                      if (!_isSlotOpen(day, hour)) {
+                                        final bh = _hoursForDay(day);
+                                        final msg = (bh != null && bh.cerrado)
+                                            ? 'El negocio está cerrado este día'
+                                            : 'Fuera del horario de atención'
+                                                ' (${bh?.apertura ?? ''} – ${bh?.cierre ?? ''})';
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(SnackBar(
+                                          content: Text(msg),
+                                          duration:
+                                              const Duration(seconds: 2),
+                                        ));
+                                        return;
+                                      }
                                       final slotStart = DateTime(
                                         day.year,
                                         day.month,
                                         day.day,
-                                        hour.clamp(_kHourStart, _kHourEnd - 1),
+                                        hour,
                                       );
-                                      onSlotTap(slotStart, null);
+                                      widget.onSlotTap(slotStart, null);
                                     },
                                     child: SizedBox(
                                       height: _totalH,
@@ -234,7 +334,7 @@ class _WeekGrid extends StatelessWidget {
                                         color: _colorFor(b.staffMemberId),
                                         top: _topFor(b.fechaHoraInicio),
                                         height: _blockHeight(b),
-                                        onTap: () => onTurnoTap(b),
+                                        onTap: () => widget.onTurnoTap(b),
                                       )),
                                 ],
                               ),
@@ -244,15 +344,18 @@ class _WeekGrid extends StatelessWidget {
                       ),
                       // Now indicator
                       if (hasToday && _nowTop >= 0 && _nowTop <= _totalH)
-                        _NowIndicator(top: _nowTop, now: now),
+                        _NowIndicator(top: _nowTop, now: widget.now),
                     ],
                   ),
                 ),
               ),
             ),
           ],
+            ),
+          ),
         ),
-      ),
+      );
+      },
     );
   }
 }

@@ -35,6 +35,14 @@ public class BusinessHoursEntity {
     @Column(name = "cierre")
     private LocalTime cierre;
 
+    /** Start of the second range (after a break), null when there is no break. */
+    @Column(name = "apertura2")
+    private LocalTime apertura2;
+
+    /** End of the second range (after a break), null when there is no break. */
+    @Column(name = "cierre2")
+    private LocalTime cierre2;
+
     @Column(name = "cerrado", nullable = false)
     private boolean cerrado;
 
@@ -48,6 +56,10 @@ public class BusinessHoursEntity {
     public void setApertura(LocalTime apertura) { this.apertura = apertura; }
     public LocalTime getCierre() { return cierre; }
     public void setCierre(LocalTime cierre) { this.cierre = cierre; }
+    public LocalTime getApertura2() { return apertura2; }
+    public void setApertura2(LocalTime apertura2) { this.apertura2 = apertura2; }
+    public LocalTime getCierre2() { return cierre2; }
+    public void setCierre2(LocalTime cierre2) { this.cierre2 = cierre2; }
     public boolean isCerrado() { return cerrado; }
     public void setCerrado(boolean cerrado) { this.cerrado = cerrado; }
 }

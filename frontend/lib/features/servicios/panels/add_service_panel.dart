@@ -125,7 +125,8 @@ class _AddServicePanelState extends ConsumerState<_AddServicePanel>
   Widget build(BuildContext context) {
     final state = ref.watch(serviciosProvider(widget.servKey));
     final category = state.category;
-    final existingIds = state.items.map((s) => s.id).toSet();
+    final existingNames =
+        state.items.map((s) => s.name.toLowerCase()).toSet();
     final isSuggestedTab = _tabCtrl.index == 0;
     final canConfirm = isSuggestedTab
         ? _selectedTemplateIds.isNotEmpty
@@ -175,7 +176,7 @@ class _AddServicePanelState extends ConsumerState<_AddServicePanel>
                     children: [
                       SuggestedMode(
                         category: category,
-                        existingIds: existingIds,
+                        existingNames: existingNames,
                         onSelectionChanged: (ids) =>
                             setState(() => _selectedTemplateIds = ids),
                         onSwitchToCustom: () => _tabCtrl.animateTo(1),

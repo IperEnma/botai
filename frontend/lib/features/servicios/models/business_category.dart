@@ -8,6 +8,17 @@ enum BusinessCategory {
   yogaPilates,
   otra;
 
+  static BusinessCategory fromSlug(String slug) => switch (slug.toLowerCase()) {
+        'peluqueria' => BusinessCategory.peluqueria,
+        'barberia' => BusinessCategory.barberia,
+        'manicure' => BusinessCategory.manicure,
+        'pedicure' => BusinessCategory.pedicure,
+        'spa' => BusinessCategory.spa,
+        'estetica' => BusinessCategory.estetica,
+        'yoga' => BusinessCategory.yogaPilates,
+        _ => BusinessCategory.otra,
+      };
+
   String get displayName => switch (this) {
         BusinessCategory.peluqueria => 'Peluquería',
         BusinessCategory.barberia => 'Barbería',

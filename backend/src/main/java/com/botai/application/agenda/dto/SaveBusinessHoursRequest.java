@@ -14,6 +14,8 @@ public record SaveBusinessHoursRequest(@NotNull @Valid List<HoraItem> horarios) 
             @NotNull @Min(0) @Max(6) Integer diaSemana,
             LocalTime apertura,
             LocalTime cierre,
+            LocalTime apertura2,
+            LocalTime cierre2,
             boolean cerrado
     ) {}
 }

@@ -10,13 +10,13 @@ class SuggestedMode extends StatefulWidget {
   const SuggestedMode({
     super.key,
     required this.category,
-    required this.existingIds,
+    required this.existingNames,
     required this.onSelectionChanged,
     required this.onSwitchToCustom,
   });
 
   final BusinessCategory category;
-  final Set<String> existingIds;
+  final Set<String> existingNames;
   final ValueChanged<Set<String>> onSelectionChanged;
   final VoidCallback onSwitchToCustom;
 
@@ -86,7 +86,8 @@ class _SuggestedModeState extends State<SuggestedMode> {
             itemBuilder: (_, i) {
               final t = templates[i];
               final isSelected = _selected.contains(t.id);
-              final alreadyAdded = widget.existingIds.contains(t.id);
+              final alreadyAdded =
+                  widget.existingNames.contains(t.name.toLowerCase());
               return _TemplateCard(
                 template: t,
                 isSelected: isSelected,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../agenda/register/konecta_tokens.dart';
 import '../controllers/servicios_controller.dart';
 import '../models/business_category.dart';
@@ -46,9 +47,24 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
     );
   }
 
+  static String _sinceLabel(DateTime? dt) {
+    if (dt == null) return '';
+    const months = [
+      'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN',
+      'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC',
+    ];
+    return 'DESDE ${months[dt.month - 1]} ${dt.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(serviciosProvider(widget.servKey));
+    final businessesState =
+        ref.watch(businessesProvider(widget.servKey.tenantId));
+    final business = businessesState.items
+        .where((b) => b.id == widget.servKey.businessId)
+        .firstOrNull;
+    final sinceLabel = _sinceLabel(business?.createdAt);
     final current = state.category;
 
     return Dialog(
@@ -107,13 +123,14 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                           ),
                         ),
                         const Spacer(),
-                        Text(
-                          'DESDE OCT 2024',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
-                            color: KTokens.inkSoft,
+                        if (sinceLabel.isNotEmpty)
+                          Text(
+                            sinceLabel,
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              color: KTokens.inkSoft,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 16),

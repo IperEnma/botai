@@ -98,7 +98,7 @@ class _DayViewState extends ConsumerState<DayView> {
   }
 }
 
-class _DayGrid extends StatelessWidget {
+class _DayGrid extends StatefulWidget {
   const _DayGrid({
     required this.date,
     required this.bookings,
@@ -117,45 +117,83 @@ class _DayGrid extends StatelessWidget {
   final void Function(DateTime, String?) onSlotTap;
   final void Function(Booking) onTurnoTap;
 
+  @override
+  State<_DayGrid> createState() => _DayGridState();
+}
+
+class _DayGridState extends State<_DayGrid> {
+  final _vertCtrl = ScrollController();
+  final _horizCtrl = ScrollController();
+
+  double get _totalH => (_kHourEnd - _kHourStart) * _kHourPx.toDouble();
+
+  double get _nowTop {
+    final m = (widget.now.hour - _kHourStart) * 60 + widget.now.minute;
+    return (m / 60) * _kHourPx;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isToday) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToNow());
+    }
+  }
+
+  @override
+  void didUpdateWidget(_DayGrid old) {
+    super.didUpdateWidget(old);
+    if (!old.isToday && widget.isToday) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToNow());
+    }
+  }
+
+  void _scrollToNow() {
+    if (!_vertCtrl.hasClients) return;
+    final target = (_nowTop - 80).clamp(0.0, _totalH);
+    _vertCtrl.jumpTo(target);
+  }
+
+  @override
+  void dispose() {
+    _vertCtrl.dispose();
+    _horizCtrl.dispose();
+    super.dispose();
+  }
+
   Color _colorFor(String? staffId) {
     if (staffId == null) return KTokens.inkPlaceholder;
-    final idx = staff.indexWhere((s) => s.id == staffId);
+    final idx = widget.staff.indexWhere((s) => s.id == staffId);
     if (idx < 0) return KTokens.inkPlaceholder;
     return KTokens.proPalette[idx % KTokens.proPalette.length];
   }
 
-  /// Returns bookings for a specific staff column (null = unassigned).
   List<Booking> _bookingsFor(String? staffId) {
     if (staffId == null) {
-      return bookings.where((b) => b.staffMemberId == null).toList();
+      return widget.bookings.where((b) => b.staffMemberId == null).toList();
     }
-    return bookings.where((b) => b.staffMemberId == staffId).toList();
+    return widget.bookings.where((b) => b.staffMemberId == staffId).toList();
   }
 
-  /// Offset in pixels from top of timeline for a given DateTime.
   double _topFor(DateTime dt) {
     final minutesFromStart = (dt.hour - _kHourStart) * 60 + dt.minute;
     return (minutesFromStart / 60) * _kHourPx;
   }
 
-  double get _totalH =>
-      (_kHourEnd - _kHourStart) * _kHourPx.toDouble();
-
-  double get _nowTop {
-    final m = (now.hour - _kHourStart) * 60 + now.minute;
-    return (m / 60) * _kHourPx;
+  double _blockHeight(Booking b) {
+    final durationMin = b.fechaHoraFin.difference(b.fechaHoraInicio).inMinutes;
+    return (durationMin / 60) * _kHourPx;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Columns: staff members + "Sin asignar" if there are unassigned bookings
     final unassigned = _bookingsFor(null);
     final columns = <_Col>[
-      for (final s in staff) _Col(staffId: s.id, member: s),
+      for (final s in widget.staff) _Col(staffId: s.id, member: s),
       if (unassigned.isNotEmpty) _Col(staffId: null, member: null),
     ];
 
-    if (columns.isEmpty && bookings.isEmpty) {
+    if (columns.isEmpty && widget.bookings.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -171,10 +209,8 @@ class _DayGrid extends StatelessWidget {
       );
     }
 
-    final scrollCtrl = ScrollController();
-
     return SingleChildScrollView(
-      controller: scrollCtrl,
+      controller: _horizCtrl,
       scrollDirection: Axis.horizontal,
       child: SizedBox(
         width: _kTimeColW + (columns.isEmpty ? 200 : columns.length * 180.0),
@@ -198,15 +234,13 @@ class _DayGrid extends StatelessWidget {
             // ── Timeline ──────────────────────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
+                controller: _vertCtrl,
                 child: SizedBox(
                   height: _totalH,
                   child: Stack(
                     children: [
-                      // Hour rows + horizontal lines
                       _HourLines(),
-                      // Time labels
                       _TimeLabels(),
-                      // Booking blocks per column
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -217,7 +251,6 @@ class _DayGrid extends StatelessWidget {
                             return Expanded(
                               child: Stack(
                                 children: [
-                                  // Tap-to-create slots
                                   GestureDetector(
                                     behavior: HitTestBehavior.translucent,
                                     onTapDown: (details) {
@@ -225,25 +258,24 @@ class _DayGrid extends StatelessWidget {
                                           (details.localPosition.dy / _kHourPx)
                                               .floor();
                                       final slotStart = DateTime(
-                                        date.year,
-                                        date.month,
-                                        date.day,
+                                        widget.date.year,
+                                        widget.date.month,
+                                        widget.date.day,
                                         hour.clamp(_kHourStart, _kHourEnd - 1),
                                       );
-                                      onSlotTap(slotStart, col.staffId);
+                                      widget.onSlotTap(slotStart, col.staffId);
                                     },
                                     child: SizedBox(
                                       height: _totalH,
                                       width: double.infinity,
                                     ),
                                   ),
-                                  // Booking blocks
                                   ...colBookings.map((b) => _BookingBlock(
                                         booking: b,
                                         color: color,
                                         top: _topFor(b.fechaHoraInicio),
                                         height: _blockHeight(b),
-                                        onTap: () => onTurnoTap(b),
+                                        onTap: () => widget.onTurnoTap(b),
                                       )),
                                 ],
                               ),
@@ -251,9 +283,8 @@ class _DayGrid extends StatelessWidget {
                           }),
                         ],
                       ),
-                      // Now indicator
-                      if (isToday && _nowTop >= 0 && _nowTop <= _totalH)
-                        _NowIndicator(top: _nowTop, now: now),
+                      if (widget.isToday && _nowTop >= 0 && _nowTop <= _totalH)
+                        _NowIndicator(top: _nowTop, now: widget.now),
                     ],
                   ),
                 ),
@@ -263,12 +294,6 @@ class _DayGrid extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  double _blockHeight(Booking b) {
-    final durationMin =
-        b.fechaHoraFin.difference(b.fechaHoraInicio).inMinutes;
-    return (durationMin / 60) * _kHourPx;
   }
 }
 

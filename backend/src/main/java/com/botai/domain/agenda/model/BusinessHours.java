@@ -12,10 +12,16 @@ public final class BusinessHours {
     private final int diaSemana;
     private final LocalTime apertura;
     private final LocalTime cierre;
+    /** Second range start (after a break). Null when there is no break. */
+    private final LocalTime apertura2;
+    /** Second range end (after a break). Null when there is no break. */
+    private final LocalTime cierre2;
     private final boolean cerrado;
 
     public BusinessHours(UUID id, UUID businessId, int diaSemana,
-                         LocalTime apertura, LocalTime cierre, boolean cerrado) {
+                         LocalTime apertura, LocalTime cierre,
+                         LocalTime apertura2, LocalTime cierre2,
+                         boolean cerrado) {
         if (diaSemana < 0 || diaSemana > 6) {
             throw new IllegalArgumentException("diaSemana debe estar entre 0 y 6");
         }
@@ -24,6 +30,8 @@ public final class BusinessHours {
         this.diaSemana = diaSemana;
         this.apertura = apertura;
         this.cierre = cierre;
+        this.apertura2 = apertura2;
+        this.cierre2 = cierre2;
         this.cerrado = cerrado;
     }
 
@@ -32,5 +40,7 @@ public final class BusinessHours {
     public int getDiaSemana() { return diaSemana; }
     public LocalTime getApertura() { return apertura; }
     public LocalTime getCierre() { return cierre; }
+    public LocalTime getApertura2() { return apertura2; }
+    public LocalTime getCierre2() { return cierre2; }
     public boolean isCerrado() { return cerrado; }
 }

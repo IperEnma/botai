@@ -8,7 +8,6 @@ import '../widgets/activity_card.dart';
 import '../widgets/branches_bar.dart';
 import '../widgets/greeting.dart';
 import '../widgets/kpis_row.dart';
-import '../widgets/quick_actions.dart';
 import '../widgets/turnos_card.dart';
 
 class InicioScreen extends ConsumerWidget {
@@ -27,7 +26,7 @@ class InicioScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(inicioControllerProvider);
+    final state = ref.watch(inicioControllerProvider(tenantId));
 
     if (state.loading && state.snapshot == null) {
       return const Center(
@@ -50,7 +49,7 @@ class InicioScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: () =>
-                  ref.read(inicioControllerProvider.notifier).refresh(),
+                  ref.read(inicioControllerProvider(tenantId).notifier).refresh(),
               child: const Text('Reintentar'),
             ),
           ],
@@ -67,31 +66,29 @@ class InicioScreen extends ConsumerWidget {
         children: [
           Greeting(
             ownerName: ownerName,
-            businessId: businessId,
+            tenantId: tenantId,
           ),
           const SizedBox(height: 24),
-          BranchesBar(businessId: businessId),
+          BranchesBar(tenantId: tenantId),
           const SizedBox(height: 24),
-          const KpisRow(),
+          KpisRow(tenantId: tenantId),
           const SizedBox(height: 24),
           if (isWide)
             IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: const [
-                  Expanded(flex: 14, child: TurnosCard()),
-                  SizedBox(width: 14),
-                  Expanded(flex: 10, child: ActivityCard()),
+                children: [
+                  Expanded(flex: 14, child: TurnosCard(tenantId: tenantId)),
+                  const SizedBox(width: 14),
+                  Expanded(flex: 10, child: ActivityCard(tenantId: tenantId)),
                 ],
               ),
             )
           else ...[
-            const TurnosCard(),
+            TurnosCard(tenantId: tenantId),
             const SizedBox(height: 14),
-            const ActivityCard(),
+            ActivityCard(tenantId: tenantId),
           ],
-          const SizedBox(height: 24),
-          QuickActions(businessId: businessId),
         ],
       ),
     );

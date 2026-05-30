@@ -8,13 +8,13 @@ import '../models/branch.dart';
 import 'branch_avatar.dart';
 
 class BranchesBar extends ConsumerWidget {
-  const BranchesBar({super.key, required this.businessId});
+  const BranchesBar({super.key, required this.tenantId});
 
-  final String businessId;
+  final String tenantId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(inicioControllerProvider);
+    final state = ref.watch(inicioControllerProvider(tenantId));
     final snapshot = state.snapshot;
     if (snapshot == null) return const SizedBox.shrink();
 
@@ -70,8 +70,9 @@ class BranchesBar extends ConsumerWidget {
                 AllBranchesAvatar(
                   totalTurnos: snapshot.turnos.total,
                   isSelected: selectedId == 'all',
-                  onTap: () =>
-                      ref.read(inicioControllerProvider.notifier).selectBranch('all'),
+                  onTap: () => ref
+                      .read(inicioControllerProvider(tenantId).notifier)
+                      .selectBranch('all'),
                 ),
                 const SizedBox(width: 20),
                 for (final branch in branches) ...[
@@ -91,7 +92,7 @@ class BranchesBar extends ConsumerWidget {
                         return;
                       }
                       ref
-                          .read(inicioControllerProvider.notifier)
+                          .read(inicioControllerProvider(tenantId).notifier)
                           .selectBranch(branch.id);
                     },
                   ),
@@ -149,7 +150,7 @@ class BranchesBar extends ConsumerWidget {
                         const SizedBox(width: 6),
                         GestureDetector(
                           onTap: () => ref
-                              .read(inicioControllerProvider.notifier)
+                              .read(inicioControllerProvider(tenantId).notifier)
                               .selectBranch('all'),
                           child: Text(
                             '✕',

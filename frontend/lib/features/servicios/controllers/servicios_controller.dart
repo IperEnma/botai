@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/agenda/agenda_service.dart';
+import '../../../models/agenda/business.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
+import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../models/business_category.dart';
 import '../models/service_stats.dart';
@@ -93,11 +95,24 @@ class ServiciosState {
 class ServiciosNotifier extends StateNotifier<ServiciosState> {
   ServiciosNotifier(this._ref, this._key)
       : super(const ServiciosState(isLoading: true)) {
+    _ref.listen<BusinessesState>(
+      businessesProvider(_key.tenantId),
+      (_, next) => _syncCategoryFromBusiness(next.items),
+      fireImmediately: true,
+    );
     _load();
   }
 
   final Ref _ref;
   final ServiciosKey _key;
+
+  void _syncCategoryFromBusiness(List<Business> businesses) {
+    final business =
+        businesses.where((b) => b.id == _key.businessId).firstOrNull;
+    if (business == null || business.categorias.isEmpty) return;
+    final cat = BusinessCategory.fromSlug(business.categorias.first);
+    if (state.category != cat) state = state.copyWith(category: cat);
+  }
 
   final Map<String, ServicioExtras> _extras = {};
 

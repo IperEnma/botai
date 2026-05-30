@@ -7,11 +7,13 @@ import '../controllers/inicio_controller.dart';
 import 'sparkline.dart';
 
 class ActivityCard extends ConsumerWidget {
-  const ActivityCard({super.key});
+  const ActivityCard({super.key, required this.tenantId});
+
+  final String tenantId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(inicioControllerProvider);
+    final state = ref.watch(inicioControllerProvider(tenantId));
     final snapshot = state.snapshot;
     if (snapshot == null) return const SizedBox.shrink();
 

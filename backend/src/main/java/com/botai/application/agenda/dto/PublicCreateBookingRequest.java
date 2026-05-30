@@ -19,7 +19,8 @@ public record PublicCreateBookingRequest(
         @NotNull UUID serviceId,
         UUID staffMemberId,
         @NotNull @FutureOrPresent @JsonFormat(shape = JsonFormat.Shape.STRING) LocalDateTime fechaHoraInicio,
-        @NotBlank @Size(max = 120) String nombreCliente,
+        UUID clientId,
+        @Size(max = 120) String nombreCliente,
         @Email @Size(max = 200) String emailCliente,
         @Size(max = 32) String telefonoCliente,
         @Size(max = 500) String notas

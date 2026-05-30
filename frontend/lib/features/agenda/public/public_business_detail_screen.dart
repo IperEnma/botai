@@ -470,14 +470,19 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
       final payload = await _askClientData();
       if (payload == null) return;
 
-      await ref.read(agendaApiServiceProvider).publicCreateBooking(
+      final api = ref.read(agendaApiServiceProvider);
+      final client = await api.createClient(
+        businessId: widget.business.id,
+        nombre: payload.nombre,
+        email: payload.email,
+        telefono: payload.telefono,
+      );
+      await api.publicCreateBooking(
             businessId: widget.business.id,
             serviceId: svc.id,
             staffMemberId: _anyStaff ? null : _selectedStaff?.id,
             fechaHoraInicio: slot.inicio,
-            nombreCliente: payload.nombre,
-            emailCliente: payload.email,
-            telefonoCliente: payload.telefono,
+            clientId: client.id,
           );
 
       if (!mounted) return;

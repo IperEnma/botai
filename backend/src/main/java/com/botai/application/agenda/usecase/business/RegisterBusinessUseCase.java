@@ -77,15 +77,15 @@ public class RegisterBusinessUseCase {
         // El admin puede reemplazarlos desde el panel privado.
         List<BusinessHours> defaultHours = List.of(
                 // lun-vie 09:00-18:00
-                new BusinessHours(UUID.randomUUID(), saved.getId(), 0, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
-                new BusinessHours(UUID.randomUUID(), saved.getId(), 1, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
-                new BusinessHours(UUID.randomUUID(), saved.getId(), 2, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
-                new BusinessHours(UUID.randomUUID(), saved.getId(), 3, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
-                new BusinessHours(UUID.randomUUID(), saved.getId(), 4, LocalTime.of(9, 0), LocalTime.of(18, 0), false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 0, LocalTime.of(9, 0), LocalTime.of(18, 0), null, null, false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 1, LocalTime.of(9, 0), LocalTime.of(18, 0), null, null, false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 2, LocalTime.of(9, 0), LocalTime.of(18, 0), null, null, false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 3, LocalTime.of(9, 0), LocalTime.of(18, 0), null, null, false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 4, LocalTime.of(9, 0), LocalTime.of(18, 0), null, null, false),
                 // sábado 09:00-13:00
-                new BusinessHours(UUID.randomUUID(), saved.getId(), 5, LocalTime.of(9, 0), LocalTime.of(13, 0), false),
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 5, LocalTime.of(9, 0), LocalTime.of(13, 0), null, null, false),
                 // domingo cerrado
-                new BusinessHours(UUID.randomUUID(), saved.getId(), 6, LocalTime.of(9, 0), LocalTime.of(13, 0), true)
+                new BusinessHours(UUID.randomUUID(), saved.getId(), 6, LocalTime.of(9, 0), LocalTime.of(13, 0), null, null, true)
         );
         saveBusinessHours.execute(tenantId, saved.getId(), defaultHours);
 

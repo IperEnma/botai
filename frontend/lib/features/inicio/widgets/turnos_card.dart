@@ -11,7 +11,9 @@ import 'now_divider.dart';
 import 'turno_row.dart';
 
 class TurnosCard extends ConsumerStatefulWidget {
-  const TurnosCard({super.key});
+  const TurnosCard({super.key, required this.tenantId});
+
+  final String tenantId;
 
   @override
   ConsumerState<TurnosCard> createState() => _TurnosCardState();
@@ -37,7 +39,7 @@ class _TurnosCardState extends ConsumerState<TurnosCard> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(inicioControllerProvider);
+    final state = ref.watch(inicioControllerProvider(widget.tenantId));
     final snapshot = state.filteredSnapshot;
 
     return Container(

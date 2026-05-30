@@ -9,5 +9,7 @@ public record BusinessHoursResponse(
         int diaSemana,
         LocalTime apertura,
         LocalTime cierre,
+        LocalTime apertura2,
+        LocalTime cierre2,
         boolean cerrado
 ) {}

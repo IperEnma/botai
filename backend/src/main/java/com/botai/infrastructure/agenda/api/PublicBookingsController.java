@@ -68,12 +68,10 @@ public class PublicBookingsController {
             throw new ServiceNotFoundException(request.serviceId());
         }
 
-        User user = resolveOrCreateClient(
-                tenantId,
-                request.nombreCliente(),
-                request.emailCliente(),
-                request.telefonoCliente()
-        );
+        User user = request.clientId() != null
+                ? userRepository.findById(request.clientId())
+                        .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"))
+                : resolveOrCreateClient(tenantId, request.nombreCliente(), request.emailCliente(), request.telefonoCliente());
 
         LocalDateTime inicio = request.fechaHoraInicio();
         LocalDateTime fin = inicio.plusMinutes(service.getDuracionMin());

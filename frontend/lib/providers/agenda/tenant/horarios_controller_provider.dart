@@ -238,10 +238,14 @@ String _fmtTime(TimeOfDay t) =>
     '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 List<DayDraft> _daysFromHours(List<BusinessHours> hours) {
-  final map = {for (final h in hours) h.diaSemana: h};
+  // Group by diaSemana to support 2-range days (one entry per range).
+  final grouped = <int, List<BusinessHours>>{};
+  for (final h in hours) {
+    grouped.putIfAbsent(h.diaSemana, () => []).add(h);
+  }
   return List.generate(7, (i) {
-    final h = map[i];
-    if (h == null || h.cerrado) {
+    final entries = grouped[i];
+    if (entries == null || entries.isEmpty || entries.every((e) => e.cerrado)) {
       return DayDraft(
         diaSemana: i,
         open: false,
@@ -251,13 +255,32 @@ List<DayDraft> _daysFromHours(List<BusinessHours> hours) {
         to2: const TimeOfDay(hour: 19, minute: 0),
       );
     }
-    final from = _parseTime(h.apertura, const TimeOfDay(hour: 9, minute: 0));
-    final to = _parseTime(h.cierre, const TimeOfDay(hour: 18, minute: 0));
+    // Use the first (or only) entry for the day.
+    final h = entries.first;
+    final from1 =
+        _parseTime(h.apertura, const TimeOfDay(hour: 9, minute: 0));
+    final to1 =
+        _parseTime(h.cierre, const TimeOfDay(hour: 13, minute: 0));
+    if (h.apertura2 != null && h.cierre2 != null) {
+      final from2 =
+          _parseTime(h.apertura2, const TimeOfDay(hour: 15, minute: 0));
+      final to2 =
+          _parseTime(h.cierre2, const TimeOfDay(hour: 19, minute: 0));
+      return DayDraft(
+        diaSemana: i,
+        open: true,
+        from1: from1,
+        to1: to1,
+        hasBreak: true,
+        from2: from2,
+        to2: to2,
+      );
+    }
     return DayDraft(
       diaSemana: i,
       open: true,
-      from1: from,
-      to1: to,
+      from1: from1,
+      to1: to1,
     );
   });
 }
@@ -383,7 +406,7 @@ class HorariosNotifier
 
   Future<void> save() async {
     state = state.copyWith(isSaving: true, error: null);
-    // Serialize to BusinessHours list (one per day, backend supports 1 range)
+    // One entry per day; breaks use apertura2/cierre2.
     final hours = state.days.map((d) {
       if (!d.open) {
         return BusinessHours(
@@ -393,13 +416,14 @@ class HorariosNotifier
           cerrado: true,
         );
       }
-      // If hasBreak: apertura = from1, cierre = to2
       return BusinessHours(
         id: '',
         businessId: _key.businessId,
         diaSemana: d.diaSemana,
         apertura: _fmtTime(d.from1),
-        cierre: d.hasBreak ? _fmtTime(d.to2) : _fmtTime(d.to1),
+        cierre: _fmtTime(d.to1),
+        apertura2: d.hasBreak ? _fmtTime(d.from2) : null,
+        cierre2: d.hasBreak ? _fmtTime(d.to2) : null,
         cerrado: false,
       );
     }).toList();
@@ -437,7 +461,7 @@ class HorariosNotifier
 // Provider
 // ─────────────────────────────────────────────────────────────────────────────
 
-final horariosControllerProvider = StateNotifierProvider.autoDispose.family<
+final horariosControllerProvider = StateNotifierProvider.family<
     HorariosNotifier,
     HorariosState,
     ({String tenantId, String businessId})>((ref, key) {

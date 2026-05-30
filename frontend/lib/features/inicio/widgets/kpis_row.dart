@@ -9,11 +9,13 @@ import 'kpi_card.dart';
 const _kBreakpointMobile = 768.0;
 
 class KpisRow extends ConsumerWidget {
-  const KpisRow({super.key});
+  const KpisRow({super.key, required this.tenantId});
+
+  final String tenantId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(inicioControllerProvider);
+    final state = ref.watch(inicioControllerProvider(tenantId));
     final snapshot = state.filteredSnapshot;
     if (snapshot == null) return const SizedBox.shrink();
 

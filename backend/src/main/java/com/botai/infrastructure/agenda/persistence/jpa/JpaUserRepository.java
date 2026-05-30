@@ -6,6 +6,7 @@ import com.botai.infrastructure.agenda.persistence.entity.UserEntity;
 import com.botai.infrastructure.agenda.persistence.mapper.UserMapper;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,5 +37,10 @@ public class JpaUserRepository implements UserRepository {
     @Override
     public Optional<User> findByTenantIdAndEmail(String tenantId, String email) {
         return jpa.findByTenantIdAndEmail(tenantId, email).map(UserMapper::toDomain);
+    }
+
+    @Override
+    public List<User> searchClients(String tenantId, String q) {
+        return jpa.searchClients(tenantId, q).stream().map(UserMapper::toDomain).toList();
     }
 }

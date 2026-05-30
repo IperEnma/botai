@@ -19,6 +19,7 @@ import '../models/agenda/category.dart' as agenda;
 import '../models/agenda/loyalty_suggestion.dart';
 import '../models/agenda/notification_template.dart';
 import '../models/agenda/plan.dart';
+import '../models/agenda/public_client.dart';
 import '../models/agenda/register_tenant.dart';
 import '../models/agenda/tenant_admin_context.dart';
 import '../models/agenda/staff_member.dart';
@@ -109,6 +110,7 @@ class AgendaApiService {
       return;
     }
     String? code;
+    String? detail;
     var message = 'Error ${r.statusCode}';
     if (r.body.isNotEmpty) {
       try {
@@ -116,13 +118,19 @@ class AgendaApiService {
         if (body is Map<String, dynamic>) {
           code = body['code']?.toString();
           final m = body['message']?.toString();
-          if (m != null && m.isNotEmpty) {
-            message = m;
+          if (m != null && m.isNotEmpty) message = m;
+          // Expose field-level validation errors
+          final details = body['details'];
+          if (details is List && details.isNotEmpty) {
+            detail = details
+                .whereType<Map>()
+                .map((e) => '${e['field']}: ${e['message']}')
+                .join(', ');
           }
         }
       } catch (_) {/* body no es JSON */}
     }
-    throw AgendaApiException(message: message, status: r.statusCode, code: code);
+    throw AgendaApiException(message: message, status: r.statusCode, code: code, detail: detail);
   }
 
   /// Respuesta enriquecida (OAuth2 / `WWW-Authenticate`) solo para el probe JWT tras iniciar sesión.
@@ -434,6 +442,37 @@ class AgendaApiService {
     return _decodeList(r, AgendaService.fromJson);
   }
 
+  /// `GET /public/businesses/{businessId}/clients?q=`
+  Future<List<PublicClient>> searchClients({
+    required String businessId,
+    required String q,
+  }) async {
+    final r = await _send(() => _client.get(
+          _uri('/public/businesses/$businessId/clients', {'q': q}),
+          headers: _headers(),
+        ));
+    return _decodeList(r, PublicClient.fromJson);
+  }
+
+  /// `POST /public/businesses/{businessId}/clients`
+  Future<PublicClient> createClient({
+    required String businessId,
+    required String nombre,
+    String? email,
+    String? telefono,
+  }) async {
+    final r = await _send(() => _client.post(
+          _uri('/public/businesses/$businessId/clients'),
+          headers: _headers(),
+          body: jsonEncode({
+            'nombre': nombre,
+            if (email != null && email.isNotEmpty) 'email': email,
+            if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
+          }),
+        ));
+    return _decode(r, (body) => PublicClient.fromJson(body as Map<String, dynamic>));
+  }
+
   /// `POST /public/businesses/{businessId}/bookings`
   ///
   /// Crea una reserva en estado PENDING (flujo público, sin auth).
@@ -442,9 +481,7 @@ class AgendaApiService {
     required String serviceId,
     String? staffMemberId,
     required DateTime fechaHoraInicio,
-    required String nombreCliente,
-    String? emailCliente,
-    String? telefonoCliente,
+    required String clientId,
     String? notas,
   }) async {
     final r = await _send(() => _client.post(
@@ -453,12 +490,8 @@ class AgendaApiService {
           body: jsonEncode({
             'serviceId': serviceId,
             if (staffMemberId != null) 'staffMemberId': staffMemberId,
-            'fechaHoraInicio': fechaHoraInicio.toIso8601String(),
-            'nombreCliente': nombreCliente,
-            if (emailCliente != null && emailCliente.isNotEmpty)
-              'emailCliente': emailCliente,
-            if (telefonoCliente != null && telefonoCliente.isNotEmpty)
-              'telefonoCliente': telefonoCliente,
+            'fechaHoraInicio': _fmtLocalDateTime(fechaHoraInicio),
+            'clientId': clientId,
             if (notas != null && notas.isNotEmpty) 'notas': notas,
           }),
         ));
@@ -1284,4 +1317,15 @@ class AgendaApiService {
 
   /// Cierra el http client subyacente (testing).
   void close() => _client.close();
+}
+
+/// Formats a [DateTime] as `"yyyy-MM-ddTHH:mm:ss"` (no sub-seconds, no timezone)
+/// so Java's LocalDateTime parser accepts it without issues.
+String _fmtLocalDateTime(DateTime dt) {
+  final y = dt.year.toString().padLeft(4, '0');
+  final mo = dt.month.toString().padLeft(2, '0');
+  final d = dt.day.toString().padLeft(2, '0');
+  final h = dt.hour.toString().padLeft(2, '0');
+  final mi = dt.minute.toString().padLeft(2, '0');
+  return '$y-$mo-${d}T$h:$mi:00';
 }

@@ -70,6 +70,8 @@ public class TenantBusinessHoursController {
                         item.diaSemana(),
                         item.apertura(),
                         item.cierre(),
+                        item.apertura2(),
+                        item.cierre2(),
                         item.cerrado()))
                 .toList();
 
@@ -81,6 +83,7 @@ public class TenantBusinessHoursController {
 
     private BusinessHoursResponse toResponse(BusinessHours h) {
         return new BusinessHoursResponse(h.getId(), h.getBusinessId(),
-                h.getDiaSemana(), h.getApertura(), h.getCierre(), h.isCerrado());
+                h.getDiaSemana(), h.getApertura(), h.getCierre(),
+                h.getApertura2(), h.getCierre2(), h.isCerrado());
     }
 }
