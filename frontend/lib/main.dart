@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'core/config.dart';
+import 'core/deploy_version_guard_stub.dart'
+    if (dart.library.html) 'core/deploy_version_guard_web.dart';
 import 'core/google_sign_in_web_meta_stub.dart'
     if (dart.library.html) 'core/google_sign_in_web_meta_web.dart';
 import 'core/auth_session_coordinator.dart';
@@ -13,6 +15,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es');
   await dotenv.load(fileName: '.env');
+  await ensureLatestWebDeploy();
   ensureGoogleSignInWebMeta(AppConfig.googleClientIdWeb);
   runApp(const ProviderScope(child: BotAIApp()));
 }

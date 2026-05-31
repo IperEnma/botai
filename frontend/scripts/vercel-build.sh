@@ -37,11 +37,12 @@ AGENDA_DEFAULT_USER_ID=${AGENDA_DEFAULT_USER_ID:-}
 EOF
 
 echo ">> flutter pub get && flutter build web --release (sin service worker / PWA cache)"
-flutter pub get
-flutter build web --release --pwa-strategy=none
-
 BUILD_ID="$(date -u +%Y%m%d%H%M%S)"
+flutter pub get
+flutter build web --release --pwa-strategy=none --dart-define=WEB_BUILD_ID="${BUILD_ID}"
+
 echo "{\"buildId\":\"${BUILD_ID}\"}" > build/web/version.json
+python3 scripts/inject-web-deploy-gate.py "${BUILD_ID}"
 echo ">> buildId=${BUILD_ID} (ver /version.json tras deploy)"
 
 echo ">> Build OK: build/web"

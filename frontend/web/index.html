@@ -37,40 +37,7 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <script>
-    (function () {
-      var BUILD_KEY = 'botai_build_id';
-
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function (regs) {
-          regs.forEach(function (r) { r.unregister(); });
-        });
-      }
-
-      function loadFlutter() {
-        var s = document.createElement('script');
-        s.src = 'flutter_bootstrap.js';
-        s.async = true;
-        document.body.appendChild(s);
-      }
-
-      // Tras cada deploy Vercel escribe buildId en /version.json (ver vercel-build.sh).
-      // Si cambió, recargamos una vez: el usuario no tiene que borrar caché manualmente.
-      fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (v) {
-          var next = (v && v.buildId) ? String(v.buildId) : '';
-          var prev = localStorage.getItem(BUILD_KEY);
-          if (prev && next && prev !== next) {
-            localStorage.setItem(BUILD_KEY, next);
-            location.replace(location.href);
-            return;
-          }
-          if (next) localStorage.setItem(BUILD_KEY, next);
-          loadFlutter();
-        })
-        .catch(function () { loadFlutter(); });
-    })();
-  </script>
+  <!-- Deploy gate inyectado en Vercel por scripts/inject-web-deploy-gate.sh (post flutter build). -->
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
