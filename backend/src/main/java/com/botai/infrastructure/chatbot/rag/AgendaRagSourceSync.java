@@ -1,5 +1,6 @@
 package com.botai.infrastructure.chatbot.rag;
 
+import com.botai.application.chatbot.service.agenda.PublicAgendaLinkResolver;
 import com.botai.infrastructure.chatbot.persistence.entity.KnowledgeChunkEntity;
 import com.botai.infrastructure.chatbot.persistence.jpa.KnowledgeChunkJpaRepository;
 import org.slf4j.Logger;
@@ -45,15 +46,18 @@ public class AgendaRagSourceSync {
 
     private final KnowledgeChunkJpaRepository knowledgeChunkJpaRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final PublicAgendaLinkResolver publicAgendaLinkResolver;
     private final KnowledgeChunkEmbeddingSync embeddingSync;
     private final KnowledgeChunkEmbeddingClearer embeddingClearer;
 
     public AgendaRagSourceSync(KnowledgeChunkJpaRepository knowledgeChunkJpaRepository,
                                JdbcTemplate jdbcTemplate,
+                               PublicAgendaLinkResolver publicAgendaLinkResolver,
                                KnowledgeChunkEmbeddingClearer embeddingClearer,
                                @Autowired(required = false) KnowledgeChunkEmbeddingSync embeddingSync) {
         this.knowledgeChunkJpaRepository = knowledgeChunkJpaRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.publicAgendaLinkResolver = publicAgendaLinkResolver;
         this.embeddingClearer = embeddingClearer;
         this.embeddingSync = embeddingSync;
     }
@@ -102,8 +106,10 @@ public class AgendaRagSourceSync {
             return;
         }
         Set<UUID> keepIds = businesses.stream().map(BusinessRow::id).collect(Collectors.toCollection(LinkedHashSet::new));
+        int branchCount = businesses.size();
+        String tenantCompanySlug = resolveTenantCompanySlug(businesses);
         for (BusinessRow b : businesses) {
-            upsertChunk(tenantId, b.id(), TOPIC_NEGOCIO, buildNegocioContent(tenantId, b));
+            upsertChunk(tenantId, b.id(), TOPIC_NEGOCIO, buildNegocioContent(tenantId, b, branchCount, tenantCompanySlug));
             upsertChunk(tenantId, b.id(), TOPIC_SERVICIOS, buildServiciosContent(b.id()));
             upsertChunk(tenantId, b.id(), TOPIC_HORARIOS, buildHorariosContent(b.id()));
             upsertChunk(tenantId, b.id(), TOPIC_POLITICAS, buildPoliticasContent(b.id()));
@@ -121,7 +127,7 @@ public class AgendaRagSourceSync {
     private List<BusinessRow> loadActiveBusinesses(String tenantId) {
         return jdbcTemplate.query(
             """
-                SELECT id, nombre, descripcion, logo_url, color_primario, public_slug
+                SELECT id, nombre, descripcion, logo_url, color_primario, public_slug, company_slug
                 FROM agenda_businesses
                 WHERE tenant_id = ? AND deleted_at IS NULL AND activo = TRUE
                 ORDER BY created_at ASC
@@ -137,15 +143,25 @@ public class AgendaRagSourceSync {
             rs.getString("descripcion"),
             rs.getString("logo_url"),
             rs.getString("color_primario"),
-            rs.getString("public_slug")
+            rs.getString("public_slug"),
+            rs.getString("company_slug")
         );
+    }
+
+    private static String resolveTenantCompanySlug(List<BusinessRow> businesses) {
+        for (BusinessRow b : businesses) {
+            if (b.companySlug() != null && !b.companySlug().isBlank()) {
+                return b.companySlug().strip();
+            }
+        }
+        return null;
     }
 
     /**
      * Contenido indexable para RAG: nombre comercial explícito (Agenda o tabla {@code bot}) para que el asistente no lo invente.
      */
     static String buildNegocioKnowledgeContent(String displayName, String descripcion, String publicSlug,
-                                               String logoUrl, String colorPrimario) {
+                                               String publicBookingUrl, String logoUrl, String colorPrimario) {
         List<String> lines = new ArrayList<>();
         String name = displayName != null ? displayName.strip() : "";
         if (!name.isEmpty()) {
@@ -160,6 +176,10 @@ public class AgendaRagSourceSync {
         if (publicSlug != null && !publicSlug.isBlank()) {
             lines.add("Identificador público (slug): " + publicSlug.strip());
         }
+        if (publicBookingUrl != null && !publicBookingUrl.isBlank()) {
+            lines.add("Enlace oficial para reservar cita nueva (único válido): " + publicBookingUrl.strip());
+            lines.add("Si el cliente pide agendar o reservar, enviar exactamente ese enlace en el mensaje.");
+        }
         if (logoUrl != null && !logoUrl.isBlank()) {
             lines.add("Logo: " + logoUrl.strip());
         }
@@ -169,10 +189,13 @@ public class AgendaRagSourceSync {
         return String.join("\n", lines);
     }
 
-    private String buildNegocioContent(String tenantId, BusinessRow b) {
+    private String buildNegocioContent(String tenantId, BusinessRow b, int branchCount, String tenantCompanySlug) {
         String displayName = resolveBusinessDisplayName(tenantId, b.nombre());
+        String bookingUrl = publicAgendaLinkResolver
+            .buildPublicUrlForBranch(b.publicSlug(), tenantCompanySlug, displayName, branchCount)
+            .orElse(null);
         return buildNegocioKnowledgeContent(
-            displayName, b.descripcion(), b.publicSlug(), b.logoUrl(), b.colorPrimario());
+            displayName, b.descripcion(), b.publicSlug(), bookingUrl, b.logoUrl(), b.colorPrimario());
     }
 
     private String resolveBusinessDisplayName(String tenantId, String agendaNombre) {
@@ -329,5 +352,6 @@ public class AgendaRagSourceSync {
         }
     }
 
-    private record BusinessRow(UUID id, String nombre, String descripcion, String logoUrl, String colorPrimario, String publicSlug) {}
+    private record BusinessRow(UUID id, String nombre, String descripcion, String logoUrl, String colorPrimario,
+                               String publicSlug, String companySlug) {}
 }

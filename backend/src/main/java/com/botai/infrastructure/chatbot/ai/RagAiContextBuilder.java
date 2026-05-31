@@ -1,6 +1,7 @@
 package com.botai.infrastructure.chatbot.ai;
 
 import com.botai.application.chatbot.prompt.BotPrompts;
+import com.botai.application.chatbot.service.agenda.PublicAgendaLinkResolver;
 import com.botai.application.chatbot.service.conversation.ai.RagLlmChatService;
 import com.botai.application.chatbot.service.knowledge.KnowledgeService;
 import com.botai.domain.chatbot.ConversationContextKeys;
@@ -30,11 +31,14 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
     private static final int RAG_MAX_CHUNKS = 5;
 
     private final KnowledgeService knowledgeService;
+    private final PublicAgendaLinkResolver publicAgendaLinkResolver;
     private final int maxChunks;
 
     public RagAiContextBuilder(KnowledgeService knowledgeService,
+                               PublicAgendaLinkResolver publicAgendaLinkResolver,
                                @Value("${bot.rag.max-chunks:3}") int maxChunks) {
         this.knowledgeService = knowledgeService;
+        this.publicAgendaLinkResolver = publicAgendaLinkResolver;
         this.maxChunks = maxChunks > 0 ? maxChunks : RAG_MAX_CHUNKS;
     }
 
@@ -68,6 +72,7 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
         lines.add("PASADO MAÑANA: " + dayAfterLine + ".");
         lines.add(BotPrompts.RagChat.CURRENT_DATE_RULE);
         lines.add("");
+        appendOfficialBookingUrl(lines, tenantId);
 
         if (chunks.isEmpty()) {
             log.warn("[RAG] buildContext sin chunks para tenantId={} query='{}' -> contexto mínimo (solo reglas + fecha)", tenantId, userMessage);
@@ -80,5 +85,17 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
         }
         lines.add(BotPrompts.RagChat.FRAGMENTS_SECTION_END);
         return RagLlmChatService.BuildContextResult.withChunks(lines);
+    }
+
+    private void appendOfficialBookingUrl(List<String> lines, String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return;
+        }
+        publicAgendaLinkResolver.findPublicUrl(tenantId).ifPresent(url -> {
+            lines.add(BotPrompts.RagChat.BOOKING_URL_SECTION_TITLE);
+            lines.add(BotPrompts.RagChat.bookingUrlLine(url));
+            lines.add(BotPrompts.RagChat.BOOKING_URL_RULE);
+            lines.add("");
+        });
     }
 }

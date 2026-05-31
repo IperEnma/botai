@@ -2,8 +2,11 @@ package com.botai.application.chatbot.service.conversation.common;
 
 import com.botai.application.chatbot.dto.ConversationIntentSource;
 import com.botai.application.chatbot.dto.ConversationRouteResult;
+import com.botai.application.chatbot.dto.IntentClassification;
 import com.botai.application.chatbot.orchestration.ConversationHandlingContext;
+import com.botai.application.chatbot.service.action.GetAgendaPublicUrlAction;
 import com.botai.application.chatbot.service.inbound.ActionDispatcher;
+import com.botai.application.chatbot.support.InboundTextHeuristics;
 import com.botai.application.chatbot.support.StandardRouteResponses;
 import com.botai.domain.chatbot.feature.BotFeatures;
 import com.botai.domain.chatbot.feature.FeatureFlagService;
@@ -52,6 +55,34 @@ public class ConversationActionRouting {
             .map(r -> new ConversationRouteResult(r, ConversationIntentSource.ACTION, null));
     }
 
+    /**
+     * Atajo global: «quiero agendar» → enlace público real (sin pasar por LLM).
+     * Se invoca desde el orquestador antes de FAQ/IA.
+     */
+    public Optional<ConversationRouteResult> routeBookingPublicUrlFirst(ConversationHandlingContext ctx) {
+        if (!InboundTextHeuristics.looksLikeNewBookingRequest(ctx.text())) {
+            return Optional.empty();
+        }
+        if (!featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, ctx.tenantId())) {
+            return Optional.empty();
+        }
+        if (ctx.classification().isCrmAction()
+            && ctx.classification().getActionId()
+                .filter(GetAgendaPublicUrlAction.ACTION_ID::equals)
+                .isPresent()) {
+            return startCrmFromClassificationIfEnabled(ctx);
+        }
+        log.info("[CRM-BOOKING] Atajo heuristica reserva -> get_agenda_public_url tenant={}", ctx.tenantId());
+        var forcedCtx = new ConversationHandlingContext(
+            ctx.conversationId(),
+            ctx.tenantId(),
+            ctx.text(),
+            ctx.inbound(),
+            ctx.state(),
+            new IntentClassification.CrmAction(GetAgendaPublicUrlAction.ACTION_ID));
+        return startCrmFromClassificationIfEnabled(forcedCtx);
+    }
+
     /** Clasificación CRM + acciones activas → inicia la acción desde menú/clasificador. */
     public Optional<ConversationRouteResult> startCrmFromClassificationIfEnabled(ConversationHandlingContext ctx) {
         if (!ctx.classification().isCrmAction() || !featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, ctx.tenantId())) {
@@ -64,8 +95,10 @@ public class ConversationActionRouting {
         String actionId = actionIdOpt.get();
         OutboundMessage started = actionDispatcher.startFromMenuOption(ctx.state(), actionId, ctx.text());
         if (started == null) {
+            log.warn("[CRM-ACTION] No se pudo iniciar action={} tenant={}", actionId, ctx.tenantId());
             return Optional.empty();
         }
+        log.info("[CRM-ACTION] OK action={} tenant={}", actionId, ctx.tenantId());
         return Optional.of(new ConversationRouteResult(started, ConversationIntentSource.ACTION, null));
     }
 

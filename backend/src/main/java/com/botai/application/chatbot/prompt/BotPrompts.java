@@ -36,6 +36,15 @@ public final class BotPrompts {
         public static final String FRAGMENTS_SECTION_TITLE =
             "--- Retrieved business snippets (authoritative knowledge for this tenant) ---";
         public static final String FRAGMENTS_SECTION_END = "--- End ---";
+        public static final String BOOKING_URL_SECTION_TITLE =
+            "--- Official online booking link (authoritative for this tenant) ---";
+        public static final String BOOKING_URL_RULE =
+            "When the user wants a new appointment, include exactly the URL from this block or from snippet "
+                + "“Agenda: Información del negocio”. Do not invent Calendly, Booksy, or other domains.";
+
+        public static String bookingUrlLine(String url) {
+            return "BOOKING_URL: " + (url != null ? url.strip() : "");
+        }
 
         public static final String RAG_LINE_VOZ_NEGOCIO =
             "You are this tenant’s virtual assistant. Reply in Spanish as the business (first-person plural: “nosotros”). "
@@ -73,7 +82,8 @@ public final class BotPrompts {
          */
         public static final String RAG_LINE_HERRAMIENTAS_CONSULTA =
             "Call tools when you need verified data: getHorario (hours), listarServicios (service catalog), buscarConocimiento(question) (knowledge base). "
-                + "Prefer tool output over guessing when snippets are empty or outdated.";
+                + "Prefer tool output over guessing when snippets are empty or outdated. "
+                + "For new bookings also use obtenerEnlaceReservaOnline when BOOKING_URL is missing.";
         /**
          * Cancelación / listado de citas ya guardadas en el modelo legacy del bot; no crear reservas nuevas por tools.
          */
@@ -88,9 +98,10 @@ public final class BotPrompts {
         public static final String RAG_LINE_ERRORES_Y_CONTACTO =
             "Keep responses user-friendly in Spanish. Share phone, email, address, or links only when they appear in retrieved snippets or tool outputs.";
         public static final String RAG_LINE_CITAS_EN_CHAT =
-            "New bookings: the customer uses the business online agenda (the channel sends that link when they ask to schedule). "
-                + "Do not ask for ID or walk through a full booking in chat for a new reservation. "
-                + "Existing appointments: use listarCitasActivasDelCanal, verificarCitaExistentePorDocumento, cancelarCita as appropriate when the user asks about their bookings or cancellation.";
+            "New bookings: use BOOKING_URL in the system block or the line “Enlace oficial para reservar” in retrieved snippets. "
+                + "Paste that exact URL in Spanish when they ask to schedule. Do not invent other booking sites. "
+                + "Do not ask for ID or complete a new reservation inside chat. "
+                + "Existing appointments: use listarCitasActivasDelCanal, verificarCitaExistentePorDocumento, cancelarCita as appropriate.";
 
         /** Instrucciones largas (RAG) antes de fecha y fragmentos. */
         public static List<String> ragInstructionPreambleLines() {
@@ -159,6 +170,7 @@ public final class BotPrompts {
             lines.add("You are a reviewer for a Spanish WhatsApp business assistant.");
             lines.add("Keep only facts supported by the FACTS block (when non-empty), tool-backed claims in the DRAFT, the user message, or the recent thread.");
             lines.add("Preserve the business name and trade identity exactly as written in FACTS; if FACTS omit a name, use “nosotros” without adding a new brand name.");
+            lines.add("If FACTS or the draft mention a booking URL (BOOKING_URL or “Enlace oficial para reservar”), keep that exact URL; never substitute Calendly or other domains.");
             lines.add("Use RECENT THREAD for coherence (names, prior promises, context). Align corrections with FACTS when the draft overstates or adds unsupported details.");
             lines.add("Improve the DRAFT for tone, brevity, grounding, and consistency; remove unsupported prices, hours, addresses, or service names.");
             lines.add("If the user message is general, the final reply should sound welcoming and informative from verified facts, not start with “no tenemos información” without a specific unanswered question.");

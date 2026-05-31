@@ -71,16 +71,31 @@ public class PublicAgendaLinkResolver {
         return Optional.of(rows.get(0));
     }
 
-    private String buildPublicUrl(PublicLinkRow link) {
+    /**
+     * URL pública de reserva para una sucursal (misma lógica que WhatsApp / panel).
+     */
+    public Optional<String> buildPublicUrlForBranch(String publicSlug, String companySlug, String nombre,
+                                                    long activeBranchCount) {
+        if (publicSlug == null || publicSlug.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(buildPublicUrl(publicSlug.strip(), companySlug, nombre, activeBranchCount));
+    }
+
+    public String buildPublicUrl(String publicSlug, String companySlug, String nombre, long activeBranchCount) {
         String base = appUrls.normalizedFrontend();
-        if (link.branchCount() > 1) {
-            String company = link.companySlug();
+        if (activeBranchCount > 1) {
+            String company = companySlug;
             if (company == null || company.isBlank()) {
-                company = compactSlug(link.nombre());
+                company = compactSlug(nombre);
             }
             return base + "/#/reservar?company=" + company;
         }
-        return base + "/#/reservar/" + link.publicSlug();
+        return base + "/#/reservar/" + publicSlug;
+    }
+
+    private String buildPublicUrl(PublicLinkRow link) {
+        return buildPublicUrl(link.publicSlug(), link.companySlug(), link.nombre(), link.branchCount());
     }
 
     record PublicLinkRow(String publicSlug, String companySlug, String nombre, long branchCount) {

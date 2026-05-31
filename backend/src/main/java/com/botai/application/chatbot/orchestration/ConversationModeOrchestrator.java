@@ -1,6 +1,7 @@
 package com.botai.application.chatbot.orchestration;
 
 import com.botai.application.chatbot.dto.ConversationRouteResult;
+import com.botai.application.chatbot.service.conversation.common.ConversationActionRouting;
 import com.botai.application.chatbot.service.inbound.BotReadinessService;
 import com.botai.application.chatbot.service.inbound.IntentClassifierService;
 import com.botai.application.chatbot.support.InboundMetadata;
@@ -31,12 +32,14 @@ public class ConversationModeOrchestrator {
     private final Map<ConversationMode, ConversationModeHandler> handlersByMode;
     private final BotReadinessService readinessService;
     private final IntentClassifierService intentClassifierService;
+    private final ConversationActionRouting actionRouting;
     private final StandardRouteResponses standardRouteResponses;
 
     public ConversationModeOrchestrator(ConversationModeResolver modeResolver,
                                         List<ConversationModeHandler> handlers,
                                         BotReadinessService readinessService,
                                         IntentClassifierService intentClassifierService,
+                                        ConversationActionRouting actionRouting,
                                         StandardRouteResponses standardRouteResponses) {
         this.modeResolver = modeResolver;
         this.handlersByMode = new EnumMap<>(ConversationMode.class);
@@ -48,6 +51,7 @@ public class ConversationModeOrchestrator {
         }
         this.readinessService = readinessService;
         this.intentClassifierService = intentClassifierService;
+        this.actionRouting = actionRouting;
         this.standardRouteResponses = standardRouteResponses;
     }
 
@@ -81,6 +85,12 @@ public class ConversationModeOrchestrator {
         String tenantId = InboundMetadata.tenantId(inbound);
         var classification = intentClassifierService.classify(text, tenantId, state);
         var ctx = new ConversationHandlingContext(conversationId, tenantId, text, inbound, state, classification);
+
+        Optional<ConversationRouteResult> bookingShortcut = actionRouting.routeBookingPublicUrlFirst(ctx);
+        if (bookingShortcut.isPresent()) {
+            log.info("[ORCH] Reserva nueva -> enlace publico (sin LLM) tenant={}", tenantId);
+            return bookingShortcut;
+        }
 
         ConversationMode mode = modeResolver.resolve(tenantId);
         if (mode == ConversationMode.NONE) {

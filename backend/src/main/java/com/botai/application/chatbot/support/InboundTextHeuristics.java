@@ -22,8 +22,6 @@ public final class InboundTextHeuristics {
         Pattern.compile("(?i)\\ba\\s+qu[eé]\\s+hora\\s+es\\s+mi\\s+(cita|turno)\\b")
     );
 
-    private static final Pattern HTTP_URL = Pattern.compile("(?i)https?://[^\\s)>\\]]+");
-
     private InboundTextHeuristics() {}
 
     /** Usuario pide reservar/agendar una cita nueva (no solo info de horarios). */
@@ -55,7 +53,7 @@ public final class InboundTextHeuristics {
     }
 
     public static boolean containsHttpUrl(String text) {
-        return text != null && HTTP_URL.matcher(text).find();
+        return BookingUrlSanitizer.containsHttpUrl(text);
     }
 
     /**
