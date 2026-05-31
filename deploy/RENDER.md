@@ -24,6 +24,10 @@ Internet → Render (HTTPS) → Spring Boot → OpenRouter (chat + embeddings)
 
 Si antes tenías `text-embedding-3-small`, al cambiar a Nemotron free el sync rellena `embedding_384` (logs `[RAG-EMBED]` / `[EMBED-API]`).
 
+### Base de datos: solo greenfield
+
+Este proyecto **no usa `ALTER TABLE` ni parches sobre BDs ya desplegadas**. El schema vigente está en el repo (`@Entity` del bot + migraciones Flyway de Agenda). Si una instancia Postgres (Neon/Render) quedó con un schema viejo, **recreá la base desde cero** — no ejecutes SQL manual en prod para “arreglar” columnas. Ver `CLAUDE.md` → *Política greenfield*.
+
 ---
 
 ## 2. OpenRouter $0 (copiar al dashboard)

@@ -37,6 +37,8 @@ Cada tenant puede activar/desactivar capas según su plan.
 docker-compose up -d
 ```
 
+**Política greenfield:** el schema se asume siempre desde cero (BD vacía). Cambios de columnas/tipos van en `@Entity` o migraciones Flyway de creación — **sin `ALTER TABLE` ni parches en prod**. Si el schema local quedó desactualizado: `docker-compose down -v` y volver a levantar. Detalle en [`CLAUDE.md`](./CLAUDE.md) (*Política greenfield*).
+
 ### 2. Backend
 
 ```bash

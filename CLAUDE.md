@@ -82,6 +82,23 @@ com.botai.infrastructure
 - **Auditoría:** todas las entidades de AGENDA incluyen `created_at`, `updated_at` (`@CreatedDate`, `@LastModifiedDate`). Clase base abstracta `BaseAuditableEntity` en `infrastructure/persistence/entity/`.
 - **Soft delete:** `businesses`, `services`, `plans` usan `deleted_at` en vez de borrado físico.
 
+### Política greenfield (INNEGOCIABLE)
+
+El desarrollo **asume siempre base de datos desde cero**. No hay migraciones retroactivas ni parches sobre esquemas ya desplegados.
+
+**Claude NO debe:**
+- Proponer `ALTER TABLE` (ni en Flyway, ni scripts sueltos, ni “ejecutá esto en Render/prod”).
+- Asumir que prod/local tiene columnas, tipos o datos legacy distintos al schema actual del repo.
+- Sugerir workarounds del tipo “si no migró, corré este SQL a mano”.
+- Añadir migraciones solo para cambiar tipos/tamaños de columnas existentes (ej. `VARCHAR(255)` → `TEXT`).
+
+**Claude SÍ debe:**
+- Definir el schema correcto **desde el origen**: `@Entity` / `@Column` (bot, Hibernate `ddl-auto: update`) o migraciones Flyway **CREATE** (Agenda).
+- Si el schema en código cambió y una BD vieja no coincide → indicar **recrear la base desde cero** (nueva instancia Postgres, `docker-compose down -v`, etc.), no parchearla.
+- Dimensionar columnas en la entidad/migración inicial (ej. `whatsapp_access_token` como `TEXT` en `BotEntity` porque el ciphertext cifrado supera 255 chars).
+
+**Ejemplo aplicado:** access token WhatsApp cifrado (`enc:v1:…`) → `@Column(columnDefinition = "TEXT")` en `BotEntity`; sin `ALTER` en prod.
+
 ---
 
 ## 🚩 Feature flags (aislado del bot)
