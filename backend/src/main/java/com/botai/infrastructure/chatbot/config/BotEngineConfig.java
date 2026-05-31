@@ -13,6 +13,7 @@ import com.botai.domain.chatbot.repository.ConversationRepository;
 import com.botai.domain.chatbot.repository.FaqRepository;
 import com.botai.domain.chatbot.repository.KnowledgeRepository;
 import com.botai.domain.chatbot.service.BotAction;
+import com.botai.infrastructure.chatbot.ai.AgendaPublicUrlTools;
 import com.botai.infrastructure.chatbot.ai.AgendarTools;
 import com.botai.infrastructure.chatbot.ai.ConsultaTools;
 import com.botai.infrastructure.chatbot.rag.KnowledgeChunkEmbeddingSync;
@@ -94,10 +95,11 @@ public class BotEngineConfig {
     @Bean
     public ChatClient chatClientWithTools(ChatModel chatModel,
                                           AgendarTools agendarTools,
+                                          AgendaPublicUrlTools agendaPublicUrlTools,
                                           ConsultaTools consultaTools,
                                           PromptChatMemoryAdvisor promptChatMemoryAdvisor) {
         return ChatClient.builder(chatModel)
-            .defaultTools(agendarTools, consultaTools)
+            .defaultTools(agendarTools, agendaPublicUrlTools, consultaTools)
             .defaultAdvisors(promptChatMemoryAdvisor)
             .build();
     }

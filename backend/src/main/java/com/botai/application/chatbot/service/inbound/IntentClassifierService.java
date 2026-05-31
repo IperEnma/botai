@@ -5,6 +5,7 @@ import com.botai.application.chatbot.prompt.BotPrompts;
 import com.botai.application.chatbot.service.action.GetAgendaPublicUrlAction;
 import com.botai.application.chatbot.service.action.ViewAgendaBookingsByContactAction;
 import com.botai.application.chatbot.support.InboundTextHeuristics;
+import com.botai.application.chatbot.service.action.ViewAgendaBookingsByContactAction;
 import com.botai.application.chatbot.service.conversation.common.ConversationActionRouting;
 import com.botai.domain.chatbot.feature.BotFeatures;
 import com.botai.domain.chatbot.feature.FeatureFlagService;
@@ -102,6 +103,15 @@ public class IntentClassifierService {
 
         if (!useLlmForTenant) {
             return new IntentClassification.GeneralQuestion();
+        }
+
+        if (InboundTextHeuristics.looksLikeViewAgendaBookings(text)) {
+            log.info("[CLASSIFIER] Heuristica mis citas -> view_agenda_bookings_by_contact");
+            return new IntentClassification.CrmAction(ViewAgendaBookingsByContactAction.ACTION_ID);
+        }
+        if (InboundTextHeuristics.looksLikeNewBookingRequest(text)) {
+            log.info("[CLASSIFIER] Heuristica reserva nueva -> get_agenda_public_url");
+            return new IntentClassification.CrmAction(GetAgendaPublicUrlAction.ACTION_ID);
         }
 
         IntentClassification fromLlm = classifyWithLlm(text, conversationState);

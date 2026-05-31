@@ -9,10 +9,14 @@ import com.botai.application.chatbot.orchestration.ConversationMode;
 import com.botai.application.chatbot.orchestration.ConversationModeHandler;
 import com.botai.application.chatbot.prompt.BotPrompts;
 import com.botai.application.chatbot.service.conversation.common.ConversationActionRouting;
+import com.botai.application.chatbot.service.action.GetAgendaPublicUrlAction;
+import com.botai.application.chatbot.service.agenda.PublicAgendaLinkResolver;
 import com.botai.application.chatbot.service.inbound.ChatSessionService;
 import com.botai.application.chatbot.support.StandardRouteResponses;
 import com.botai.application.chatbot.service.inbound.MessageHistoryService;
 import com.botai.application.chatbot.support.InboundMetadata;
+import com.botai.application.chatbot.support.InboundTextHeuristics;
+import com.botai.infrastructure.config.AppUrlProperties;
 import com.botai.infrastructure.security.context.ThreadTenantContext;
 import com.botai.domain.chatbot.feature.BotFeatures;
 import com.botai.domain.chatbot.feature.FeatureFlagService;
@@ -35,10 +39,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
@@ -72,8 +79,12 @@ public class RagLlmChatService implements ConversationModeHandler {
     private final ChatMemory chatMemory;
     private final ChatClient chatClientPlain;
     private final boolean selfReviewEnabled;
+    private final PublicAgendaLinkResolver publicAgendaLinkResolver;
+    private final AppUrlProperties appUrls;
     private final String messageTenantUnknown;
     private final String messageAiError;
+
+    private static final Pattern HTTP_URL = Pattern.compile("(?i)https?://[^\\s)>\\]]+");
 
     public RagLlmChatService(ChatClient chatClientWithTools,
                              AiContextBuilder aiContextBuilder,
@@ -88,6 +99,8 @@ public class RagLlmChatService implements ConversationModeHandler {
                              ChatMemory chatMemory,
                              @Qualifier("chatClientPlain") ChatClient chatClientPlain,
                              @Value("${bot.rag.self-review-enabled:false}") boolean selfReviewEnabled,
+                             PublicAgendaLinkResolver publicAgendaLinkResolver,
+                             AppUrlProperties appUrls,
                              BotMessages botMessages) {
         this.chatClientWithTools = chatClientWithTools;
         this.aiContextBuilder = aiContextBuilder;
@@ -102,6 +115,8 @@ public class RagLlmChatService implements ConversationModeHandler {
         this.chatMemory = chatMemory;
         this.chatClientPlain = chatClientPlain;
         this.selfReviewEnabled = selfReviewEnabled;
+        this.publicAgendaLinkResolver = publicAgendaLinkResolver;
+        this.appUrls = appUrls;
         String tu = botMessages.getTenantUnknown();
         String ae = botMessages.getAiError();
         this.messageTenantUnknown = tu != null && !tu.isBlank() ? tu : "No se pudo identificar el negocio. Revisa la configuración del bot.";
@@ -119,8 +134,24 @@ public class RagLlmChatService implements ConversationModeHandler {
             .or(() -> actionRouting.continueActiveActionIfAny(ctx))
             .or(() -> whenBadIntentThenLlm(ctx))
             .or(() -> actionRouting.startCrmFromClassificationIfEnabled(ctx))
+            .or(() -> whenBookingHeuristicOverridesGeneralQuestion(ctx))
             .or(() -> actionRouting.respondIfCrmIntentButActionsDisabled(ctx))
             .or(() -> replyWithLlm(AiConversationRequest.of(ctx.inbound(), ctx.state(), ctx.classification())));
+    }
+
+    /** Si el mini-LLM dijo PREGUNTA_GENERAL pero el texto es claramente reservar, forzar enlace real. */
+    private Optional<ConversationRouteResult> whenBookingHeuristicOverridesGeneralQuestion(
+        ConversationHandlingContext ctx) {
+        if (!ctx.classification().isGeneralQuestion()
+            || !InboundTextHeuristics.looksLikeNewBookingRequest(ctx.text())
+            || !featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, ctx.tenantId())) {
+            return Optional.empty();
+        }
+        log.info("[RAG-LLM] PREGUNTA_GENERAL + heuristica reserva -> get_agenda_public_url");
+        var bookingIntent = new IntentClassification.CrmAction(GetAgendaPublicUrlAction.ACTION_ID);
+        var bookingCtx = new ConversationHandlingContext(
+            ctx.conversationId(), ctx.tenantId(), ctx.text(), ctx.inbound(), ctx.state(), bookingIntent);
+        return actionRouting.startCrmFromClassificationIfEnabled(bookingCtx);
     }
 
     private Optional<ConversationRouteResult> whenClassifierFailedThenLlm(ConversationHandlingContext ctx) {
@@ -306,6 +337,7 @@ public class RagLlmChatService implements ConversationModeHandler {
                     .build();
             }
             String safeText = responseValidator.validateAndSanitize(rawText);
+            safeText = replaceHallucinatedBookingUrls(safeText, tenantId, ut);
 
             if (selfReviewEnabled && chatClientPlain != null && ut.length() >= 2) {
                 String ragFacts = extractRagFactsFromSystemLines(systemLines);
@@ -314,6 +346,7 @@ public class RagLlmChatService implements ConversationModeHandler {
                 Optional<String> refined = runSelfReview(ut, safeText, ragFacts, threadBlock);
                 if (refined.isPresent() && !wouldDiscardRefinement(safeText, refined.get(), ragFacts)) {
                     safeText = responseValidator.validateAndSanitize(refined.get());
+                    safeText = replaceHallucinatedBookingUrls(safeText, tenantId, ut);
                     log.debug("[RAG-LLM] Self-review aplicada; conversationId={}", conversationId);
                 }
             }
@@ -379,6 +412,59 @@ public class RagLlmChatService implements ConversationModeHandler {
     /**
      * Evita aceptar una “mejora” vacía o sospechosamente recortada frente al borrador o a fragmentos RAG largos.
      */
+    /**
+     * Si el modelo inventó Calendly u otra URL ajena al frontend configurado, sustituir por el enlace Agenda real.
+     */
+    private String replaceHallucinatedBookingUrls(String text, String tenantId, String userText) {
+        if (text == null || text.isBlank() || tenantId == null || tenantId.isBlank()) {
+            return text;
+        }
+        if (!InboundTextHeuristics.containsHttpUrl(text)) {
+            return text;
+        }
+        String allowedHost = frontendHost();
+        if (allowedHost.isEmpty() || allUrlsMatchHost(text, allowedHost)) {
+            return text;
+        }
+        if (!InboundTextHeuristics.looksLikeNewBookingRequest(userText)
+            && !InboundTextHeuristics.containsHttpUrl(userText)) {
+            return text;
+        }
+        log.warn("[RAG-LLM] URL externa/inventada en respuesta de reserva; tenant={} -> enlace Agenda", tenantId);
+        return publicAgendaLinkResolver.buildBookingReplyForTenant(tenantId)
+            .orElse(publicAgendaLinkResolver.noLinkMessage());
+    }
+
+    private String frontendHost() {
+        try {
+            String base = appUrls.normalizedFrontend();
+            if (base.isBlank()) {
+                return "";
+            }
+            URI uri = URI.create(base);
+            return uri.getHost() != null ? uri.getHost().toLowerCase() : "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static boolean allUrlsMatchHost(String text, String allowedHost) {
+        Matcher m = HTTP_URL.matcher(text);
+        while (m.find()) {
+            String url = m.group();
+            try {
+                URI uri = URI.create(url);
+                String host = uri.getHost();
+                if (host == null || !host.equalsIgnoreCase(allowedHost)) {
+                    return false;
+                }
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static boolean wouldDiscardRefinement(String original, String refined, String ragFacts) {
         if (refined == null || refined.isBlank()) {
             return true;

@@ -301,6 +301,9 @@ public final class BotPrompts {
 
     /** Descripciones y respuestos de {@link com.botai.infrastructure.chatbot.ai.AgendarTools} (citas existentes; no reserva nueva). */
     public static final class ToolsAgendar {
+        public static final String TOOL_OBTENER_ENLACE_AGENDA =
+            "OBLIGATORIO cuando el usuario quiera AGENDAR o RESERVAR una cita NUEVA, pida el link/enlace de agenda, o pregunta cómo sacar turno. "
+                + "Devuelve el enlace oficial del negocio. NUNCA inventes URLs (Calendly, Booksy, etc.): solo copia el texto que devuelva esta herramienta.";
         public static final String TOOL_VERIFICAR_CITA =
             "Verificar si ya hay cita futura registrada con ese documento (tabla legacy del bot). Usar cuando tengas nombre y cédula escritos por el usuario. "
                 + "Si hay citas, infórmalas. Para una reserva NUEVA no uses herramientas: el usuario debe usar el enlace de agenda web.";
