@@ -10,6 +10,7 @@ import '../../../providers/bot_provider.dart';
 import '../controllers/bots_controller.dart';
 import '../models/bot.dart';
 import '../widgets/capa_badge.dart';
+import '../widgets/whatsapp_access_token_help.dart';
 import '../widgets/whatsapp_webhook_setup.dart';
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -791,10 +792,18 @@ class _StepCanales extends StatelessWidget {
         const SizedBox(height: 20),
 
         // Access Token
-        Text(
-          'ACCESS TOKEN',
-          style: GoogleFonts.jetBrainsMono(
-              fontSize: 10, color: KTokens.inkSoft, letterSpacing: 0.8),
+        Row(
+          children: [
+            Text(
+              'ACCESS TOKEN',
+              style: GoogleFonts.jetBrainsMono(
+                  fontSize: 10, color: KTokens.inkSoft, letterSpacing: 0.8),
+            ),
+            const Spacer(),
+            const WhatsAppAccessTokenHelpButton(
+              style: WhatsAppAccessTokenHelpStyle.konecta,
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         _AccessTokenField(

@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../menus/menus_screen.dart';
 import '../knowledge/knowledge_screen.dart';
 import '../bots/widgets/bot_linked_branches_card.dart';
+import '../bots/widgets/whatsapp_access_token_help.dart';
 import '../bots/widgets/whatsapp_webhook_setup.dart';
 
 class BotDetailScreen extends ConsumerStatefulWidget {
@@ -225,10 +226,20 @@ class _BotConfigContentState extends ConsumerState<BotConfigContent> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Text(
+                        'Access Token',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(width: 4),
+                      const WhatsAppAccessTokenHelpButton(),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: _accessTokenController,
                     decoration: InputDecoration(
-                      labelText: 'Access Token',
                       hintText: widget.bot.whatsappAccessTokenConfigured
                           ? 'Token guardado — dejá vacío para no cambiarlo'
                           : 'EAAxxxxxxx...',

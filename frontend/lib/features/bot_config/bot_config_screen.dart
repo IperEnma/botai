@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
+import '../bots/widgets/whatsapp_access_token_help.dart';
 import '../bots/widgets/whatsapp_webhook_setup.dart';
 
 class BotConfigScreen extends ConsumerStatefulWidget {
@@ -64,11 +65,21 @@ class _BotConfigScreenState extends ConsumerState<BotConfigScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Text(
+                        'Access Token',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(width: 4),
+                      const WhatsAppAccessTokenHelpButton(),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   TextFormField(
                     controller: _accessTokenController,
                     obscureText: _obscureToken,
                     decoration: InputDecoration(
-                      labelText: 'Access Token',
                       hintText: 'EAAxxxxxxx...',
                       prefixIcon: const Icon(Icons.key),
                       suffixIcon: IconButton(
