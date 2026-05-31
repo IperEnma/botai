@@ -149,7 +149,11 @@ public class AdminController {
             @PathVariable Long botId,
             @RequestBody BotEntity bot) {
         org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
-        log.info("[BOT] PUT /bots/{} recibido: whatsappPhoneNumberId en body={} (vacío={})", botId, bot.getWhatsappPhoneNumberId() != null ? "***" + (bot.getWhatsappPhoneNumberId().length() >= 4 ? bot.getWhatsappPhoneNumberId().substring(bot.getWhatsappPhoneNumberId().length() - 4) : "set") : "null", bot.getWhatsappPhoneNumberId() == null || bot.getWhatsappPhoneNumberId().isEmpty());
+        log.info("[BOT] PUT /bots/{} recibido: whatsappPhoneNumberId en body={} (vacío={}), whatsappAccessToken en body={}",
+                botId,
+                bot.getWhatsappPhoneNumberId() != null ? "***" + (bot.getWhatsappPhoneNumberId().length() >= 4 ? bot.getWhatsappPhoneNumberId().substring(bot.getWhatsappPhoneNumberId().length() - 4) : "set") : "null",
+                bot.getWhatsappPhoneNumberId() == null || bot.getWhatsappPhoneNumberId().isEmpty(),
+                bot.getWhatsappAccessToken() != null && !bot.getWhatsappAccessToken().isBlank() ? "presente" : "ausente");
         return botRepository.findById(botId)
             .map(existing -> {
                 existing.setName(bot.getName());
@@ -162,7 +166,10 @@ public class AdminController {
                 applyWhatsappAccessTokenFromRequest(existing, bot.getWhatsappAccessToken());
                 // verify token: derivado (HMAC); access token: cifrado en reposo.
                 String ph = existing.getWhatsappPhoneNumberId();
-                log.info("[BOT] Update bot id={} tenant={} whatsappPhoneNumberId guardado={}", botId, existing.getTenantId(), ph != null && !ph.isEmpty() ? "***" + (ph.length() >= 4 ? ph.substring(ph.length() - 4) : ph) : "null");
+                log.info("[BOT] Update bot id={} tenant={} whatsappPhoneNumberId guardado={}, whatsappAccessToken configurado={}",
+                        botId, existing.getTenantId(),
+                        ph != null && !ph.isEmpty() ? "***" + (ph.length() >= 4 ? ph.substring(ph.length() - 4) : ph) : "null",
+                        existing.isWhatsappAccessTokenConfigured());
                 updateFeatureFlags(existing.getTenantId(), existing);
                 BotEntity saved = botRepository.save(existing);
                 BotEntity refetched = botRepository.findById(botId).orElse(null);

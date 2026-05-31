@@ -3,6 +3,7 @@ package com.botai.infrastructure.chatbot.persistence.entity;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -43,7 +44,9 @@ public class BotEntity {
     @Column(name = "whatsapp_phone_number_id")
     private String whatsappPhoneNumberId;
 
+    /** Acepta valor en POST/PUT; nunca se serializa en respuestas JSON. */
     @Column(name = "whatsapp_access_token")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String whatsappAccessToken;
 
     @Column(name = "whatsapp_verify_token")
@@ -96,7 +99,6 @@ public class BotEntity {
     public String getWhatsappPhoneNumberId() { return whatsappPhoneNumberId; }
     public void setWhatsappPhoneNumberId(String whatsappPhoneNumberId) { this.whatsappPhoneNumberId = whatsappPhoneNumberId; }
 
-    @JsonIgnore
     public String getWhatsappAccessToken() { return whatsappAccessToken; }
     public void setWhatsappAccessToken(String whatsappAccessToken) { this.whatsappAccessToken = whatsappAccessToken; }
 
