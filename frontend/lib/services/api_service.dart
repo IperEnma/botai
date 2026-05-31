@@ -92,6 +92,8 @@ class ApiService {
       if (decoded is Map<String, dynamic>) {
         final m = decoded['message']?.toString();
         if (m != null && m.isNotEmpty) return m;
+        final e = decoded['error']?.toString();
+        if (e != null && e.isNotEmpty) return e;
       }
     } catch (_) {}
     return null;
@@ -113,7 +115,8 @@ class ApiService {
     if (response.statusCode == 200) {
       return Bot.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Error updating bot: ${response.body}');
+      final parsed = _tryParseErrorMessage(response.body);
+      throw Exception(parsed ?? 'Error updating bot (${response.statusCode})');
     }
   }
 
