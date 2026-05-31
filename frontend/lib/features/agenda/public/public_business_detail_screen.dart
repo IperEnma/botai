@@ -100,7 +100,7 @@ class _DetailPage extends StatelessWidget {
   void _openBooking(BuildContext context, AgendaService? service,
       List<AgendaService> services, {String? slug}) {
     if (slug != null && slug.isNotEmpty) {
-      context.push('/reservar/$slug');
+      context.go('/reservar/$slug');
       return;
     }
     final primary = _primaryColor;

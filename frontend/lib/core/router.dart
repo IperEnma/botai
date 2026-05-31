@@ -11,7 +11,7 @@ import '../features/agenda/register/business_register_screen.dart';
 import '../features/agenda/register/register_success_screen.dart';
 import '../features/agenda/register/intent_screen.dart';
 import '../features/agenda/public/public_company_landing_screen.dart';
-import '../features/agenda/public/public_booking_wizard_screen.dart';
+import '../features/agenda/public/public_reservar_screen.dart';
 import '../features/agenda/public/category_businesses_screen.dart';
 import '../features/agenda/public/public_business_detail_screen.dart';
 import '../features/agenda/public/search_screen.dart';
@@ -237,7 +237,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/reservar/:slug',
         builder: (context, state) {
           final slug = state.pathParameters['slug']!;
-          return PublicBookingWizardScreen(slug: slug);
+          final company = state.uri.queryParameters['company'];
+          return PublicReservarScreen(
+            slug: slug,
+            companySlug: company,
+          );
         },
       ),
       GoRoute(
@@ -287,11 +291,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        // Link público amigable: debe ir DESPUÉS de /agenda/public/** para no capturarlo como slug.
+        // Link público amigable → mismo flujo full-page que /reservar/:slug
         path: '/agenda/:slug',
-        builder: (context, state) {
+        redirect: (context, state) {
           final slug = state.pathParameters['slug']!;
-          return PublicBusinessDetailBySlugScreen(slug: slug);
+          final company = state.uri.queryParameters['company'];
+          if (company != null && company.isNotEmpty) {
+            return '/reservar/$slug?company=$company';
+          }
+          final q = state.uri.query;
+          return q.isEmpty ? '/reservar/$slug' : '/reservar/$slug?$q';
         },
       ),
       GoRoute(
