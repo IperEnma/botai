@@ -19,9 +19,15 @@ Future<void> ensureLatestWebDeploy() async {
 
     final json = jsonDecode(resp.responseText!) as Map<String, dynamic>;
     final remote = json['buildId']?.toString() ?? '';
-    if (remote.isNotEmpty && remote != embedded) {
-      html.window.location.reload();
-    }
+    if (remote.isEmpty || remote == embedded) return;
+
+    final u = Uri.base.replace(
+      queryParameters: {
+        ...Uri.base.queryParameters,
+        '_deploy': remote,
+      },
+    );
+    html.window.location.replace(u.toString());
   } catch (_) {
     // Sin red o version.json ausente: seguir con la build embebida.
   }

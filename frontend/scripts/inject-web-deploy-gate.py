@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Post-procesa build/web/index.html: gate de versión + cache-bust en bootstrap."""
+"""Post-procesa build/web: gate de versión, cache-bust y redirects hash legacy."""
 from __future__ import annotations
 
 import re
@@ -8,6 +8,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 INDEX = ROOT / "build" / "web" / "index.html"
+BOOTSTRAP = ROOT / "build" / "web" / "flutter_bootstrap.js"
+
+
+def patch_bootstrap(build_id: str) -> None:
+    if not BOOTSTRAP.is_file():
+        print(f"WARN: no existe {BOOTSTRAP}", file=sys.stderr)
+        return
+
+    bust = f"main.dart.js?v={build_id}"
+    text = BOOTSTRAP.read_text(encoding="utf-8")
+    text = text.replace('"main.dart.js"', f'"{bust}"')
+    text = text.replace("c(\"main.dart.js\")", f'c("{bust}")')
+    BOOTSTRAP.write_text(text, encoding="utf-8")
+    print(f">> inject-web-deploy-gate: flutter_bootstrap.js cache-bust ({bust})")
 
 
 def main() -> None:
@@ -20,35 +34,84 @@ def main() -> None:
         print(f"ERROR: no existe {INDEX}", file=sys.stderr)
         sys.exit(1)
 
-    gate = f"""  <script>
+    gate = f"""  <meta name="botai-build-id" content="{build_id}">
+  <script>
     (function () {{
       var BUILD_KEY = 'botai_build_id';
       var BUILD_ID = '{build_id}';
-      if ('serviceWorker' in navigator) {{
-        navigator.serviceWorker.getRegistrations().then(function (regs) {{
-          regs.forEach(function (r) {{ r.unregister(); }});
-        }});
+
+      function normalizeHash(hash) {{
+        if (!hash || hash.charAt(0) !== '#') return hash;
+        var qIdx = hash.indexOf('?');
+        var path = qIdx === -1 ? hash : hash.slice(0, qIdx);
+        var query = qIdx === -1 ? '' : hash.slice(qIdx);
+        if (path.length > 2 && path.charAt(path.length - 1) === '/') {{
+          path = path.replace(/\\/+$/, '');
+        }}
+        return path + query;
       }}
+
+      function fixLegacyHash() {{
+        var hash = normalizeHash(location.hash || '');
+        if (hash !== (location.hash || '')) {{
+          location.replace(location.pathname + location.search + hash);
+          return true;
+        }}
+        if (hash.indexOf('#/home/bots') === 0) {{
+          location.replace(location.pathname + location.search + '#/bots' + hash.slice('#/home/bots'.length));
+          return true;
+        }}
+        if (hash === '#/home' || hash.indexOf('#/home?') === 0) {{
+          location.replace(location.pathname + location.search + '#/agenda/panel' + hash.slice('#/home'.length));
+          return true;
+        }}
+        if (hash.indexOf('#/home/') === 0) {{
+          location.replace(location.pathname + location.search + '#/agenda' + hash.slice('#/home'.length));
+          return true;
+        }}
+        return false;
+      }}
+
       function loadFlutter() {{
         var s = document.createElement('script');
         s.src = 'flutter_bootstrap.js?v=' + BUILD_ID;
         s.async = true;
         document.body.appendChild(s);
       }}
-      fetch('/version.json?t=' + Date.now(), {{ cache: 'no-store' }})
-        .then(function (r) {{ return r.ok ? r.json() : null; }})
-        .then(function (v) {{
-          var next = (v && v.buildId) ? String(v.buildId) : BUILD_ID;
-          var prev = localStorage.getItem(BUILD_KEY);
-          if (prev && next && prev !== next) {{
-            localStorage.setItem(BUILD_KEY, next);
-            location.replace(location.href);
-            return;
-          }}
-          if (next) localStorage.setItem(BUILD_KEY, next);
-          loadFlutter();
-        }})
-        .catch(function () {{ loadFlutter(); }});
+
+      function hardReload(next) {{
+        localStorage.setItem(BUILD_KEY, next);
+        var clearCaches = ('caches' in window)
+          ? caches.keys().then(function (keys) {{
+              return Promise.all(keys.map(function (k) {{ return caches.delete(k); }}));
+            }})
+          : Promise.resolve();
+        clearCaches.finally(function () {{
+          var u = new URL(location.href);
+          u.searchParams.set('_deploy', next);
+          location.replace(u.toString());
+        }});
+      }}
+
+      function start() {{
+        if (fixLegacyHash()) return;
+
+        fetch('/version.json?t=' + Date.now(), {{ cache: 'no-store' }})
+          .then(function (r) {{ return r.ok ? r.json() : null; }})
+          .then(function (v) {{
+            var next = (v && v.buildId) ? String(v.buildId) : BUILD_ID;
+            var prev = localStorage.getItem(BUILD_KEY);
+            if (next && prev !== next) {{
+              hardReload(next);
+              return;
+            }}
+            if (next) localStorage.setItem(BUILD_KEY, next);
+            loadFlutter();
+          }})
+          .catch(function () {{ loadFlutter(); }});
+      }}
+
+      (window.__botaiDeployPrep || Promise.resolve()).then(start);
     }})();
   </script>"""
 
@@ -60,7 +123,20 @@ def main() -> None:
         flags=re.IGNORECASE,
     )
     html = re.sub(
-        r"<script>\s*\(function \(\)[\s\S]*?loadFlutter[\s\S]*?</script>",
+        r'<meta name="botai-build-id"[^>]*>\s*',
+        "",
+        html,
+        flags=re.IGNORECASE,
+    )
+    html = re.sub(
+        r"<script>\s*\(function \(\)[\s\S]*?__botaiDeployPrep[\s\S]*?</script>\s*"
+        r"(?=<script>\s*\(function \(\)[\s\S]*?BUILD_KEY[\s\S]*?</script>)",
+        "",
+        html,
+        flags=re.IGNORECASE,
+    )
+    html = re.sub(
+        r"<script>\s*\(function \(\)[\s\S]*?BUILD_KEY[\s\S]*?</script>",
         "",
         html,
         flags=re.IGNORECASE,
@@ -73,6 +149,8 @@ def main() -> None:
     html = html.replace("</body>", gate + "\n</body>", 1)
     INDEX.write_text(html, encoding="utf-8")
     print(f">> inject-web-deploy-gate: index.html (buildId={build_id})")
+
+    patch_bootstrap(build_id)
 
 
 if __name__ == "__main__":

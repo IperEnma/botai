@@ -24,6 +24,42 @@
 
   <!-- google-signin-client_id: en runtime main() la inyecta desde GOOGLE_CLIENT_ID_WEB (.env). -->
 
+  <!-- Mata service workers viejos (PWA) ANTES de cargar JS. Incógnito no los tiene; ventana normal sí. -->
+  <script>
+    (function () {
+      var FLAG = 'botai_sw_purge_v1';
+      function cleanup() {
+        var hadSw = false;
+        var chain = Promise.resolve();
+        if ('serviceWorker' in navigator) {
+          chain = chain.then(function () {
+            return navigator.serviceWorker.getRegistrations();
+          }).then(function (regs) {
+            hadSw = regs.length > 0;
+            return Promise.all(regs.map(function (r) { return r.unregister(); }));
+          }).then(function () { return hadSw; });
+        }
+        if ('caches' in window) {
+          chain = chain.then(function (prevHadSw) {
+            return caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k); }))
+                .then(function () { return prevHadSw; });
+            });
+          });
+        }
+        return chain;
+      }
+      window.__botaiDeployPrep = cleanup().then(function (hadSw) {
+        if (hadSw && !sessionStorage.getItem(FLAG)) {
+          sessionStorage.setItem(FLAG, '1');
+          location.reload();
+          return new Promise(function () {});
+        }
+        sessionStorage.removeItem(FLAG);
+      });
+    })();
+  </script>
+
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -37,7 +73,7 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!-- Deploy gate inyectado en Vercel por scripts/inject-web-deploy-gate.sh (post flutter build). -->
+  <!-- Deploy gate inyectado en Vercel por scripts/inject-web-deploy-gate.py (post flutter build). -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -29,6 +29,33 @@ import '../features/agenda/me/create_booking_screen.dart';
 import '../features/agenda/me/my_notifications_screen.dart';
 import 'router_refresh.dart';
 
+/// Bookmarks y bundles viejos usaban `/home/**`; redirigimos sin pedir al usuario nada.
+String? _legacyHomeRouteRedirect(GoRouterState state) {
+  final loc = state.matchedLocation;
+  final q = state.uri.query;
+  String withQuery(String path) => q.isEmpty ? path : '$path?$q';
+
+  if (loc == '/home/bots') return withQuery('/bots');
+  if (loc.startsWith('/home/bots/')) {
+    return withQuery('/bots${loc.substring('/home/bots'.length)}');
+  }
+  if (loc == '/home' || loc.startsWith('/home/')) {
+    if (loc.startsWith('/home/businesses/')) {
+      return withQuery('/agenda${loc.substring('/home'.length)}');
+    }
+    return withQuery('/agenda/panel');
+  }
+  return null;
+}
+
+String? _normalizeTrailingSlash(GoRouterState state) {
+  final path = state.uri.path;
+  if (path.length <= 1 || !path.endsWith('/')) return null;
+  final normalized = path.replaceAll(RegExp(r'/+$'), '');
+  final q = state.uri.query;
+  return q.isEmpty ? normalized : '$normalized?$q';
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ref.watch(routerRefreshListenableProvider);
 
@@ -36,6 +63,18 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     refreshListenable: refresh,
     redirect: (context, state) {
+      final slash = _normalizeTrailingSlash(state);
+      if (slash != null) {
+        debugPrint('[ROUTER] → $slash (trailing slash)');
+        return slash;
+      }
+
+      final legacy = _legacyHomeRouteRedirect(state);
+      if (legacy != null) {
+        debugPrint('[ROUTER] → $legacy (legacy /home/**)');
+        return legacy;
+      }
+
       final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.isAuthenticated;
       final loc = state.matchedLocation;
