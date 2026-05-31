@@ -3,63 +3,52 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../agenda/register/konecta_tokens.dart';
 
-/// Botón de ayuda: cómo generar el Access Token en Meta Business Settings.
+/// Ayuda inline: cómo generar el Access Token en Meta Business Settings.
 class WhatsAppAccessTokenHelpButton extends StatelessWidget {
   const WhatsAppAccessTokenHelpButton({
     super.key,
-    this.compact = false,
     this.style = WhatsAppAccessTokenHelpStyle.material,
   });
 
-  final bool compact;
   final WhatsAppAccessTokenHelpStyle style;
 
   @override
   Widget build(BuildContext context) {
     final isKonecta = style == WhatsAppAccessTokenHelpStyle.konecta;
-    final Color fg = isKonecta
-        ? KTokens.accent
-        : Theme.of(context).colorScheme.primary;
-    final Color bg = isKonecta
-        ? KTokens.accentSoft
-        : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.65);
-    final String label = compact ? 'Ayuda' : 'Cómo generarlo';
+
+    if (isKonecta) {
+      return TextButton(
+        onPressed: () => showWhatsAppAccessTokenHelp(context),
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(0, 0),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          foregroundColor: KTokens.inkMuted,
+        ),
+        child: Text(
+          '¿Cómo generarlo?',
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            decoration: TextDecoration.underline,
+            decorationColor: KTokens.inkMuted.withValues(alpha: 0.5),
+          ),
+        ),
+      );
+    }
 
     return Tooltip(
-      message: 'Cómo generar el Access Token en Meta',
-      child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(isKonecta ? KTokens.rPill : 8),
-        child: InkWell(
-          onTap: () => showWhatsAppAccessTokenHelp(context),
-          borderRadius: BorderRadius.circular(isKonecta ? KTokens.rPill : 8),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 8 : 10,
-              vertical: compact ? 5 : 6,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.help_outline_rounded, size: compact ? 16 : 18, color: fg),
-                const SizedBox(width: 5),
-                Text(
-                  label,
-                  style: isKonecta
-                      ? GoogleFonts.jetBrainsMono(
-                          fontSize: compact ? 9 : 10,
-                          letterSpacing: 0.5,
-                          fontWeight: FontWeight.w600,
-                          color: fg,
-                        )
-                      : TextStyle(
-                          fontSize: compact ? 12 : 13,
-                          fontWeight: FontWeight.w600,
-                          color: fg,
-                        ),
-                ),
-              ],
-            ),
+      message: 'Cómo generar el Access Token',
+      waitDuration: const Duration(milliseconds: 400),
+      child: InkWell(
+        onTap: () => showWhatsAppAccessTokenHelp(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(
+            Icons.info_outline,
+            size: 16,
+            color: Colors.grey[500],
           ),
         ),
       ),

@@ -793,16 +793,17 @@ class _StepCanales extends StatelessWidget {
 
         // Access Token
         Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
             Text(
               'ACCESS TOKEN',
               style: GoogleFonts.jetBrainsMono(
                   fontSize: 10, color: KTokens.inkSoft, letterSpacing: 0.8),
             ),
-            const Spacer(),
+            const SizedBox(width: 10),
             const WhatsAppAccessTokenHelpButton(
               style: WhatsAppAccessTokenHelpStyle.konecta,
-              compact: true,
             ),
           ],
         ),
