@@ -27,6 +27,14 @@
   <!-- Mata service workers viejos (PWA) ANTES de cargar JS. Incógnito no los tiene; ventana normal sí. -->
   <script>
     (function () {
+      // Limpia ?_deploy=... si quedó de un reload viejo (no debe verse en la URL).
+      (function stripDeployQuery() {
+        var u = new URL(location.href);
+        if (!u.searchParams.has('_deploy')) return;
+        u.searchParams.delete('_deploy');
+        history.replaceState(null, '', u.pathname + u.search + u.hash);
+      })();
+
       var FLAG = 'botai_sw_purge_v1';
       function cleanup() {
         var hadSw = false;

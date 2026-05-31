@@ -40,6 +40,13 @@ def main() -> None:
       var BUILD_KEY = 'botai_build_id';
       var BUILD_ID = '{build_id}';
 
+      (function stripDeployQuery() {{
+        var u = new URL(location.href);
+        if (!u.searchParams.has('_deploy')) return;
+        u.searchParams.delete('_deploy');
+        history.replaceState(null, '', u.pathname + u.search + u.hash);
+      }})();
+
       function normalizeHash(hash) {{
         if (!hash || hash.charAt(0) !== '#') return hash;
         var qIdx = hash.indexOf('?');
@@ -81,16 +88,14 @@ def main() -> None:
 
       function hardReload(next) {{
         localStorage.setItem(BUILD_KEY, next);
-        var clearCaches = ('caches' in window)
-          ? caches.keys().then(function (keys) {{
-              return Promise.all(keys.map(function (k) {{ return caches.delete(k); }}));
-            }})
-          : Promise.resolve();
-        clearCaches.finally(function () {{
-          var u = new URL(location.href);
-          u.searchParams.set('_deploy', next);
-          location.replace(u.toString());
-        }});
+        var reload = function () {{ location.reload(); }};
+        if ('caches' in window) {{
+          caches.keys().then(function (keys) {{
+            return Promise.all(keys.map(function (k) {{ return caches.delete(k); }}));
+          }}).finally(reload);
+        }} else {{
+          reload();
+        }}
       }}
 
       function start() {{

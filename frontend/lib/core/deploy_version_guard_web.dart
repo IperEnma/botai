@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:html' as html;
 
-/// Si el deploy en Vercel cambió, recarga la pestaña (sin pedir al usuario borrar caché).
+/// Si el deploy en Vercel cambió, recarga la pestaña (sin tocar la URL visible).
 Future<void> ensureLatestWebDeploy() async {
   const embedded = String.fromEnvironment('WEB_BUILD_ID', defaultValue: '');
   if (embedded.isEmpty) return;
@@ -21,13 +21,8 @@ Future<void> ensureLatestWebDeploy() async {
     final remote = json['buildId']?.toString() ?? '';
     if (remote.isEmpty || remote == embedded) return;
 
-    final u = Uri.base.replace(
-      queryParameters: {
-        ...Uri.base.queryParameters,
-        '_deploy': remote,
-      },
-    );
-    html.window.location.replace(u.toString());
+    html.window.localStorage['botai_build_id'] = remote;
+    html.window.location.reload();
   } catch (_) {
     // Sin red o version.json ausente: seguir con la build embebida.
   }
