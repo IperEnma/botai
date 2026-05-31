@@ -44,8 +44,8 @@ public class BotEntity {
     @Column(name = "whatsapp_phone_number_id")
     private String whatsappPhoneNumberId;
 
-    /** Acepta valor en POST/PUT; nunca se serializa en respuestas JSON. */
-    @Column(name = "whatsapp_access_token")
+    /** Ciphertext AES-GCM ({@code enc:v1:…}); suele superar 255 chars. */
+    @Column(name = "whatsapp_access_token", columnDefinition = "TEXT")
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String whatsappAccessToken;
 

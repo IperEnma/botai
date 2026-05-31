@@ -37,6 +37,16 @@ class WhatsAppAccessTokenCipherTest {
     }
 
     @Test
+    void encryptedMetaTokenExceedsVarchar255() {
+        // Meta suele emitir tokens largos (~200–500+ chars).
+        String metaLike = "EAA" + "x".repeat(380);
+        String enc = cipher.encrypt(metaLike);
+
+        assertTrue(enc.length() > 255, "ciphertext debe ser >255 para forzar TEXT en BD");
+        assertEquals(metaLike, cipher.decrypt(enc));
+    }
+
+    @Test
     void migratePlaintextIfNeeded_encryptsLegacy() {
         String migrated = cipher.migratePlaintextIfNeeded("EAAlegacy");
         assertTrue(WhatsAppAccessTokenCipher.isEncrypted(migrated));

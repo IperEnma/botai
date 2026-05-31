@@ -348,22 +348,32 @@ class _BotConfigContentState extends ConsumerState<BotConfigContent> {
       faqEnabled: _faqEnabled,
       aiEnabled: _aiEnabled,
       actionsEnabled: _actionsEnabled,
-      whatsappAccessTokenConfigured: widget.bot.whatsappAccessTokenConfigured ||
-          newAccessToken.isNotEmpty,
     );
 
-    await ref.read(botsProvider.notifier).updateBot(
+    final result = await ref.read(botsProvider.notifier).updateBot(
           updatedBot,
           whatsappAccessTokenPlain:
               newAccessToken.isEmpty ? null : newAccessToken,
         );
 
-    if (mounted) {
-      setState(() => _isLoading = false);
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result == null) {
+      final error = ref.read(botsProvider).error ?? 'No se pudo guardar la configuración';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Configuración guardada')),
+        SnackBar(content: Text(error), backgroundColor: Colors.red.shade700),
       );
+      return;
     }
+
+    if (newAccessToken.isNotEmpty) {
+      _accessTokenController.clear();
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Configuración guardada')),
+    );
   }
 }
 

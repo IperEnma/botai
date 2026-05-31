@@ -175,7 +175,10 @@ public class AdminController {
                 BotEntity refetched = botRepository.findById(botId).orElse(null);
                 if (refetched != null) {
                     String refetchedPh = refetched.getWhatsappPhoneNumberId();
-                    log.info("[BOT] Tras guardar, refetch bot id={}: whatsappPhoneNumberId en BD={}", botId, refetchedPh != null && !refetchedPh.isEmpty() ? "***" + (refetchedPh.length() >= 4 ? refetchedPh.substring(refetchedPh.length() - 4) : refetchedPh) : "null");
+                    log.info("[BOT] Tras guardar, refetch bot id={}: whatsappPhoneNumberId en BD={}, whatsappAccessToken configurado={}",
+                            botId,
+                            refetchedPh != null && !refetchedPh.isEmpty() ? "***" + (refetchedPh.length() >= 4 ? refetchedPh.substring(refetchedPh.length() - 4) : refetchedPh) : "null",
+                            refetched.isWhatsappAccessTokenConfigured());
                 }
                 return ResponseEntity.ok(saved);
             })
