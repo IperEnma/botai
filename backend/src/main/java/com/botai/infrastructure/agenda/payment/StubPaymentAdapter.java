@@ -34,8 +34,8 @@ public class StubPaymentAdapter implements PaymentPort {
     private final BigDecimal rejectAmountOver;
 
     public StubPaymentAdapter(
-            @Value("${agenda.payment.stub.auto-approve:true}") boolean autoApprove,
-            @Value("${agenda.payment.stub.reject-amount-over:0}") BigDecimal rejectAmountOver) {
+            @Value("${payment.stub.auto-approve:true}") boolean autoApprove,
+            @Value("${payment.stub.reject-amount-over:0}") BigDecimal rejectAmountOver) {
         this.autoApprove = autoApprove;
         this.rejectAmountOver = rejectAmountOver == null ? BigDecimal.ZERO : rejectAmountOver;
     }

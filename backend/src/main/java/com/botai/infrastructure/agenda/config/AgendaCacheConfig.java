@@ -29,7 +29,7 @@ public class AgendaCacheConfig {
     public static final String CACHE_SEARCH     = "agenda-search";
     public static final String CACHE_CATEGORIES = "agenda-categories";
 
-    @Value("${agenda.search.cache-ttl-seconds:60}")
+    @Value("${search.cache-ttl-seconds:60}")
     private long ttlSeconds;
 
     @Bean

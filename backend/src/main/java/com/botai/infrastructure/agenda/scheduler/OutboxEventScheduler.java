@@ -27,7 +27,7 @@ import java.util.List;
  * el segundo disparo simplemente no hace nada.</p>
  */
 @Component
-@ConditionalOnProperty(name = "agenda.outbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "schedulers.enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxEventScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxEventScheduler.class);

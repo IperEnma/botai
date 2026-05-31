@@ -39,9 +39,13 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
-      - key: AGENDA_PUBLIC_BASE_URL
+      - key: PUBLIC_BACKEND_URL
         sync: false
-      - key: AGENDA_UPLOADS_BASE_URL
+      - key: PUBLIC_FRONTEND_URL
+        sync: false
+      - key: BOT_WHATSAPP_VERIFY_SECRET
+        sync: false
+      - key: BOT_WHATSAPP_ENCRYPTION_SECRET
         sync: false
       - key: AGENDA_SECURITY_ENABLED
         value: "true"

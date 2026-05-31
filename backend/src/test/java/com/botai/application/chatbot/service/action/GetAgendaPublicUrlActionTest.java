@@ -2,6 +2,7 @@ package com.botai.application.chatbot.service.action;
 
 import com.botai.domain.chatbot.model.ConversationState;
 import com.botai.domain.chatbot.repository.ConversationRepository;
+import com.botai.infrastructure.config.AppUrlProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,7 +34,9 @@ class GetAgendaPublicUrlActionTest {
 
     @BeforeEach
     void setUp() {
-        action = new GetAgendaPublicUrlAction(conversationRepository, jdbcTemplate, "http://localhost:5173/");
+        AppUrlProperties appUrls = new AppUrlProperties();
+        appUrls.setFrontend("http://localhost:5173/");
+        action = new GetAgendaPublicUrlAction(conversationRepository, jdbcTemplate, appUrls);
     }
 
     @Test

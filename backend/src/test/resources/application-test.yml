@@ -1,17 +1,9 @@
-# ============================================================================
-# application-test.yml
-# Overrides para los tests de integración del módulo AGENDA.
-# Los valores de datasource se sobrescriben dinámicamente en cada test base
-# con @DynamicPropertySource a partir del PostgreSQLContainer.
-#
-# Tablas agenda_* = Hibernate update; Flyway post-JPA (semilla + V3 supplements).
-# ============================================================================
+# Overrides para tests de integración (PostgreSQL vía Testcontainers).
 
 spring:
   task:
     scheduling:
       enabled: false
-  # spring.sql.init.mode=never en application.yml; esquema vía Hibernate + Flyway.
   sql:
     init:
       mode: never
@@ -31,9 +23,6 @@ spring:
     table: agenda_flyway_schema_history
     repair-on-migrate: true
 
-  # Desactivamos Spring AI en tests: no necesitamos el modelo Ollama para
-  # ejercitar endpoints de AGENDA. Al evitar el autoconfigure, el contexto
-  # arranca más rápido y no falla si OLLAMA_BASE_URL no existe.
   autoconfigure:
     exclude:
       - org.springframework.ai.autoconfigure.ollama.OllamaAutoConfiguration
@@ -44,7 +33,16 @@ spring:
       chat: none
       embedding: none
 
-# Bot: valores mínimos para que el contexto del bot cargue sin errores.
+urls:
+  backend: http://localhost:8080
+  frontend: http://localhost:5173
+
+security:
+  enabled: false
+
+schedulers:
+  enabled: false
+
 bot:
   embedding:
     provider: none
@@ -62,14 +60,6 @@ bot:
   channels:
     web:
       base-path: /api/v1/webhook
-
-agenda:
-  enabled: true
-  security:
-    enabled: false
-  outbox:
-    scheduler:
-      enabled: false
 
 logging:
   level:

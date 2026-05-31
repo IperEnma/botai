@@ -8,7 +8,6 @@ spring:
     name: chatbot-engine
 
   datasource:
-    # Local: defaults abajo. Render/Neon: SPRING_DATASOURCE_URL, USERNAME, PASSWORD (sin user:pass en la URL).
     url: jdbc:postgresql://localhost:5444/chatbot
     username: chatbot
     password: chatbot
@@ -17,8 +16,6 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
 
-  # Flyway agenda (ApplicationReady, tras Hibernate): V1 extensiones, V2 semilla SQL, V3 complementos ORM.
-  # Tablas agenda_* = JPA ddl-auto update. repair-on-migrate vía AgendaFlywayConfig.
   flyway:
     repair-on-migrate: ${FLYWAY_REPAIR_ON_MIGRATE:true}
     locations: classpath:db/migration/agenda
@@ -47,9 +44,6 @@ spring:
       max-file-size: 5MB
       max-request-size: 10MB
 
-  # ---------------------------------------------------------------------------
-  # Spring AI: chat (Ollama) + embeddings (ver bot.embedding.provider más abajo)
-  # ---------------------------------------------------------------------------
   ai:
     ollama:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
@@ -61,74 +55,87 @@ spring:
       embedding: none
 
 # -----------------------------------------------------------------------------
-# Bot: motor (orden: IA/RAG → conversación → canales)
+# URLs públicas (backend API + frontend web)
+# -----------------------------------------------------------------------------
+urls:
+  backend: ${PUBLIC_BACKEND_URL:${BOT_PUBLIC_BASE_URL:http://localhost:8080}}
+  frontend: ${PUBLIC_FRONTEND_URL:${AGENDA_PUBLIC_BASE_URL:http://localhost:5173}}
+
+# -----------------------------------------------------------------------------
+# Seguridad HTTP /api/** (JWT Google)
+# -----------------------------------------------------------------------------
+security:
+  enabled: ${APP_SECURITY_ENABLED:${AGENDA_SECURITY_ENABLED:true}}
+  google:
+    issuer-uri: ${APP_GOOGLE_ISSUER_URI:${AGENDA_GOOGLE_ISSUER_URI:https://accounts.google.com}}
+    audience: ${GOOGLE_CLIENT_ID:${GOOGLE_CLIENT_ID_WEB:}}
+
+# -----------------------------------------------------------------------------
+# Archivos subidos (URL pública = urls.backend/uploads)
+# -----------------------------------------------------------------------------
+uploads:
+  dir: ${UPLOADS_DIR:${AGENDA_UPLOADS_DIR:uploads}}
+
+search:
+  cache-ttl-seconds: 60
+  rate-limit:
+    requests-per-minute: 60
+
+payment:
+  stub:
+    auto-approve: ${APP_PAYMENT_STUB_AUTO_APPROVE:${AGENDA_PAYMENT_STUB_AUTO_APPROVE:true}}
+    reject-amount-over: ${APP_PAYMENT_STUB_REJECT_OVER:${AGENDA_PAYMENT_STUB_REJECT_OVER:0}}
+
+idempotency:
+  ttl-hours: 24
+
+notifications:
+  scheduled-cron: "0 0 9 * * *"
+
+schedulers:
+  enabled: ${APP_SCHEDULERS_ENABLED:true}
+
+# -----------------------------------------------------------------------------
+# Bot: chat, RAG, WhatsApp, canales
 # -----------------------------------------------------------------------------
 bot:
-  # Embeddings RAG: BOT_EMBEDDING_PROVIDER = djl (local JVM) | api (HTTP OpenAI-compatible).
-  # api cubre OpenRouter, OpenAI y Ollama (/v1/embeddings) — solo cambia base-url y modelo.
   embedding:
     provider: ${BOT_EMBEDDING_PROVIDER:djl}
-    # Solo con provider=api. 384 = Nemotron free (Matryoshka); 1536 = text-embedding-3-small.
     api-dimensions: ${BOT_EMBEDDING_API_DIMENSIONS:384}
     djl:
       model-url: ${BOT_EMBEDDING_DJL_MODEL_URL:djl://ai.djl.huggingface.pytorch/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
 
-  # Chat LLM: ollama (local, default con DJL) | api (OpenRouter sin Ollama en Render).
-  # Render $0: BOT_EMBEDDING_PROVIDER=api + modelos free (ver .env.render.example).
   chat:
     provider: ${BOT_CHAT_PROVIDER:ollama}
 
-  # RAG (pgvector): usa el mismo EmbeddingModel que embedding.provider.
   rag:
     max-chunks: 3
-    # Con embeddings tipo MiniLM (384 dims), 0.7 suele ser demasiado estricto y filtra incluso chunks correctos.
-    # 0 = sin filtro (dev); en prod calibrar con logs y subir gradualmente.
     min-similarity: 0.0
-    # Reintento de embeddings NULL (OpenRouter caído al arranque, cuota, etc.)
     embed-retry-delay-ms: ${BOT_RAG_EMBED_RETRY_DELAY_MS:600000}
-    # Paso de razonamiento post-respuesta (RAG + hilo + borrador → texto final). Ver backend/docs/BOT_AGENDA_INTENTS.md
     self-review-enabled: true
 
-  # Memoria del LLM por sesión (turnos user+assistant de la sesión actual).
   memory:
     max-history-turns: 10
 
-  # Tras N minutos sin mensajes, el siguiente abre sesión nueva (historial IA limpio). 0 = solo reinicio explícito o fin de acción.
   session:
     idle-minutes: 45
 
-  # Espera N ms antes de procesar (agrupa mensajes rápidos).
   buffer:
     debounce-ms: 2500
 
-  # Regex anti–jailbreak / cambio de rol. Desactivar = no bloquear.
   guardrails:
     enabled: true
-    # out-of-scope-message: "Solo puedo ayudarte con..."  # opcional; si vacío se usa bot.messages.guardrail-block
 
-  # Textos del bot (BotMessages tiene defaults).
-  messages:
-    # bad-intent: "No puedo responder a eso. ¿En qué puedo ayudarte con el negocio?"
-    # guardrail-block: "Solo puedo ayudarte con temas del negocio. ¿En qué más puedo ayudarte?"
-    # no-match: "No tengo una respuesta para eso. Revisa que menú, servicios, horario y conocimiento estén configurados en el panel."
-    # tenant-unknown: "No se pudo identificar el negocio. Revisa la configuración del bot."
-    # no-rag-info: "No tenemos esa información disponible. ¿En qué más podemos ayudarte?"
-    # ai-error: "No pude conectar con el asistente. Verifica que Ollama esté en marcha."
-    # ai-hint: "💬 También puedes escribir tu pregunta y te responderé."
-    # greeting: "Hola, ¿en qué podemos ayudarte?"   # saludo cuando solo IA (sin menú/FAQ)
+  messages: {}
 
-  # WhatsApp webhook: secreto HMAC (servidor) + URL pública. Verify token por bot = derivado, no en BD.
   whatsapp:
     verify-secret: ${BOT_WHATSAPP_VERIFY_SECRET:dev-insecure-change-me}
     encryption-secret: ${BOT_WHATSAPP_ENCRYPTION_SECRET:dev-insecure-change-me}
     verify-token: ${BOT_WHATSAPP_VERIFY_TOKEN:}
-    public-base-url: ${BOT_PUBLIC_BASE_URL:http://localhost:8080}
 
-  # Features por tenant están en BD (feature_config / bot). Aquí solo canales.
   channels:
     web:
       base-path: /api/v1/webhook
-    # WhatsApp: phone id por bot; access token cifrado (AES-GCM); verify token derivado (HMAC).
 
 # -----------------------------------------------------------------------------
 # HTTP
@@ -152,59 +159,8 @@ logging:
     com.botai: DEBUG
     org.hibernate.SQL: WARN
 
-# ============================================================
-# [AGENDA] — Configuración del módulo AGENDA (aislada del bot).
-# ============================================================
-agenda:
-  enabled: ${AGENDA_ENABLED:true}
-  public:
-    # Base URL del FRONTEND (no el backend) para construir el link público que se comparte.
-    # Ejemplos:
-    # - http://localhost:5173
-    # - https://app.botai.com
-    base-url: ${AGENDA_PUBLIC_BASE_URL:http://localhost:5173}
-  security:
-    # Desactiva JWT en /api/** (tests locales). En prod debe ser true.
-    enabled: ${AGENDA_SECURITY_ENABLED:true}
-    google:
-      # Issuer de los ID tokens de Google.
-      issuer-uri: ${AGENDA_GOOGLE_ISSUER_URI:https://accounts.google.com}
-      # Client ID(s) OAuth cuyo token Google aceptamos (claim aud). Debe coincidir con el emisor del id_token.
-      # Flutter Web usa GOOGLE_CLIENT_ID_WEB → el claim aud es ese cliente (tipo "Web application").
-      # Si solo definís GOOGLE_CLIENT_ID_WEB en el entorno, el backend lo reusa aquí cuando GOOGLE_CLIENT_ID está vacío.
-      # Varios clientes (Web+Android+iOS): lista separada por comas en GOOGLE_CLIENT_ID.
-      audience: ${GOOGLE_CLIENT_ID:${GOOGLE_CLIENT_ID_WEB:}}
-  uploads:
-    dir: ${AGENDA_UPLOADS_DIR:uploads}
-    base-url: ${AGENDA_UPLOADS_BASE_URL:http://localhost:8080/uploads}
-  db:
-    table-prefix: agenda_
-  search:
-    cache-ttl-seconds: 60
-    rate-limit:
-      requests-per-minute: 60
-  booking:
-    default-cancellation-hours: 4
-  loyalty:
-    default-min-attendances: 3
-    default-window-days: 30
-  notifications:
-    scheduled-cron: "0 0 9 * * *"
-  payment:
-    stub:
-      # true: aprueba todo. false: rechaza todo (útil para validar el unhappy path sin cambiar código).
-      auto-approve: ${AGENDA_PAYMENT_STUB_AUTO_APPROVE:true}
-      # Si > 0, rechaza montos mayores a este valor. 0 = sin límite.
-      reject-amount-over: ${AGENDA_PAYMENT_STUB_REJECT_OVER:0}
-  idempotency:
-    # Limpia claves con más de N horas (tarea programada diaria).
-    ttl-hours: 24
-  outbox:
-    # Delay en ms entre corridas del scheduler de outbox.
-    poll-delay-ms: 10000
-
 # -----------------------------------------------------------------------------
-# Actuator — métricas y health (solo expone lo mínimo necesario)
+# Actuator
 # -----------------------------------------------------------------------------
 management:
   endpoints:
@@ -217,7 +173,6 @@ management:
 
 # =============================================================================
 # Embeddings por API (OpenRouter, OpenAI, Ollama /v1, …)
-# Render $0: BOT_EMBEDDING_API_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2:free + BOT_EMBEDDING_API_DIMENSIONS=384
 # =============================================================================
 ---
 spring.config.activate.on-property:
@@ -240,7 +195,7 @@ spring:
           model: ${BOT_CHAT_API_MODEL:openrouter/free}
 
 # =============================================================================
-# Chat por API sin Ollama (local con DJL: BOT_CHAT_PROVIDER=api)
+# Chat por API sin Ollama
 # =============================================================================
 ---
 spring.config.activate.on-property:

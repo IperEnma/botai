@@ -1,6 +1,7 @@
 package com.botai.infrastructure.chatbot.channel.whatsapp;
 
 import com.botai.infrastructure.chatbot.config.BotWhatsAppConfig;
+import com.botai.infrastructure.config.AppUrlProperties;
 import com.botai.infrastructure.chatbot.persistence.jpa.BotJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class WhatsAppVerifyTokenServiceTest {
 
     @BeforeEach
     void setUp() {
-        config = new BotWhatsAppConfig();
+        config = new BotWhatsAppConfig(new AppUrlProperties());
         config.setVerifySecret("test-secret-at-least-16-chars");
         service = new WhatsAppVerifyTokenService(botRepository, config);
     }

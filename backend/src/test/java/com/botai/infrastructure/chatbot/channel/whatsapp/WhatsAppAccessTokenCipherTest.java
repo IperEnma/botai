@@ -1,6 +1,7 @@
 package com.botai.infrastructure.chatbot.channel.whatsapp;
 
 import com.botai.infrastructure.chatbot.config.BotWhatsAppConfig;
+import com.botai.infrastructure.config.AppUrlProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +16,7 @@ class WhatsAppAccessTokenCipherTest {
 
     @BeforeEach
     void setUp() {
-        config = new BotWhatsAppConfig();
+        config = new BotWhatsAppConfig(new AppUrlProperties());
         config.setEncryptionSecret("test-encryption-secret-32-chars!!");
         cipher = new WhatsAppAccessTokenCipher(config);
     }

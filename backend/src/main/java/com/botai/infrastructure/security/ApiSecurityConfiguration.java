@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  * Protege toda la API bajo {@code /api/**} con JWT (Google ID token) salvo rutas públicas declaradas.
  *
  * <p>Infraestructura transversal: aplica a {@code /api/bots}, {@code /api/agenda/**}, etc.
- * Propiedades bajo {@code agenda.security.*}. El contexto por hilo de identidad/tenant está en
+ * Propiedades bajo {@code security.*}. El contexto por hilo de identidad/tenant está en
  * {@link com.botai.infrastructure.security.context.ThreadTenantContext}.</p>
  */
 @Configuration
@@ -42,7 +42,7 @@ public class ApiSecurityConfiguration {
     @Order(1)
     SecurityFilterChain apiSecurityFilterChain(
             HttpSecurity http,
-            @Value("${agenda.security.enabled:true}") boolean enabled
+            @Value("${security.enabled:true}") boolean enabled
     ) throws Exception {
         http.securityMatcher("/api/**");
 
@@ -108,8 +108,8 @@ public class ApiSecurityConfiguration {
 
     @Bean
     JwtDecoder jwtDecoder(
-            @Value("${agenda.security.google.issuer-uri:https://accounts.google.com}") String issuer,
-            @Value("${agenda.security.google.audience:}") String audience
+            @Value("${security.google.issuer-uri:https://accounts.google.com}") String issuer,
+            @Value("${security.google.audience:}") String audience
     ) {
         JwtDecoder decoder = JwtDecoders.fromIssuerLocation(issuer);
         if (decoder instanceof org.springframework.security.oauth2.jwt.NimbusJwtDecoder nimbus) {

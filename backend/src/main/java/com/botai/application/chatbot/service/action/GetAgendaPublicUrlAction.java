@@ -5,7 +5,7 @@ import com.botai.domain.chatbot.model.ConversationState;
 import com.botai.domain.chatbot.model.OutboundMessage;
 import com.botai.domain.chatbot.repository.ConversationRepository;
 import com.botai.domain.chatbot.service.BotAction;
-import org.springframework.beans.factory.annotation.Value;
+import com.botai.infrastructure.config.AppUrlProperties;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -23,14 +23,14 @@ public class GetAgendaPublicUrlAction implements BotAction {
 
     private final ConversationRepository conversationRepository;
     private final JdbcTemplate jdbcTemplate;
-    private final String frontendBaseUrl;
+    private final AppUrlProperties appUrls;
 
     public GetAgendaPublicUrlAction(ConversationRepository conversationRepository,
                                     JdbcTemplate jdbcTemplate,
-                                    @Value("${agenda.public.base-url:http://localhost:5173}") String frontendBaseUrl) {
+                                    AppUrlProperties appUrls) {
         this.conversationRepository = conversationRepository;
         this.jdbcTemplate = jdbcTemplate;
-        this.frontendBaseUrl = frontendBaseUrl != null ? frontendBaseUrl.strip() : "http://localhost:5173";
+        this.appUrls = appUrls;
     }
 
     @Override
@@ -91,7 +91,6 @@ public class GetAgendaPublicUrlAction implements BotAction {
     }
 
     private String buildPublicUrl(String slug) {
-        String base = frontendBaseUrl.endsWith("/") ? frontendBaseUrl.substring(0, frontendBaseUrl.length() - 1) : frontendBaseUrl;
-        return base + "/#/agenda/" + slug;
+        return appUrls.normalizedFrontend() + "/#/agenda/" + slug;
     }
 }

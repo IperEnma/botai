@@ -2,11 +2,11 @@ package com.botai.infrastructure.agenda.api;
 
 import com.botai.application.agenda.dto.PublicAgendaLinkResponse;
 import com.botai.application.agenda.usecase.business.GetOrCreatePublicAgendaLinkUseCase;
+import com.botai.infrastructure.config.AppUrlProperties;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,25 +17,28 @@ import org.springframework.web.bind.annotation.RestController;
 public class MePublicAgendaLinkController {
 
     private final GetOrCreatePublicAgendaLinkUseCase useCase;
-    private final String frontendBaseUrl;
+    private final AppUrlProperties appUrls;
 
     public MePublicAgendaLinkController(
             GetOrCreatePublicAgendaLinkUseCase useCase,
-            @Value("${agenda.public.base-url:}") String frontendBaseUrl
+            AppUrlProperties appUrls
     ) {
         this.useCase = useCase;
-        this.frontendBaseUrl = frontendBaseUrl;
+        this.appUrls = appUrls;
     }
 
     @GetMapping("/public-link")
     @Operation(summary = "Obtener (y si falta, crear) el link público amigable de la Agenda para este tenant")
     public ResponseEntity<PublicAgendaLinkResponse> getPublicLink(HttpServletRequest request) {
-        String origin = request.getScheme() + "://" + request.getServerName()
-                + ((request.getServerPort() == 80 || request.getServerPort() == 443) ? "" : ":" + request.getServerPort());
-        final String base = (frontendBaseUrl == null || frontendBaseUrl.isBlank())
-                ? origin
-                : frontendBaseUrl.trim();
+        String configured = appUrls.normalizedFrontend();
+        final String base;
+        if (configured.isBlank()) {
+            base = request.getScheme() + "://" + request.getServerName()
+                    + ((request.getServerPort() == 80 || request.getServerPort() == 443)
+                    ? "" : ":" + request.getServerPort());
+        } else {
+            base = configured;
+        }
         return ResponseEntity.ok(useCase.execute(base));
     }
 }
-

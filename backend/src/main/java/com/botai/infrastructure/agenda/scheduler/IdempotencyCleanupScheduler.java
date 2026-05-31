@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * Se ejecuta una vez por día a medianoche.
  */
 @Component
-@ConditionalOnProperty(name = "agenda.outbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "schedulers.enabled", havingValue = "true", matchIfMissing = true)
 public class IdempotencyCleanupScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(IdempotencyCleanupScheduler.class);
@@ -22,7 +22,7 @@ public class IdempotencyCleanupScheduler {
     private final int ttlHours;
 
     public IdempotencyCleanupScheduler(JdbcTemplate jdbc,
-                                        @Value("${agenda.idempotency.ttl-hours:24}") int ttlHours) {
+                                        @Value("${idempotency.ttl-hours:24}") int ttlHours) {
         this.jdbc     = jdbc;
         this.ttlHours = ttlHours;
     }

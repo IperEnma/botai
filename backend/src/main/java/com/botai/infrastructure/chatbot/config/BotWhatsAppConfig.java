@@ -1,5 +1,6 @@
 package com.botai.infrastructure.chatbot.config;
 
+import com.botai.infrastructure.config.AppUrlProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "bot.whatsapp")
 public class BotWhatsAppConfig {
+
+    private final AppUrlProperties appUrls;
 
     /**
      * Secreto del servidor para derivar verify tokens (no se guarda el token en BD).
@@ -23,8 +26,9 @@ public class BotWhatsAppConfig {
      */
     private String verifyToken = "";
 
-    /** URL pública del backend (sin path), p. ej. https://api.tudominio.com */
-    private String publicBaseUrl = "http://localhost:8080";
+    public BotWhatsAppConfig(AppUrlProperties appUrls) {
+        this.appUrls = appUrls;
+    }
 
     public String getVerifyToken() {
         return verifyToken;
@@ -50,19 +54,7 @@ public class BotWhatsAppConfig {
         this.encryptionSecret = encryptionSecret;
     }
 
-    public String getPublicBaseUrl() {
-        return publicBaseUrl;
-    }
-
-    public void setPublicBaseUrl(String publicBaseUrl) {
-        this.publicBaseUrl = publicBaseUrl;
-    }
-
     public String webhookUrl() {
-        String base = publicBaseUrl == null ? "" : publicBaseUrl.strip();
-        while (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-        return base + "/api/v1/webhook/whatsapp";
+        return appUrls.whatsappWebhookUrl();
     }
 }

@@ -26,7 +26,7 @@ public class AgendaRateLimitInterceptor implements HandlerInterceptor {
     private final ObjectMapper objectMapper;
 
     public AgendaRateLimitInterceptor(
-            @Value("${agenda.search.rate-limit.requests-per-minute:60}") int requestsPerMinute,
+            @Value("${search.rate-limit.requests-per-minute:60}") int requestsPerMinute,
             ObjectMapper objectMapper) {
         this.requestsPerMinute = requestsPerMinute;
         this.objectMapper = objectMapper;

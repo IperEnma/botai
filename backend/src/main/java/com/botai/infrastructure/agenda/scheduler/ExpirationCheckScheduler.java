@@ -42,7 +42,7 @@ import java.util.Optional;
  * personalizarlo por negocio.</p>
  */
 @Component
-@ConditionalOnProperty(name = "agenda.outbox.scheduler.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "schedulers.enabled", havingValue = "true", matchIfMissing = true)
 public class ExpirationCheckScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(ExpirationCheckScheduler.class);
@@ -65,7 +65,7 @@ public class ExpirationCheckScheduler {
         this.clock = clock;
     }
 
-    @Scheduled(cron = "${agenda.notifications.scheduled-cron:0 0 9 * * *}")
+    @Scheduled(cron = "${notifications.scheduled-cron:0 0 9 * * *}")
     @Transactional
     public void checkExpirationsAndLowBalance() {
         LocalDateTime now = LocalDateTime.now(clock);
