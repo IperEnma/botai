@@ -139,7 +139,7 @@ public class AdminController {
             .map(bot -> ResponseEntity.ok(Map.of(
                     "webhookUrl", botWhatsAppConfig.webhookUrl(),
                     "verifyToken", whatsAppVerifyTokenService.tokenForBot(botId),
-                    "hint", "Pegá estos valores en Meta › WhatsApp › Configuration › Webhook"
+                    "hint", "Copiá la URL en Meta › Webhook. El verify token se copia con un botón (no se muestra en pantalla)."
             )))
             .orElse(ResponseEntity.notFound().build());
     }

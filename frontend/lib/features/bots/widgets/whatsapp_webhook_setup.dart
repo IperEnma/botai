@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../models/whatsapp_webhook_setup.dart';
 import '../../../providers/bot_provider.dart';
 import '../../agenda/register/konecta_tokens.dart';
 
-/// URL y verify token del bot (generados en backend; copiar en Meta).
+const _verifyTokenDeliveredKeyPrefix = 'wa_verify_delivered_';
+
+/// URL del webhook + verify token (copia al portapapeles; no se muestra en pantalla).
 class WhatsAppWebhookSetup extends ConsumerStatefulWidget {
   const WhatsAppWebhookSetup({
     super.key,
@@ -30,10 +33,12 @@ enum WhatsAppWebhookSetupStyle { material, konecta }
 class _WhatsAppWebhookSetupState extends ConsumerState<WhatsAppWebhookSetup> {
   WhatsAppWebhookSetupInfo? _info;
   Object? _error;
+  bool _verifyTokenDelivered = false;
 
   @override
   void initState() {
     super.initState();
+    _loadDeliveredFlag();
     _load();
   }
 
@@ -41,8 +46,20 @@ class _WhatsAppWebhookSetupState extends ConsumerState<WhatsAppWebhookSetup> {
   void didUpdateWidget(covariant WhatsAppWebhookSetup oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.botId != widget.botId) {
+      _loadDeliveredFlag();
       _load();
     }
+  }
+
+  Future<void> _loadDeliveredFlag() async {
+    if (widget.botId.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _verifyTokenDelivered =
+          prefs.getBool('$_verifyTokenDeliveredKeyPrefix${widget.botId}') ??
+              false;
+    });
   }
 
   Future<void> _load() async {
@@ -59,6 +76,34 @@ class _WhatsAppWebhookSetupState extends ConsumerState<WhatsAppWebhookSetup> {
     } catch (e) {
       if (mounted) setState(() => _error = e);
     }
+  }
+
+  Future<void> _copyVerifyToken({required bool markDelivered}) async {
+    final token = _info?.verifyToken ?? '';
+    if (token.isEmpty) return;
+
+    await Clipboard.setData(ClipboardData(text: token));
+
+    if (markDelivered) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(
+        '$_verifyTokenDeliveredKeyPrefix${widget.botId}',
+        true,
+      );
+      if (mounted) setState(() => _verifyTokenDelivered = true);
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          markDelivered
+              ? 'Verify token copiado. Pegalo en Meta › Webhook (no se guarda en pantalla).'
+              : 'Verify token copiado de nuevo.',
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -86,8 +131,18 @@ class _WhatsAppWebhookSetupState extends ConsumerState<WhatsAppWebhookSetup> {
     }
 
     return widget.style == WhatsAppWebhookSetupStyle.konecta
-        ? _KonectaBody(info: _info!, compact: widget.compact)
-        : _MaterialBody(info: _info!, compact: widget.compact);
+        ? _KonectaBody(
+            info: _info!,
+            compact: widget.compact,
+            verifyTokenDelivered: _verifyTokenDelivered,
+            onCopyVerifyToken: _copyVerifyToken,
+          )
+        : _MaterialBody(
+            info: _info!,
+            compact: widget.compact,
+            verifyTokenDelivered: _verifyTokenDelivered,
+            onCopyVerifyToken: _copyVerifyToken,
+          );
   }
 }
 
@@ -112,8 +167,8 @@ class WhatsAppWebhookSetupPending extends StatelessWidget {
           border: Border.all(color: KTokens.border),
         ),
         child: Text(
-          'Al crear el bot verás URL y Verify Token en Configuración para pegarlos en Meta › WhatsApp › Webhook. '
-          'Se generan solos (no hace falta inventarlos ni guardarlos).',
+          'Al crear el bot, en Configuración vas a copiar la URL del webhook y el verify token '
+          '(se genera solo y se copia al portapapeles; no queda visible en pantalla).',
           style: GoogleFonts.inter(
             fontSize: 12,
             color: KTokens.inkMuted,
@@ -129,7 +184,8 @@ class WhatsAppWebhookSetupPending extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        'Al crear el bot verás URL y Verify Token en Configuración para copiarlos en Meta › WhatsApp › Webhook.',
+        'Al crear el bot, en Configuración copiás la URL y el verify token en Meta › WhatsApp › Webhook. '
+        'El token se copia al portapapeles y no se muestra en pantalla.',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.45),
       ),
     );
@@ -137,10 +193,17 @@ class WhatsAppWebhookSetupPending extends StatelessWidget {
 }
 
 class _MaterialBody extends StatelessWidget {
-  const _MaterialBody({required this.info, required this.compact});
+  const _MaterialBody({
+    required this.info,
+    required this.compact,
+    required this.verifyTokenDelivered,
+    required this.onCopyVerifyToken,
+  });
 
   final WhatsAppWebhookSetupInfo info;
   final bool compact;
+  final bool verifyTokenDelivered;
+  final Future<void> Function({required bool markDelivered}) onCopyVerifyToken;
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +220,8 @@ class _MaterialBody extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             info.hint ??
-                'Copiá estos valores en Meta › WhatsApp › Configuration › Webhook.',
+                'Copiá la URL en Meta › WhatsApp › Configuration › Webhook. '
+                'El verify token se copia con el botón (no se muestra acá).',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.grey[700],
                   height: 1.4,
@@ -167,17 +231,28 @@ class _MaterialBody extends StatelessWidget {
         ],
         _CopyField(label: 'URL del Webhook', value: info.webhookUrl),
         const SizedBox(height: 12),
-        _CopyField(label: 'Verify Token (de este bot)', value: info.verifyToken),
+        _VerifyTokenCopySection(
+          delivered: verifyTokenDelivered,
+          onCopy: onCopyVerifyToken,
+          style: WhatsAppWebhookSetupStyle.material,
+        ),
       ],
     );
   }
 }
 
 class _KonectaBody extends StatelessWidget {
-  const _KonectaBody({required this.info, required this.compact});
+  const _KonectaBody({
+    required this.info,
+    required this.compact,
+    required this.verifyTokenDelivered,
+    required this.onCopyVerifyToken,
+  });
 
   final WhatsAppWebhookSetupInfo info;
   final bool compact;
+  final bool verifyTokenDelivered;
+  final Future<void> Function({required bool markDelivered}) onCopyVerifyToken;
 
   @override
   Widget build(BuildContext context) {
@@ -196,7 +271,7 @@ class _KonectaBody extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             info.hint ??
-                'Copiá URL y Verify Token en Meta › WhatsApp › Configuration › Webhook.',
+                'URL en Meta › Webhook. Verify token: botón copiar (no visible en pantalla).',
             style: GoogleFonts.inter(
               fontSize: 12,
               color: KTokens.inkMuted,
@@ -207,9 +282,180 @@ class _KonectaBody extends StatelessWidget {
         ],
         _KonectaCopyField(label: 'URL DEL WEBHOOK', value: info.webhookUrl),
         const SizedBox(height: 16),
-        _KonectaCopyField(
-          label: 'VERIFY TOKEN (DE ESTE BOT)',
-          value: info.verifyToken,
+        _VerifyTokenCopySection(
+          delivered: verifyTokenDelivered,
+          onCopy: onCopyVerifyToken,
+          style: WhatsAppWebhookSetupStyle.konecta,
+        ),
+      ],
+    );
+  }
+}
+
+class _VerifyTokenCopySection extends StatelessWidget {
+  const _VerifyTokenCopySection({
+    required this.delivered,
+    required this.onCopy,
+    required this.style,
+  });
+
+  final bool delivered;
+  final Future<void> Function({required bool markDelivered}) onCopy;
+  final WhatsAppWebhookSetupStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (style == WhatsAppWebhookSetupStyle.konecta) {
+      return _konecta(context);
+    }
+    return _material(context);
+  }
+
+  Widget _material(BuildContext context) {
+    if (delivered) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.green.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.check_circle_outline,
+                    size: 18, color: Colors.green.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Verify token copiado. Pegalo en Meta; no se muestra de nuevo acá.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.green.shade900,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => onCopy(markDelivered: false),
+                child: const Text('Copiar otra vez'),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Verify Token',
+          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Se genera solo para este bot. No se muestra en pantalla: se copia al portapapeles.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey[700],
+                height: 1.35,
+              ),
+        ),
+        const SizedBox(height: 10),
+        FilledButton.icon(
+          onPressed: () => onCopy(markDelivered: true),
+          icon: const Icon(Icons.content_copy, size: 18),
+          label: const Text('Copiar verify token'),
+        ),
+      ],
+    );
+  }
+
+  Widget _konecta(BuildContext context) {
+    if (delivered) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: KTokens.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: KTokens.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.check_circle_outline,
+                    size: 16, color: Colors.green.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'VERIFY TOKEN COPIADO — pegalo en Meta; no queda visible acá.',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10,
+                      color: KTokens.inkMuted,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            TextButton(
+              onPressed: () => onCopy(markDelivered: false),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Copiar otra vez',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: KTokens.inkSoft,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'VERIFY TOKEN',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 10,
+            color: KTokens.inkSoft,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Generado para este bot. Copialo con el botón; no se muestra en pantalla.',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: KTokens.inkMuted,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: () => onCopy(markDelivered: true),
+          icon: const Icon(Icons.content_copy, size: 16),
+          label: Text(
+            'COPIAR VERIFY TOKEN',
+            style: GoogleFonts.jetBrainsMono(fontSize: 11, letterSpacing: 0.6),
+          ),
         ),
       ],
     );
