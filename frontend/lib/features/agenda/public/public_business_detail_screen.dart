@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/agenda/agenda_service.dart';
@@ -57,7 +58,7 @@ class PublicBusinessDetailBySlugScreen extends ConsumerWidget {
           onRetry: () => ref.refresh(publicBusinessBySlugProvider(slug)),
         ),
       ),
-      data: (b) => _DetailPage(business: b, servicesAsync: servicesAsync),
+      data: (b) => _DetailPage(business: b, servicesAsync: servicesAsync, slug: slug),
     );
   }
 }
@@ -67,10 +68,11 @@ class PublicBusinessDetailBySlugScreen extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _DetailPage extends StatelessWidget {
-  const _DetailPage({required this.business, required this.servicesAsync});
+  const _DetailPage({required this.business, required this.servicesAsync, this.slug});
 
   final Business business;
   final AsyncValue<List<AgendaService>> servicesAsync;
+  final String? slug;
 
   Color get _primaryColor {
     final hex = business.colorPrimario;
@@ -96,7 +98,11 @@ class _DetailPage extends StatelessWidget {
       business.facebookUrl != null;
 
   void _openBooking(BuildContext context, AgendaService? service,
-      List<AgendaService> services) {
+      List<AgendaService> services, {String? slug}) {
+    if (slug != null && slug.isNotEmpty) {
+      context.push('/reservar/$slug');
+      return;
+    }
     final primary = _primaryColor;
     final bg = _bgColor;
     final dark = _bgIsDark;
@@ -273,7 +279,7 @@ class _DetailPage extends StatelessWidget {
                                 onPressed: services.isEmpty
                                     ? null
                                     : () => _openBooking(
-                                        context, null, services),
+                                        context, null, services, slug: slug),
                                 child: Text(
                                     services.isEmpty
                                         ? 'Sin servicios disponibles'
@@ -339,7 +345,7 @@ class _DetailPage extends StatelessWidget {
                                   fontFamily: font,
                                   dark: dark,
                                   onBook: () => _openBooking(
-                                      context, s, list),
+                                      context, s, list, slug: slug),
                                 ),
                             ],
                           ),

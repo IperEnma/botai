@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Devuelve el vínculo público de agenda (frontend /#/agenda/&lt;slug&gt;) para autogestión del cliente.
+ * Devuelve el vínculo público de agenda (frontend /#/reservar/...) para autogestión del cliente.
  * Lee {@code agenda_businesses} vía JDBC (sin imports del módulo agenda).
  */
 @Component
@@ -55,15 +55,16 @@ public class GetAgendaPublicUrlAction implements BotAction {
         }
         conversationRepository.clearIntent(state.getConversationId());
 
-        Optional<String> slugOpt = findPrimaryPublicSlug(tenantId);
-        if (slugOpt.isEmpty() || slugOpt.get().isBlank()) {
+        Optional<PublicLinkRow> linkOpt = findPrimaryPublicLink(tenantId);
+        if (linkOpt.isEmpty()) {
             return OutboundMessage.builder()
                 .text("Todavía no hay un enlace público de agenda disponible para este negocio. Cuando esté listo, podrás reservar desde la web.")
                 .conversationId(state.getConversationId())
                 .tenantId(tenantId)
                 .build();
         }
-        String url = buildPublicUrl(slugOpt.get());
+        PublicLinkRow link = linkOpt.get();
+        String url = buildPublicUrl(link);
         String text = "¡Genial! Para elegir día, horario disponible y dejar tus datos con calma, entrá acá:\n" + url
             + "\n\nAhí ves la disponibilidad al día. Si antes querés info del negocio (servicios, horarios, etc.), escribime.";
         return OutboundMessage.builder()
@@ -73,24 +74,57 @@ public class GetAgendaPublicUrlAction implements BotAction {
             .build();
     }
 
-    Optional<String> findPrimaryPublicSlug(String tenantId) {
-        List<String> rows = jdbcTemplate.query(
+    Optional<PublicLinkRow> findPrimaryPublicLink(String tenantId) {
+        List<PublicLinkRow> rows = jdbcTemplate.query(
             """
-                SELECT public_slug FROM agenda_businesses
+                SELECT public_slug, company_slug, nombre,
+                       (SELECT COUNT(*) FROM agenda_businesses b2
+                         WHERE b2.tenant_id = ? AND b2.deleted_at IS NULL AND b2.activo = TRUE) AS branch_count
+                FROM agenda_businesses
                 WHERE tenant_id = ? AND deleted_at IS NULL AND activo = TRUE
                   AND public_slug IS NOT NULL AND public_slug <> ''
                 ORDER BY created_at ASC
                 LIMIT 1
                 """,
-            ps -> ps.setString(1, tenantId),
-            (rs, rowNum) -> rs.getString(1));
+            ps -> {
+                ps.setString(1, tenantId);
+                ps.setString(2, tenantId);
+            },
+            (rs, rowNum) -> new PublicLinkRow(
+                rs.getString("public_slug"),
+                rs.getString("company_slug"),
+                rs.getString("nombre"),
+                rs.getLong("branch_count")
+            ));
         if (rows.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(rows.get(0));
+        return Optional.of(rows.get(0));
     }
 
-    private String buildPublicUrl(String slug) {
-        return appUrls.normalizedFrontend() + "/#/agenda/" + slug;
+    private String buildPublicUrl(PublicLinkRow link) {
+        String base = appUrls.normalizedFrontend();
+        if (link.branchCount() > 1) {
+            String company = link.companySlug();
+            if (company == null || company.isBlank()) {
+                company = compactSlug(link.nombre());
+            }
+            return base + "/#/reservar?company=" + company;
+        }
+        return base + "/#/reservar/" + link.publicSlug();
+    }
+
+    record PublicLinkRow(String publicSlug, String companySlug, String nombre, long branchCount) {
+    }
+
+    private static String compactSlug(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "agenda";
+        }
+        String normalized = java.text.Normalizer.normalize(raw, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(java.util.Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "");
+        return normalized.isBlank() ? "agenda" : normalized;
     }
 }

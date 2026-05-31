@@ -40,18 +40,21 @@ class GetAgendaPublicUrlActionTest {
     }
 
     @Test
-    void findPrimaryPublicSlug_delegatesToJdbc() {
+    void findPrimaryPublicLink_delegatesToJdbc() {
         when(jdbcTemplate.query(anyString(), any(PreparedStatementSetter.class), any(RowMapper.class)))
-            .thenReturn(List.of("mi-slug"));
+            .thenReturn(List.of(new GetAgendaPublicUrlAction.PublicLinkRow(
+                    "mi-slug", "micompany", "Mi Negocio", 1L)));
 
-        Optional<String> slug = action.findPrimaryPublicSlug("tenant-1");
-        assertThat(slug).contains("mi-slug");
+        Optional<GetAgendaPublicUrlAction.PublicLinkRow> link = action.findPrimaryPublicLink("tenant-1");
+        assertThat(link).isPresent();
+        assertThat(link.get().publicSlug()).isEqualTo("mi-slug");
     }
 
     @Test
-    void execute_buildsFrontendHashUrl() {
+    void execute_buildsReservarUrlForSingleBranch() {
         when(jdbcTemplate.query(anyString(), any(PreparedStatementSetter.class), any(RowMapper.class)))
-            .thenReturn(List.of("clinica-abc"));
+            .thenReturn(List.of(new GetAgendaPublicUrlAction.PublicLinkRow(
+                    "clinica-abc", "clinica", "Clínica", 1L)));
 
         var state = ConversationState.builder()
             .conversationId("c1")
@@ -59,8 +62,23 @@ class GetAgendaPublicUrlActionTest {
             .build();
 
         var out = action.execute(state, "link");
-        assertThat(out.getText()).contains("http://localhost:5173/#/agenda/clinica-abc");
+        assertThat(out.getText()).contains("http://localhost:5173/#/reservar/clinica-abc");
         verify(conversationRepository).clearIntent("c1");
+    }
+
+    @Test
+    void execute_buildsCompanyUrlForMultipleBranches() {
+        when(jdbcTemplate.query(anyString(), any(PreparedStatementSetter.class), any(RowMapper.class)))
+            .thenReturn(List.of(new GetAgendaPublicUrlAction.PublicLinkRow(
+                    "sucursal-1", "felitobarber", "Felito", 2L)));
+
+        var state = ConversationState.builder()
+            .conversationId("c1")
+            .context(java.util.Map.of("tenantId", "t1"))
+            .build();
+
+        var out = action.execute(state, "link");
+        assertThat(out.getText()).contains("http://localhost:5173/#/reservar?company=felitobarber");
     }
 
     @Test

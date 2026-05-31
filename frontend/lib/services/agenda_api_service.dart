@@ -20,6 +20,7 @@ import '../models/agenda/loyalty_suggestion.dart';
 import '../models/agenda/notification_template.dart';
 import '../models/agenda/plan.dart';
 import '../models/agenda/public_client.dart';
+import '../models/agenda/public_company.dart';
 import '../models/agenda/register_tenant.dart';
 import '../models/agenda/tenant_admin_context.dart';
 import '../models/agenda/staff_member.dart';
@@ -285,8 +286,18 @@ class AgendaApiService {
         'slug': (m['slug'] ?? '').toString(),
         'url': (m['url'] ?? '').toString(),
         'businessId': (m['businessId'] ?? '').toString(),
+        'companySlug': (m['companySlug'] ?? '').toString(),
       };
     });
+  }
+
+  /// `GET /public/companies/{companySlug}` — marca y sucursales (Felito-style).
+  Future<PublicCompany> publicCompanyDetail(String companySlug) async {
+    final r = await _send(() => _client.get(
+          _uri('/public/companies/$companySlug'),
+          headers: _headers(),
+        ));
+    return _decode(r, (b) => PublicCompany.fromJson(b as Map<String, dynamic>));
   }
 
   /// `GET /public/links/{slug}` — resuelve slug → businessId.

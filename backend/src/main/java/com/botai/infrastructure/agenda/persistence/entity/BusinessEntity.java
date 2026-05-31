@@ -16,7 +16,10 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "agenda_businesses",
-        indexes = @Index(name = "idx_agenda_businesses_bot_id", columnList = "bot_id"))
+        indexes = {
+                @Index(name = "idx_agenda_businesses_bot_id", columnList = "bot_id"),
+                @Index(name = "idx_agenda_businesses_company_slug", columnList = "company_slug")
+        })
 public class BusinessEntity extends BaseAuditableEntity {
 
     @Id
@@ -66,6 +69,9 @@ public class BusinessEntity extends BaseAuditableEntity {
     @Column(name = "public_slug", length = 180)
     private String publicSlug;
 
+    @Column(name = "company_slug", length = 80)
+    private String companySlug;
+
     /** FK a {@code bot.id}; varios negocios pueden compartir el mismo bot (mismo workspace). */
     @Column(name = "bot_id")
     private Long botId;
@@ -103,6 +109,8 @@ public class BusinessEntity extends BaseAuditableEntity {
     public void setFontFamily(String fontFamily) { this.fontFamily = fontFamily; }
     public String getPublicSlug() { return publicSlug; }
     public void setPublicSlug(String publicSlug) { this.publicSlug = publicSlug; }
+    public String getCompanySlug() { return companySlug; }
+    public void setCompanySlug(String companySlug) { this.companySlug = companySlug; }
     public Long getBotId() { return botId; }
     public void setBotId(Long botId) { this.botId = botId; }
     public LocalDateTime getDeletedAt() { return deletedAt; }

@@ -31,13 +31,13 @@ class AgendaLeftNav extends ConsumerWidget {
     final section =
         GoRouterState.of(context).uri.queryParameters['section'] ?? '';
 
-    final selectedInicio = loc.startsWith('/agenda/businesses/') &&
+    final selectedInicio = (loc == '/agenda/panel' || loc.startsWith('/agenda/panel')) &&
         !loc.contains('/section/') &&
         !loc.contains('/config') &&
         section.isEmpty;
     final selectedBots = loc.startsWith('/bots');
     final selectedAgenda =
-        loc.startsWith('/agenda/businesses/') && section == 'agenda';
+        loc == '/agenda/panel' && section == 'agenda';
     final selectedHorarios = loc.contains('/section/hours');
     final selectedEstilos = loc.contains('/section/styles');
     final selectedServicios = loc.contains('/section/services');
@@ -72,9 +72,7 @@ class AgendaLeftNav extends ConsumerWidget {
             icon: Icons.home_outlined,
             label: 'Inicio',
             selected: selectedInicio,
-            onTap: businessId != null
-                ? () => context.go('/agenda/businesses/$businessId')
-                : null,
+            onTap: () => context.go('/agenda/panel'),
           ),
           AgendaNavItem(
             icon: Icons.smart_toy_outlined,
@@ -86,66 +84,45 @@ class AgendaLeftNav extends ConsumerWidget {
             icon: Icons.calendar_today_outlined,
             label: 'Agenda',
             selected: selectedAgenda,
-            onTap: businessId != null
-                ? () =>
-                    context.go('/agenda/businesses/$businessId?section=agenda')
-                : null,
+            onTap: () => context.go('/agenda/panel?section=agenda'),
           ),
           const AgendaNavItem(icon: Icons.people_outline, label: 'Clientes'),
           AgendaNavItem(
             icon: Icons.schedule_outlined,
             label: 'Horarios',
             selected: selectedHorarios,
-            onTap: businessId != null
-                ? () => context
-                    .go('/agenda/businesses/$businessId/section/hours')
-                : null,
+            onTap: () => context.go('/agenda/panel/section/hours'),
           ),
           AgendaNavItem(
             icon: Icons.palette_outlined,
             label: 'Estilos',
             selected: selectedEstilos,
-            onTap: businessId != null
-                ? () => context
-                    .go('/agenda/businesses/$businessId/section/styles')
-                : null,
+            onTap: () => context.go('/agenda/panel/section/styles'),
           ),
           AgendaNavItem(
             icon: Icons.room_service_outlined,
             label: 'Servicios',
             selected: selectedServicios,
-            onTap: businessId != null
-                ? () => context
-                    .go('/agenda/businesses/$businessId/section/services')
-                : null,
+            onTap: () => context.go('/agenda/panel/section/services'),
           ),
           AgendaNavItem(
             icon: Icons.card_membership_outlined,
             label: 'Planes',
             selected: selectedPlanes,
-            onTap: businessId != null
-                ? () =>
-                    context.go('/agenda/businesses/$businessId/section/plans')
-                : null,
+            onTap: () => context.go('/agenda/panel/section/plans'),
           ),
           AgendaNavItem(
             icon: Icons.people_outline,
             label: 'Equipo',
             selected: selectedEquipo,
-            onTap: businessId != null
-                ? () =>
-                    context.go('/agenda/businesses/$businessId/section/staff')
-                : null,
+            onTap: () => context.go('/agenda/panel/section/staff'),
           ),
           const AgendaNavItem(
               icon: Icons.loyalty_outlined, label: 'Fidelizaciones'),
           AgendaNavItem(
             icon: Icons.settings_outlined,
             label: 'Configuración',
-            onTap: businessId != null
-                ? () =>
-                    context.push('/agenda/businesses/$businessId/config')
-                : null,
+            onTap: () => context.push('/agenda/panel/config'),
           ),
           const Spacer(),
           // User profile card

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
@@ -76,8 +75,10 @@ class BusinessesScreen extends ConsumerWidget {
                 final b = state.items[i];
                 return _BusinessCard(
                   business: b,
-                  onTap: () => context.push(
-                    agendaTenantBusinessPath(context, tenantId, b.id),
+                  onTap: () => navigateAgendaTenantBusiness(
+                    context,
+                    ref,
+                    b.id,
                   ),
                 );
               },

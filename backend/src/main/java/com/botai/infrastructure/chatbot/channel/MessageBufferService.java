@@ -6,6 +6,7 @@ import com.botai.application.chatbot.support.InboundMetadata;
 import com.botai.application.chatbot.usecase.ProcessInboundMessageUseCase;
 import com.botai.domain.chatbot.model.InboundMessage;
 import com.botai.domain.chatbot.model.OutboundMessage;
+import com.botai.infrastructure.chatbot.channel.whatsapp.WhatsAppLogRedaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,11 +49,12 @@ public class MessageBufferService {
      */
     public void bufferAndProcess(InboundMessage inbound, Consumer<OutboundMessage> onResponse) {
         String conversationId = inbound.getConversationId();
-        log.info("[BUFFER] bufferAndProcess: convId={}, text={}", conversationId, inbound.getText());
+        log.info("[BUFFER] bufferAndProcess: convId={}, text={}",
+                maskConversationId(conversationId), inbound.getText());
         
         buffers.compute(conversationId, (key, existing) -> {
             if (existing == null) {
-                log.info("[BUFFER] Creando nuevo buffer para {}", conversationId);
+                log.debug("[BUFFER] Creando nuevo buffer para {}", maskConversationId(conversationId));
                 existing = new BufferedConversation(conversationId, onResponse);
             }
             existing.addMessage(inbound);
@@ -140,5 +142,17 @@ public class MessageBufferService {
                 onResponse.accept(errorOut);
             }
         }
+    }
+
+    private static String maskConversationId(String conversationId) {
+        if (conversationId == null || conversationId.isBlank()) {
+            return "***";
+        }
+        int at = conversationId.indexOf('@');
+        if (at <= 0) {
+            return WhatsAppLogRedaction.maskPhone(conversationId);
+        }
+        return WhatsAppLogRedaction.maskPhone(conversationId.substring(0, at))
+                + conversationId.substring(at);
     }
 }

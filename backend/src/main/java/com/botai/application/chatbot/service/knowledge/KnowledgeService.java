@@ -8,19 +8,27 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.beans.factory.annotation.Value;
 
+import java.text.Normalizer;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.IntSupplier;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
  * RAG: recupera fragmentos por búsqueda semántica (embeddings).
- * Sin fallbacks: debe haber EmbeddingModel y chunks con vector; si no, no hay resultados.
+ * Si hay chunks activos pero sin embedding, aplica fallback por texto (p. ej. nombre del negocio).
  */
 public class KnowledgeService {
 
     private static final Logger log = LoggerFactory.getLogger(KnowledgeService.class);
     private static final int DEFAULT_MAX_CHUNKS = 3;
+    private static final Pattern NON_WORD = Pattern.compile("[^\\p{L}\\p{N}]+");
+    private static final String BUSINESS_INFO_TOPIC_PREFIX = "Agenda: Información del negocio";
 
     private static final long BACKFILL_COOLDOWN_MS = 120_000L;
 
@@ -51,27 +59,35 @@ public class KnowledgeService {
     }
 
     /**
-     * Devuelve los fragmentos más relevantes para la consulta (solo búsqueda semántica).
-     * Requiere EmbeddingModel configurado y chunks con embedding; sin fallback.
+     * Devuelve los fragmentos más relevantes para la consulta (búsqueda semántica con fallback textual).
      */
     public List<KnowledgeChunk> findRelevant(String query, int maxChunks, String tenantId) {
         if (query == null || query.isBlank()) {
             return List.of();
         }
-        if (embeddingModel == null) {
-            log.error("[RAG] EmbeddingModel no configurado: definí BOT_EMBEDDING_PROVIDER (djl o api). Sin fallback.");
-            return List.of();
-        }
         int limit = maxChunks > 0 ? maxChunks : DEFAULT_MAX_CHUNKS;
-        List<KnowledgeChunk> result = findRelevantByEmbedding(query, limit, tenantId);
-        if (result.isEmpty() && tenantId != null && !tenantId.isBlank()) {
-            long total = knowledgeRepository.countActiveByTenantId(tenantId);
-            if (total > 0 && tryBackfillEmbeddings(tenantId)) {
-                result = findRelevantByEmbedding(query, limit, tenantId);
+        List<KnowledgeChunk> result = List.of();
+        if (embeddingModel != null) {
+            result = findRelevantByEmbedding(query, limit, tenantId);
+            if (result.isEmpty() && tenantId != null && !tenantId.isBlank()) {
+                long total = knowledgeRepository.countActiveByTenantId(tenantId);
+                if (total > 0 && tryBackfillEmbeddings(tenantId)) {
+                    result = findRelevantByEmbedding(query, limit, tenantId);
+                }
             }
+        } else {
+            log.warn("[RAG] EmbeddingModel no configurado: definí BOT_EMBEDDING_PROVIDER (djl o api). Usando fallback textual.");
         }
         if (result.isEmpty() && tenantId != null && !tenantId.isBlank()) {
             long total = knowledgeRepository.countActiveByTenantId(tenantId);
+            if (total > 0) {
+                result = findRelevantByTextFallback(query, limit, tenantId);
+                if (!result.isEmpty()) {
+                    log.info("[RAG] Fallback texto: {} chunk(s) para tenantId={} query='{}' (embeddings NULL o sin match semántico)",
+                            result.size(), tenantId, query);
+                    return result;
+                }
+            }
             log.warn("[RAG] 0 chunks para tenantId={} query='{}' (chunks activos: {}). "
                     + "Si activos>0: columna embedding_* probablemente NULL — revisá logs [RAG-EMBED] y OPENROUTER_API_KEY.",
                     tenantId, query, total);
@@ -114,6 +130,90 @@ public class KnowledgeService {
             return true;
         }
         return false;
+    }
+
+    private List<KnowledgeChunk> findRelevantByTextFallback(String query, int limit, String tenantId) {
+        List<KnowledgeChunk> active = knowledgeRepository.findAllActiveByTenantId(tenantId);
+        if (active.isEmpty()) {
+            return List.of();
+        }
+        String normalizedQuery = normalizeForMatch(query);
+        Set<String> queryTokens = tokenize(normalizedQuery);
+
+        if (looksLikeBusinessIdentityQuery(normalizedQuery)) {
+            List<KnowledgeChunk> businessInfo = active.stream()
+                    .filter(this::isBusinessInfoChunk)
+                    .limit(limit)
+                    .toList();
+            if (!businessInfo.isEmpty()) {
+                return businessInfo;
+            }
+        }
+
+        List<KnowledgeChunk> ranked = active.stream()
+                .sorted(Comparator
+                        .comparingInt((KnowledgeChunk c) -> scoreChunk(c, queryTokens, normalizedQuery))
+                        .reversed()
+                        .thenComparing(c -> isBusinessInfoChunk(c) ? 0 : 1))
+                .limit(limit)
+                .toList();
+
+        if (ranked.stream().anyMatch(c -> scoreChunk(c, queryTokens, normalizedQuery) > 0)) {
+            return ranked;
+        }
+        return active.stream().limit(limit).toList();
+    }
+
+    private boolean isBusinessInfoChunk(KnowledgeChunk chunk) {
+        return chunk.getTopic() != null && chunk.getTopic().startsWith(BUSINESS_INFO_TOPIC_PREFIX);
+    }
+
+    private boolean looksLikeBusinessIdentityQuery(String normalizedQuery) {
+        if (normalizedQuery == null || normalizedQuery.isBlank()) {
+            return false;
+        }
+        return normalizedQuery.contains("nombre")
+                || normalizedQuery.contains("llaman")
+                || normalizedQuery.contains("llama ")
+                || normalizedQuery.contains("negocio")
+                || normalizedQuery.contains("comercial")
+                || normalizedQuery.contains("quienes son")
+                || normalizedQuery.contains("como se llaman");
+    }
+
+    private int scoreChunk(KnowledgeChunk chunk, Set<String> queryTokens, String normalizedQuery) {
+        String haystack = normalizeForMatch(
+                chunk.getTopic() + " " + chunk.getContent() + " " + chunk.getKeywords());
+        int score = 0;
+        for (String token : queryTokens) {
+            if (token.length() >= 3 && haystack.contains(token)) {
+                score += token.length() >= 5 ? 3 : 1;
+            }
+        }
+        if (isBusinessInfoChunk(chunk) && looksLikeBusinessIdentityQuery(normalizedQuery)) {
+            score += 10;
+        }
+        return score;
+    }
+
+    private static Set<String> tokenize(String normalizedText) {
+        if (normalizedText == null || normalizedText.isBlank()) {
+            return Set.of();
+        }
+        return NON_WORD.splitAsStream(normalizedText)
+                .filter(t -> t.length() >= 2)
+                .collect(Collectors.toSet());
+    }
+
+    private static String normalizeForMatch(String text) {
+        if (text == null) {
+            return "";
+        }
+        String normalized = Normalizer.normalize(text, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .trim();
+        return normalized;
     }
 
     private static List<Double> toListOfDouble(Object output) {

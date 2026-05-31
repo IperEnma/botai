@@ -2,6 +2,7 @@ package com.botai.infrastructure.chatbot.channel.whatsapp;
 
 import com.botai.domain.chatbot.model.InboundMessage;
 import com.botai.infrastructure.chatbot.channel.MessageBufferService;
+import com.botai.infrastructure.chatbot.channel.whatsapp.WhatsAppLogRedaction;
 import com.botai.infrastructure.chatbot.channel.whatsapp.WhatsAppVerifyTokenService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,24 +64,26 @@ public class WhatsAppWebhookController {
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> handleWebhook(@RequestBody byte[] body) throws IOException {
-        log.info("========== [WEBHOOK] POST RECIBIDO ==========");
         Map<String, Object> payload = objectMapper.readValue(
             new String(body, StandardCharsets.UTF_8),
             new TypeReference<Map<String, Object>>() {});
-        log.info("[WEBHOOK] Payload JSON: {}", objectMapper.writeValueAsString(payload));
-        
+
+        if (log.isDebugEnabled()) {
+            log.debug("[WEBHOOK] Payload completo: {}", objectMapper.writeValueAsString(payload));
+        }
+        log.info("[WEBHOOK] POST recibido: {}", WhatsAppLogRedaction.summarizeWebhook(payload));
+
         InboundMessage inbound = adapter.toInboundMessage(payload);
-        log.info("[WEBHOOK] Mensaje parseado: userId={}, text='{}'", inbound.getUserId(), inbound.getText());
-        
+        String preview = WhatsAppLogRedaction.truncateText(inbound.getText(), 80);
+        log.info("[WEBHOOK] Parseado: user={}, text='{}'",
+                WhatsAppLogRedaction.maskPhone(inbound.getUserId()), preview);
+
         if (inbound.getText() == null || inbound.getText().isBlank()) {
-            log.info("[WEBHOOK] Texto vacio -> IGNORANDO (status update o mensaje no-texto)");
-            log.info("========== [WEBHOOK] FIN (ignorado) ==========");
+            log.debug("[WEBHOOK] Texto vacío -> ignorado (status update o mensaje no-texto)");
             return ResponseEntity.ok().build();
         }
-        
-        log.info("[WEBHOOK] Enviando al buffer...");
+
         bufferService.bufferAndProcess(inbound, adapter::send);
-        log.info("========== [WEBHOOK] FIN (procesando) ==========");
         return ResponseEntity.ok().build();
     }
 }

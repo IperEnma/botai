@@ -58,6 +58,25 @@ public class JpaBusinessRepository implements BusinessRepository {
     }
 
     @Override
+    public List<Business> findAllActiveByCompanySlug(String companySlug) {
+        if (companySlug == null || companySlug.isBlank()) {
+            return List.of();
+        }
+        return jpa.findAllByCompanySlugAndActivoTrueAndDeletedAtIsNullOrderByNombreAsc(companySlug.strip())
+                .stream()
+                .map(BusinessMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public long countActiveByTenantId(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return 0;
+        }
+        return jpa.countByTenantIdAndActivoTrueAndDeletedAtIsNull(tenantId);
+    }
+
+    @Override
     public boolean existsByIdAndTenantId(UUID id, String tenantId) {
         return jpa.existsByIdAndTenantIdAndDeletedAtIsNull(id, tenantId);
     }

@@ -52,7 +52,7 @@ class AgendaCurrentTenantServiceTest {
         UUID businessId = UUID.randomUUID();
         Business business = new Business(
                 businessId, "tenant-a", "Salon", null, null, List.of(), true,
-                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
                 null, null, null);
         when(tenantAccountRepository.findByEmail("owner@test.com"))
                 .thenReturn(Optional.of(tenantAccount("tenant-a")));

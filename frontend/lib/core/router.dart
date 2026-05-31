@@ -10,6 +10,8 @@ import '../features/agenda/register/register_screen.dart';
 import '../features/agenda/register/business_register_screen.dart';
 import '../features/agenda/register/register_success_screen.dart';
 import '../features/agenda/register/intent_screen.dart';
+import '../features/agenda/public/public_company_landing_screen.dart';
+import '../features/agenda/public/public_booking_wizard_screen.dart';
 import '../features/agenda/public/category_businesses_screen.dart';
 import '../features/agenda/public/public_business_detail_screen.dart';
 import '../features/agenda/public/search_screen.dart';
@@ -17,10 +19,10 @@ import '../features/agenda/public/landing_screen.dart';
 import '../features/agenda/platform/categories_admin_screen.dart';
 import '../features/agenda/home/agenda_home_shell.dart';
 // Sprint FE-2 — Tenant admin
-import '../features/agenda/tenant/tenant_me_gate_screen.dart';
-import '../features/agenda/tenant/business_me_gate_screen.dart';
-import '../features/agenda/tenant/business_me_config_screen.dart';
-import '../features/agenda/tenant/business_section_screen.dart';
+import '../features/agenda/tenant/agenda_panel_screen.dart';
+import '../features/agenda/tenant/agenda_panel_section_screen.dart';
+import '../features/agenda/tenant/agenda_panel_config_screen.dart';
+import '../features/agenda/tenant/agenda_legacy_business_redirect.dart';
 // Sprint FE-3 — Me
 import '../features/agenda/me/my_subscriptions_screen.dart';
 import '../features/agenda/me/wallet_screen.dart';
@@ -41,7 +43,7 @@ String? _legacyHomeRouteRedirect(GoRouterState state) {
   }
   if (loc == '/home' || loc.startsWith('/home/')) {
     if (loc.startsWith('/home/businesses/')) {
-      return withQuery('/agenda${loc.substring('/home'.length)}');
+      return withQuery('/agenda/panel');
     }
     return withQuery('/agenda/panel');
   }
@@ -82,8 +84,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       final legacyTenantsMe = loc.startsWith('/agenda/tenants/me');
       final homeTenantArea =
           loc == '/agenda/panel' ||
+          loc.startsWith('/agenda/panel/') ||
           loc.startsWith('/agenda/businesses/');
-      final isAgendaRoute = loc == '/' || loc.startsWith('/agenda');
+      final isPublicBookingRoute =
+          loc == '/reservar' || loc.startsWith('/reservar/');
+      final isAgendaRoute =
+          loc == '/' || loc.startsWith('/agenda') || isPublicBookingRoute;
 
       debugPrint('[ROUTER] redirect — loc=$loc isLoggedIn=$isLoggedIn');
 
@@ -113,8 +119,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         final businessId =
             Uri.decodeComponent(after.split('?').first.split('/').first);
         final tab = state.uri.queryParameters['tab'];
+        if (after.contains('/section/')) {
+          final section = after.split('/section/').last.split('?').first;
+          return '/agenda/businesses/$businessId/section/$section';
+        }
         if (tab != null && tab.isNotEmpty) {
-          return '/agenda/businesses/$businessId?tab=$tab';
+          return '/agenda/businesses/$businessId/config?tab=$tab';
         }
         return '/agenda/businesses/$businessId';
       }
@@ -136,24 +146,44 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/agenda/panel',
-            builder: (context, state) => const TenantMeGateScreen(),
+            builder: (context, state) => const AgendaPanelScreen(),
+          ),
+          GoRoute(
+            path: '/agenda/panel/config',
+            builder: (context, state) {
+              final tab =
+                  int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
+              return AgendaPanelConfigScreen(initialTabIndex: tab);
+            },
+          ),
+          GoRoute(
+            path: '/agenda/panel/section/:section',
+            builder: (context, state) {
+              final section = state.pathParameters['section']!;
+              return AgendaPanelSectionScreen(section: section);
+            },
           ),
           GoRoute(
             path: '/agenda/businesses/:businessId',
             builder: (context, state) {
               final businessId = state.pathParameters['businessId']!;
-              return BusinessMeGateScreen(businessId: businessId);
+              return AgendaLegacyBusinessRedirect(
+                businessId: businessId,
+                targetPath: '/agenda/panel',
+              );
             },
           ),
           GoRoute(
             path: '/agenda/businesses/:businessId/config',
             builder: (context, state) {
               final businessId = state.pathParameters['businessId']!;
-              final tab =
-                  int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
-              return BusinessMeConfigScreen(
+              final tab = state.uri.queryParameters['tab'];
+              final target = tab != null && tab.isNotEmpty
+                  ? '/agenda/panel/config?tab=$tab'
+                  : '/agenda/panel/config';
+              return AgendaLegacyBusinessRedirect(
                 businessId: businessId,
-                initialTabIndex: tab,
+                targetPath: target,
               );
             },
           ),
@@ -161,10 +191,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/agenda/businesses/:businessId/section/:section',
             builder: (context, state) {
               final businessId = state.pathParameters['businessId']!;
-              final section    = state.pathParameters['section']!;
-              return BusinessSectionScreen(
+              final section = state.pathParameters['section']!;
+              return AgendaLegacyBusinessRedirect(
                 businessId: businessId,
-                section:    section,
+                targetPath: '/agenda/panel/section/$section',
               );
             },
           ),
@@ -192,6 +222,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/',
         builder: (context, state) => const PublicLandingScreen(),
+      ),
+      GoRoute(
+        path: '/reservar',
+        builder: (context, state) {
+          final company = state.uri.queryParameters['company'] ?? '';
+          if (company.isEmpty) {
+            return const PublicLandingScreen();
+          }
+          return PublicCompanyLandingScreen(companySlug: company);
+        },
+      ),
+      GoRoute(
+        path: '/reservar/:slug',
+        builder: (context, state) {
+          final slug = state.pathParameters['slug']!;
+          return PublicBookingWizardScreen(slug: slug);
+        },
       ),
       GoRoute(
         path: '/agenda',

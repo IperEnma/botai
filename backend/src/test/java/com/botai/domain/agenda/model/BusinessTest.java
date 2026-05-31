@@ -26,7 +26,7 @@ class BusinessTest {
                         null,
                         List.of(),
                         true,
-                        null, null, null, null, null, null, null, null, null, null
+                        null, null, null, null, null, null, null, null, null, null, null
                 ),
                 "El tenantId no puede ser null"
         );
@@ -44,7 +44,7 @@ class BusinessTest {
                         null,
                         List.of(),
                         true,
-                        null, null, null, null, null, null, null, null, null, null
+                        null, null, null, null, null, null, null, null, null, null, null
                 ),
                 "El nombre del negocio no puede ser null"
         );

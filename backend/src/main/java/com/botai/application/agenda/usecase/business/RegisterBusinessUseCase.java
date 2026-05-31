@@ -1,6 +1,7 @@
 package com.botai.application.agenda.usecase.business;
 
 import com.botai.application.agenda.support.AgendaPublicSlug;
+import com.botai.application.agenda.support.CompanySlugSupport;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessHours;
 import com.botai.domain.agenda.model.BusinessSettings;
@@ -49,6 +50,7 @@ public class RegisterBusinessUseCase {
         UUID newId = UUID.randomUUID();
         Long botId = botWorkspaceRegistry.findBotIdByWorkspaceTenantId(tenantId).orElse(null);
         String publicSlug = AgendaPublicSlug.forNewBusiness(newId, nombre);
+        String companySlug = CompanySlugSupport.resolveForNewBusiness(businessRepository, tenantId, nombre);
         Business business = new Business(
                 newId,
                 tenantId,
@@ -65,6 +67,7 @@ public class RegisterBusinessUseCase {
                 null,  // colorFondo
                 null,  // fontFamily
                 publicSlug,
+                companySlug,
                 botId,
                 null,
                 null,

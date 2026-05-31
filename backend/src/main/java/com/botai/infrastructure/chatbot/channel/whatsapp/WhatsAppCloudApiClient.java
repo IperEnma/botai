@@ -59,7 +59,7 @@ public class WhatsAppCloudApiClient {
      * @return {@code true} si Meta respondió 2xx; {@code false} si no se envió o hubo error (permisos, token, etc.)
      */
     public boolean sendText(String tenantId, String toPhoneNumber, String body) {
-        log.info("[WA-API] sendText() llamado: tenant={}, to={}", tenantId, toPhoneNumber);
+        log.debug("[WA-API] sendText tenant={}, to={}", tenantId, WhatsAppLogRedaction.maskPhone(toPhoneNumber));
         if (tenantId == null || tenantId.isBlank()) {
             log.warn("[WA-API] tenantId ausente, no se puede enviar");
             return false;
@@ -80,7 +80,7 @@ public class WhatsAppCloudApiClient {
         }
         String accessToken = accessTokenCipher.decrypt(storedToken);
         String phoneNumberId = bot.getWhatsappPhoneNumberId();
-        log.info("[WA-API] Usando config del bot '{}' (tenant={})", bot.getName(), tenantId);
+        log.debug("[WA-API] Usando config del bot '{}' (tenant={})", bot.getName(), tenantId);
 
         return doSendText(accessToken, phoneNumberId, toPhoneNumber, body);
     }
@@ -113,7 +113,9 @@ public class WhatsAppCloudApiClient {
             "text", Map.of("body", safeBody)
         );
 
-        log.info("[WA-API] Enviando POST a Meta: to={}, body='{}'", to, safeBody.length() > 100 ? safeBody.substring(0,100)+"..." : safeBody);
+        log.debug("[WA-API] Enviando POST a Meta: to={}, body='{}'",
+                WhatsAppLogRedaction.maskPhone(to),
+                WhatsAppLogRedaction.truncateText(safeBody, 100));
 
         final String jsonPayload;
         try {
@@ -126,7 +128,7 @@ public class WhatsAppCloudApiClient {
         try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
             boolean ok = response.getStatusCode().is2xxSuccessful();
-            log.info("[WA-API] Respuesta de Meta: status={}", response.getStatusCode());
+            log.debug("[WA-API] Respuesta de Meta: status={}", response.getStatusCode());
             return ok;
         } catch (Exception e) {
             log.error("[WA-API] ERROR enviando a Meta: {}", e.getMessage());

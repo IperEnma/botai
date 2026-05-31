@@ -10,7 +10,7 @@ Crea una migración Flyway aislada para el módulo AGENDA.
 ## Cuándo usar
 
 - "Agregá un índice a agenda_bookings"
-- "Necesitamos una columna notes en agenda_businesses"
+- "Necesitamos una columna notes en agenda_businesses" → **no** migración `ALTER`; actualizar `BusinessEntity` y recrear BD.
 - "Seed de categorías iniciales"
 
 No usar si:
@@ -25,6 +25,8 @@ Confirmar que:
 - Si hay DROP o ALTER de una tabla que no existe aún, no es una migración correctiva; es un error → preguntar.
 
 ### 2. Calcular próxima versión
+Solo si el cambio **no** es una columna nueva en una tabla ya modelada por JPA: en greenfield el schema va en `@Entity` + recrear BD (ver `CLAUDE.md` → *Política greenfield*). Flyway en este repo es para índices, constraints, seeds y tablas sin entidad — **no** `ALTER TABLE ... ADD COLUMN`.
+
 ```bash
 ls backend/src/main/resources/db/migration/agenda/ 2>/dev/null | grep -oP '^V\d+' | sort -V | tail -1
 ```
@@ -40,19 +42,14 @@ Ejemplos:
 
 ### 4. Escribir la migración
 Buenas prácticas:
-- **Idempotente cuando sea posible**: `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`.
-- **Sin destrucción de datos sin pedir**: un `DROP COLUMN` requiere confirmación explícita del usuario.
-- **Transaccional por defecto** (Flyway envuelve cada migración en una tx).
-- **Comentar el porqué** arriba del SQL con `-- <motivo>`.
-- **No mezclar DDL de AGENDA con DDL del bot**.
+- **Greenfield:** columnas nuevas → `@Column` en la entidad JPA; BD vieja → recrear Postgres, no `ALTER`.
+- **Idempotente cuando sea posible:** `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`.
+- **Sin destrucción de datos sin pedir:** un `DROP COLUMN` requiere confirmación explícita del usuario.
+- **No mezclar DDL de AGENDA con DDL del bot.**
 
-Template mínimo:
+Template (solo índices / tablas sin entidad):
 ```sql
--- <motivo de la migración en una línea>
--- Issue: <link o ticket si aplica>
-
-ALTER TABLE agenda_<tabla>
-    ADD COLUMN IF NOT EXISTS <columna> <tipo> <constraints>;
+-- <motivo en una línea>
 
 CREATE INDEX IF NOT EXISTS idx_agenda_<tabla>_<col> ON agenda_<tabla> (<col>);
 ```

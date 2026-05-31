@@ -207,8 +207,10 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
                 nombre:              nombre,
                 isWide:              true,
                 onAdd:               () => _createBusiness(context),
-                onTap:               (b) => context.go(
-                  agendaTenantBusinessPath(context, widget.tenantId, b.id),
+                onTap:               (b) => navigateAgendaTenantBusiness(
+                  context,
+                  ref,
+                  b.id,
                 ),
                 onFilterSelect: (b) => setState(() =>
                   _dashboardBusinessId =
@@ -231,8 +233,10 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
         nombre:              nombre,
         isWide:              false,
         onAdd:               () => _createBusiness(context),
-        onTap:               (b) => context.go(
-          agendaTenantBusinessPath(context, widget.tenantId, b.id),
+        onTap:               (b) => navigateAgendaTenantBusiness(
+          context,
+          ref,
+          b.id,
         ),
         onFilterSelect: (b) => setState(() =>
           _dashboardBusinessId =

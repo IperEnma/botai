@@ -3,6 +3,7 @@ package com.botai.application.agenda.usecase.tenant;
 import com.botai.application.agenda.dto.RegisterTenantRequest;
 import com.botai.application.agenda.dto.RegisterTenantResponse;
 import com.botai.application.agenda.support.AgendaPublicSlug;
+import com.botai.application.agenda.support.CompanySlugSupport;
 import com.botai.domain.agenda.exception.DuplicateTenantEmailException;
 import com.botai.domain.agenda.exception.DuplicateTenantNumeroException;
 import com.botai.domain.agenda.model.Business;
@@ -170,6 +171,7 @@ public class RegisterTenantUseCase {
         UUID businessId = UUID.randomUUID();
         String nombreNegocio = request.nombreNegocio().trim();
         String publicSlug = AgendaPublicSlug.forNewBusiness(businessId, nombreNegocio);
+        String companySlug = AgendaPublicSlug.compactSlug(nombreNegocio);
         Business business = new Business(
                 businessId,
                 tenantId,
@@ -186,6 +188,7 @@ public class RegisterTenantUseCase {
                 null,
                 null,
                 publicSlug,
+                companySlug,
                 linkedBotId,
                 null,
                 null,

@@ -22,6 +22,8 @@ public final class Business {
     private final String colorFondo;
     private final String fontFamily;
     private final String publicSlug;
+    /** Slug de marca para {@code /reservar?company=}; compartido por sucursales del tenant. */
+    private final String companySlug;
     /** PK numérica del bot en tabla {@code bot}; null si el negocio aún no está ligado al workspace del bot. */
     private final Long botId;
     private final LocalDateTime deletedAt;
@@ -34,6 +36,7 @@ public final class Business {
                     String instagramUrl, String tiktokUrl, String facebookUrl,
                     String colorFondo, String fontFamily,
                     String publicSlug,
+                    String companySlug,
                     Long botId,
                     LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
@@ -51,6 +54,7 @@ public final class Business {
         this.colorFondo = colorFondo;
         this.fontFamily = fontFamily;
         this.publicSlug = publicSlug;
+        this.companySlug = companySlug;
         this.botId = botId;
         this.deletedAt = deletedAt;
         this.createdAt = createdAt;
@@ -68,7 +72,7 @@ public final class Business {
                     LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, tenantId, nombre, descripcion, ownerUserId, searchTags, activo,
                 logoUrl, colorPrimario, instagramUrl, tiktokUrl, facebookUrl,
-                colorFondo, fontFamily, null, null,
+                colorFondo, fontFamily, null, null, null,
                 deletedAt, createdAt, updatedAt);
     }
 
@@ -82,7 +86,7 @@ public final class Business {
                     LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, tenantId, nombre, descripcion, ownerUserId, searchTags, activo,
                 logoUrl, colorPrimario, instagramUrl, tiktokUrl, facebookUrl,
-                colorFondo, fontFamily, publicSlug, null,
+                colorFondo, fontFamily, publicSlug, null, null,
                 deletedAt, createdAt, updatedAt);
     }
 
@@ -101,6 +105,7 @@ public final class Business {
     public String getColorFondo() { return colorFondo; }
     public String getFontFamily() { return fontFamily; }
     public String getPublicSlug() { return publicSlug; }
+    public String getCompanySlug() { return companySlug; }
     public Long getBotId() { return botId; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }

@@ -49,7 +49,7 @@ public class WhatsAppAdapter implements ChannelAdapter {
     @Override
     @SuppressWarnings("unchecked")
     public InboundMessage toInboundMessage(Object rawPayload) {
-        log.info("[WA-ADAPTER] toInboundMessage llamado");
+        log.debug("[WA-ADAPTER] toInboundMessage");
         
         if (!(rawPayload instanceof Map)) {
             log.warn("[WA-ADAPTER] Payload no es Map, ignorando");
@@ -94,7 +94,7 @@ public class WhatsAppAdapter implements ChannelAdapter {
                             
                             // IGNORAR STATUS UPDATES (esto causa el loop!)
                             if (v.containsKey("statuses")) {
-                                log.info("[WA-ADAPTER] Status update detectado, IGNORANDO (evita loop)");
+                                log.debug("[WA-ADAPTER] Status update ignorado (evita loop)");
                                 return emptyInbound();
                             }
                             
@@ -114,18 +114,20 @@ public class WhatsAppAdapter implements ChannelAdapter {
                                                     && b.getWhatsappPhoneNumberId().strip().equals(phoneIdStr))
                                                 .findFirst();
                                             if (botOpt.isPresent()) {
-                                                log.info("[WA-ADAPTER] Bot identificado por phone_number_id (match con trim) -> tenant={}", botOpt.get().getTenantId());
+                                                log.debug("[WA-ADAPTER] Bot identificado por phone_number_id (trim) tenant={}",
+                                                        botOpt.get().getTenantId());
                                             }
                                         }
                                         if (botOpt.isPresent()) {
                                             tenantId = botOpt.get().getTenantId();
                                             if (tenantId != null) {
-                                                log.info("[WA-ADAPTER] Bot identificado por phone_number_id={} -> tenant={}", phoneIdStr, tenantId);
+                                                log.debug("[WA-ADAPTER] Bot identificado phone_number_id={} tenant={}",
+                                                        WhatsAppLogRedaction.maskId(phoneIdStr), tenantId);
                                             }
                                         } else {
                                             List<BotEntity> allBots = botRepository.findAll();
-                                            log.warn("[WA-ADAPTER] No hay bot con whatsapp_phone_number_id={}. Meta envio: {}. Bots en BD (id -> ultimos 4 digitos): {}",
-                                                phoneIdStr, phoneIdStr,
+                                            log.warn("[WA-ADAPTER] No hay bot con whatsapp_phone_number_id={}. Bots en BD: {}",
+                                                WhatsAppLogRedaction.maskId(phoneIdStr),
                                                 allBots.stream()
                                                     .map(b -> b.getId() + "=" + (b.getWhatsappPhoneNumberId() != null && b.getWhatsappPhoneNumberId().length() >= 4
                                                         ? "***" + b.getWhatsappPhoneNumberId().substring(b.getWhatsappPhoneNumberId().length() - 4) : (b.getWhatsappPhoneNumberId() != null ? b.getWhatsappPhoneNumberId() : "null")))
@@ -149,7 +151,8 @@ public class WhatsAppAdapter implements ChannelAdapter {
                                     from = String.valueOf(m.getOrDefault("from", from));
                                     messageId = String.valueOf(m.getOrDefault("id", messageId));
                                     String msgType = String.valueOf(m.get("type"));
-                                    log.info("[WA-ADAPTER] Mensaje tipo={}, from={}, id={}", msgType, from, messageId);
+                                    log.debug("[WA-ADAPTER] Mensaje tipo={}, from={}, id={}",
+                                            msgType, WhatsAppLogRedaction.maskPhone(from), WhatsAppLogRedaction.maskId(messageId));
                                     
                                     if ("text".equals(msgType)) {
                                         Object textObj = m.get("text");
@@ -159,11 +162,11 @@ public class WhatsAppAdapter implements ChannelAdapter {
                                             text = WhatsAppInboundTextUtf8.tryFix(text);
                                         }
                                     } else {
-                                        log.info("[WA-ADAPTER] Mensaje no es texto ({}), ignorando contenido", msgType);
+                                        log.debug("[WA-ADAPTER] Mensaje no es texto ({}), ignorando contenido", msgType);
                                     }
                                 }
                             } else {
-                                log.info("[WA-ADAPTER] No hay 'messages' en el payload");
+                                log.debug("[WA-ADAPTER] No hay 'messages' en el payload");
                             }
                         }
                     }
@@ -171,7 +174,9 @@ public class WhatsAppAdapter implements ChannelAdapter {
             }
         }
 
-        log.info("[WA-ADAPTER] Parseado: from={}, tenant={}, text={}", from, tenantId, text.length() > 50 ? text.substring(0,50)+"..." : text);
+        log.debug("[WA-ADAPTER] Parseado: from={}, tenant={}, text={}",
+                WhatsAppLogRedaction.maskPhone(from), tenantId,
+                WhatsAppLogRedaction.truncateText(text, 50));
         
         String conversationId = from + "@" + CHANNEL_ID;
         Map<String, Object> metadata = new HashMap<>();
@@ -193,7 +198,6 @@ public class WhatsAppAdapter implements ChannelAdapter {
 
     @Override
     public void send(OutboundMessage message) {
-        log.info("[WA-ADAPTER] send() llamado");
         if (message == null) {
             log.warn("[WA-ADAPTER] send() mensaje es null");
             return;
@@ -213,10 +217,12 @@ public class WhatsAppAdapter implements ChannelAdapter {
         }
         String body = renderMessage(message);
         body = WhatsAppInboundTextUtf8.tryFix(body != null ? body : "");
-        log.info("[WA-ADAPTER] Enviando a {} (tenant={}): {}", to, tenantId, body != null && body.length() > 50 ? body.substring(0,50)+"..." : body);
+        log.info("[WA-ADAPTER] Enviando a {} (tenant={}): {}",
+                WhatsAppLogRedaction.maskPhone(to), tenantId,
+                WhatsAppLogRedaction.truncateText(body, 50));
         boolean sent = apiClient.sendText(tenantId, to, body != null ? body : "");
         if (sent) {
-            log.info("[WA-ADAPTER] Mensaje enviado exitosamente a {}", to);
+            log.debug("[WA-ADAPTER] Mensaje enviado a {}", WhatsAppLogRedaction.maskPhone(to));
         } else {
             log.warn("[WA-ADAPTER] No se pudo enviar el mensaje a {} (revisa logs [WA-API] y permisos Meta/WhatsApp)", to);
         }

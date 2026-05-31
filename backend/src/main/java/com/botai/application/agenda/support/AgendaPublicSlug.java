@@ -33,4 +33,20 @@ public final class AgendaPublicSlug {
         }
         return ascii.length() > 80 ? ascii.substring(0, 80) : ascii;
     }
+
+    /** Slug compacto para query param {@code company=} (sin guiones). */
+    public static String compactSlug(String raw) {
+        return slugify(raw).replace("-", "");
+    }
+
+    /** Normaliza entrada de URL: solo [a-z0-9]. */
+    public static String normalizeCompanySlug(String input) {
+        if (input == null || input.isBlank()) {
+            return "";
+        }
+        String normalized = Normalizer.normalize(input.strip(), Normalizer.Form.NFD)
+            .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+            .toLowerCase(Locale.ROOT);
+        return normalized.replaceAll("[^a-z0-9]", "");
+    }
 }

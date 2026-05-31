@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../models/agenda/register_tenant.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
+import '../../../providers/agenda/selected_agenda_business_provider.dart';
+import '../navigation/agenda_tenant_nav.dart';
 import 'business_registration_model.dart';
 import 'konecta_tokens.dart';
 import 'steps/step_category.dart';
@@ -358,7 +360,8 @@ class _BusinessRegisterScreenState
 
       if (!mounted) return;
 
-      context.go('/agenda/businesses/$businessId');
+      ref.read(selectedAgendaBusinessIdProvider.notifier).state = businessId;
+      context.go('/agenda/panel');
     } on Exception catch (e) {
       if (mounted) {
         final emailReg = regEmail.isNotEmpty;

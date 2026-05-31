@@ -76,3 +76,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_agenda_tenant_accounts_google_linked_email
 CREATE UNIQUE INDEX IF NOT EXISTS ux_agenda_businesses_public_slug
     ON agenda_businesses (public_slug)
     WHERE public_slug IS NOT NULL AND public_slug <> '';
+
+CREATE INDEX IF NOT EXISTS idx_agenda_businesses_company_slug
+    ON agenda_businesses (company_slug)
+    WHERE deleted_at IS NULL AND activo = TRUE;
