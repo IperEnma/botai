@@ -16,31 +16,53 @@ class WhatsAppAccessTokenHelpButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (style == WhatsAppAccessTokenHelpStyle.konecta) {
-      return TextButton.icon(
-        onPressed: () => showWhatsAppAccessTokenHelp(context),
-        icon: const Icon(Icons.help_outline, size: 16, color: KTokens.inkSoft),
-        label: Text(
-          compact ? '?' : 'CÓMO GENERARLO',
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 10,
-            letterSpacing: 0.6,
-            color: KTokens.inkSoft,
+    final isKonecta = style == WhatsAppAccessTokenHelpStyle.konecta;
+    final Color fg = isKonecta
+        ? KTokens.accent
+        : Theme.of(context).colorScheme.primary;
+    final Color bg = isKonecta
+        ? KTokens.accentSoft
+        : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.65);
+    final String label = compact ? 'Ayuda' : 'Cómo generarlo';
+
+    return Tooltip(
+      message: 'Cómo generar el Access Token en Meta',
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(isKonecta ? KTokens.rPill : 8),
+        child: InkWell(
+          onTap: () => showWhatsAppAccessTokenHelp(context),
+          borderRadius: BorderRadius.circular(isKonecta ? KTokens.rPill : 8),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 8 : 10,
+              vertical: compact ? 5 : 6,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.help_outline_rounded, size: compact ? 16 : 18, color: fg),
+                const SizedBox(width: 5),
+                Text(
+                  label,
+                  style: isKonecta
+                      ? GoogleFonts.jetBrainsMono(
+                          fontSize: compact ? 9 : 10,
+                          letterSpacing: 0.5,
+                          fontWeight: FontWeight.w600,
+                          color: fg,
+                        )
+                      : TextStyle(
+                          fontSize: compact ? 12 : 13,
+                          fontWeight: FontWeight.w600,
+                          color: fg,
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
-        style: TextButton.styleFrom(
-          padding: EdgeInsets.zero,
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-      );
-    }
-
-    return IconButton(
-      icon: const Icon(Icons.help_outline, size: 20),
-      tooltip: 'Cómo generar el Access Token',
-      onPressed: () => showWhatsAppAccessTokenHelp(context),
-      visualDensity: VisualDensity.compact,
+      ),
     );
   }
 }
@@ -59,9 +81,18 @@ Future<void> showWhatsAppAccessTokenHelp(BuildContext context) {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Generá un token de usuario del sistema en Meta Business Settings '
-                '(token permanente recomendado para producción).',
+                'Estos pasos los hacés vos con tu cuenta de Meta Business '
+                '(administrador del portfolio). Konecta no genera ni ve tu token.',
                 style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(height: 1.45),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Generá un token de usuario del sistema en Meta Business Settings '
+                '(permanente recomendado para producción).',
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
               ),
               const SizedBox(height: 16),
               const _HelpStep(
@@ -77,13 +108,15 @@ Future<void> showWhatsAppAccessTokenHelp(BuildContext context) {
                 n: 3,
                 text:
                     'Clic en Agregar y creá un usuario del sistema. '
-                    'Asignalo como Administrador si la app lo requiere.',
+                    'Asignale rol de Administrador del portfolio (vos, como dueño del negocio, '
+                    'tenés que tener permisos de admin en Meta Business para hacer esto).',
               ),
               const _HelpStep(
                 n: 4,
                 text:
-                    'Seleccioná el usuario creado → Agregar activos → '
-                    'asigná la app de Meta que usa WhatsApp con control total.',
+                    'Con ese usuario seleccionado: Agregar activos → '
+                    'elegí la app de Meta de tu negocio que usa WhatsApp y otorgale control total '
+                    '(también lo hacés vos desde tu Business Settings).',
               ),
               const _HelpStep(
                 n: 5,

@@ -802,6 +802,7 @@ class _StepCanales extends StatelessWidget {
             const Spacer(),
             const WhatsAppAccessTokenHelpButton(
               style: WhatsAppAccessTokenHelpStyle.konecta,
+              compact: true,
             ),
           ],
         ),
