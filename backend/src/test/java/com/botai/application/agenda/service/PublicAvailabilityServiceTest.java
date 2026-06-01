@@ -45,47 +45,50 @@ class PublicAvailabilityServiceTest {
 
     @Test
     void closedDay_returnsNoSlots() {
-        var sunday = LocalDate.of(2026, 5, 24);
+        var day = LocalDate.now().plusDays(7);
+        int diaSemana = day.getDayOfWeek().getValue() - 1;
         when(hoursRepository.findByBusinessId(businessId)).thenReturn(List.of(
-                new BusinessHours(UUID.randomUUID(), businessId, 6,
+                new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
                         LocalTime.of(9, 0), LocalTime.of(13, 0), null, null, true)
         ));
 
-        var slots = service.computeSlots(businessId, 30, null, sunday);
+        var slots = service.computeSlots(businessId, 30, null, day);
         assertThat(slots).isEmpty();
     }
 
     @Test
     void missingDayWhenHoursConfigured_returnsNoSlots() {
-        var monday = LocalDate.of(2026, 5, 25);
+        var day = LocalDate.now().plusDays(7);
+        int otherDay = (day.getDayOfWeek().getValue()) % 7;
         when(hoursRepository.findByBusinessId(businessId)).thenReturn(List.of(
-                new BusinessHours(UUID.randomUUID(), businessId, 1,
+                new BusinessHours(UUID.randomUUID(), businessId, otherDay,
                         LocalTime.of(9, 0), LocalTime.of(18, 0), null, null, false)
         ));
 
-        var slots = service.computeSlots(businessId, 30, null, monday);
+        var slots = service.computeSlots(businessId, 30, null, day);
         assertThat(slots).isEmpty();
     }
 
     @Test
     void noHoursConfigured_returnsNoSlots_notDefaults() {
-        var monday = LocalDate.of(2026, 5, 25);
+        var day = LocalDate.now().plusDays(7);
         when(hoursRepository.findByBusinessId(businessId)).thenReturn(List.of());
 
-        var slots = service.computeSlots(businessId, 30, null, monday);
+        var slots = service.computeSlots(businessId, 30, null, day);
         assertThat(slots).isEmpty();
     }
 
     @Test
     void openDayWithBreak_generatesSlotsInBothRanges() {
-        var monday = LocalDate.of(2026, 5, 25);
+        var day = LocalDate.now().plusDays(7);
+        int diaSemana = day.getDayOfWeek().getValue() - 1;
         when(hoursRepository.findByBusinessId(businessId)).thenReturn(List.of(
-                new BusinessHours(UUID.randomUUID(), businessId, 0,
+                new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
                         LocalTime.of(9, 0), LocalTime.of(13, 0),
                         LocalTime.of(15, 0), LocalTime.of(18, 0), false)
         ));
 
-        var slots = service.computeSlots(businessId, 60, null, monday);
+        var slots = service.computeSlots(businessId, 60, null, day);
         assertThat(slots).isNotEmpty();
         assertThat(slots.get(0).inicio()).contains("T09:00");
         assertThat(slots.stream().anyMatch(s -> s.inicio().contains("T15:00"))).isTrue();
@@ -93,22 +96,23 @@ class PublicAvailabilityServiceTest {
 
     @Test
     void busyBooking_excludesOverlappingSlot() {
-        var monday = LocalDate.of(2026, 5, 25);
+        var day = LocalDate.now().plusDays(7);
+        int diaSemana = day.getDayOfWeek().getValue() - 1;
         when(hoursRepository.findByBusinessId(businessId)).thenReturn(List.of(
-                new BusinessHours(UUID.randomUUID(), businessId, 0,
+                new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
                         LocalTime.of(9, 0), LocalTime.of(12, 0), null, null, false)
         ));
         var busy = new Booking(
                 UUID.randomUUID(), businessId, serviceId,
-                null, null, null,
-                LocalDateTime.of(2026, 5, 25, 9, 0),
-                LocalDateTime.of(2026, 5, 25, 10, 0),
+                UUID.randomUUID(), null, null,
+                day.atTime(9, 0),
+                day.atTime(10, 0),
                 BookingEstado.CONFIRMED,
                 null, null, null, null, null);
         when(bookingRepository.findAllByBusinessIdAndFecha(eq(businessId), any(), any()))
                 .thenReturn(List.of(busy));
 
-        var slots = service.computeSlots(businessId, 60, null, monday);
+        var slots = service.computeSlots(businessId, 60, null, day);
         assertThat(slots.stream().noneMatch(s -> s.inicio().contains("T09:00"))).isTrue();
         assertThat(slots.stream().anyMatch(s -> s.inicio().contains("T10:00"))).isTrue();
     }
