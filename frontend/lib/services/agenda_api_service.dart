@@ -70,6 +70,16 @@ class AgendaApiService {
     return h;
   }
 
+  /// Headers para `/api/agenda/public/**` — sin JWT para no provocar 401 con token vencido.
+  Map<String, String> _publicHeaders({String? idempotencyKey}) {
+    final h = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (idempotencyKey != null) h['Idempotency-Key'] = idempotencyKey;
+    return h;
+  }
+
   Uri _uri(String path, [Map<String, dynamic>? query]) {
     final qs = <String, String>{};
     query?.forEach((k, v) {
@@ -92,6 +102,23 @@ class AgendaApiService {
         }
       }
       return first;
+    } on TimeoutException {
+      throw const AgendaApiException(
+        message: 'La conexión con el servidor tardó demasiado. Reintentá en unos segundos.',
+        status: 0,
+      );
+    } catch (e) {
+      throw AgendaApiException(
+        message: 'No se pudo contactar al servidor: $e',
+        status: 0,
+      );
+    }
+  }
+
+  /// Igual que [_send] pero sin reintento por 401 ni cabecera Authorization.
+  Future<http.Response> _sendPublic(Future<http.Response> Function() exec) async {
+    try {
+      return await exec().timeout(_timeout);
     } on TimeoutException {
       throw const AgendaApiException(
         message: 'La conexión con el servidor tardó demasiado. Reintentá en unos segundos.',
@@ -213,9 +240,9 @@ class AgendaApiService {
       if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
       if (categoriaSlug != null && categoriaSlug.isNotEmpty) 'categoriaSlug': categoriaSlug,
     };
-    final r = await _send(() => _client.post(
+    final r = await _sendPublic(() => _client.post(
           _uri('/public/register'),
-          headers: _headers(),
+          headers: _publicHeaders(),
           body: jsonEncode(body),
         ));
     return _decode(r, (b) => RegisterTenantResponse.fromJson(b as Map<String, dynamic>));
@@ -293,45 +320,45 @@ class AgendaApiService {
 
   /// `GET /public/companies/{companySlug}` — marca y sucursales (Felito-style).
   Future<PublicCompany> publicCompanyDetail(String companySlug) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/companies/$companySlug'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decode(r, (b) => PublicCompany.fromJson(b as Map<String, dynamic>));
   }
 
   /// `GET /public/links/{slug}` — resuelve slug → businessId.
   Future<String> resolvePublicSlug(String slug) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/links/$slug'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decode(r, (b) => (b as Map<String, dynamic>)['businessId'] as String);
   }
 
   /// `GET /public/businesses/by-slug/{slug}`
   Future<Business> publicBusinessDetailBySlug(String slug) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/businesses/by-slug/$slug'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
   }
 
   /// `GET /public/businesses/by-slug/{slug}/services`
   Future<List<AgendaService>> publicBusinessServicesBySlug(String slug) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/businesses/by-slug/$slug/services'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, AgendaService.fromJson);
   }
 
   /// `GET /public/businesses/by-slug/{slug}/staff`
   Future<List<StaffMember>> publicBusinessStaffBySlug(String slug) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/businesses/by-slug/$slug/staff'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, StaffMember.fromJson);
   }
@@ -343,15 +370,24 @@ class AgendaApiService {
     String? staffMemberId,
     required String date,
   }) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/businesses/by-slug/$slug/availability', {
             'serviceId': serviceId,
             'staffMemberId': staffMemberId,
             'date': date,
           }),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, AvailabilitySlot.fromJson);
+  }
+
+  /// `GET /public/businesses/by-slug/{slug}/hours`
+  Future<List<BusinessHours>> publicBusinessHoursBySlug(String slug) async {
+    final r = await _sendPublic(() => _client.get(
+          _uri('/public/businesses/by-slug/$slug/hours'),
+          headers: _publicHeaders(),
+        ));
+    return _decodeList(r, BusinessHours.fromJson);
   }
 
   // =====================================================================
@@ -360,9 +396,9 @@ class AgendaApiService {
 
   /// `GET /public/tenants/by-code/{accessCode}`
   Future<String> getTenantByCode(String accessCode) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/tenants/by-code/$accessCode'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decode(r, (b) => (b as Map<String, dynamic>)['tenantId'] as String);
   }
@@ -373,23 +409,23 @@ class AgendaApiService {
     String? tenantId,
     String? categorySlug,
   }) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/search', {
             'q': q,
             if (tenantId != null && tenantId.isNotEmpty) 'tenantId': tenantId,
             if (categorySlug != null && categorySlug.isNotEmpty)
               'categorySlug': categorySlug,
           }),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, BusinessSummary.fromJson);
   }
 
   /// `GET /public/categories`
   Future<List<agenda.Category>> listPublicCategories() async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/categories'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, agenda.Category.fromJson);
   }
@@ -399,29 +435,29 @@ class AgendaApiService {
     required String slug,
     String? tenantId,
   }) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/categories/$slug/businesses', {
             if (tenantId != null && tenantId.isNotEmpty) 'tenantId': tenantId,
           }),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, BusinessSummary.fromJson);
   }
 
   /// `GET /public/businesses/{id}`
   Future<Business> publicBusinessDetail(String id) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/businesses/$id'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
   }
 
   /// `GET /public/businesses/{id}/staff`
   Future<List<StaffMember>> publicBusinessStaff(String id) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/businesses/$id/staff'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, StaffMember.fromJson);
   }
@@ -433,22 +469,31 @@ class AgendaApiService {
     String? staffMemberId,
     required String date,
   }) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/businesses/$businessId/availability', {
             'serviceId': serviceId,
             'staffMemberId': staffMemberId, // null filtered by _uri()
             'date': date,
           }),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, AvailabilitySlot.fromJson);
   }
 
+  /// `GET /public/businesses/{id}/hours`
+  Future<List<BusinessHours>> publicBusinessHours(String businessId) async {
+    final r = await _sendPublic(() => _client.get(
+          _uri('/public/businesses/$businessId/hours'),
+          headers: _publicHeaders(),
+        ));
+    return _decodeList(r, BusinessHours.fromJson);
+  }
+
   /// `GET /public/businesses/{id}/services`
   Future<List<AgendaService>> publicBusinessServices(String id) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/businesses/$id/services'),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, AgendaService.fromJson);
   }
@@ -458,9 +503,9 @@ class AgendaApiService {
     required String businessId,
     required String q,
   }) async {
-    final r = await _send(() => _client.get(
+    final r = await _sendPublic(() => _client.get(
           _uri('/public/businesses/$businessId/clients', {'q': q}),
-          headers: _headers(),
+          headers: _publicHeaders(),
         ));
     return _decodeList(r, PublicClient.fromJson);
   }
@@ -472,9 +517,9 @@ class AgendaApiService {
     String? email,
     String? telefono,
   }) async {
-    final r = await _send(() => _client.post(
+    final r = await _sendPublic(() => _client.post(
           _uri('/public/businesses/$businessId/clients'),
-          headers: _headers(),
+          headers: _publicHeaders(),
           body: jsonEncode({
             'nombre': nombre,
             if (email != null && email.isNotEmpty) 'email': email,
@@ -495,9 +540,9 @@ class AgendaApiService {
     required String clientId,
     String? notas,
   }) async {
-    final r = await _send(() => _client.post(
+    final r = await _sendPublic(() => _client.post(
           _uri('/public/businesses/$businessId/bookings'),
-          headers: _headers(),
+          headers: _publicHeaders(),
           body: jsonEncode({
             'serviceId': serviceId,
             if (staffMemberId != null) 'staffMemberId': staffMemberId,

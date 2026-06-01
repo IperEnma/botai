@@ -18,6 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.Arrays;
@@ -63,7 +64,15 @@ public class ApiSecurityConfiguration {
                 .anyRequest().authenticated()
         );
 
+        var defaultBearerResolver = new DefaultBearerTokenResolver();
         http.oauth2ResourceServer(oauth2 -> oauth2
+                .bearerTokenResolver(request -> {
+                    String uri = request.getRequestURI();
+                    if (uri != null && uri.startsWith("/api/agenda/public/")) {
+                        return null;
+                    }
+                    return defaultBearerResolver.resolve(request);
+                })
                 .authenticationEntryPoint((request, response, ex) -> {
                     if (log.isDebugEnabled()) {
                         boolean hasAuth = request.getHeader("Authorization") != null

@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/availability_slot.dart';
 import '../../../models/agenda/business.dart';
+import '../../../models/agenda/business_hours.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
+import 'public_booking_hours.dart';
 import 'public_reservar_layout.dart';
 
 enum _BookingStep { service, staff, date, slots, review, contact }
@@ -174,6 +176,25 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       _step = _BookingStep.slots;
       _slotsFuture = ref.read(availabilityBySlugProvider(key).future);
     });
+  }
+
+  Widget _buildDatePicker(PublicReservarTheme theme) {
+    final hoursAsync = ref.watch(publicHoursBySlugProvider(widget.slug));
+    return hoursAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => _DatePicker(
+        theme: theme,
+        selectedDate: _selectedDate,
+        hours: const [],
+        onSelect: (d) => _selectDate(d, theme),
+      ),
+      data: (hours) => _DatePicker(
+        theme: theme,
+        selectedDate: _selectedDate,
+        hours: hours,
+        onSelect: (d) => _selectDate(d, theme),
+      ),
+    );
   }
 
   void _goToReview() {
@@ -413,11 +434,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         );
       case _BookingStep.staff:
         if (!_usesStaffStep(_service)) {
-          return _DatePicker(
-            theme: theme,
-            selectedDate: _selectedDate,
-            onSelect: (d) => _selectDate(d, theme),
-          );
+          return _buildDatePicker(theme);
         }
         return ref.watch(publicStaffBySlugProvider(widget.slug)).when(
               loading: () =>
@@ -472,11 +489,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
               },
             );
       case _BookingStep.date:
-        return _DatePicker(
-          theme: theme,
-          selectedDate: _selectedDate,
-          onSelect: (d) => _selectDate(d, theme),
-        );
+        return _buildDatePicker(theme);
       case _BookingStep.slots:
         return _SlotsPicker(
           theme: theme,
@@ -944,18 +957,29 @@ class _DatePicker extends StatelessWidget {
     required this.theme,
     this.selectedDate,
     required this.onSelect,
+    this.hours = const [],
   });
 
   final PublicReservarTheme theme;
   final DateTime? selectedDate;
   final ValueChanged<DateTime> onSelect;
+  final List<BusinessHours> hours;
 
   @override
   Widget build(BuildContext context) {
     final t = theme;
     final today = DateTime.now();
-    final dates =
-        List.generate(14, (i) => DateTime(today.year, today.month, today.day + i));
+    final dates = List.generate(
+      14,
+      (i) => DateTime(today.year, today.month, today.day + i),
+    ).where((d) => isPublicBookingDayOpen(d, hours)).toList();
+
+    if (dates.isEmpty) {
+      return Text(
+        'No hay días con horario de atención en las próximas dos semanas.',
+        style: t.textStyle(size: 14, color: t.textSub),
+      );
+    }
     const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     const monthNames = [
       'ene', 'feb', 'mar', 'abr', 'may', 'jun',

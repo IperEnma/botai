@@ -6,11 +6,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/availability_slot.dart';
 import '../../../models/agenda/business.dart';
+import '../../../models/agenda/business_hours.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/public/public_business_detail_provider.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
+import 'public_booking_hours.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen entry point
@@ -843,9 +845,28 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
   // ── Step: date ─────────────────────────────────────────────────────────────
 
   Widget _buildDateStep() {
+    final hoursAsync =
+        ref.watch(publicHoursProvider(widget.business.id));
+    return hoursAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => _buildDateChips(const []),
+      data: (hours) => _buildDateChips(hours),
+    );
+  }
+
+  Widget _buildDateChips(List<BusinessHours> hours) {
     final today = DateTime.now();
     final dates = List.generate(
-        14, (i) => DateTime(today.year, today.month, today.day + i));
+      14,
+      (i) => DateTime(today.year, today.month, today.day + i),
+    ).where((d) => isPublicBookingDayOpen(d, hours)).toList();
+
+    if (dates.isEmpty) {
+      return Text(
+        'No hay días con horario de atención en las próximas dos semanas.',
+        style: _fs(_font, size: 14, color: _subColor),
+      );
+    }
 
     const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     const monthNames = [
