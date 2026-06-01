@@ -24,6 +24,8 @@ import com.botai.domain.agenda.repository.BusinessCategoryRepository;
 import com.botai.domain.agenda.repository.BusinessHoursRepository;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
+import com.botai.domain.agenda.repository.StaffMemberRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -38,6 +40,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -58,6 +61,8 @@ public class PublicSearchController {
     private final ServiceRepository serviceRepository;
     private final BusinessHoursRepository hoursRepository;
     private final BookingRepository bookingRepository;
+    private final StaffMemberRepository staffMemberRepository;
+    private final ObjectMapper objectMapper;
 
     public PublicSearchController(SearchBusinessesUseCase searchBusinesses,
                                   ListPublicCategoriesUseCase listCategories,
@@ -69,7 +74,9 @@ public class PublicSearchController {
                                   BusinessCategoryRepository businessCategoryRepository,
                                   ServiceRepository serviceRepository,
                                   BusinessHoursRepository hoursRepository,
-                                  BookingRepository bookingRepository) {
+                                  BookingRepository bookingRepository,
+                                  StaffMemberRepository staffMemberRepository,
+                                  ObjectMapper objectMapper) {
         this.searchBusinesses = searchBusinesses;
         this.listCategories = listCategories;
         this.listByCategory = listByCategory;
@@ -81,6 +88,8 @@ public class PublicSearchController {
         this.serviceRepository = serviceRepository;
         this.hoursRepository = hoursRepository;
         this.bookingRepository = bookingRepository;
+        this.staffMemberRepository = staffMemberRepository;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/search")
@@ -171,6 +180,34 @@ public class PublicSearchController {
 
         LocalTime apertura = hours.getApertura();
         LocalTime cierre = hours.getCierre();
+
+        // Override with the staff member's own schedule when they have one configured
+        if (staffMemberId != null) {
+            var staffOpt = staffMemberRepository.findById(staffMemberId);
+            if (staffOpt.isPresent() && staffOpt.get().getCustomSchedule() != null) {
+                String[] dayKeys = {"lunes","martes","miercoles","jueves","viernes","sabado","domingo"};
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> sched = objectMapper.readValue(staffOpt.get().getCustomSchedule(), Map.class);
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> dayEntry = (Map<String, Object>) sched.get(dayKeys[diaSemana]);
+                    if (dayEntry == null || !Boolean.TRUE.equals(dayEntry.get("open"))) {
+                        return List.of();
+                    }
+                    String fromStr = (String) dayEntry.get("from");
+                    String toStr   = (String) dayEntry.get("to");
+                    if (fromStr != null) {
+                        LocalTime staffFrom = LocalTime.parse(fromStr);
+                        if (staffFrom.isAfter(apertura)) apertura = staffFrom;
+                    }
+                    if (toStr != null) {
+                        LocalTime staffTo = LocalTime.parse(toStr);
+                        if (staffTo.isBefore(cierre)) cierre = staffTo;
+                    }
+                    if (!apertura.isBefore(cierre)) return List.of();
+                } catch (Exception ignored) { /* fall back to business hours on parse error */ }
+            }
+        }
 
         // Existing active bookings for that business/date
         LocalDateTime dayStart = date.atStartOfDay();

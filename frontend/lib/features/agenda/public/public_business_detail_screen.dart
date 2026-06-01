@@ -895,7 +895,15 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
             ),
           );
         }
-        final slots = snap.data ?? [];
+        final now = DateTime.now();
+        final todayOnly = DateTime(now.year, now.month, now.day);
+        final selectedOnly = _selectedDate != null
+            ? DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day)
+            : null;
+        final isToday = selectedOnly != null && selectedOnly == todayOnly;
+        final slots = isToday
+            ? (snap.data ?? []).where((s) => s.inicio.isAfter(now)).toList()
+            : (snap.data ?? []);
         if (slots.isEmpty) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),

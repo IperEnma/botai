@@ -60,7 +60,7 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
     }
   }
 
-  Future<StaffMember?> addMember(String nombre, String? rol, String? avatarUrl, {String? telefono}) async {
+  Future<StaffMember?> addMember(String nombre, String? rol, String? avatarUrl, {String? telefono, String? color}) async {
     state = state.copyWith(isSaving: true, error: null);
     try {
       final api = _ref.read(agendaApiServiceProvider);
@@ -70,6 +70,7 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
         rol: rol,
         avatarUrl: avatarUrl,
         telefono: telefono,
+        color: color,
       );
       state = state.copyWith(
         members: [...state.members, member],

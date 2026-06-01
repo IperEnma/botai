@@ -126,7 +126,10 @@ class _MemberDetailPanelState extends ConsumerState<_MemberDetailPanel>
                           tenantId: widget.equipoKey.tenantId,
                           businessId: widget.equipoKey.businessId),
                       DetailScheduleTab(
-                          member: _member, notifier: widget.notifier),
+                          member: _member,
+                          notifier: widget.notifier,
+                          tenantId: widget.equipoKey.tenantId,
+                          businessId: widget.equipoKey.businessId),
                       DetailPermissionsTab(
                           member: _member, notifier: widget.notifier),
                     ],

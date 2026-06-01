@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:botai_admin/features/agenda/register/konecta_tokens.dart';
 import 'package:botai_admin/models/agenda/booking.dart';
+import 'package:botai_admin/models/agenda/staff_member.dart';
 import 'package:botai_admin/providers/agenda/tenant/business_hours_provider.dart';
 import 'package:botai_admin/providers/agenda/tenant/agenda_week_provider.dart';
+import 'package:botai_admin/providers/agenda/tenant/business_staff_provider.dart';
 import 'package:botai_admin/features/agenda/tenant/tabs/horarios/utils/slot_generator.dart';
 import 'package:botai_admin/providers/agenda/tenant/horarios_controller_provider.dart';
 import '../booking_wizard_controller.dart';
@@ -71,6 +73,28 @@ class _StepFechaHoraState extends ConsumerState<StepFechaHora> {
       ),
     );
 
+    final staffState = ref.watch(
+      businessStaffProvider((tenantId: widget.tenantId, businessId: widget.businessId)),
+    );
+
+    final proId = widget.controller.draft.anyProfessional
+        ? null
+        : widget.controller.draft.profesionalId;
+    final selectedStaff = proId == null
+        ? null
+        : staffState.members.where((s) => s.id == proId).firstOrNull;
+
+    // Build a day-availability override map from the staff's custom schedule
+    Map<int, bool>? staffWorkDays;
+    if (selectedStaff?.customSchedule != null) {
+      const keys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+      staffWorkDays = {};
+      for (var i = 0; i < keys.length; i++) {
+        final day = selectedStaff!.customSchedule![keys[i]] as Map<String, dynamic>?;
+        staffWorkDays[i] = day?['open'] == true;
+      }
+    }
+
     final proName = widget.controller.draft.anyProfessional
         ? 'cualquier profesional'
         : 'el profesional';
@@ -99,6 +123,7 @@ class _StepFechaHoraState extends ConsumerState<StepFechaHora> {
             displayMonth: _displayMonth,
             selectedDate: widget.controller.draft.date,
             hoursState: hoursState,
+            staffWorkDays: staffWorkDays,
             onPrev: () => setState(
               () => _displayMonth = DateTime(
                 _displayMonth.year,
@@ -129,6 +154,7 @@ class _StepFechaHoraState extends ConsumerState<StepFechaHora> {
               selectedDate: widget.controller.draft.date!,
               selectedTime: _selectedTime,
               dayAbbrs: _dayAbbrs,
+              selectedStaff: selectedStaff,
             ),
           ],
           // WhatsApp + Notes
@@ -158,6 +184,7 @@ class _CalendarCard extends StatelessWidget {
     required this.displayMonth,
     required this.selectedDate,
     required this.hoursState,
+    this.staffWorkDays,
     required this.onPrev,
     required this.onNext,
     required this.onSelectDate,
@@ -172,6 +199,8 @@ class _CalendarCard extends StatelessWidget {
   final DateTime displayMonth;
   final DateTime? selectedDate;
   final BusinessHoursState hoursState;
+  /// When non-null, overrides business hours: maps diaSemana (0=lun..6=dom) → isOpen.
+  final Map<int, bool>? staffWorkDays;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final void Function(DateTime) onSelectDate;
@@ -183,8 +212,14 @@ class _CalendarCard extends StatelessWidget {
   final String proName;
 
   bool _isWorkDay(DateTime d) {
-    if (hoursState.isLoading || hoursState.hours.isEmpty) return true;
     final dia = bHoursDiaSemana(d);
+    // Business hours are the hard ceiling — closed days are never available.
+    if (!hoursState.isLoading && hoursState.hours.isNotEmpty) {
+      final bh = hoursState.hours.where((h) => h.diaSemana == dia).firstOrNull;
+      if (bh != null && bh.cerrado) return false;
+    }
+    if (staffWorkDays != null) return staffWorkDays![dia] ?? false;
+    if (hoursState.isLoading || hoursState.hours.isEmpty) return true;
     final h = hoursState.hours.where((h) => h.diaSemana == dia).firstOrNull;
     return h != null && !h.cerrado;
   }
@@ -441,6 +476,7 @@ class _SlotsSection extends ConsumerWidget {
     required this.selectedDate,
     required this.selectedTime,
     required this.dayAbbrs,
+    this.selectedStaff,
   });
 
   final BookingWizardController controller;
@@ -449,6 +485,7 @@ class _SlotsSection extends ConsumerWidget {
   final DateTime selectedDate;
   final TimeOfDay? selectedTime;
   final List<String> dayAbbrs;
+  final StaffMember? selectedStaff;
 
   int _bHoursDiaSemana(DateTime d) => (d.weekday - 1) % 7;
 
@@ -474,32 +511,52 @@ class _SlotsSection extends ConsumerWidget {
         : controller.draft.profesionalId;
 
     final dia = _bHoursDiaSemana(selectedDate);
-    final hourEntry =
-        hoursState.hours.where((h) => h.diaSemana == dia).firstOrNull;
 
     DayDraft dayDraft;
-    if (hourEntry == null || hourEntry.cerrado) {
+    final cs = selectedStaff?.customSchedule;
+    final hourEntry =
+        hoursState.hours.where((h) => h.diaSemana == dia).firstOrNull;
+    final bizClosed = hourEntry != null && hourEntry.cerrado;
+
+    if (bizClosed) {
+      // Business is closed on this day — no slots regardless of staff schedule.
       dayDraft = DayDraft(diaSemana: dia, open: false);
+    } else if (cs != null) {
+      // Staff has a custom schedule that is already clamped to business hours
+      // by the backend sanitizer — use it directly.
+      const dayKeys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+      final dayEntry = cs[dayKeys[dia]] as Map<String, dynamic>?;
+      if (dayEntry == null || dayEntry['open'] != true) {
+        dayDraft = DayDraft(diaSemana: dia, open: false);
+      } else {
+        final from1 = _parseTimeStr(dayEntry['from'] as String?, const TimeOfDay(hour: 9, minute: 0));
+        final to1   = _parseTimeStr(dayEntry['to']   as String?, const TimeOfDay(hour: 18, minute: 0));
+        dayDraft = DayDraft(diaSemana: dia, open: true, from1: from1, to1: to1);
+      }
     } else {
-      final from1 = _parseTimeStr(
-          hourEntry.apertura, const TimeOfDay(hour: 9, minute: 0));
-      final to1 = _parseTimeStr(
-          hourEntry.cierre, const TimeOfDay(hour: 18, minute: 0));
-      final hasBreak =
-          hourEntry.apertura2 != null && hourEntry.cierre2 != null;
-      final from2 = _parseTimeStr(
-          hourEntry.apertura2, const TimeOfDay(hour: 15, minute: 0));
-      final to2 = _parseTimeStr(
-          hourEntry.cierre2, const TimeOfDay(hour: 19, minute: 0));
-      dayDraft = DayDraft(
-        diaSemana: dia,
-        open: true,
-        from1: from1,
-        to1: to1,
-        hasBreak: hasBreak,
-        from2: from2,
-        to2: to2,
-      );
+      if (hourEntry == null) {
+        dayDraft = DayDraft(diaSemana: dia, open: false);
+      } else {
+        final from1 = _parseTimeStr(
+            hourEntry.apertura, const TimeOfDay(hour: 9, minute: 0));
+        final to1 = _parseTimeStr(
+            hourEntry.cierre, const TimeOfDay(hour: 18, minute: 0));
+        final hasBreak =
+            hourEntry.apertura2 != null && hourEntry.cierre2 != null;
+        final from2 = _parseTimeStr(
+            hourEntry.apertura2, const TimeOfDay(hour: 15, minute: 0));
+        final to2 = _parseTimeStr(
+            hourEntry.cierre2, const TimeOfDay(hour: 19, minute: 0));
+        dayDraft = DayDraft(
+          diaSemana: dia,
+          open: true,
+          from1: from1,
+          to1: to1,
+          hasBreak: hasBreak,
+          from2: from2,
+          to2: to2,
+        );
+      }
     }
 
     final rules = BookingRulesDraft(
@@ -517,7 +574,17 @@ class _SlotsSection extends ConsumerWidget {
     final weekKey = (businessId: businessId, weekStart: weekStart);
     final bookingsAsync = ref.watch(agendaWeekBookingsProvider(weekKey));
 
-    final allSlots = slotsResult.all;
+    final now = DateTime.now();
+    final isToday = selectedDate.year == now.year &&
+        selectedDate.month == now.month &&
+        selectedDate.day == now.day;
+    final allSlots = isToday
+        ? slotsResult.all.where((s) {
+            final slotMin = s.time.hour * 60 + s.time.minute;
+            final nowMin = now.hour * 60 + now.minute;
+            return slotMin > nowMin;
+          }).toList()
+        : slotsResult.all;
 
     if (allSlots.isEmpty) {
       return Container(
