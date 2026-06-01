@@ -450,6 +450,7 @@ class CreateBookingUseCaseTest {
     private Service service(UUID id, UUID businessId, int duracion) {
         return new Service(id, businessId, "Servicio Test", null,
                 duracion, BigDecimal.valueOf(500), true,
+                com.botai.domain.agenda.model.ServiceSchedulingMode.GENERAL,
                 null, now.minusDays(30), now.minusDays(30));
     }
 

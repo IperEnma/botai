@@ -1,6 +1,7 @@
 package com.botai.infrastructure.agenda.persistence.mapper;
 
 import com.botai.domain.agenda.model.Service;
+import com.botai.domain.agenda.model.ServiceSchedulingMode;
 import com.botai.infrastructure.agenda.persistence.entity.ServiceEntity;
 
 public final class ServiceMapper {
@@ -20,6 +21,7 @@ public final class ServiceMapper {
                 entity.getDuracionMin(),
                 entity.getPrecio(),
                 entity.isActivo(),
+                ServiceSchedulingMode.fromString(entity.getSchedulingMode()),
                 entity.getDeletedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -38,6 +40,7 @@ public final class ServiceMapper {
         entity.setDuracionMin(service.getDuracionMin());
         entity.setPrecio(service.getPrecio());
         entity.setActivo(service.isActivo());
+        entity.setSchedulingMode(service.getSchedulingMode().name());
         entity.setDeletedAt(service.getDeletedAt());
         entity.setCreatedAt(service.getCreatedAt());
         entity.setUpdatedAt(service.getUpdatedAt());

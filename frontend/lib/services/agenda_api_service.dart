@@ -851,6 +851,8 @@ class AgendaApiService {
     String? descripcion,
     required int duracionMin,
     required double precio,
+    String schedulingMode = 'GENERAL',
+    List<String>? staffMemberIds,
   }) async {
     final r = await _send(() => _client.post(
           _uri('/me/businesses/$businessId/services'),
@@ -860,6 +862,8 @@ class AgendaApiService {
             if (descripcion != null) 'descripcion': descripcion,
             'duracionMin': duracionMin,
             'precio': precio,
+            'schedulingMode': schedulingMode,
+            if (staffMemberIds != null) 'staffMemberIds': staffMemberIds,
           }),
         ));
     return _decode(r, (body) => AgendaService.fromJson(body as Map<String, dynamic>));
@@ -874,6 +878,8 @@ class AgendaApiService {
     required int duracionMin,
     required double precio,
     required bool activo,
+    String schedulingMode = 'GENERAL',
+    List<String>? staffMemberIds,
   }) async {
     final r = await _send(() => _client.put(
           _uri('/me/businesses/$businessId/services/$serviceId'),
@@ -884,6 +890,8 @@ class AgendaApiService {
             'duracionMin': duracionMin,
             'precio': precio,
             'activo': activo,
+            'schedulingMode': schedulingMode,
+            if (staffMemberIds != null) 'staffMemberIds': staffMemberIds,
           }),
         ));
     return _decode(r, (body) => AgendaService.fromJson(body as Map<String, dynamic>));

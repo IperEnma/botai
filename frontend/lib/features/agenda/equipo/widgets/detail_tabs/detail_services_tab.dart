@@ -67,7 +67,8 @@ class _DetailServicesTabState extends ConsumerState<DetailServicesTab> {
               borderRadius: BorderRadius.circular(KTokens.rSm),
             ),
             child: Text(
-              'Los servicios asignados son los que el cliente puede elegir al reservar con este profesional.',
+              'También podés asignar profesionales desde cada servicio (Servicios). '
+              'Aquí definís en qué servicios participa este miembro al reservar.',
               style: GoogleFonts.inter(
                 fontSize: 12,
                 color: KTokens.accent,

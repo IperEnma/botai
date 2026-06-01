@@ -10,6 +10,7 @@ import com.botai.application.agenda.mapper.BusinessDtoMapper;
 import com.botai.application.agenda.mapper.CategoryDtoMapper;
 import com.botai.application.agenda.mapper.ServiceDtoMapper;
 import com.botai.application.agenda.mapper.StaffMemberDtoMapper;
+import com.botai.application.agenda.service.ServiceStaffLookup;
 import com.botai.application.agenda.usecase.business.ListBusinessServicesUseCase;
 import com.botai.application.agenda.usecase.category.ListPublicCategoriesUseCase;
 import com.botai.application.agenda.usecase.search.GetBusinessPublicUseCase;
@@ -63,6 +64,7 @@ public class PublicSearchController {
     private final BookingRepository bookingRepository;
     private final StaffMemberRepository staffMemberRepository;
     private final ObjectMapper objectMapper;
+    private final ServiceStaffLookup serviceStaffLookup;
 
     public PublicSearchController(SearchBusinessesUseCase searchBusinesses,
                                   ListPublicCategoriesUseCase listCategories,
@@ -76,7 +78,8 @@ public class PublicSearchController {
                                   BusinessHoursRepository hoursRepository,
                                   BookingRepository bookingRepository,
                                   StaffMemberRepository staffMemberRepository,
-                                  ObjectMapper objectMapper) {
+                                  ObjectMapper objectMapper,
+                                  ServiceStaffLookup serviceStaffLookup) {
         this.searchBusinesses = searchBusinesses;
         this.listCategories = listCategories;
         this.listByCategory = listByCategory;
@@ -90,6 +93,7 @@ public class PublicSearchController {
         this.bookingRepository = bookingRepository;
         this.staffMemberRepository = staffMemberRepository;
         this.objectMapper = objectMapper;
+        this.serviceStaffLookup = serviceStaffLookup;
     }
 
     @GetMapping("/search")
@@ -134,8 +138,10 @@ public class PublicSearchController {
     @GetMapping("/businesses/{id}/services")
     @Operation(summary = "Servicios activos de un negocio")
     public List<ServiceResponse> services(@PathVariable("id") UUID id) {
+        Map<UUID, List<UUID>> staffByService = serviceStaffLookup.staffIdsByServiceId(id);
         return listBusinessServices.execute(id).stream()
-                .map(ServiceDtoMapper::toResponse)
+                .map(s -> ServiceDtoMapper.toResponse(
+                        s, staffByService.getOrDefault(s.getId(), List.of())))
                 .toList();
     }
 

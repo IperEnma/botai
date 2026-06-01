@@ -8,6 +8,7 @@ import com.botai.application.agenda.dto.StaffMemberResponse;
 import com.botai.application.agenda.mapper.BusinessDtoMapper;
 import com.botai.application.agenda.mapper.ServiceDtoMapper;
 import com.botai.application.agenda.mapper.StaffMemberDtoMapper;
+import com.botai.application.agenda.service.ServiceStaffLookup;
 import com.botai.application.agenda.usecase.business.ListBusinessServicesUseCase;
 import com.botai.application.agenda.usecase.staff.ListPublicStaffUseCase;
 import com.botai.domain.agenda.model.BookingEstado;
@@ -60,6 +61,7 @@ public class PublicBusinessBySlugController {
     private final BookingRepository bookingRepository;
     private final StaffMemberRepository staffMemberRepository;
     private final ObjectMapper objectMapper;
+    private final ServiceStaffLookup serviceStaffLookup;
 
     public PublicBusinessBySlugController(BusinessRepository businessRepository,
                                           BusinessCategoryRepository businessCategoryRepository,
@@ -69,7 +71,8 @@ public class PublicBusinessBySlugController {
                                           BusinessHoursRepository hoursRepository,
                                           BookingRepository bookingRepository,
                                           StaffMemberRepository staffMemberRepository,
-                                          ObjectMapper objectMapper) {
+                                          ObjectMapper objectMapper,
+                                          ServiceStaffLookup serviceStaffLookup) {
         this.businessRepository = businessRepository;
         this.businessCategoryRepository = businessCategoryRepository;
         this.listBusinessServices = listBusinessServices;
@@ -79,6 +82,7 @@ public class PublicBusinessBySlugController {
         this.bookingRepository = bookingRepository;
         this.staffMemberRepository = staffMemberRepository;
         this.objectMapper = objectMapper;
+        this.serviceStaffLookup = serviceStaffLookup;
     }
 
     private Business requireBusiness(String slug) {
@@ -98,8 +102,10 @@ public class PublicBusinessBySlugController {
     @Operation(summary = "Servicios activos de un negocio por slug")
     public List<ServiceResponse> services(@PathVariable("slug") String slug) {
         Business b = requireBusiness(slug);
+        Map<UUID, List<UUID>> staffByService = serviceStaffLookup.staffIdsByServiceId(b.getId());
         return listBusinessServices.execute(b.getId()).stream()
-                .map(ServiceDtoMapper::toResponse)
+                .map(s -> ServiceDtoMapper.toResponse(
+                        s, staffByService.getOrDefault(s.getId(), List.of())))
                 .toList();
     }
 

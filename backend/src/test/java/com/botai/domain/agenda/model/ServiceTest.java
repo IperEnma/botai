@@ -30,6 +30,7 @@ class ServiceTest {
                         0,
                         new BigDecimal("100.00"),
                         true,
+                        ServiceSchedulingMode.GENERAL,
                         null,
                         null,
                         null
@@ -51,6 +52,7 @@ class ServiceTest {
                         -5,
                         BigDecimal.ZERO,
                         true,
+                        ServiceSchedulingMode.GENERAL,
                         null,
                         null,
                         null
@@ -69,6 +71,7 @@ class ServiceTest {
                 45,
                 new BigDecimal("2500.00"),
                 true,
+                ServiceSchedulingMode.GENERAL,
                 null,
                 null,
                 null

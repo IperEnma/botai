@@ -14,12 +14,14 @@ public final class Service {
     private final int duracionMin;
     private final BigDecimal precio;
     private final boolean activo;
+    private final ServiceSchedulingMode schedulingMode;
     private final LocalDateTime deletedAt;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
     public Service(UUID id, UUID businessId, String nombre, String descripcion,
                    int duracionMin, BigDecimal precio, boolean activo,
+                   ServiceSchedulingMode schedulingMode,
                    LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.businessId = Objects.requireNonNull(businessId, "businessId");
@@ -31,6 +33,7 @@ public final class Service {
         this.duracionMin = duracionMin;
         this.precio = precio;
         this.activo = activo;
+        this.schedulingMode = schedulingMode != null ? schedulingMode : ServiceSchedulingMode.GENERAL;
         this.deletedAt = deletedAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -43,6 +46,7 @@ public final class Service {
     public int getDuracionMin() { return duracionMin; }
     public BigDecimal getPrecio() { return precio; }
     public boolean isActivo() { return activo; }
+    public ServiceSchedulingMode getSchedulingMode() { return schedulingMode; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

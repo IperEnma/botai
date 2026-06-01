@@ -1,6 +1,7 @@
 package com.botai.application.agenda.usecase.business;
 
 import com.botai.domain.agenda.model.Service;
+import com.botai.domain.agenda.model.ServiceSchedulingMode;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +35,7 @@ class ListBusinessServicesUseCaseTest {
         UUID businessId = UUID.randomUUID();
         List<Service> expected = List.of(
                 new Service(UUID.randomUUID(), businessId, "Corte", null,
-                        30, new BigDecimal("15.00"), true, null,
+                        30, new BigDecimal("15.00"), true, ServiceSchedulingMode.GENERAL, null,
                         LocalDateTime.now(), LocalDateTime.now()));
         when(serviceRepository.findAllActiveByBusinessId(businessId)).thenReturn(expected);
 

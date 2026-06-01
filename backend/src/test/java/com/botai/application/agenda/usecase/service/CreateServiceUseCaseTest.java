@@ -3,6 +3,7 @@ package com.botai.application.agenda.usecase.service;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.Service;
+import com.botai.domain.agenda.model.ServiceSchedulingMode;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,7 @@ class CreateServiceUseCaseTest {
 
     private BusinessRepository businessRepository;
     private ServiceRepository serviceRepository;
+    private AssignServiceStaffUseCase assignServiceStaff;
     private CreateServiceUseCase useCase;
 
     private final String TENANT = "tenant-1";
@@ -34,7 +36,8 @@ class CreateServiceUseCaseTest {
     void setUp() {
         businessRepository = mock(BusinessRepository.class);
         serviceRepository = mock(ServiceRepository.class);
-        useCase = new CreateServiceUseCase(businessRepository, serviceRepository);
+        assignServiceStaff = mock(AssignServiceStaffUseCase.class);
+        useCase = new CreateServiceUseCase(businessRepository, serviceRepository, assignServiceStaff);
 
         when(businessRepository.findByIdAndTenantId(BUSINESS_ID, TENANT))
                 .thenReturn(Optional.of(business()));
@@ -44,7 +47,7 @@ class CreateServiceUseCaseTest {
     @Test
     void crearServicio_guardaConAtributosCorrectos() {
         Service result = useCase.execute(TENANT, BUSINESS_ID, "Corte", "Corte de cabello", 45,
-                BigDecimal.valueOf(1500));
+                BigDecimal.valueOf(1500), ServiceSchedulingMode.GENERAL, null);
 
         assertEquals("Corte", result.getNombre());
         assertEquals(BUSINESS_ID, result.getBusinessId());
@@ -59,13 +62,14 @@ class CreateServiceUseCaseTest {
                 .thenReturn(Optional.empty());
 
         assertThrows(BusinessNotFoundException.class,
-                () -> useCase.execute(TENANT, BUSINESS_ID, "X", null, 30, null));
+                () -> useCase.execute(TENANT, BUSINESS_ID, "X", null, 30, null, null, null));
         verify(serviceRepository, never()).save(any());
     }
 
     @Test
     void crearServicio_sinPrecio_sePermite() {
-        Service result = useCase.execute(TENANT, BUSINESS_ID, "Consulta", null, 60, null);
+        Service result = useCase.execute(TENANT, BUSINESS_ID, "Consulta", null, 60, null,
+                ServiceSchedulingMode.GENERAL, null);
 
         assertEquals("Consulta", result.getNombre());
     }

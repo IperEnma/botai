@@ -38,6 +38,9 @@ public class ServiceEntity extends BaseAuditableEntity {
     @Column(name = "activo", nullable = false)
     private boolean activo = true;
 
+    @Column(name = "scheduling_mode", nullable = false, length = 20)
+    private String schedulingMode = "GENERAL";
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -55,6 +58,8 @@ public class ServiceEntity extends BaseAuditableEntity {
     public void setPrecio(BigDecimal precio) { this.precio = precio; }
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
+    public String getSchedulingMode() { return schedulingMode; }
+    public void setSchedulingMode(String schedulingMode) { this.schedulingMode = schedulingMode; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 }

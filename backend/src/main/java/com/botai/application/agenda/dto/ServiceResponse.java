@@ -1,6 +1,7 @@
 package com.botai.application.agenda.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public record ServiceResponse(
@@ -10,6 +11,8 @@ public record ServiceResponse(
         String descripcion,
         int duracionMin,
         BigDecimal precio,
-        boolean activo
+        boolean activo,
+        String schedulingMode,
+        List<UUID> staffMemberIds
 ) {
 }

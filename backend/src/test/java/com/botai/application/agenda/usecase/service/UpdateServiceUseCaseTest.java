@@ -4,6 +4,7 @@ import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.exception.ServiceNotFoundException;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.Service;
+import com.botai.domain.agenda.model.ServiceSchedulingMode;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,7 @@ class UpdateServiceUseCaseTest {
 
     private BusinessRepository businessRepository;
     private ServiceRepository serviceRepository;
+    private AssignServiceStaffUseCase assignServiceStaff;
     private UpdateServiceUseCase useCase;
 
     private final String TENANT = "tenant-1";
@@ -37,7 +39,8 @@ class UpdateServiceUseCaseTest {
     void setUp() {
         businessRepository = mock(BusinessRepository.class);
         serviceRepository = mock(ServiceRepository.class);
-        useCase = new UpdateServiceUseCase(businessRepository, serviceRepository);
+        assignServiceStaff = mock(AssignServiceStaffUseCase.class);
+        useCase = new UpdateServiceUseCase(businessRepository, serviceRepository, assignServiceStaff);
 
         when(businessRepository.findByIdAndTenantId(BUSINESS_ID, TENANT))
                 .thenReturn(Optional.of(business()));
@@ -49,7 +52,8 @@ class UpdateServiceUseCaseTest {
         when(serviceRepository.findById(SERVICE_ID)).thenReturn(Optional.of(service(BUSINESS_ID)));
 
         Service result = useCase.execute(TENANT, BUSINESS_ID, SERVICE_ID,
-                "Nuevo nombre", "Nueva desc", 60, BigDecimal.valueOf(2000), false);
+                "Nuevo nombre", "Nueva desc", 60, BigDecimal.valueOf(2000), false,
+                null, null);
 
         assertEquals("Nuevo nombre", result.getNombre());
         assertEquals(60, result.getDuracionMin());
@@ -63,7 +67,7 @@ class UpdateServiceUseCaseTest {
         when(serviceRepository.findById(SERVICE_ID)).thenReturn(Optional.of(service(BUSINESS_ID)));
 
         Service result = useCase.execute(TENANT, BUSINESS_ID, SERVICE_ID,
-                "X", null, 30, null, true);
+                "X", null, 30, null, true, null, null);
 
         assertEquals(NOW.minusDays(5), result.getCreatedAt());
     }
@@ -74,7 +78,7 @@ class UpdateServiceUseCaseTest {
                 .thenReturn(Optional.empty());
 
         assertThrows(BusinessNotFoundException.class,
-                () -> useCase.execute(TENANT, BUSINESS_ID, SERVICE_ID, "X", null, 30, null, true));
+                () -> useCase.execute(TENANT, BUSINESS_ID, SERVICE_ID, "X", null, 30, null, true, null, null));
         verify(serviceRepository, never()).save(any());
     }
 
@@ -83,7 +87,7 @@ class UpdateServiceUseCaseTest {
         when(serviceRepository.findById(SERVICE_ID)).thenReturn(Optional.empty());
 
         assertThrows(ServiceNotFoundException.class,
-                () -> useCase.execute(TENANT, BUSINESS_ID, SERVICE_ID, "X", null, 30, null, true));
+                () -> useCase.execute(TENANT, BUSINESS_ID, SERVICE_ID, "X", null, 30, null, true, null, null));
     }
 
     @Test
@@ -92,12 +96,12 @@ class UpdateServiceUseCaseTest {
         when(serviceRepository.findById(SERVICE_ID)).thenReturn(Optional.of(service(otroBusiness)));
 
         assertThrows(ServiceNotFoundException.class,
-                () -> useCase.execute(TENANT, BUSINESS_ID, SERVICE_ID, "X", null, 30, null, true));
+                () -> useCase.execute(TENANT, BUSINESS_ID, SERVICE_ID, "X", null, 30, null, true, null, null));
     }
 
     private Service service(UUID businessId) {
         return new Service(SERVICE_ID, businessId, "Original", null, 45,
-                BigDecimal.valueOf(1000), true, null,
+                BigDecimal.valueOf(1000), true, ServiceSchedulingMode.GENERAL, null,
                 NOW.minusDays(5), NOW.minusDays(5));
     }
 

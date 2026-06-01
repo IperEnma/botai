@@ -26,6 +26,13 @@ class PublicReservarTheme {
   Color get surface =>
       dark ? const Color(0xFF1E293B) : Colors.white;
 
+  Color get primarySoft => primary.withValues(alpha: 0.12);
+
+  List<Color> get primaryGradient => [
+        primary,
+        Color.lerp(primary, const Color(0xFF8B5CF6), 0.35) ?? primary,
+      ];
+
   static PublicReservarTheme fromHex({
     String? colorPrimario,
     String? colorFondo,
@@ -77,6 +84,7 @@ class PublicReservarShell extends StatelessWidget {
     required this.theme,
     required this.brandTitle,
     required this.child,
+    this.brandSubtitle,
     this.onBack,
     this.footer,
     this.progressCurrent,
@@ -87,6 +95,7 @@ class PublicReservarShell extends StatelessWidget {
 
   final PublicReservarTheme theme;
   final String brandTitle;
+  final String? brandSubtitle;
   final Widget child;
   final VoidCallback? onBack;
   final Widget? footer;
@@ -111,18 +120,15 @@ class PublicReservarShell extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ReservarAppBar(
+                _ReservarHeroHeader(
                   theme: t,
                   title: brandTitle,
+                  subtitle: brandSubtitle,
                   onBack: onBack,
+                  progressCurrent: hasProgress ? progressCurrent : null,
+                  progressTotal: hasProgress ? progressTotal : null,
+                  progressStepLabel: progressStepLabel,
                 ),
-                if (hasProgress)
-                  _ReservarStepBar(
-                    theme: t,
-                    current: progressCurrent!,
-                    total: progressTotal!,
-                    stepLabel: progressStepLabel,
-                  ),
                 Expanded(child: child),
                 if (footer != null)
                   Container(
@@ -142,61 +148,267 @@ class PublicReservarShell extends StatelessWidget {
   }
 }
 
-/// Barra superior fija y liviana (estilo app de reservas).
-class _ReservarAppBar extends StatelessWidget {
-  const _ReservarAppBar({
+/// Cabecera con identidad de marca + wizard de pasos numerados.
+/// Icono del paso del wizard (1–6).
+IconData publicReservarStepIcon(int step) {
+  switch (step) {
+    case 1:
+      return Icons.spa_outlined;
+    case 2:
+      return Icons.person_outline_rounded;
+    case 3:
+      return Icons.calendar_month_outlined;
+    case 4:
+      return Icons.schedule_rounded;
+    case 5:
+      return Icons.fact_check_outlined;
+    case 6:
+      return Icons.badge_outlined;
+    default:
+      return Icons.event_available_outlined;
+  }
+}
+
+class _ReservarHeroHeader extends StatelessWidget {
+  const _ReservarHeroHeader({
     required this.theme,
     required this.title,
+    this.subtitle,
     this.onBack,
+    this.progressCurrent,
+    this.progressTotal,
+    this.progressStepLabel,
   });
 
   final PublicReservarTheme theme;
   final String title;
+  final String? subtitle;
   final VoidCallback? onBack;
+  final int? progressCurrent;
+  final int? progressTotal;
+  final String? progressStepLabel;
 
   @override
   Widget build(BuildContext context) {
     final t = theme;
-    return Container(
-      decoration: BoxDecoration(
-        color: t.surface,
-        border: Border(bottom: BorderSide(color: t.cardBorder)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      child: Row(
-        children: [
-          if (onBack != null)
-            IconButton(
-              onPressed: onBack,
-              icon: Icon(Icons.arrow_back_ios_new, size: 18, color: t.text),
-            )
-          else
-            const SizedBox(width: 8),
-          PublicReservarAvatar(
-            nombre: title,
-            logoUrl: t.logoUrl,
-            color: t.primary,
-            size: 40,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: t.textStyle(size: 16, weight: FontWeight.w600),
+    final hasProgress =
+        progressCurrent != null && progressTotal != null && progressTotal! > 0;
+
+    final subtitleText = subtitle?.trim();
+    final showSubtitle =
+        subtitleText != null && subtitleText.isNotEmpty && !hasProgress;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: t.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: t.cardBorder),
+          boxShadow: [
+            BoxShadow(
+              color: t.primary.withValues(alpha: 0.14),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
             ),
-          ),
-          const SizedBox(width: 8),
-        ],
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 88,
+              width: double.infinity,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: t.primaryGradient,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: -24,
+                    top: -28,
+                    child: Container(
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.14),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 12,
+                    bottom: 8,
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: ClipPath(
+                      clipper: _HeroWaveClipper(),
+                      child: Container(
+                        height: 22,
+                        color: t.surface,
+                      ),
+                    ),
+                  ),
+                  if (onBack != null)
+                    Positioned(
+                      left: 8,
+                      top: 8,
+                      child: Material(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: onBack,
+                          child: const Padding(
+                            padding: EdgeInsets.all(10),
+                            child: Icon(
+                              Icons.arrow_back_ios_new,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Transform.translate(
+              offset: const Offset(0, -34),
+              child: Column(
+                children: [
+                  PublicReservarAvatar(
+                    nombre: title,
+                    logoUrl: t.logoUrl,
+                    color: t.primary,
+                    borderColor: t.surface,
+                    size: 64,
+                    initialsColor: t.primary,
+                    elevated: true,
+                  ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.textStyle(size: 19, weight: FontWeight.w700),
+                    ),
+                  ),
+                  if (showSubtitle) ...[
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        subtitleText,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.textStyle(size: 13, color: t.textSub),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          t.primarySoft,
+                          t.primary.withValues(alpha: 0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: t.primary.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.event_available_rounded,
+                            size: 15, color: t.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Reserva online',
+                          style: t.textStyle(
+                            size: 12,
+                            weight: FontWeight.w600,
+                            color: t.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (hasProgress) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                child: _BookingProgressPanel(
+                  theme: t,
+                  current: progressCurrent!,
+                  total: progressTotal!,
+                  stepLabel: progressStepLabel,
+                ),
+              ),
+            ] else
+              const SizedBox(height: 12),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Segmentos de progreso (checkout / wizard).
-class _ReservarStepBar extends StatelessWidget {
-  const _ReservarStepBar({
+class _HeroWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height * 0.35);
+    path.quadraticBezierTo(
+      size.width * 0.5,
+      size.height * 1.15,
+      size.width,
+      size.height * 0.35,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+/// Barra segmentada + tarjeta del paso actual (más legible que 6 círculos).
+class _BookingProgressPanel extends StatelessWidget {
+  const _BookingProgressPanel({
     required this.theme,
     required this.current,
     required this.total,
@@ -211,94 +423,138 @@ class _ReservarStepBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = theme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: List.generate(total, (i) {
-              final stepNum = i + 1;
-              final isDone = stepNum < current;
-              final isCurrent = stepNum == current;
-              return Expanded(
-                child: Container(
-                  height: 4,
-                  margin: EdgeInsets.only(right: i < total - 1 ? 5 : 0),
-                  decoration: BoxDecoration(
-                    color: isDone || isCurrent
-                        ? t.primary
-                        : t.cardBorder,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+    final label = stepLabel?.trim();
+    final stepTitle =
+        label != null && label.isNotEmpty ? label : 'Paso $current';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: List.generate(total, (i) {
+            final step = i + 1;
+            final done = step < current;
+            final active = step == current;
+            return Expanded(
+              child: Container(
+                height: active ? 7 : 5,
+                margin: EdgeInsets.only(right: i < total - 1 ? 5 : 0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  gradient: active
+                      ? LinearGradient(colors: t.primaryGradient)
+                      : null,
+                  color: active
+                      ? null
+                      : (done
+                          ? t.primary.withValues(alpha: 0.55)
+                          : t.cardFill),
+                  boxShadow: active
+                      ? [
+                          BoxShadow(
+                            color: t.primary.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
-              );
-            }),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                t.primarySoft,
+                t.primary.withValues(alpha: 0.06),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: t.primary.withValues(alpha: 0.2)),
           ),
-          const SizedBox(height: 8),
-          Text(
-            stepLabel != null && stepLabel!.isNotEmpty
-                ? 'Paso $current de $total · $stepLabel'
-                : 'Paso $current de $total',
-            style: t.textStyle(size: 12, color: t.textSub),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: t.primaryGradient),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: t.primary.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  publicReservarStepIcon(current),
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Paso $current de $total',
+                      style: t.textStyle(
+                        size: 11,
+                        weight: FontWeight.w600,
+                        color: t.textSub,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      stepTitle,
+                      style: t.textStyle(
+                        size: 15,
+                        weight: FontWeight.w700,
+                        color: t.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-/// Intro de marca al inicio del scroll (solo paso 1).
+/// Descripción del negocio en scroll (solo paso 1).
 Widget publicReservarScrollBrandIntro({
   required PublicReservarTheme theme,
-  required String title,
   String? subtitle,
 }) {
-  final t = theme;
+  if (subtitle == null || subtitle.isEmpty) {
+    return const SizedBox.shrink();
+  }
   return Padding(
-    padding: const EdgeInsets.only(bottom: 20),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            PublicReservarAvatar(
-              nombre: title,
-              logoUrl: t.logoUrl,
-              color: t.primary,
-              size: 56,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: t.textStyle(size: 20, weight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Reserva online',
-                    style: t.textStyle(
-                      size: 13,
-                      weight: FontWeight.w600,
-                      color: t.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (subtitle != null && subtitle.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(
-            subtitle,
-            style: t.textStyle(size: 14, color: t.textSub, weight: FontWeight.w400),
-          ),
-        ],
-      ],
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.primarySoft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.primary.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        subtitle,
+        style: theme.textStyle(size: 14, color: theme.text),
+      ),
     ),
   );
 }
@@ -310,21 +566,37 @@ Widget publicReservarScrollSectionTitle({
   String? subtitle,
 }) {
   return Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
+    padding: const EdgeInsets.only(bottom: 18),
+    child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: theme.textStyle(size: 24, weight: FontWeight.w700),
-        ),
-        if (subtitle != null && subtitle.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: theme.textStyle(size: 14, color: theme.textSub),
+        Container(
+          width: 4,
+          height: 48,
+          decoration: BoxDecoration(
+            color: theme.primary,
+            borderRadius: BorderRadius.circular(4),
           ),
-        ],
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textStyle(size: 24, weight: FontWeight.w700),
+              ),
+              if (subtitle != null && subtitle.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: theme.textStyle(size: 14, color: theme.textSub),
+                ),
+              ],
+            ],
+          ),
+        ),
       ],
     ),
   );
@@ -339,6 +611,7 @@ class PublicReservarAvatar extends StatelessWidget {
     this.size = 72,
     this.borderColor,
     this.initialsColor,
+    this.elevated = false,
   });
 
   final String nombre;
@@ -347,6 +620,7 @@ class PublicReservarAvatar extends StatelessWidget {
   final double size;
   final Color? borderColor;
   final Color? initialsColor;
+  final bool elevated;
 
   @override
   Widget build(BuildContext context) {
@@ -357,11 +631,20 @@ class PublicReservarAvatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.1),
+        color: Colors.white,
         border: Border.all(
           color: borderColor ?? color.withValues(alpha: 0.25),
-          width: 2,
+          width: elevated ? 3 : 2,
         ),
+        boxShadow: elevated
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       clipBehavior: Clip.antiAlias,
       child: logoUrl != null && logoUrl!.startsWith('http')

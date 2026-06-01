@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/business.dart';
+import '../../../models/agenda/service_scheduling_mode.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
@@ -23,22 +24,26 @@ enum ServicioFilter { all, active, inactive }
 class ServicioExtras {
   final bool flexibleDuration;
   final bool priceFrom;
+  final ServiceSchedulingMode schedulingMode;
   final List<String> professionalIds;
 
   const ServicioExtras({
     this.flexibleDuration = false,
     this.priceFrom = false,
+    this.schedulingMode = ServiceSchedulingMode.general,
     this.professionalIds = const [],
   });
 
   ServicioExtras copyWith({
     bool? flexibleDuration,
     bool? priceFrom,
+    ServiceSchedulingMode? schedulingMode,
     List<String>? professionalIds,
   }) =>
       ServicioExtras(
         flexibleDuration: flexibleDuration ?? this.flexibleDuration,
         priceFrom: priceFrom ?? this.priceFrom,
+        schedulingMode: schedulingMode ?? this.schedulingMode,
         professionalIds: professionalIds ?? this.professionalIds,
       );
 }
@@ -130,20 +135,14 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       final services = results[0] as List<AgendaService>;
       final staff = results[1] as List<StaffMember>;
 
-      final Map<String, List<String>> staffByService = {};
-      for (final member in staff) {
-        for (final serviceId in member.serviceIds) {
-          staffByService.putIfAbsent(serviceId, () => []).add(member.id);
-        }
-      }
-
       for (final service in services) {
-        final ids = staffByService[service.id];
-        if (ids != null && ids.isNotEmpty) {
-          _extras[service.id] =
-              (_extras[service.id] ?? const ServicioExtras())
-                  .copyWith(professionalIds: ids);
-        }
+        final prev = _extras[service.id];
+        _extras[service.id] = ServicioExtras(
+          flexibleDuration: prev?.flexibleDuration ?? false,
+          priceFrom: prev?.priceFrom ?? false,
+          schedulingMode: service.schedulingMode,
+          professionalIds: service.staffMemberIds,
+        );
       }
 
       state = state.copyWith(
@@ -169,6 +168,7 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       priceUyu: s.precio.round(),
       priceFrom: extras.priceFrom,
       active: s.activo,
+      schedulingMode: extras.schedulingMode,
       professionalIds: extras.professionalIds,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -221,9 +221,13 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       descripcion: descripcion,
       duracionMin: duracionMin,
       precio: precio.toDouble(),
+      schedulingMode: extras.schedulingMode.toApi(),
+      staffMemberIds: extras.schedulingMode == ServiceSchedulingMode.byStaff
+          ? extras.professionalIds
+          : const [],
     );
     _extras[created.id] = extras;
-    state = state.copyWith(items: [...state.items, _toItem(created)]);
+    await _load();
   }
 
   Future<void> updateService({
@@ -236,7 +240,7 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
     required ServicioExtras extras,
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
-    final updated = await api.updateService(
+    await api.updateService(
       businessId: _key.businessId,
       serviceId: id,
       nombre: nombre,
@@ -244,41 +248,14 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
       duracionMin: duracionMin,
       precio: precio.toDouble(),
       activo: activo,
+      schedulingMode: extras.schedulingMode.toApi(),
+      staffMemberIds: extras.schedulingMode == ServiceSchedulingMode.byStaff
+          ? extras.professionalIds
+          : const [],
     );
-
-    final oldIds =
-        (state.items.where((s) => s.id == id).firstOrNull?.professionalIds ??
-                [])
-            .toSet();
-    final newIds = extras.professionalIds.toSet();
-    final added = newIds.difference(oldIds);
-    final removed = oldIds.difference(newIds);
-
-    var updatedStaff = List<StaffMember>.from(state.staff);
-    for (final memberId in {...added, ...removed}) {
-      final memberIdx = updatedStaff.indexWhere((m) => m.id == memberId);
-      if (memberIdx < 0) continue;
-      final member = updatedStaff[memberIdx];
-      final currentSvcIds = member.serviceIds.toSet();
-      final newSvcIds = added.contains(memberId)
-          ? {...currentSvcIds, id}
-          : currentSvcIds.difference({id});
-      final savedMember = await api.updateStaffServices(
-        businessId: _key.businessId,
-        staffId: memberId,
-        serviceIds: newSvcIds.toList(),
-      );
-      updatedStaff[memberIdx] = savedMember;
-    }
 
     _extras[id] = extras;
-    state = state.copyWith(
-      items: [
-        for (final s in state.items)
-          if (s.id == id) _toItem(updated) else s,
-      ],
-      staff: updatedStaff,
-    );
+    await _load();
   }
 
   Future<void> remove(String id) async {

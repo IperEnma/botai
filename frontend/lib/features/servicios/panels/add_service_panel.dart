@@ -108,6 +108,7 @@ class _AddServicePanelState extends ConsumerState<_AddServicePanel>
         extras: ServicioExtras(
           flexibleDuration: data.flexibleDuration,
           priceFrom: data.priceFrom,
+          schedulingMode: data.schedulingMode,
           professionalIds: data.professionalIds,
         ),
       );
@@ -183,6 +184,10 @@ class _AddServicePanelState extends ConsumerState<_AddServicePanel>
                       ),
                       CustomMode(
                         staff: state.staff,
+                        servKey: widget.servKey,
+                        onStaffListChanged: () => ref
+                            .read(serviciosProvider(widget.servKey).notifier)
+                            .reload(),
                         onChanged: (data) =>
                             setState(() => _customData = data),
                       ),

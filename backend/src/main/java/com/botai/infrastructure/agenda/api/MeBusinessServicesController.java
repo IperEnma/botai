@@ -5,9 +5,11 @@ import com.botai.application.agenda.dto.ServiceResponse;
 import com.botai.application.agenda.dto.UpdateServiceRequest;
 import com.botai.application.agenda.mapper.ServiceDtoMapper;
 import com.botai.application.agenda.usecase.business.ListBusinessServicesUseCase;
+import com.botai.application.agenda.service.ServiceStaffLookup;
 import com.botai.application.agenda.usecase.service.CreateServiceUseCase;
 import com.botai.application.agenda.usecase.service.DeleteServiceUseCase;
 import com.botai.application.agenda.usecase.service.UpdateServiceUseCase;
+import com.botai.domain.agenda.model.ServiceSchedulingMode;
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import com.botai.infrastructure.agenda.sync.AgendaKnowledgeChunkRefresher;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -41,19 +44,22 @@ public class MeBusinessServicesController {
     private final ListBusinessServicesUseCase listServices;
     private final AgendaCurrentTenantService currentTenant;
     private final AgendaKnowledgeChunkRefresher knowledgeChunkRefresher;
+    private final ServiceStaffLookup serviceStaffLookup;
 
     public MeBusinessServicesController(CreateServiceUseCase createService,
                                         UpdateServiceUseCase updateService,
                                         DeleteServiceUseCase deleteService,
                                         ListBusinessServicesUseCase listServices,
                                         AgendaCurrentTenantService currentTenant,
-                                        AgendaKnowledgeChunkRefresher knowledgeChunkRefresher) {
+                                        AgendaKnowledgeChunkRefresher knowledgeChunkRefresher,
+                                        ServiceStaffLookup serviceStaffLookup) {
         this.createService = createService;
         this.updateService = updateService;
         this.deleteService = deleteService;
         this.listServices = listServices;
         this.currentTenant = currentTenant;
         this.knowledgeChunkRefresher = knowledgeChunkRefresher;
+        this.serviceStaffLookup = serviceStaffLookup;
     }
 
     @GetMapping
@@ -62,8 +68,12 @@ public class MeBusinessServicesController {
             @PathVariable UUID businessId,
             @RequestParam(value = "soloActivos", required = false, defaultValue = "false") boolean soloActivos) {
         String tenantId = currentTenant.requireTenantId();
+        Map<UUID, List<UUID>> staffByService = serviceStaffLookup.staffIdsByServiceId(businessId);
         List<ServiceResponse> result = listServices.execute(tenantId, businessId, soloActivos)
-                .stream().map(ServiceDtoMapper::toResponse).toList();
+                .stream()
+                .map(s -> ServiceDtoMapper.toResponse(
+                        s, staffByService.getOrDefault(s.getId(), List.of())))
+                .toList();
         return ResponseEntity.ok(result);
     }
 
@@ -75,9 +85,14 @@ public class MeBusinessServicesController {
         String tenantId = currentTenant.requireTenantId();
         var created = createService.execute(tenantId, businessId,
                 request.nombre(), request.descripcion(),
-                request.duracionMin(), request.precio());
+                request.duracionMin(), request.precio(),
+                ServiceSchedulingMode.fromString(request.schedulingModeOrDefault()),
+                request.staffMemberIds());
         knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ServiceDtoMapper.toResponse(created));
+        List<UUID> staffIds = serviceStaffLookup.staffIdsByServiceId(businessId)
+                .getOrDefault(created.getId(), List.of());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ServiceDtoMapper.toResponse(created, staffIds));
     }
 
     @PutMapping("/{serviceId}")
@@ -89,9 +104,13 @@ public class MeBusinessServicesController {
         String tenantId = currentTenant.requireTenantId();
         var updated = updateService.execute(tenantId, businessId, serviceId,
                 request.nombre(), request.descripcion(),
-                request.duracionMin(), request.precio(), request.activo());
+                request.duracionMin(), request.precio(), request.activo(),
+                ServiceSchedulingMode.fromString(request.schedulingModeOrDefault()),
+                request.staffMemberIds());
         knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
-        return ResponseEntity.ok(ServiceDtoMapper.toResponse(updated));
+        List<UUID> staffIds = serviceStaffLookup.staffIdsByServiceId(businessId)
+                .getOrDefault(updated.getId(), List.of());
+        return ResponseEntity.ok(ServiceDtoMapper.toResponse(updated, staffIds));
     }
 
     @DeleteMapping("/{serviceId}")

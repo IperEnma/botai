@@ -48,6 +48,7 @@ class PublicCompanyLandingScreen extends ConsumerWidget {
         return PublicReservarShell(
           theme: theme,
           brandTitle: company.brandName,
+          brandSubtitle: company.tagline,
           onBack: () => context.go('/'),
           footer: publicReservarFooterLink(
             theme: theme,
@@ -56,11 +57,6 @@ class PublicCompanyLandingScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             children: [
-              publicReservarScrollBrandIntro(
-                theme: theme,
-                title: company.brandName,
-                subtitle: company.tagline,
-              ),
               publicReservarScrollSectionTitle(
                 theme: theme,
                 title: 'Elegí tu sucursal',

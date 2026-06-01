@@ -9,9 +9,9 @@ import '../../register/konecta_tokens.dart';
 import '../models/member.dart';
 import '../providers/equipo_provider.dart';
 
-void showAddMemberPanel(
+Future<void> showAddMemberPanel(
     BuildContext context, EquipoKey key) {
-  Navigator.of(context).push(
+  return Navigator.of(context).push<void>(
     PageRouteBuilder(
       opaque: false,
       barrierColor: Colors.black.withValues(alpha: 0.35),
@@ -228,7 +228,7 @@ class _AddMemberPanelState extends ConsumerState<_AddMemberPanel> {
   String _stepSubtitle() => switch (_step) {
         0 => 'Datos básicos del nuevo miembro.',
         1 => 'El rol define lo que puede ver y hacer.',
-        _ => 'Elegí el color y los servicios que ofrece.',
+        _ => 'Color de agenda y servicios que realiza (opcional; también se asignan desde Servicios).',
       };
 }
 

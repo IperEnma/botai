@@ -1,3 +1,5 @@
+import '../../../models/agenda/service_scheduling_mode.dart';
+
 class ServicioItem {
   final String id;
   final String name;
@@ -7,6 +9,7 @@ class ServicioItem {
   final int priceUyu;
   final bool priceFrom;
   bool active;
+  final ServiceSchedulingMode schedulingMode;
   final List<String> professionalIds;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -20,10 +23,14 @@ class ServicioItem {
     required this.priceUyu,
     this.priceFrom = false,
     this.active = true,
+    this.schedulingMode = ServiceSchedulingMode.general,
     this.professionalIds = const [],
     required this.createdAt,
     required this.updatedAt,
   });
+
+  bool get usesStaffScheduling =>
+      schedulingMode == ServiceSchedulingMode.byStaff;
 
   ServicioItem copyWith({
     String? name,
@@ -33,6 +40,7 @@ class ServicioItem {
     int? priceUyu,
     bool? priceFrom,
     bool? active,
+    ServiceSchedulingMode? schedulingMode,
     List<String>? professionalIds,
   }) =>
       ServicioItem(
@@ -44,6 +52,7 @@ class ServicioItem {
         priceUyu: priceUyu ?? this.priceUyu,
         priceFrom: priceFrom ?? this.priceFrom,
         active: active ?? this.active,
+        schedulingMode: schedulingMode ?? this.schedulingMode,
         professionalIds: professionalIds ?? this.professionalIds,
         createdAt: createdAt,
         updatedAt: DateTime.now(),

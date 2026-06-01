@@ -4,6 +4,7 @@ import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.exception.ServiceNotFoundException;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.Service;
+import com.botai.domain.agenda.model.ServiceSchedulingMode;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,7 +82,7 @@ class DeleteServiceUseCaseTest {
 
     private Service service(UUID businessId) {
         return new Service(SERVICE_ID, businessId, "Corte", null, 45,
-                BigDecimal.valueOf(1000), true, null, null, null);
+                BigDecimal.valueOf(1000), true, ServiceSchedulingMode.GENERAL, null, null, null);
     }
 
     private Business business() {

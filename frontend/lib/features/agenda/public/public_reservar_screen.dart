@@ -13,7 +13,8 @@ import 'public_reservar_layout.dart';
 
 enum _BookingStep { service, staff, date, slots, review, contact }
 
-const int _kBookingTotalSteps = 6;
+const int _kBookingTotalStepsWithStaff = 6;
+const int _kBookingTotalStepsGeneral = 5;
 
 /// Reserva pública unificada: /reservar/:slug (mismo look que el sheet del detalle).
 class PublicReservarScreen extends ConsumerStatefulWidget {
@@ -53,6 +54,11 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     super.dispose();
   }
 
+  bool _usesStaffStep(AgendaService? svc) => svc?.requiresStaffSelection ?? false;
+
+  int _progressTotal(AgendaService? svc) =>
+      _usesStaffStep(svc) ? _kBookingTotalStepsWithStaff : _kBookingTotalStepsGeneral;
+
   void _goBack(PublicReservarTheme theme, Business business) {
     switch (_step) {
       case _BookingStep.service:
@@ -67,7 +73,9 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         setState(() => _step = _BookingStep.service);
       case _BookingStep.date:
         setState(() {
-          _step = _BookingStep.staff;
+          _step = _usesStaffStep(_service)
+              ? _BookingStep.staff
+              : _BookingStep.service;
           _selectedDate = null;
           _selectedSlot = null;
         });
@@ -84,19 +92,20 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   }
 
   int _stepIndex(_BookingStep step) {
+    final withStaff = _usesStaffStep(_service);
     switch (step) {
       case _BookingStep.service:
         return 1;
       case _BookingStep.staff:
-        return 2;
+        return withStaff ? 2 : 1;
       case _BookingStep.date:
-        return 3;
+        return withStaff ? 3 : 2;
       case _BookingStep.slots:
-        return 4;
+        return withStaff ? 4 : 3;
       case _BookingStep.review:
-        return 5;
+        return withStaff ? 5 : 4;
       case _BookingStep.contact:
-        return 6;
+        return withStaff ? 6 : 5;
     }
   }
 
@@ -252,6 +261,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   }
 
   String _staffSummaryLabel() {
+    if (!_usesStaffStep(_service)) return 'Agenda del negocio';
     if (_anyStaff) return 'Cualquier profesional disponible';
     return _selectedStaff?.nombre ?? '—';
   }
@@ -309,7 +319,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           theme: theme,
           brandTitle: business.nombre,
           progressCurrent: _stepIndex(_step),
-          progressTotal: _kBookingTotalSteps,
+          progressTotal: _progressTotal(_service),
           progressStepLabel: _stepProgressLabel(_step),
           onBack: () => _goBack(theme, business),
           footer: publicReservarFooterLink(
@@ -329,7 +339,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                       if (_step == _BookingStep.service)
                         publicReservarScrollBrandIntro(
                           theme: theme,
-                          title: business.nombre,
                           subtitle: business.descripcion,
                         ),
                       publicReservarScrollSectionTitle(
@@ -385,7 +394,13 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                         service: svc,
                         onTap: () => setState(() {
                           _service = svc;
-                          _step = _BookingStep.staff;
+                          _anyStaff = false;
+                          _selectedStaff = null;
+                          _selectedDate = null;
+                          _selectedSlot = null;
+                          _step = svc.requiresStaffSelection
+                              ? _BookingStep.staff
+                              : _BookingStep.date;
                         }),
                       ),
                   ],
@@ -397,7 +412,16 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                   const Center(child: CircularProgressIndicator()),
               error: (e, _) => Text('No se pudo cargar el equipo.',
                   style: theme.textStyle(color: theme.textSub)),
-              data: (staff) => Column(
+              data: (allStaff) {
+                final svcId = _service?.id;
+                final staff = allStaff
+                    .where((m) =>
+                        m.activo &&
+                        (svcId == null ||
+                            m.serviceIds.isEmpty ||
+                            m.serviceIds.contains(svcId)))
+                    .toList();
+                return Column(
                 children: [
                   _StaffAnyTile(
                     theme: theme,
@@ -432,7 +456,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                       ],
                     ),
                 ],
-              ),
+              );
+              },
             );
       case _BookingStep.date:
         return _DatePicker(
@@ -458,6 +483,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           staffLabel: _staffSummaryLabel(),
           dateLabel: _formattedSelectedDate(),
           slotLabel: _selectedSlot?.label ?? '—',
+          showStaffRow: _usesStaffStep(_service),
         );
       case _BookingStep.contact:
         return _ContactStep(
@@ -526,6 +552,7 @@ class _BookingReview extends StatelessWidget {
     required this.staffLabel,
     required this.dateLabel,
     required this.slotLabel,
+    this.showStaffRow = true,
   });
 
   final PublicReservarTheme theme;
@@ -533,6 +560,7 @@ class _BookingReview extends StatelessWidget {
   final String staffLabel;
   final String dateLabel;
   final String slotLabel;
+  final bool showStaffRow;
 
   @override
   Widget build(BuildContext context) {
@@ -553,7 +581,12 @@ class _BookingReview extends StatelessWidget {
             label: 'Duración',
             value: '${service.duracionMin} min · \$${service.precio.toStringAsFixed(0)}',
           ),
-          _ReviewRow(theme: t, icon: Icons.person_outline, label: 'Profesional', value: staffLabel),
+          if (showStaffRow)
+            _ReviewRow(
+                theme: t,
+                icon: Icons.person_outline,
+                label: 'Profesional',
+                value: staffLabel),
           _ReviewRow(theme: t, icon: Icons.calendar_today_outlined, label: 'Fecha', value: dateLabel),
           _ReviewRow(theme: t, icon: Icons.access_time, label: 'Horario', value: slotLabel),
         ],
@@ -717,14 +750,31 @@ class _ServiceRow extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: t.cardFill,
-            borderRadius: BorderRadius.circular(12),
+            color: t.surface,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: t.cardBorder),
+            boxShadow: [
+              BoxShadow(
+                color: t.primary.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: t.primarySoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.spa_outlined, color: t.primary, size: 22),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
