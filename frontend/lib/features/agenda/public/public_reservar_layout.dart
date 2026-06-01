@@ -68,10 +68,7 @@ class PublicReservarTheme {
   }
 }
 
-/// Cabecera completa (landing / primer paso) vs compacta (más espacio al scroll).
-enum PublicReservarHeaderStyle { full, compact }
-
-/// Indicador «Paso X de Y» + barra de progreso (reserva pública).
+/// Indicador «Paso X de Y» + barra de progreso.
 class PublicReservarProgressIndicator extends StatelessWidget {
   const PublicReservarProgressIndicator({
     super.key,
@@ -79,66 +76,62 @@ class PublicReservarProgressIndicator extends StatelessWidget {
     required this.currentStep,
     required this.totalSteps,
     this.stepLabel,
-    this.compact = false,
   });
 
   final PublicReservarTheme theme;
-  /// 1-based (ej. 3 de 6).
   final int currentStep;
   final int totalSteps;
   final String? stepLabel;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final t = theme;
     final progress = (currentStep / totalSteps).clamp(0.0, 1.0);
-    final hPad = compact ? 16.0 : 24.0;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(hPad, compact ? 4 : 8, hPad, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Paso $currentStep de $totalSteps',
+              style: t.textStyle(
+                size: 12,
+                weight: FontWeight.w600,
+                color: t.primary,
+              ),
+            ),
+            if (stepLabel != null && stepLabel!.isNotEmpty) ...[
               Text(
-                'Paso $currentStep de $totalSteps',
-                style: t.textStyle(
-                  size: compact ? 12 : 13,
-                  weight: FontWeight.w600,
-                  color: t.primary,
+                ' · ',
+                style: t.textStyle(size: 12, color: t.textSub),
+              ),
+              Expanded(
+                child: Text(
+                  stepLabel!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.textStyle(size: 12, color: t.textSub),
                 ),
               ),
-              if (stepLabel != null && stepLabel!.isNotEmpty) ...[
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    stepLabel!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.textStyle(size: compact ? 12 : 13, color: t.textSub),
-                  ),
-                ),
-              ],
             ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 5,
+            backgroundColor: t.cardBorder,
+            color: t.primary,
           ),
-          SizedBox(height: compact ? 6 : 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: compact ? 4 : 6,
-              backgroundColor: t.cardBorder,
-              color: t.primary,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-/// Shell Felito: franja de color, avatar, título, badge «Reserva online», contenido.
+/// Shell de reserva: cabecera de marca + progreso + contenido.
 class PublicReservarShell extends StatelessWidget {
   const PublicReservarShell({
     super.key,
@@ -146,7 +139,7 @@ class PublicReservarShell extends StatelessWidget {
     required this.brandTitle,
     this.subtitle,
     this.sectionTitle,
-    this.headerStyle = PublicReservarHeaderStyle.full,
+    this.sectionTitleInScroll = false,
     this.progressCurrent,
     this.progressTotal,
     this.progressStepLabel,
@@ -159,9 +152,9 @@ class PublicReservarShell extends StatelessWidget {
   final PublicReservarTheme theme;
   final String brandTitle;
   final String? subtitle;
-  /// Título del paso; en modo [PublicReservarHeaderStyle.compact] conviene ponerlo dentro del scroll del [child].
   final String? sectionTitle;
-  final PublicReservarHeaderStyle headerStyle;
+  /// Si true, el [sectionTitle] no se fija arriba (va en el scroll del [child]).
+  final bool sectionTitleInScroll;
   final int? progressCurrent;
   final int? progressTotal;
   final String? progressStepLabel;
@@ -170,11 +163,12 @@ class PublicReservarShell extends StatelessWidget {
   final Widget? footer;
   final double maxWidth;
 
-  bool get _compact => headerStyle == PublicReservarHeaderStyle.compact;
-
   @override
   Widget build(BuildContext context) {
     final t = theme;
+    final showFixedStepTitle =
+        sectionTitle != null && sectionTitle!.isNotEmpty && !sectionTitleInScroll;
+
     return Scaffold(
       backgroundColor: t.background,
       body: SafeArea(
@@ -184,60 +178,27 @@ class PublicReservarShell extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_compact)
-                  _CompactBrandHeader(
-                    theme: t,
-                    title: brandTitle,
-                    onBack: onBack,
-                  )
-                else ...[
-                  if (onBack != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 0, 8, 0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          visualDensity: VisualDensity.compact,
-                          onPressed: onBack,
-                          icon: Icon(Icons.arrow_back_ios_new,
-                              size: 20, color: t.text),
-                        ),
-                      ),
-                    ),
-                  _BrandBlock(theme: t, title: brandTitle, subtitle: subtitle),
-                ],
-                if (progressCurrent != null &&
-                    progressTotal != null &&
-                    progressTotal! > 0)
-                  PublicReservarProgressIndicator(
-                    theme: t,
-                    currentStep: progressCurrent!,
-                    totalSteps: progressTotal!,
-                    stepLabel: progressStepLabel,
-                    compact: _compact,
-                  ),
-                if (!_compact && sectionTitle != null) ...[
+                _ReservarHeader(
+                  theme: t,
+                  title: brandTitle,
+                  subtitle: subtitle,
+                  onBack: onBack,
+                  progressCurrent: progressCurrent,
+                  progressTotal: progressTotal,
+                  progressStepLabel: progressStepLabel,
+                ),
+                if (showFixedStepTitle)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
                     child: Text(
                       sectionTitle!,
-                      style: t.textStyle(
-                        size: 22,
-                        weight: FontWeight.w700,
-                      ),
+                      style: t.textStyle(size: 22, weight: FontWeight.w700),
                     ),
                   ),
-                ] else if (!_compact)
-                  const SizedBox(height: 8),
                 Expanded(child: child),
                 if (footer != null)
                   Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      24,
-                      4,
-                      24,
-                      _compact ? 8 : 12,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
                     child: footer!,
                   ),
               ],
@@ -249,160 +210,166 @@ class PublicReservarShell extends StatelessWidget {
   }
 }
 
-/// Cabecera reducida: atrás + logo + nombre (pasos con scroll).
-class _CompactBrandHeader extends StatelessWidget {
-  const _CompactBrandHeader({
-    required this.theme,
-    required this.title,
-    this.onBack,
-  });
-
-  final PublicReservarTheme theme;
-  final String title;
-  final VoidCallback? onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = theme;
-    return Column(
-      children: [
-        Container(height: 3, width: double.infinity, color: t.primary),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 6, 16, 4),
-          child: Row(
-            children: [
-              if (onBack != null)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                  onPressed: onBack,
-                  icon: Icon(Icons.arrow_back_ios_new, size: 18, color: t.text),
-                )
-              else
-                const SizedBox(width: 8),
-              PublicReservarAvatar(
-                nombre: title,
-                logoUrl: t.logoUrl,
-                color: t.primary,
-                borderColor: t.background,
-                size: 40,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.textStyle(size: 16, weight: FontWeight.w700),
-                    ),
-                    Text(
-                      'Reserva online',
-                      style: t.textStyle(size: 11, color: t.textSub),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BrandBlock extends StatelessWidget {
-  const _BrandBlock({
+/// Cabecera unificada: tarjeta de marca + barra de progreso.
+class _ReservarHeader extends StatelessWidget {
+  const _ReservarHeader({
     required this.theme,
     required this.title,
     this.subtitle,
+    this.onBack,
+    this.progressCurrent,
+    this.progressTotal,
+    this.progressStepLabel,
   });
 
   final PublicReservarTheme theme;
   final String title;
   final String? subtitle;
+  final VoidCallback? onBack;
+  final int? progressCurrent;
+  final int? progressTotal;
+  final String? progressStepLabel;
 
   @override
   Widget build(BuildContext context) {
     final t = theme;
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          height: 48,
-          color: t.primary,
-        ),
-        Transform.translate(
-          offset: const Offset(0, -28),
-          child: Column(
-            children: [
-              PublicReservarAvatar(
-                nombre: title,
-                logoUrl: t.logoUrl,
-                color: t.primary,
-                borderColor: t.background,
-                size: 56,
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: t.textStyle(size: 20, weight: FontWeight.w700),
+    final hasProgress = progressCurrent != null &&
+        progressTotal != null &&
+        progressTotal! > 0;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            elevation: 0,
+            color: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    t.primary,
+                    Color.lerp(t.primary, Colors.black, 0.12) ?? t.primary,
+                  ],
                 ),
-              ),
-              if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Text(
-                    subtitle!,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.textStyle(size: 13, color: t.textSub),
+                boxShadow: [
+                  BoxShadow(
+                    color: t.primary.withValues(alpha: 0.28),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
-                ),
-              ],
-              const SizedBox(height: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: t.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Reserva online',
-                  style: t.textStyle(
-                    size: 11,
-                    weight: FontWeight.w600,
-                    color: t.primary,
-                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 16, 14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (onBack != null)
+                      IconButton(
+                        onPressed: onBack,
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 12),
+                    PublicReservarAvatar(
+                      nombre: title,
+                      logoUrl: t.logoUrl,
+                      color: Colors.white,
+                      borderColor: Colors.white,
+                      size: 52,
+                      initialsColor: t.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.textStyle(
+                              size: 17,
+                              weight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          if (subtitle != null && subtitle!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.textStyle(
+                                size: 12,
+                                color: Colors.white.withValues(alpha: 0.88),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Text(
+                              'Reserva online',
+                              style: t.textStyle(
+                                size: 11,
+                                weight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ],
+          if (hasProgress) ...[
+            const SizedBox(height: 14),
+            PublicReservarProgressIndicator(
+              theme: t,
+              currentStep: progressCurrent!,
+              totalSteps: progressTotal!,
+              stepLabel: progressStepLabel,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
 
-/// Título del paso dentro del scroll (modo compacto).
+/// Título del paso dentro del scroll.
 Widget publicReservarScrollSectionTitle({
   required PublicReservarTheme theme,
   required String title,
 }) {
   return Padding(
-    padding: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.only(bottom: 14),
     child: Text(
       title,
-      style: theme.textStyle(size: 20, weight: FontWeight.w700),
+      style: theme.textStyle(size: 22, weight: FontWeight.w700),
     ),
   );
 }
@@ -415,6 +382,7 @@ class PublicReservarAvatar extends StatelessWidget {
     this.logoUrl,
     this.size = 72,
     this.borderColor,
+    this.initialsColor,
   });
 
   final String nombre;
@@ -422,25 +390,27 @@ class PublicReservarAvatar extends StatelessWidget {
   final String? logoUrl;
   final double size;
   final Color? borderColor;
+  final Color? initialsColor;
 
   @override
   Widget build(BuildContext context) {
     final initials = _initials(nombre);
+    final letterColor = initialsColor ?? color;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.12),
+        color: Colors.white.withValues(alpha: 0.95),
         border: Border.all(
-          color: borderColor ?? color.withValues(alpha: 0.3),
-          width: 3,
+          color: borderColor ?? Colors.white,
+          width: 2.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -449,19 +419,19 @@ class PublicReservarAvatar extends StatelessWidget {
           ? Image.network(
               logoUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _initialsWidget(initials),
+              errorBuilder: (_, _, _) => _initialsWidget(initials, letterColor),
             )
-          : _initialsWidget(initials),
+          : _initialsWidget(initials, letterColor),
     );
   }
 
-  Widget _initialsWidget(String initials) {
+  Widget _initialsWidget(String initials, Color letterColor) {
     return Center(
       child: Text(
         initials,
         style: TextStyle(
-          color: color,
-          fontSize: size * 0.32,
+          color: letterColor,
+          fontSize: size * 0.34,
           fontWeight: FontWeight.w800,
         ),
       ),

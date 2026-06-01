@@ -294,16 +294,14 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           logoUrl: business.logoUrl,
         );
 
-        final compactHeader = _step != _BookingStep.service;
+        final stepTitleInScroll = _step != _BookingStep.service;
 
         return PublicReservarShell(
           theme: theme,
           brandTitle: business.nombre,
-          subtitle: compactHeader ? null : business.descripcion,
-          sectionTitle: compactHeader ? null : _stepTitle(_step),
-          headerStyle: compactHeader
-              ? PublicReservarHeaderStyle.compact
-              : PublicReservarHeaderStyle.full,
+          subtitle: business.descripcion,
+          sectionTitle: _stepTitle(_step),
+          sectionTitleInScroll: stepTitleInScroll,
           progressCurrent: _stepIndex(_step),
           progressTotal: _kBookingTotalSteps,
           progressStepLabel: _stepProgressLabel(_step),
@@ -316,18 +314,13 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    20,
-                    compactHeader ? 8 : 0,
-                    20,
-                    24,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (compactHeader)
+                      if (stepTitleInScroll)
                         publicReservarScrollSectionTitle(
                           theme: theme,
                           title: _stepTitle(_step),
