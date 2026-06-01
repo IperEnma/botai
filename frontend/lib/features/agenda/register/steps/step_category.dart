@@ -32,8 +32,7 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
   late final TextEditingController _ctrl;
   late final FocusNode _focus;
   List<Category> _selected = [];
-  List<Category> _filtered = [];
-  bool _initialized = false;
+  String _query = '';
 
   @override
   void initState() {
@@ -53,17 +52,11 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
 
   String get _selectedText => _selected.map((c) => c.nombre).join(', ');
 
-  void _applyFilter(String query, List<Category> all) {
-    final q = query.toLowerCase().trim();
-    final available =
-        all.where((c) => !_selected.any((s) => s.id == c.id)).toList();
-    final results = q.isEmpty
-        ? available.take(5).toList()
-        : available
-            .where((c) => c.nombre.toLowerCase().contains(q))
-            .take(5)
-            .toList();
-    setState(() => _filtered = results);
+  List<Category> _suggestions(List<Category> all) {
+    final available = all.where((c) => !_selected.any((s) => s.id == c.id));
+    final q = _query.toLowerCase().trim();
+    if (q.isEmpty) return available.toList();
+    return available.where((c) => c.nombre.toLowerCase().contains(q)).toList();
   }
 
   void _selectCategory(Category cat, List<Category> all) {
@@ -77,33 +70,21 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
       newSelected = [..._selected, cat];
     }
 
-    final available =
-        all.where((c) => !newSelected.any((s) => s.id == c.id)).toList();
     setState(() {
       _selected = newSelected;
-      _filtered = available.take(5).toList();
+      _query = '';
     });
 
-    final newText = newSelected.map((c) => c.nombre).join(', ');
-    _ctrl.text = newText;
-    _ctrl.selection = TextSelection.collapsed(offset: newText.length);
+    _ctrl.text = newSelected.map((c) => c.nombre).join(', ');
+    _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
 
     widget.onChanged(newSelected);
   }
 
   void _onInputChanged(String text, List<Category> all) {
     final parts = text.split(',');
-    final query = parts.last.trim();
-    final available =
-        all.where((c) => !_selected.any((s) => s.id == c.id)).toList();
-    final q = query.toLowerCase();
-    final results = q.isEmpty
-        ? available.take(5).toList()
-        : available
-            .where((c) => c.nombre.toLowerCase().contains(q))
-            .take(5)
-            .toList();
-    setState(() => _filtered = results);
+    final q = parts.last.trim();
+    setState(() => _query = q);
   }
 
   @override
@@ -126,12 +107,7 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
           style: KTokens.tHint.copyWith(color: KTokens.errorColor),
         ),
         data: (categories) {
-          if (!_initialized) {
-            _initialized = true;
-            final available =
-                categories.where((c) => !_selected.any((s) => s.id == c.id));
-            _filtered = available.take(5).toList();
-          }
+          final suggestions = _suggestions(categories);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -158,7 +134,7 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
                     ),
                   ),
                   if (_selected.length < 3)
-                    ..._filtered.map(
+                    ...suggestions.map(
                       (cat) => _CategoryChip(
                         label: cat.nombre,
                         selected: false,

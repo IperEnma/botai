@@ -20,12 +20,20 @@ public interface BookingRepository {
     /**
      * Reservas activas (PENDING / CONFIRMED) del mismo negocio y servicio cuyo
      * intervalo [fechaHoraInicio, fechaHoraFin) se solapa con el slot pedido.
-     * Se usa en {@code BookingDomainService.validarDisponibilidad}.
      */
     List<Booking> findOverlapping(UUID businessId,
                                   UUID serviceId,
                                   LocalDateTime desde,
                                   LocalDateTime hasta);
+
+    /**
+     * Reservas activas del mismo negocio y profesional cuyo intervalo se solapa.
+     * Se usa en {@code BookingDomainService.validarDisponibilidad}.
+     */
+    List<Booking> findOverlappingForStaff(UUID businessId,
+                                          UUID staffMemberId,
+                                          LocalDateTime desde,
+                                          LocalDateTime hasta);
 
     List<Booking> findAllByUserId(UUID userId);
 

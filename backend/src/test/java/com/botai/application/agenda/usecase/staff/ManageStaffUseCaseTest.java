@@ -6,8 +6,10 @@ import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.exception.StaffMemberNotFoundException;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.StaffMember;
+import com.botai.domain.agenda.repository.BusinessHoursRepository;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.StaffMemberRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +31,7 @@ class ManageStaffUseCaseTest {
 
     private BusinessRepository businessRepository;
     private StaffMemberRepository staffMemberRepository;
+    private BusinessHoursRepository businessHoursRepository;
     private ManageStaffUseCase useCase;
 
     private final String TENANT = "tenant-1";
@@ -38,7 +41,9 @@ class ManageStaffUseCaseTest {
     void setUp() {
         businessRepository = mock(BusinessRepository.class);
         staffMemberRepository = mock(StaffMemberRepository.class);
-        useCase = new ManageStaffUseCase(businessRepository, staffMemberRepository);
+        businessHoursRepository = mock(BusinessHoursRepository.class);
+        useCase = new ManageStaffUseCase(businessRepository, staffMemberRepository,
+                businessHoursRepository, new ObjectMapper());
 
         when(businessRepository.findByIdAndTenantId(BUSINESS_ID, TENANT))
                 .thenReturn(Optional.of(business()));
@@ -72,7 +77,7 @@ class ManageStaffUseCaseTest {
 
     @Test
     void create_guardaStaffMemberConCamposCorrectos() {
-        var req = new CreateStaffMemberRequest("Juan Perez", "Estilista", null, null);
+        var req = new CreateStaffMemberRequest("Juan Perez", "Estilista", null, null, null);
         StaffMember saved = staffMember(BUSINESS_ID);
         when(staffMemberRepository.save(any())).thenReturn(saved);
 
@@ -87,7 +92,7 @@ class ManageStaffUseCaseTest {
         when(businessRepository.findByIdAndTenantId(BUSINESS_ID, TENANT))
                 .thenReturn(Optional.empty());
 
-        var req = new CreateStaffMemberRequest("Juan", null, null, null);
+        var req = new CreateStaffMemberRequest("Juan", null, null, null, null);
         assertThrows(BusinessNotFoundException.class,
                 () -> useCase.create(TENANT, BUSINESS_ID, req));
     }

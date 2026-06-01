@@ -162,7 +162,7 @@ public class CreateBookingUseCase {
                 creditService.descontarPorReserva(locked, plan, null, now);
 
         // 7. Disponibilidad de slot.
-        bookingService.validarDisponibilidad(businessId, serviceId, fechaHoraInicio, fechaHoraFin);
+        bookingService.validarDisponibilidad(businessId, staffMemberId, fechaHoraInicio, fechaHoraFin);
 
         // 8. Construir booking CONFIRMED y guardar.
         Booking confirmed = bookingService.construirConfirmada(

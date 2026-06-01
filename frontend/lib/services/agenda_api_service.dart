@@ -385,10 +385,10 @@ class AgendaApiService {
     return _decodeList(r, BusinessSummary.fromJson);
   }
 
-  /// `GET /platform/categories`
+  /// `GET /public/categories`
   Future<List<agenda.Category>> listPublicCategories() async {
     final r = await _send(() => _client.get(
-          _uri('/platform/categories'),
+          _uri('/public/categories'),
           headers: _headers(),
         ));
     return _decodeList(r, agenda.Category.fromJson);
@@ -1254,6 +1254,7 @@ class AgendaApiService {
     String? rol,
     String? avatarUrl,
     String? telefono,
+    String? color,
   }) async {
     final r = await _send(() => _client.post(
           _uri('/me/businesses/$businessId/staff'),
@@ -1263,6 +1264,7 @@ class AgendaApiService {
             if (rol != null && rol.isNotEmpty) 'rol': rol,
             if (avatarUrl != null && avatarUrl.isNotEmpty) 'avatarUrl': avatarUrl,
             if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
+            if (color != null && color.isNotEmpty) 'color': color,
           }),
         ));
     return _decode(r, (body) => StaffMember.fromJson(body as Map<String, dynamic>));

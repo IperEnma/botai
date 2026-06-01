@@ -86,7 +86,8 @@ class _AddMemberPanelState extends ConsumerState<_AddMemberPanel> {
     final notifier = ref.read(businessStaffProvider(staffKey).notifier);
 
     final phone = _phoneCtrl.text.trim();
-    final result = await notifier.addMember(name, rol, null, telefono: phone.isEmpty ? null : phone);
+    final colorHex = '#${(_selectedColor.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+    final result = await notifier.addMember(name, rol, null, telefono: phone.isEmpty ? null : phone, color: colorHex);
 
     if (!mounted) return;
 

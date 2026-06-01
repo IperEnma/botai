@@ -18,7 +18,7 @@ import java.util.UUID;
 @Repository
 public class JpaBookingRepository implements BookingRepository {
 
-    private static final String SLOT_CONSTRAINT = "excl_agenda_bookings_slot";
+    private static final String SLOT_CONSTRAINT = "excl_agenda_bookings_staff_slot";
 
     private final BookingJpaRepository jpa;
 
@@ -74,6 +74,16 @@ public class JpaBookingRepository implements BookingRepository {
                                          LocalDateTime desde,
                                          LocalDateTime hasta) {
         return jpa.findOverlapping(businessId, serviceId, desde, hasta).stream()
+                .map(BookingMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Booking> findOverlappingForStaff(UUID businessId,
+                                                  UUID staffMemberId,
+                                                  LocalDateTime desde,
+                                                  LocalDateTime hasta) {
+        return jpa.findOverlappingForStaff(businessId, staffMemberId, desde, hasta).stream()
                 .map(BookingMapper::toDomain)
                 .toList();
     }

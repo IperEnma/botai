@@ -75,7 +75,7 @@ public class PublicBookingsController {
 
         LocalDateTime inicio = request.fechaHoraInicio();
         LocalDateTime fin = inicio.plusMinutes(service.getDuracionMin());
-        bookingService.validarDisponibilidad(businessId, request.serviceId(), inicio, fin);
+        bookingService.validarDisponibilidad(businessId, request.staffMemberId(), inicio, fin);
 
         Booking pending = new Booking(
                 null,

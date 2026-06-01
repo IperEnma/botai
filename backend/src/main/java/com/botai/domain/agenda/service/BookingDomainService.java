@@ -37,10 +37,11 @@ public class BookingDomainService {
      * siguientes (cuando introduzcamos bloqueo por recurso/slot).</p>
      */
     public void validarDisponibilidad(UUID businessId,
-                                      UUID serviceId,
+                                      UUID staffMemberId,
                                       LocalDateTime desde,
                                       LocalDateTime hasta) {
-        List<Booking> overlap = bookingRepository.findOverlapping(businessId, serviceId, desde, hasta);
+        if (staffMemberId == null) return;
+        List<Booking> overlap = bookingRepository.findOverlappingForStaff(businessId, staffMemberId, desde, hasta);
         if (!overlap.isEmpty()) {
             throw new BookingSlotTakenException();
         }

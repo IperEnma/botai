@@ -42,6 +42,20 @@ public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID>
                                         @Param("hasta") LocalDateTime hasta);
 
     @Query("""
+            select b from BookingEntity b
+            where b.businessId = :businessId
+              and b.staffMemberId = :staffMemberId
+              and b.estado in (com.botai.domain.agenda.model.BookingEstado.PENDING,
+                               com.botai.domain.agenda.model.BookingEstado.CONFIRMED)
+              and b.fechaHoraInicio < :hasta
+              and b.fechaHoraFin > :desde
+            """)
+    List<BookingEntity> findOverlappingForStaff(@Param("businessId") UUID businessId,
+                                                @Param("staffMemberId") UUID staffMemberId,
+                                                @Param("desde") LocalDateTime desde,
+                                                @Param("hasta") LocalDateTime hasta);
+
+    @Query("""
             select count(b) from BookingEntity b
             where b.userId = :userId
               and b.businessId = :businessId

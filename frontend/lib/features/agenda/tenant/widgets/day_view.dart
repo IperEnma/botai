@@ -165,6 +165,12 @@ class _DayGridState extends State<_DayGrid> {
     if (staffId == null) return KTokens.inkPlaceholder;
     final idx = widget.staff.indexWhere((s) => s.id == staffId);
     if (idx < 0) return KTokens.inkPlaceholder;
+    final s = widget.staff[idx];
+    if (s.color != null && s.color!.isNotEmpty) {
+      try {
+        return Color(0xFF000000 | int.parse(s.color!.replaceFirst('#', ''), radix: 16));
+      } catch (_) {}
+    }
     return KTokens.proPalette[idx % KTokens.proPalette.length];
   }
 
