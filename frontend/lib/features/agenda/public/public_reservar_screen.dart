@@ -56,6 +56,11 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
 
   bool _usesStaffStep(AgendaService? svc) => svc?.requiresStaffSelection ?? false;
 
+  String? get _effectiveStaffId {
+    if (!_usesStaffStep(_service)) return null;
+    return _anyStaff ? null : _selectedStaff?.id;
+  }
+
   int _progressTotal(AgendaService? svc) =>
       _usesStaffStep(svc) ? _kBookingTotalStepsWithStaff : _kBookingTotalStepsGeneral;
 
@@ -155,7 +160,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   }
 
   void _selectDate(DateTime date, PublicReservarTheme theme) {
-    final staffId = _anyStaff ? null : _selectedStaff?.id;
+    final staffId = _effectiveStaffId;
     final key = (
       slug: widget.slug,
       serviceId: _service!.id,
@@ -202,7 +207,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       await api.publicCreateBooking(
         businessId: business.id,
         serviceId: svc.id,
-        staffMemberId: _anyStaff ? null : _selectedStaff?.id,
+        staffMemberId: _effectiveStaffId,
         fechaHoraInicio: slot.inicio,
         clientId: client.id,
       );
@@ -394,7 +399,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                         service: svc,
                         onTap: () => setState(() {
                           _service = svc;
-                          _anyStaff = false;
+                          _anyStaff = !svc.requiresStaffSelection;
                           _selectedStaff = null;
                           _selectedDate = null;
                           _selectedSlot = null;
@@ -407,6 +412,13 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                 ),
         );
       case _BookingStep.staff:
+        if (!_usesStaffStep(_service)) {
+          return _DatePicker(
+            theme: theme,
+            selectedDate: _selectedDate,
+            onSelect: (d) => _selectDate(d, theme),
+          );
+        }
         return ref.watch(publicStaffBySlugProvider(widget.slug)).when(
               loading: () =>
                   const Center(child: CircularProgressIndicator()),

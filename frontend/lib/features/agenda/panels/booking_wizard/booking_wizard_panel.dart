@@ -136,9 +136,11 @@ class _BookingWizardPanelState extends ConsumerState<_BookingWizardPanel> {
         final dayAbbr = dayAbbrs[date.weekday % 7];
         final timeStr =
             '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-        final proNombre = d.anyProfessional
-            ? 'cualquier profesional'
-            : (d.profesionalId ?? 'el profesional');
+        final proNombre = !d.requiresStaffStep
+            ? 'agenda del negocio'
+            : d.anyProfessional
+                ? 'cualquier profesional'
+                : (d.profesionalId ?? 'el profesional');
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -201,7 +203,7 @@ class _BookingWizardPanelState extends ConsumerState<_BookingWizardPanel> {
                 // Fixed header
                 _WizardHeader(
                   topPad: topPad,
-                  step: _controller.step,
+                  controller: _controller,
                   onClose: () => Navigator.of(context).pop(),
                 ),
                 Divider(height: 1, color: KTokens.border),
@@ -286,15 +288,21 @@ class _ProviderScopeWrapper extends StatelessWidget {
 class _WizardHeader extends StatelessWidget {
   const _WizardHeader({
     required this.topPad,
-    required this.step,
+    required this.controller,
     required this.onClose,
   });
 
   final double topPad;
-  final BookingStep step;
+  final BookingWizardController controller;
   final VoidCallback onClose;
 
-  int get _stepNumber => BookingStep.values.indexOf(step) + 1;
+  int get _stepNumber {
+    final steps = controller.draft.activeSteps;
+    final idx = steps.indexOf(controller.step);
+    return idx >= 0 ? idx + 1 : 1;
+  }
+
+  int get _totalSteps => controller.draft.activeSteps.length;
 
   @override
   Widget build(BuildContext context) {
@@ -352,12 +360,12 @@ class _WizardHeader extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Semantics(
-            label: 'Paso $_stepNumber de 4',
-            child: _ProgressSegments(step: step),
+            label: 'Paso $_stepNumber de $_totalSteps',
+            child: _ProgressSegments(controller: controller),
           ),
           const SizedBox(height: 6),
           Text(
-            'PASO ${_stepNumber.toString().padLeft(2, '0')} DE 04',
+            'PASO ${_stepNumber.toString().padLeft(2, '0')} DE ${_totalSteps.toString().padLeft(2, '0')}',
             style: GoogleFonts.jetBrainsMono(
               fontSize: 9,
               color: KTokens.inkSoft,
@@ -370,19 +378,20 @@ class _WizardHeader extends StatelessWidget {
 }
 
 class _ProgressSegments extends StatelessWidget {
-  const _ProgressSegments({required this.step});
-  final BookingStep step;
+  const _ProgressSegments({required this.controller});
+  final BookingWizardController controller;
 
   @override
   Widget build(BuildContext context) {
-    final currentIdx = BookingStep.values.indexOf(step);
+    final steps = controller.draft.activeSteps;
+    final currentIdx = steps.indexOf(controller.step);
     return Row(
-      children: List.generate(BookingStep.values.length, (i) {
+      children: List.generate(steps.length, (i) {
         final active = i <= currentIdx;
         return Expanded(
           child: Container(
             height: 3,
-            margin: EdgeInsets.only(right: i < BookingStep.values.length - 1 ? 6 : 0),
+            margin: EdgeInsets.only(right: i < steps.length - 1 ? 6 : 0),
             decoration: BoxDecoration(
               color: active ? KTokens.accent : const Color(0x12000000),
               borderRadius: BorderRadius.circular(99),
@@ -436,8 +445,8 @@ class _WizardCrumbs extends StatelessWidget {
       ));
     }
 
-    // Step >= profesional: show servicio
-    if (BookingStep.values.indexOf(step) >= 2 && draft.servicio != null) {
+    // Step >= servicio completado: mostrar servicio
+    if (draft.activeSteps.indexOf(step) >= 1 && draft.servicio != null) {
       final svc = draft.servicio!;
       crumbs.add(_Crumb(
         label: '${svc.nombre} · ${svc.duracionMin}m',
@@ -446,8 +455,8 @@ class _WizardCrumbs extends StatelessWidget {
       ));
     }
 
-    // Step == fechaHora: show profesional
-    if (step == BookingStep.fechaHora) {
+    // Paso fecha/hora con agenda por profesional: mostrar profesional
+    if (step == BookingStep.fechaHora && draft.requiresStaffStep) {
       final proLabel = draft.anyProfessional
           ? 'Cualquiera'
           : (draft.profesionalId != null ? 'Profesional' : null);

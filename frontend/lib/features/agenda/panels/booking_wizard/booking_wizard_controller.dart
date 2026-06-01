@@ -31,25 +31,29 @@ class BookingWizardController extends ChangeNotifier {
 
   void next() {
     if (!canAdvance) return;
-    final idx = BookingStep.values.indexOf(step);
-    if (idx < BookingStep.values.length - 1) {
-      step = BookingStep.values[idx + 1];
+    final steps = draft.activeSteps;
+    final idx = steps.indexOf(step);
+    if (idx >= 0 && idx < steps.length - 1) {
+      step = steps[idx + 1];
       notifyListeners();
     }
   }
 
   void back() {
-    final idx = BookingStep.values.indexOf(step);
+    final steps = draft.activeSteps;
+    final idx = steps.indexOf(step);
     if (idx > 0) {
-      step = BookingStep.values[idx - 1];
+      step = steps[idx - 1];
       notifyListeners();
     }
   }
 
   void goTo(BookingStep s) {
-    final targetIdx = BookingStep.values.indexOf(s);
+    final steps = draft.activeSteps;
+    if (!steps.contains(s)) return;
+    final targetIdx = steps.indexOf(s);
     for (var i = 0; i < targetIdx; i++) {
-      if (!draft.isStepComplete(BookingStep.values[i])) return;
+      if (!draft.isStepComplete(steps[i])) return;
     }
     step = s;
     notifyListeners();
@@ -62,8 +66,13 @@ class BookingWizardController extends ChangeNotifier {
 
   void setServicio(AgendaService s) {
     draft.servicio = s;
+    draft.profesionalId = null;
+    draft.anyProfessional = !s.requiresStaffSelection;
     draft.date = null;
     draft.time = null;
+    if (step == BookingStep.profesional && !draft.requiresStaffStep) {
+      step = BookingStep.servicio;
+    }
     notifyListeners();
   }
 
@@ -122,7 +131,7 @@ class BookingWizardController extends ChangeNotifier {
       await api.publicCreateBooking(
         businessId: businessId,
         serviceId: d.servicio!.id,
-        staffMemberId: d.anyProfessional ? null : d.profesionalId,
+        staffMemberId: d.effectiveStaffMemberId,
         fechaHoraInicio: fechaHora,
         clientId: d.cliente!.id,
         notas: d.notes.isEmpty ? null : d.notes,

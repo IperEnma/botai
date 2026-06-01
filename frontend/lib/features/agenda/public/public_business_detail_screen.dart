@@ -406,12 +406,23 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
       widget.dark ? Colors.white60 : Colors.grey.shade600;
   String get _font => widget.fontFamily;
 
+  bool _usesStaffStep(AgendaService? svc) => svc?.requiresStaffSelection ?? false;
+
+  String? get _effectiveStaffId {
+    if (!_usesStaffStep(_service)) return null;
+    return _anyStaff ? null : _selectedStaff?.id;
+  }
+
   @override
   void initState() {
     super.initState();
     _service = widget.preselectedService;
-    _step =
-        widget.preselectedService != null ? _Step.staff : _Step.service;
+    if (_service != null) {
+      _anyStaff = !_usesStaffStep(_service);
+      _step = _usesStaffStep(_service) ? _Step.staff : _Step.date;
+    } else {
+      _step = _Step.service;
+    }
   }
 
   void _goBack() {
@@ -426,7 +437,7 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
             _step = _Step.service;
           }
         case _Step.date:
-          _step = _Step.staff;
+          _step = _usesStaffStep(_service) ? _Step.staff : _Step.service;
           _selectedDate = null;
           _selectedSlot = null;
         case _Step.slots:
@@ -447,7 +458,7 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
   }
 
   void _selectDate(DateTime date) {
-    final staffId = _anyStaff ? null : _selectedStaff?.id;
+    final staffId = _effectiveStaffId;
     final key = (
       businessId: widget.business.id,
       serviceId: _service!.id,
@@ -486,7 +497,7 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
       await api.publicCreateBooking(
             businessId: widget.business.id,
             serviceId: svc.id,
-            staffMemberId: _anyStaff ? null : _selectedStaff?.id,
+            staffMemberId: _effectiveStaffId,
             fechaHoraInicio: slot.inicio,
             clientId: client.id,
           );
@@ -688,6 +699,9 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
   }
 
   Widget _buildContent() {
+    if (_step == _Step.staff && !_usesStaffStep(_service)) {
+      return _buildDateStep();
+    }
     switch (_step) {
       case _Step.service:
         return _buildServiceStep();
@@ -709,7 +723,12 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
           InkWell(
             onTap: () => setState(() {
               _service = svc;
-              _step = _Step.staff;
+              _anyStaff = !svc.requiresStaffSelection;
+              _selectedStaff = null;
+              _selectedDate = null;
+              _selectedSlot = null;
+              _step =
+                  svc.requiresStaffSelection ? _Step.staff : _Step.date;
             }),
             borderRadius: BorderRadius.circular(12),
             child: Container(
@@ -771,7 +790,16 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Text('No se pudo cargar el equipo.',
           style: TextStyle(color: _subColor)),
-      data: (staff) => Column(
+      data: (allStaff) {
+        final svcId = _service?.id;
+        final staff = allStaff
+            .where((m) =>
+                m.activo &&
+                (svcId == null ||
+                    m.serviceIds.isEmpty ||
+                    m.serviceIds.contains(svcId)))
+            .toList();
+        return Column(
         children: [
           // "Any member" option
           _StaffOption(
@@ -807,7 +835,8 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
               ],
             ),
         ],
-      ),
+      );
+      },
     );
   }
 

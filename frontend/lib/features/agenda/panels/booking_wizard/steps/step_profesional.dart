@@ -29,7 +29,11 @@ class StepProfesional extends ConsumerWidget {
         controller.draft.servicio?.nombre ?? 'este servicio';
     final servicioId = controller.draft.servicio?.id;
 
-    // Filter staff that offer the selected service
+    if (!controller.draft.requiresStaffStep) {
+      return const SizedBox.shrink();
+    }
+
+    // Profesionales asignados a este servicio (o sin restricción explícita)
     final allActive = staffState.members.where((s) => s.activo).toList();
     final filtered = servicioId == null
         ? allActive

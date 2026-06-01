@@ -77,9 +77,8 @@ class _StepFechaHoraState extends ConsumerState<StepFechaHora> {
       businessStaffProvider((tenantId: widget.tenantId, businessId: widget.businessId)),
     );
 
-    final proId = widget.controller.draft.anyProfessional
-        ? null
-        : widget.controller.draft.profesionalId;
+    final draft = widget.controller.draft;
+    final proId = draft.effectiveStaffMemberId;
     final selectedStaff = proId == null
         ? null
         : staffState.members.where((s) => s.id == proId).firstOrNull;
@@ -95,9 +94,11 @@ class _StepFechaHoraState extends ConsumerState<StepFechaHora> {
       }
     }
 
-    final proName = widget.controller.draft.anyProfessional
-        ? 'cualquier profesional'
-        : 'el profesional';
+    final proName = !draft.requiresStaffStep
+        ? 'el negocio'
+        : draft.anyProfessional
+            ? 'cualquier profesional'
+            : (selectedStaff?.nombre ?? 'el profesional');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
@@ -506,9 +507,7 @@ class _SlotsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final durMin = controller.draft.servicio?.duracionMin ?? 30;
-    final proId = controller.draft.anyProfessional
-        ? null
-        : controller.draft.profesionalId;
+    final proId = controller.draft.effectiveStaffMemberId;
 
     final dia = _bHoursDiaSemana(selectedDate);
 

@@ -51,12 +51,30 @@ class BookingDraft {
     this.sendWhatsApp = true,
   });
 
+  /// Según configuración del servicio (`GENERAL` vs `BY_STAFF`).
+  bool get requiresStaffStep => servicio?.requiresStaffSelection ?? false;
+
+  List<BookingStep> get activeSteps => [
+        BookingStep.cliente,
+        BookingStep.servicio,
+        if (requiresStaffStep) BookingStep.profesional,
+        BookingStep.fechaHora,
+      ];
+
   bool isStepComplete(BookingStep s) => switch (s) {
         BookingStep.cliente => cliente != null,
         BookingStep.servicio => servicio != null,
-        BookingStep.profesional => profesionalId != null || anyProfessional,
+        BookingStep.profesional => !requiresStaffStep ||
+            profesionalId != null ||
+            anyProfessional,
         BookingStep.fechaHora => date != null && time != null,
       };
 
-  bool get isValid => BookingStep.values.every(isStepComplete);
+  bool get isValid => activeSteps.every(isStepComplete);
+
+  /// `null` = sin profesional (agenda general o “cualquiera”).
+  String? get effectiveStaffMemberId {
+    if (!requiresStaffStep || anyProfessional) return null;
+    return profesionalId;
+  }
 }
