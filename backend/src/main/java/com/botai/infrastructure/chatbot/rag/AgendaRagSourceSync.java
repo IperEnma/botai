@@ -1,5 +1,6 @@
 package com.botai.infrastructure.chatbot.rag;
 
+import com.botai.application.chatbot.service.agenda.AgendaHorarioTextService;
 import com.botai.application.chatbot.service.agenda.PublicAgendaLinkResolver;
 import com.botai.infrastructure.chatbot.persistence.entity.KnowledgeChunkEntity;
 import com.botai.infrastructure.chatbot.persistence.jpa.KnowledgeChunkJpaRepository;
@@ -39,25 +40,27 @@ public class AgendaRagSourceSync {
     private static final String TOPIC_SERVICIOS = "Agenda: Servicios";
     private static final String TOPIC_HORARIOS = "Agenda: Horarios";
     private static final String TOPIC_POLITICAS = "Agenda: Políticas";
-
-    /** Mismo convenio que agenda (Lunes = 0 … Domingo = 6). */
-    private static final String[] DAY_NAMES_ES =
-        {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
+    /** Mejora recuperación por texto cuando no hay embedding. */
+    private static final String KEYWORDS_HORARIOS =
+        "horario, horarios, abren, cierran, apertura, cierre, atencion, cuando atienden, que hora abren, hasta que hora";
 
     private final KnowledgeChunkJpaRepository knowledgeChunkJpaRepository;
     private final JdbcTemplate jdbcTemplate;
     private final PublicAgendaLinkResolver publicAgendaLinkResolver;
+    private final AgendaHorarioTextService agendaHorarioTextService;
     private final KnowledgeChunkEmbeddingSync embeddingSync;
     private final KnowledgeChunkEmbeddingClearer embeddingClearer;
 
     public AgendaRagSourceSync(KnowledgeChunkJpaRepository knowledgeChunkJpaRepository,
                                JdbcTemplate jdbcTemplate,
                                PublicAgendaLinkResolver publicAgendaLinkResolver,
+                               AgendaHorarioTextService agendaHorarioTextService,
                                KnowledgeChunkEmbeddingClearer embeddingClearer,
                                @Autowired(required = false) KnowledgeChunkEmbeddingSync embeddingSync) {
         this.knowledgeChunkJpaRepository = knowledgeChunkJpaRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.publicAgendaLinkResolver = publicAgendaLinkResolver;
+        this.agendaHorarioTextService = agendaHorarioTextService;
         this.embeddingClearer = embeddingClearer;
         this.embeddingSync = embeddingSync;
     }
@@ -109,10 +112,10 @@ public class AgendaRagSourceSync {
         int branchCount = businesses.size();
         String tenantCompanySlug = resolveTenantCompanySlug(businesses);
         for (BusinessRow b : businesses) {
-            upsertChunk(tenantId, b.id(), TOPIC_NEGOCIO, buildNegocioContent(tenantId, b, branchCount, tenantCompanySlug));
-            upsertChunk(tenantId, b.id(), TOPIC_SERVICIOS, buildServiciosContent(b.id()));
-            upsertChunk(tenantId, b.id(), TOPIC_HORARIOS, buildHorariosContent(b.id()));
-            upsertChunk(tenantId, b.id(), TOPIC_POLITICAS, buildPoliticasContent(b.id()));
+            upsertChunk(tenantId, b.id(), TOPIC_NEGOCIO, buildNegocioContent(tenantId, b, branchCount, tenantCompanySlug), null);
+            upsertChunk(tenantId, b.id(), TOPIC_SERVICIOS, buildServiciosContent(b.id()), null);
+            upsertChunk(tenantId, b.id(), TOPIC_HORARIOS, buildHorariosContent(b.id()), KEYWORDS_HORARIOS);
+            upsertChunk(tenantId, b.id(), TOPIC_POLITICAS, buildPoliticasContent(b.id()), null);
         }
         deactivateStaleAgendaChunks(tenantId, keepIds);
     }
@@ -158,7 +161,7 @@ public class AgendaRagSourceSync {
     }
 
     /**
-     * Contenido indexable para RAG: nombre comercial explícito (Agenda o tabla {@code bot}) para que el asistente no lo invente.
+     * Contenido indexable para RAG: nombre comercial y enlace de reserva desde Agenda / {@code bot}.
      */
     static String buildNegocioKnowledgeContent(String displayName, String descripcion, String publicSlug,
                                                String publicBookingUrl, String logoUrl, String colorPrimario) {
@@ -177,8 +180,8 @@ public class AgendaRagSourceSync {
             lines.add("Identificador público (slug): " + publicSlug.strip());
         }
         if (publicBookingUrl != null && !publicBookingUrl.isBlank()) {
-            lines.add("Enlace oficial para reservar cita nueva (único válido): " + publicBookingUrl.strip());
-            lines.add("Si el cliente pide agendar o reservar, enviar exactamente ese enlace en el mensaje.");
+            lines.add("Enlace oficial para reservar cita nueva: " + publicBookingUrl.strip());
+            lines.add("Para agendar o reservar, compartir este enlace con el cliente.");
         }
         if (logoUrl != null && !logoUrl.isBlank()) {
             lines.add("Logo: " + logoUrl.strip());
@@ -248,33 +251,8 @@ public class AgendaRagSourceSync {
     }
 
     private String buildHorariosContent(UUID businessId) {
-        List<String> lines = jdbcTemplate.query(
-            """
-                SELECT dia_semana, apertura, cierre, cerrado
-                FROM agenda_business_hours
-                WHERE business_id = ?
-                ORDER BY dia_semana ASC
-                """,
-            ps -> ps.setObject(1, businessId),
-            (rs, n) -> formatHourLine(rs));
-        if (lines.isEmpty()) {
-            return "No hay horarios cargados en la agenda para este negocio.";
-        }
-        return String.join("\n", lines);
-    }
-
-    private static String formatHourLine(ResultSet rs) throws SQLException {
-        int d = rs.getInt("dia_semana");
-        String label = (d >= 0 && d <= 6) ? DAY_NAMES_ES[d] : "Día " + d;
-        if (rs.getBoolean("cerrado")) {
-            return label + ": Cerrado";
-        }
-        var a = rs.getTime("apertura");
-        var c = rs.getTime("cierre");
-        if (a == null || c == null) {
-            return label + ": Cerrado";
-        }
-        return label + ": " + a.toLocalTime() + " - " + c.toLocalTime();
+        return agendaHorarioTextService.formatHorarioForBusiness(businessId)
+            .orElse("No hay horarios cargados en la agenda para este negocio.");
     }
 
     private String buildPoliticasContent(UUID businessId) {
@@ -325,7 +303,7 @@ public class AgendaRagSourceSync {
         }
     }
 
-    private void upsertChunk(String tenantId, UUID businessId, String topic, String content) {
+    private void upsertChunk(String tenantId, UUID businessId, String topic, String content, String keywords) {
         KnowledgeChunkEntity chunk = knowledgeChunkJpaRepository
             .findByTenantIdAndTopicAndBusinessId(tenantId, topic, businessId)
             .orElseGet(() -> {
@@ -337,19 +315,41 @@ public class AgendaRagSourceSync {
                 return e;
             });
         boolean contentChanged = !Objects.equals(content, chunk.getContent());
+        boolean keywordsChanged = !Objects.equals(keywords, chunk.getKeywords());
         boolean isNew = chunk.getId() == null;
         chunk.setContent(content);
+        chunk.setKeywords(keywords);
         chunk.setActive(true);
         chunk.setBusinessId(businessId);
         knowledgeChunkJpaRepository.save(chunk);
         if (contentChanged && chunk.getId() != null) {
             embeddingClearer.clearEmbeddingForChunk(chunk.getId());
-            log.info("[AGENDA-RAG-SYNC] Chunk tenant={} businessId={} topic='{}' id={} -> vector invalidado",
+            log.info("[AGENDA-RAG-SYNC] Chunk tenant={} businessId={} topic='{}' id={} contenido actualizado, vector invalidado",
                 tenantId, businessId, topic, chunk.getId());
+            if (TOPIC_HORARIOS.equals(topic)) {
+                log.info("[AGENDA-RAG-SYNC] Horarios tenant={} businessId={}: {}",
+                    tenantId, businessId, horariosLogSummary(content));
+            }
+        } else if (keywordsChanged && chunk.getId() != null) {
+            log.debug("[AGENDA-RAG-SYNC] Chunk tenant={} topic='{}' id={} keywords actualizados",
+                tenantId, topic, chunk.getId());
         } else if (isNew) {
             log.info("[AGENDA-RAG-SYNC] Chunk creado tenant={} businessId={} topic='{}' id={}",
                 tenantId, businessId, topic, chunk.getId());
         }
+    }
+
+    private static String horariosLogSummary(String content) {
+        if (content == null || content.isBlank()) {
+            return "(vacío)";
+        }
+        int nl = content.indexOf('\n');
+        String first = nl >= 0 ? content.substring(0, nl) : content;
+        if (content.contains("Resumen:")) {
+            int rs = content.lastIndexOf("Resumen:");
+            return first + " | " + content.substring(rs).strip();
+        }
+        return first.strip();
     }
 
     private record BusinessRow(UUID id, String nombre, String descripcion, String logoUrl, String colorPrimario,

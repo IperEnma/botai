@@ -360,20 +360,48 @@ public class RagLlmChatService implements ConversationModeHandler {
         if (lines == null || lines.isEmpty()) {
             return "";
         }
+        List<String> parts = new ArrayList<>();
+        appendSectionLines(parts, lines, BotPrompts.RagChat.BOOKING_URL_SECTION_TITLE);
+        String fragments = extractBoundedSection(lines,
+            BotPrompts.RagChat.FRAGMENTS_SECTION_TITLE,
+            BotPrompts.RagChat.FRAGMENTS_SECTION_END);
+        if (!fragments.isBlank()) {
+            if (!parts.isEmpty()) {
+                parts.add("");
+            }
+            parts.add(fragments);
+        }
+        return String.join("\n", parts).strip();
+    }
+
+    private static void appendSectionLines(List<String> target, List<String> lines, String sectionTitle) {
+        String block = extractBoundedSection(lines, sectionTitle, null);
+        if (!block.isBlank()) {
+            if (!target.isEmpty()) {
+                target.add("");
+            }
+            target.add(block);
+        }
+    }
+
+    private static String extractBoundedSection(List<String> lines, String sectionTitle, String endMarker) {
         int start = -1;
-        int end = -1;
+        int end = lines.size();
         for (int i = 0; i < lines.size(); i++) {
-            if (BotPrompts.RagChat.FRAGMENTS_SECTION_TITLE.equals(lines.get(i))) {
+            if (sectionTitle.equals(lines.get(i))) {
                 start = i + 1;
-            } else if (BotPrompts.RagChat.FRAGMENTS_SECTION_END.equals(lines.get(i)) && start >= 0) {
+            } else if (start >= 0 && endMarker != null && endMarker.equals(lines.get(i))) {
+                end = i;
+                break;
+            } else if (start >= 0 && endMarker == null && lines.get(i).startsWith("--- ") && !sectionTitle.equals(lines.get(i))) {
                 end = i;
                 break;
             }
         }
-        if (start < 0 || end < 0 || end <= start) {
+        if (start < 0 || end <= start) {
             return "";
         }
-        return String.join("\n", lines.subList(start, end));
+        return String.join("\n", lines.subList(start, end)).strip();
     }
 
     private Optional<String> runSelfReview(String userMessage, String draftReply, String ragFacts, String recentThread) {

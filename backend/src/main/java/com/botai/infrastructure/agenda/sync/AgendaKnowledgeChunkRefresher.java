@@ -36,6 +36,12 @@ public class AgendaKnowledgeChunkRefresher {
                 int filled = embeddingSync.syncPendingEmbeddings();
                 if (filled > 0) {
                     log.info("[AGENDA-RAG] {} embedding(s) regenerados tras cambio de catálogo (tenant={})", filled, tenantId);
+                } else {
+                    long pending = embeddingSync.countPendingEmbeddings();
+                    if (pending > 0) {
+                        log.warn("[AGENDA-RAG] {} chunk(s) sin embedding tras refresh (tenant={}); RAG usará fallback por texto",
+                            pending, tenantId);
+                    }
                 }
             }
         } catch (Exception e) {

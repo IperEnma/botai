@@ -68,6 +68,70 @@ class PublicReservarTheme {
   }
 }
 
+/// Indicador «Paso X de Y» + barra de progreso (reserva pública).
+class PublicReservarProgressIndicator extends StatelessWidget {
+  const PublicReservarProgressIndicator({
+    super.key,
+    required this.theme,
+    required this.currentStep,
+    required this.totalSteps,
+    this.stepLabel,
+  });
+
+  final PublicReservarTheme theme;
+  /// 1-based (ej. 3 de 6).
+  final int currentStep;
+  final int totalSteps;
+  final String? stepLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = theme;
+    final progress = (currentStep / totalSteps).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Paso $currentStep de $totalSteps',
+                style: t.textStyle(
+                  size: 13,
+                  weight: FontWeight.w600,
+                  color: t.primary,
+                ),
+              ),
+              if (stepLabel != null && stepLabel!.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    stepLabel!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.textStyle(size: 13, color: t.textSub),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: t.cardBorder,
+              color: t.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Shell Felito: franja de color, avatar, título, badge «Reserva online», contenido.
 class PublicReservarShell extends StatelessWidget {
   const PublicReservarShell({
@@ -76,6 +140,9 @@ class PublicReservarShell extends StatelessWidget {
     required this.brandTitle,
     this.subtitle,
     this.sectionTitle,
+    this.progressCurrent,
+    this.progressTotal,
+    this.progressStepLabel,
     required this.child,
     this.onBack,
     this.footer,
@@ -86,6 +153,9 @@ class PublicReservarShell extends StatelessWidget {
   final String brandTitle;
   final String? subtitle;
   final String? sectionTitle;
+  final int? progressCurrent;
+  final int? progressTotal;
+  final String? progressStepLabel;
   final Widget child;
   final VoidCallback? onBack;
   final Widget? footer;
@@ -116,6 +186,17 @@ class PublicReservarShell extends StatelessWidget {
                     ),
                   ),
                 _BrandBlock(theme: t, title: brandTitle, subtitle: subtitle),
+                if (progressCurrent != null &&
+                    progressTotal != null &&
+                    progressTotal! > 0) ...[
+                  PublicReservarProgressIndicator(
+                    theme: t,
+                    currentStep: progressCurrent!,
+                    totalSteps: progressTotal!,
+                    stepLabel: progressStepLabel,
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 if (sectionTitle != null) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),

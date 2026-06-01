@@ -11,7 +11,9 @@ import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import 'public_reservar_layout.dart';
 
-enum _BookingStep { service, staff, date, slots }
+enum _BookingStep { service, staff, date, slots, review, contact }
+
+const int _kBookingTotalSteps = 6;
 
 /// Reserva pública unificada: /reservar/:slug (mismo look que el sheet del detalle).
 class PublicReservarScreen extends ConsumerStatefulWidget {
@@ -37,6 +39,19 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   DateTime? _selectedDate;
   AvailabilitySlot? _selectedSlot;
   Future<List<AvailabilitySlot>>? _slotsFuture;
+  final _nombreCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _telCtrl = TextEditingController();
+  final _contactFormKey = GlobalKey<FormState>();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _nombreCtrl.dispose();
+    _emailCtrl.dispose();
+    _telCtrl.dispose();
+    super.dispose();
+  }
 
   void _goBack(PublicReservarTheme theme, Business business) {
     switch (_step) {
@@ -61,6 +76,27 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           _step = _BookingStep.date;
           _selectedSlot = null;
         });
+      case _BookingStep.review:
+        setState(() => _step = _BookingStep.slots);
+      case _BookingStep.contact:
+        setState(() => _step = _BookingStep.review);
+    }
+  }
+
+  int _stepIndex(_BookingStep step) {
+    switch (step) {
+      case _BookingStep.service:
+        return 1;
+      case _BookingStep.staff:
+        return 2;
+      case _BookingStep.date:
+        return 3;
+      case _BookingStep.slots:
+        return 4;
+      case _BookingStep.review:
+        return 5;
+      case _BookingStep.contact:
+        return 6;
     }
   }
 
@@ -74,6 +110,27 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         return 'Elegí una fecha';
       case _BookingStep.slots:
         return 'Elegí un horario';
+      case _BookingStep.review:
+        return 'Revisá tu reserva';
+      case _BookingStep.contact:
+        return 'Tus datos de contacto';
+    }
+  }
+
+  String _stepProgressLabel(_BookingStep step) {
+    switch (step) {
+      case _BookingStep.service:
+        return 'Servicio';
+      case _BookingStep.staff:
+        return 'Profesional';
+      case _BookingStep.date:
+        return 'Fecha';
+      case _BookingStep.slots:
+        return 'Horario';
+      case _BookingStep.review:
+        return 'Resumen';
+      case _BookingStep.contact:
+        return 'Contacto';
     }
   }
 
@@ -94,21 +151,33 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     });
   }
 
+  void _goToReview() {
+    if (_service == null || _selectedSlot == null || _selectedDate == null) return;
+    setState(() => _step = _BookingStep.review);
+  }
+
+  void _goToContact() {
+    setState(() => _step = _BookingStep.contact);
+  }
+
   Future<void> _confirm(Business business, PublicReservarTheme theme) async {
     final svc = _service;
     final slot = _selectedSlot;
     if (svc == null || slot == null) return;
+    if (!_contactFormKey.currentState!.validate()) return;
 
-    final payload = await _askClientData(theme);
-    if (payload == null) return;
+    final nombre = _nombreCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
+    final telefono = _telCtrl.text.trim();
 
+    setState(() => _submitting = true);
     try {
       final api = ref.read(agendaApiServiceProvider);
       final client = await api.createClient(
         businessId: business.id,
-        nombre: payload.nombre,
-        email: payload.email,
-        telefono: payload.telefono,
+        nombre: nombre,
+        email: email.isEmpty ? null : email,
+        telefono: telefono.isEmpty ? null : telefono,
       );
       await api.publicCreateBooking(
         businessId: business.id,
@@ -152,64 +221,55 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           backgroundColor: Colors.red.shade700,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
-  Future<_ClientPayload?> _askClientData(PublicReservarTheme theme) async {
-    final nombreCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final telCtrl = TextEditingController();
+  String _formattedSelectedDate() {
+    final d = _selectedDate;
+    if (d == null) return '—';
+    const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const monthNames = [
+      'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+      'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+    ];
+    final today = DateTime.now();
+    final isToday = d.year == today.year && d.month == today.month && d.day == today.day;
+    if (isToday) return 'Hoy';
+    return '${dayNames[d.weekday - 1]} ${d.day} ${monthNames[d.month - 1]} ${d.year}';
+  }
 
-    return showDialog<_ClientPayload>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tus datos'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nombreCtrl,
-              decoration: const InputDecoration(labelText: 'Nombre *'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: telCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Teléfono'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: theme.primary),
-            onPressed: () {
-              final nombre = nombreCtrl.text.trim();
-              if (nombre.isEmpty) return;
-              Navigator.of(ctx).pop(_ClientPayload(
-                nombre: nombre,
-                email: emailCtrl.text.trim().isEmpty
-                    ? null
-                    : emailCtrl.text.trim(),
-                telefono: telCtrl.text.trim().isEmpty
-                    ? null
-                    : telCtrl.text.trim(),
-              ));
-            },
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
-    );
+  String _staffSummaryLabel() {
+    if (_anyStaff) return 'Cualquier profesional disponible';
+    return _selectedStaff?.nombre ?? '—';
+  }
+
+  Widget? _buildStepFooter(Business business, PublicReservarTheme theme) {
+    switch (_step) {
+      case _BookingStep.slots:
+        if (_selectedSlot == null) return null;
+        return _PrimaryFooterButton(
+          theme: theme,
+          label: 'Continuar',
+          onPressed: _goToReview,
+        );
+      case _BookingStep.review:
+        return _PrimaryFooterButton(
+          theme: theme,
+          label: 'Continuar con tus datos',
+          onPressed: _goToContact,
+        );
+      case _BookingStep.contact:
+        return _PrimaryFooterButton(
+          theme: theme,
+          label: 'Confirmar reserva',
+          loading: _submitting,
+          onPressed: _submitting ? null : () => _confirm(business, theme),
+        );
+      default:
+        return null;
+    }
   }
 
   @override
@@ -239,6 +299,9 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           brandTitle: business.nombre,
           subtitle: business.descripcion,
           sectionTitle: _stepTitle(_step),
+          progressCurrent: _stepIndex(_step),
+          progressTotal: _kBookingTotalSteps,
+          progressStepLabel: _stepProgressLabel(_step),
           onBack: () => _goBack(theme, business),
           footer: publicReservarFooterLink(
             theme: theme,
@@ -256,31 +319,16 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                   ),
                 ),
               ),
-              if (_step == _BookingStep.slots && _selectedSlot != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: theme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      onPressed: () => _confirm(business, theme),
-                      child: Text(
-                        'Confirmar turno · ${_selectedSlot!.label}',
-                        style: theme.textStyle(
-                          size: 15,
-                          weight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final footer = _buildStepFooter(business, theme);
+                  if (footer == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: footer,
+                  );
+                },
+              ),
             ],
           ),
         );
@@ -376,7 +424,282 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
             _selectedSlot = null;
           }),
         );
+      case _BookingStep.review:
+        return _BookingReview(
+          theme: theme,
+          businessName: business.nombre,
+          service: _service!,
+          staffLabel: _staffSummaryLabel(),
+          dateLabel: _formattedSelectedDate(),
+          slotLabel: _selectedSlot?.label ?? '—',
+        );
+      case _BookingStep.contact:
+        return _ContactStep(
+          theme: theme,
+          businessName: business.nombre,
+          formKey: _contactFormKey,
+          nombreCtrl: _nombreCtrl,
+          emailCtrl: _emailCtrl,
+          telCtrl: _telCtrl,
+        );
     }
+  }
+}
+
+class _PrimaryFooterButton extends StatelessWidget {
+  const _PrimaryFooterButton({
+    required this.theme,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+  });
+
+  final PublicReservarTheme theme;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: theme.primary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        onPressed: onPressed,
+        child: loading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                label,
+                style: theme.textStyle(
+                  size: 15,
+                  weight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _BookingReview extends StatelessWidget {
+  const _BookingReview({
+    required this.theme,
+    required this.businessName,
+    required this.service,
+    required this.staffLabel,
+    required this.dateLabel,
+    required this.slotLabel,
+  });
+
+  final PublicReservarTheme theme;
+  final String businessName;
+  final AgendaService service;
+  final String staffLabel;
+  final String dateLabel;
+  final String slotLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Comprobá que todo esté correcto antes de continuar.',
+          style: t.textStyle(size: 14, color: t.textSub),
+        ),
+        const SizedBox(height: 16),
+        _ReviewRow(theme: t, icon: Icons.storefront_outlined, label: 'Negocio', value: businessName),
+        _ReviewRow(theme: t, icon: Icons.spa_outlined, label: 'Servicio', value: service.nombre),
+        _ReviewRow(
+          theme: t,
+          icon: Icons.schedule_outlined,
+          label: 'Duración',
+          value: '${service.duracionMin} min · \$${service.precio.toStringAsFixed(0)}',
+        ),
+        _ReviewRow(theme: t, icon: Icons.person_outline, label: 'Profesional', value: staffLabel),
+        _ReviewRow(theme: t, icon: Icons.calendar_today_outlined, label: 'Fecha', value: dateLabel),
+        _ReviewRow(theme: t, icon: Icons.access_time, label: 'Horario', value: slotLabel),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: t.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: t.primary.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, size: 20, color: t.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'En el siguiente paso te pediremos nombre y, si querés, email o teléfono para gestionar esta reserva.',
+                  style: t.textStyle(size: 13, color: t.text),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReviewRow extends StatelessWidget {
+  const _ReviewRow({
+    required this.theme,
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final PublicReservarTheme theme;
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = theme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: t.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: t.textStyle(size: 12, color: t.textSub)),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: t.textStyle(size: 15, weight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactStep extends StatelessWidget {
+  const _ContactStep({
+    required this.theme,
+    required this.businessName,
+    required this.formKey,
+    required this.nombreCtrl,
+    required this.emailCtrl,
+    required this.telCtrl,
+  });
+
+  final PublicReservarTheme theme;
+  final String businessName;
+  final GlobalKey<FormState> formKey;
+  final TextEditingController nombreCtrl;
+  final TextEditingController emailCtrl;
+  final TextEditingController telCtrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = theme;
+    return Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Necesitamos algunos datos para registrar tu turno con $businessName. '
+            'El nombre es obligatorio; email y teléfono son opcionales pero nos ayudan a contactarte.',
+            style: t.textStyle(size: 14, color: t.textSub),
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: nombreCtrl,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: 'Nombre completo',
+              hintText: 'Ej. María González',
+              helperText: 'Obligatorio · aparece en tu reserva',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return 'Ingresá tu nombre para continuar';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: emailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: 'Correo electrónico (opcional)',
+              hintText: 'tu@email.com',
+              helperText: 'Para enviarte confirmación o recordatorios',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: telCtrl,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: 'Teléfono (opcional)',
+              hintText: 'Ej. 09 123 456',
+              helperText: 'Por si el negocio debe avisarte un cambio',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: t.cardFill,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: t.cardBorder),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lock_outline, size: 18, color: t.textSub),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Usamos estos datos solo para gestionar tu reserva con este negocio. '
+                    'No los vendemos ni los compartimos con terceros ajenos al turno.',
+                    style: t.textStyle(size: 12, color: t.textSub),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
   }
 }
 
@@ -713,9 +1036,3 @@ class _SlotsPicker extends StatelessWidget {
   }
 }
 
-class _ClientPayload {
-  const _ClientPayload({required this.nombre, this.email, this.telefono});
-  final String nombre;
-  final String? email;
-  final String? telefono;
-}

@@ -29,6 +29,7 @@ public class KnowledgeService {
     private static final int DEFAULT_MAX_CHUNKS = 3;
     private static final Pattern NON_WORD = Pattern.compile("[^\\p{L}\\p{N}]+");
     private static final String BUSINESS_INFO_TOPIC_PREFIX = "Agenda: Información del negocio";
+    private static final String BUSINESS_HOURS_TOPIC_PREFIX = "Agenda: Horarios";
 
     private static final long BACKFILL_COOLDOWN_MS = 120_000L;
 

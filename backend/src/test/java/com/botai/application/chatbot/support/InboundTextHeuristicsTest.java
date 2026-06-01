@@ -25,4 +25,5 @@ class InboundTextHeuristicsTest {
     void looksLikeViewAgendaBookings_misCitas() {
         assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("Quiero ver mis citas")).isTrue();
     }
+
 }

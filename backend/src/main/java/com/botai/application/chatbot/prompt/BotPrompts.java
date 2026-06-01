@@ -39,8 +39,8 @@ public final class BotPrompts {
         public static final String BOOKING_URL_SECTION_TITLE =
             "--- Official online booking link (authoritative for this tenant) ---";
         public static final String BOOKING_URL_RULE =
-            "When the user wants a new appointment, include exactly the URL from this block or from snippet "
-                + "“Agenda: Información del negocio”. Do not invent Calendly, Booksy, or other domains.";
+            "When the user wants a new appointment, send the BOOKING_URL from this block or the "
+                + "«Enlace oficial para reservar» line in snippet «Agenda: Información del negocio».";
 
         public static String bookingUrlLine(String url) {
             return "BOOKING_URL: " + (url != null ? url.strip() : "");
@@ -71,10 +71,11 @@ public final class BotPrompts {
         public static final String RAG_LINE_BUSINESS_IDENTITY =
             "Use the business name, description, address, prices, and policies only when they appear in the retrieved snippets or in a tool response (getHorario, listarServicios, buscarConocimiento). "
                 + "The snippet topic “Agenda: Información del negocio” (or similar) is the source for how to name the business. "
-                + "Until you have that text, speak as “nosotros” without inventing a trade name or brand.";
+                + "Until a snippet or tool gives the business name, speak as “nosotros”.";
         public static final String RAG_LINE_SOLO_FRAGMENTOS =
             "For services, policies, and general business text, reuse wording from the retrieved snippets. "
-                + "For opening hours and “cuándo abren / cuándo cierran”, call getHorario and answer from that output; treat snippets as supporting context. "
+                + "For opening hours, use the retrieved snippet «Agenda: Horarios» when it appears below; if a day lists times (not «Cerrado»), we are open then. "
+                + "Do not say there are no configured hours while that snippet lists open days. Call getHorario only if «Agenda: Horarios» is missing. "
                 + "Keep the reply concise and in Spanish.";
         /**
          * Herramientas de consulta registradas en el mismo {@code ChatClient} que las de citas (Spring AI tools).
@@ -98,9 +99,8 @@ public final class BotPrompts {
         public static final String RAG_LINE_ERRORES_Y_CONTACTO =
             "Keep responses user-friendly in Spanish. Share phone, email, address, or links only when they appear in retrieved snippets or tool outputs.";
         public static final String RAG_LINE_CITAS_EN_CHAT =
-            "New bookings: use BOOKING_URL in the system block or the line “Enlace oficial para reservar” in retrieved snippets. "
-                + "Paste that exact URL in Spanish when they ask to schedule. Do not invent other booking sites. "
-                + "Do not ask for ID or complete a new reservation inside chat. "
+            "New bookings: share BOOKING_URL from the system block or «Enlace oficial para reservar» in snippets; "
+                + "the client completes the reservation on that web page. "
                 + "Existing appointments: use listarCitasActivasDelCanal, verificarCitaExistentePorDocumento, cancelarCita as appropriate.";
 
         /** Instrucciones largas (RAG) antes de fecha y fragmentos. */
@@ -170,9 +170,10 @@ public final class BotPrompts {
             lines.add("You are a reviewer for a Spanish WhatsApp business assistant.");
             lines.add("Keep only facts supported by the FACTS block (when non-empty), tool-backed claims in the DRAFT, the user message, or the recent thread.");
             lines.add("Preserve the business name and trade identity exactly as written in FACTS; if FACTS omit a name, use “nosotros” without adding a new brand name.");
-            lines.add("If FACTS or the draft mention a booking URL (BOOKING_URL or “Enlace oficial para reservar”), keep that exact URL; never substitute Calendly or other domains.");
+            lines.add("If FACTS or the draft include a booking URL (BOOKING_URL or «Enlace oficial para reservar»), keep that same URL in the final message.");
+            lines.add("If FACTS include «Agenda: Horarios» with open times, keep those hours in the final message; do not replace them with «no hay horarios configurados».");
             lines.add("Use RECENT THREAD for coherence (names, prior promises, context). Align corrections with FACTS when the draft overstates or adds unsupported details.");
-            lines.add("Improve the DRAFT for tone, brevity, grounding, and consistency; remove unsupported prices, hours, addresses, or service names.");
+            lines.add("Improve the DRAFT for tone, brevity, grounding, and consistency; remove unsupported prices, addresses, or service names not backed by FACTS.");
             lines.add("If the user message is general, the final reply should sound welcoming and informative from verified facts, not start with “no tenemos información” without a specific unanswered question.");
             lines.add("Output ONLY the final user-visible message in Spanish, plain text. No meta-commentary, no quotes around the whole message.");
             lines.add("");
@@ -261,7 +262,7 @@ public final class BotPrompts {
         }
 
         public static final String CRM_GET_AGENDA_PUBLIC_URL =
-            "Clasificación: ACCION_CRM get_agenda_public_url. El usuario quiere reservar; no pidas cédula ni completes la reserva en el chat.";
+            "Clasificación: ACCION_CRM get_agenda_public_url. El usuario quiere reservar; la reserva se completa en el enlace web de agenda.";
 
         public static String lineFor(IntentClassification c) {
             if (c == null) {
@@ -314,8 +315,8 @@ public final class BotPrompts {
     /** Descripciones y respuestos de {@link com.botai.infrastructure.chatbot.ai.AgendarTools} (citas existentes; no reserva nueva). */
     public static final class ToolsAgendar {
         public static final String TOOL_OBTENER_ENLACE_AGENDA =
-            "OBLIGATORIO cuando el usuario quiera AGENDAR o RESERVAR una cita NUEVA, pida el link/enlace de agenda, o pregunta cómo sacar turno. "
-                + "Devuelve el enlace oficial del negocio. NUNCA inventes URLs (Calendly, Booksy, etc.): solo copia el texto que devuelva esta herramienta.";
+            "Usar cuando el usuario quiera agendar o reservar una cita nueva o pida el enlace de agenda. "
+                + "Devuelve el enlace oficial del negocio; copiar ese texto en la respuesta al cliente.";
         public static final String TOOL_VERIFICAR_CITA =
             "Verificar si ya hay cita futura registrada con ese documento (tabla legacy del bot). Usar cuando tengas nombre y cédula escritos por el usuario. "
                 + "Si hay citas, infórmalas. Para una reserva NUEVA no uses herramientas: el usuario debe usar el enlace de agenda web.";

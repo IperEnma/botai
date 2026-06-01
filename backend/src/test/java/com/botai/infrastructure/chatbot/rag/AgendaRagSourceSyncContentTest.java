@@ -18,7 +18,7 @@ class AgendaRagSourceSyncContentTest {
         assertTrue(content.contains("Nombre comercial del negocio: Peluquería Zemi"));
         assertTrue(content.contains("El negocio se llama Peluquería Zemi"));
         assertTrue(content.contains("Descripción: Corte y color"));
-        assertTrue(content.contains("Enlace oficial para reservar cita nueva"));
+        assertTrue(content.contains("Enlace oficial para reservar cita nueva:"));
         assertTrue(content.contains("https://app.example.com/#/reservar/peluqueria-zemi-abc12345"));
     }
 }

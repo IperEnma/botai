@@ -1,12 +1,11 @@
 package com.botai.infrastructure.chatbot.ai;
 
 import com.botai.application.chatbot.prompt.BotPrompts;
+import com.botai.application.chatbot.service.agenda.AgendaHorarioTextService;
 import com.botai.application.chatbot.service.knowledge.KnowledgeService;
 import com.botai.infrastructure.security.context.ThreadTenantContext;
 import com.botai.domain.chatbot.model.KnowledgeChunk;
-import com.botai.infrastructure.agenda.persistence.entity.BusinessHoursEntity;
 import com.botai.infrastructure.agenda.persistence.entity.ServiceEntity;
-import com.botai.infrastructure.agenda.persistence.jpa.AgendaBusinessHoursJpaRepository;
 import com.botai.infrastructure.agenda.persistence.jpa.ServiceJpaRepository;
 import com.botai.infrastructure.agenda.support.AgendaPrimaryBusinessResolver;
 import org.springframework.ai.tool.annotation.Tool;
@@ -25,19 +24,18 @@ import java.util.stream.Collectors;
 @Component
 public class ConsultaTools {
 
-    private static final String[] DAY_NAMES_ES = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
     private static final int RAG_MAX_CHUNKS = 5;
 
-    private final AgendaBusinessHoursJpaRepository agendaBusinessHoursRepository;
+    private final AgendaHorarioTextService agendaHorarioTextService;
     private final ServiceJpaRepository agendaServiceRepository;
     private final AgendaPrimaryBusinessResolver primaryBusinessResolver;
     private final KnowledgeService knowledgeService;
 
-    public ConsultaTools(AgendaBusinessHoursJpaRepository agendaBusinessHoursRepository,
+    public ConsultaTools(AgendaHorarioTextService agendaHorarioTextService,
                          ServiceJpaRepository agendaServiceRepository,
                          AgendaPrimaryBusinessResolver primaryBusinessResolver,
                          KnowledgeService knowledgeService) {
-        this.agendaBusinessHoursRepository = agendaBusinessHoursRepository;
+        this.agendaHorarioTextService = agendaHorarioTextService;
         this.agendaServiceRepository = agendaServiceRepository;
         this.primaryBusinessResolver = primaryBusinessResolver;
         this.knowledgeService = knowledgeService;
@@ -49,30 +47,8 @@ public class ConsultaTools {
         if (tenantId == null || tenantId.isBlank()) {
             return BotPrompts.ToolsConsulta.ERR_TENANT_UNKNOWN;
         }
-        var businessId = primaryBusinessResolver.findPrimaryBusinessId(tenantId);
-        if (businessId.isEmpty()) {
-            return BotPrompts.ToolsConsulta.ERR_NO_HORARIO;
-        }
-        List<BusinessHoursEntity> hours = agendaBusinessHoursRepository.findByBusinessId(businessId.get());
-        hours = hours.stream().sorted(Comparator.comparingInt(BusinessHoursEntity::getDiaSemana)).toList();
-        List<String> lines = new ArrayList<>();
-        for (BusinessHoursEntity h : hours) {
-            int d = h.getDiaSemana();
-            String dayLabel = (d >= 0 && d <= 6) ? DAY_NAMES_ES[d] : "Día " + d;
-            if (h.isCerrado()) {
-                lines.add(dayLabel + ": Cerrado");
-                continue;
-            }
-            if (h.getApertura() == null || h.getCierre() == null) {
-                lines.add(dayLabel + ": Cerrado");
-                continue;
-            }
-            lines.add(dayLabel + ": " + h.getApertura() + " - " + h.getCierre());
-        }
-        if (lines.isEmpty()) {
-            return BotPrompts.ToolsConsulta.ERR_NO_HORARIO;
-        }
-        return String.join("\n", lines);
+        return agendaHorarioTextService.formatHorarioForTenant(tenantId)
+            .orElse(BotPrompts.ToolsConsulta.ERR_NO_HORARIO);
     }
 
     @Tool(description = BotPrompts.ToolsConsulta.TOOL_LISTAR_SERVICIOS)
