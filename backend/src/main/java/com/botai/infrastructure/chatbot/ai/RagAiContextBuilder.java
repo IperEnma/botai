@@ -2,6 +2,7 @@ package com.botai.infrastructure.chatbot.ai;
 
 import com.botai.application.chatbot.prompt.BotPrompts;
 import com.botai.application.chatbot.service.agenda.PublicAgendaLinkResolver;
+import com.botai.application.chatbot.support.InboundTextHeuristics;
 import com.botai.application.chatbot.service.conversation.ai.RagLlmChatService;
 import com.botai.application.chatbot.service.knowledge.KnowledgeService;
 import com.botai.domain.chatbot.ConversationContextKeys;
@@ -45,6 +46,14 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
     @Override
     public RagLlmChatService.BuildContextResult buildContext(ConversationState state, String userMessage) {
         String tenantId = state.getContextValue(ConversationContextKeys.TENANT_ID, String.class);
+
+        if (InboundTextHeuristics.looksLikeGreetingOnly(userMessage)) {
+            log.info("[RAG] buildContext saludo puro tenantId={} query='{}' -> sin chunks ni BOOKING_URL",
+                tenantId, userMessage);
+            return RagLlmChatService.BuildContextResult.greetingOnly(
+                BotPrompts.RagChat.ragGreetingOnlyPreambleLines());
+        }
+
         List<KnowledgeChunk> chunks = knowledgeService.findRelevant(userMessage, maxChunks, tenantId);
 
         log.info("[RAG] buildContext tenantId={} query='{}' chunks={} topics={}",

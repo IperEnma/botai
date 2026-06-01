@@ -50,13 +50,16 @@ public final class BotPrompts {
             "You are this tenant’s virtual assistant. Reply in Spanish as the business (first-person plural: “nosotros”). "
                 + "Keep a warm, professional tone in short WhatsApp-style messages.";
         public static final String RAG_LINE_SALUDO =
-            "If the user message is only a greeting, reply with a brief friendly greeting in Spanish as the business. "
-                + "Offer help with what you can verify (hours, services, booking); use the business name from snippets or tools when it appears there.";
+            "If the user message is ONLY a short greeting (hola, buenos días, hey) with no other question in the same message, "
+                + "reply in one or two brief sentences in Spanish: warm greeting and ask how you can help. "
+                + "Do NOT mention opening hours, services, prices, booking links, URLs, or a business overview until they ask.";
+        public static final String RAG_LINE_SALUDO_STRICT =
+            "This turn is a pure greeting: your entire reply must stay under ~25 words. No lists, no links, no «también ofrecemos».";
         /**
          * Tono de mostrador: ayudar con lo verificado; reservar el “no tenemos ese dato” solo para preguntas puntuales sin respuesta.
          */
         public static final String RAG_LINE_GENERAL_VS_SPECIFIC =
-            "When the user asks in general terms (greeting, “qué hacen”, “info”, “cuéntenme”, “horarios”, “servicios”), answer like staff at the counter: share the verified overview from snippets and tools (name, services, hours, description) in natural Spanish. "
+            "When the user asks in general terms (“qué hacen”, “info”, “cuéntenme”, “horarios”, “servicios”), answer like staff at the counter: share the verified overview from snippets and tools (name, services, hours, description) in natural Spanish. "
                 + "Do not open the reply with “no tenemos información” or similar unless they asked for one specific fact you cannot verify after checking snippets and tools. "
                 + "For a specific detail missing from all sources (exact price not listed, address not in knowledge, unknown service), say briefly that you do not have that exact detail and offer the closest verified information you do have.";
         /** El canal envía texto plano a WhatsApp; JSON de plantillas Meta rompe el envío. */
@@ -102,6 +105,19 @@ public final class BotPrompts {
             "New bookings: share BOOKING_URL from the system block or «Enlace oficial para reservar» in snippets; "
                 + "the client completes the reservation on that web page. "
                 + "Existing appointments: use listarCitasActivasDelCanal, verificarCitaExistentePorDocumento, cancelarCita as appropriate.";
+
+        /** Instrucciones mínimas para saludo puro (sin RAG ni BOOKING_URL). */
+        public static List<String> ragGreetingOnlyPreambleLines() {
+            return List.of(
+                INSTRUCTIONS_HEADER,
+                RAG_LINE_VOZ_NEGOCIO,
+                RAG_LINE_SALUDO,
+                RAG_LINE_SALUDO_STRICT,
+                RAG_LINE_SOLO_TEXTO_PLANO,
+                INSTRUCTIONS_FOOTER,
+                ""
+            );
+        }
 
         /** Instrucciones largas (RAG) antes de fecha y fragmentos. */
         public static List<String> ragInstructionPreambleLines() {
@@ -175,6 +191,7 @@ public final class BotPrompts {
             lines.add("Use RECENT THREAD for coherence (names, prior promises, context). Align corrections with FACTS when the draft overstates or adds unsupported details.");
             lines.add("Improve the DRAFT for tone, brevity, grounding, and consistency; remove unsupported prices, addresses, or service names not backed by FACTS.");
             lines.add("If the user message is general, the final reply should sound welcoming and informative from verified facts, not start with “no tenemos información” without a specific unanswered question.");
+            lines.add("If the USER MESSAGE is only a greeting (hola, buenos días), shorten the DRAFT to a brief greeting only; remove hours, services, prices, and booking URLs even if they appear in FACTS.");
             lines.add("Output ONLY the final user-visible message in Spanish, plain text. No meta-commentary, no quotes around the whole message.");
             lines.add("");
             lines.add("--- FACTS (RAG) ---");
@@ -251,7 +268,9 @@ public final class BotPrompts {
     /** Línea de clasificación inyectada en el system prompt del chat principal. */
     public static final class InjectedClassification {
         public static final String GREETING =
-            "Clasificación del mensaje actual: SALUDO. Saluda en español como el negocio y ofrece ayuda con horarios, servicios o reserva; usa el nombre solo si está en fragmentos o tools.";
+            "Clasificación del mensaje actual: SALUDO (solo saludo, sin otra pregunta). "
+                + "Responde en 1–2 frases breves: saludo amable y «¿en qué te ayudamos?». "
+                + "Prohibido en esta respuesta: horarios, servicios, precios, enlaces y descripción del negocio.";
         public static final String GENERAL_QUESTION =
             "Clasificación del mensaje actual: PREGUNTA_GENERAL. Responde con panorama general verificado (fragmentos RAG y tools); evita decir que no hay información si la pregunta es amplia y tienes datos parciales.";
         public static final String BAD_INTENT = "Clasificación del mensaje actual: MALA_INTENCION.";

@@ -269,14 +269,19 @@ public class RagLlmChatService implements ConversationModeHandler {
         try {
             BuildContextResult ctxResult = contextBuilder.buildContext(state, userText);
             List<String> systemLines = new ArrayList<>(ctxResult.systemPromptLines());
+            boolean greetingTurn = ctxResult.greetingOnlyTurn()
+                || (classification != null && classification.isGreeting())
+                || InboundTextHeuristics.looksLikeGreetingOnly(userText);
             boolean ragEmpty = !ctxResult.hasRelevantChunks();
-            if (ragEmpty) {
+            if (ragEmpty && !greetingTurn) {
                 log.info("[RAG-LLM] Sin chunks RAG -> LLM con contexto mínimo (fecha + reglas conservadoras)");
                 systemLines.add("");
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_SECTION_TITLE);
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_USE_TOOLS);
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_SIN_DATOS);
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_AGENDAR_TOOLS);
+            } else if (greetingTurn) {
+                log.info("[RAG-LLM] Turno saludo -> sin tools ni bloque «usar herramientas»");
             }
 
             String classificationLine = BotPrompts.InjectedClassification.lineFor(classification);
@@ -298,7 +303,10 @@ public class RagLlmChatService implements ConversationModeHandler {
             String ut = userText != null ? userText : "";
             Prompt turnPrompt = new Prompt(List.of(new SystemMessage(systemText), new UserMessage(ut)));
 
-            if (chatClientWithTools == null) {
+            ChatClient activeClient = greetingTurn && chatClientPlain != null
+                ? chatClientPlain
+                : chatClientWithTools;
+            if (activeClient == null) {
                 log.error("[RAG-LLM] ChatClient no configurado (null); conversationId={}", conversationId);
                 messageHistoryService.saveAssistantMessage(conversationId, sessionId, messageAiError);
                 return OutboundMessage.builder()
@@ -308,7 +316,7 @@ public class RagLlmChatService implements ConversationModeHandler {
                     .build();
             }
 
-            String rawText = chatClientWithTools.prompt(turnPrompt)
+            String rawText = activeClient.prompt(turnPrompt)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, memoryKey))
                 .call()
                 .content();
@@ -325,7 +333,7 @@ public class RagLlmChatService implements ConversationModeHandler {
             }
             String safeText = responseValidator.validateAndSanitize(rawText);
 
-            if (selfReviewEnabled && chatClientPlain != null && ut.length() >= 2) {
+            if (selfReviewEnabled && chatClientPlain != null && !greetingTurn && ut.length() >= 2) {
                 String ragFacts = extractRagFactsFromSystemLines(systemLines);
                 List<String> histLines = messageHistoryService.getHistory(conversationId, sessionId);
                 String threadBlock = histLines.isEmpty() ? "" : String.join("\n", histLines);
@@ -441,12 +449,15 @@ public class RagLlmChatService implements ConversationModeHandler {
     /**
      * Resultado de construir el system prompt para el LLM (fragmentos RAG + reglas).
      */
-    public record BuildContextResult(List<String> systemPromptLines, boolean hasRelevantChunks) {
+    public record BuildContextResult(List<String> systemPromptLines, boolean hasRelevantChunks, boolean greetingOnlyTurn) {
         public static BuildContextResult withChunks(List<String> lines) {
-            return new BuildContextResult(lines, true);
+            return new BuildContextResult(lines, true, false);
         }
         public static BuildContextResult noChunks(List<String> lines) {
-            return new BuildContextResult(lines, false);
+            return new BuildContextResult(lines, false, false);
+        }
+        public static BuildContextResult greetingOnly(List<String> lines) {
+            return new BuildContextResult(lines, false, true);
         }
     }
 

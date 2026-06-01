@@ -68,6 +68,9 @@ class PublicReservarTheme {
   }
 }
 
+/// Cabecera completa (landing / primer paso) vs compacta (más espacio al scroll).
+enum PublicReservarHeaderStyle { full, compact }
+
 /// Indicador «Paso X de Y» + barra de progreso (reserva pública).
 class PublicReservarProgressIndicator extends StatelessWidget {
   const PublicReservarProgressIndicator({
@@ -76,6 +79,7 @@ class PublicReservarProgressIndicator extends StatelessWidget {
     required this.currentStep,
     required this.totalSteps,
     this.stepLabel,
+    this.compact = false,
   });
 
   final PublicReservarTheme theme;
@@ -83,13 +87,15 @@ class PublicReservarProgressIndicator extends StatelessWidget {
   final int currentStep;
   final int totalSteps;
   final String? stepLabel;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final t = theme;
     final progress = (currentStep / totalSteps).clamp(0.0, 1.0);
+    final hPad = compact ? 16.0 : 24.0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+      padding: EdgeInsets.fromLTRB(hPad, compact ? 4 : 8, hPad, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -98,30 +104,30 @@ class PublicReservarProgressIndicator extends StatelessWidget {
               Text(
                 'Paso $currentStep de $totalSteps',
                 style: t.textStyle(
-                  size: 13,
+                  size: compact ? 12 : 13,
                   weight: FontWeight.w600,
                   color: t.primary,
                 ),
               ),
               if (stepLabel != null && stepLabel!.isNotEmpty) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     stepLabel!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: t.textStyle(size: 13, color: t.textSub),
+                    style: t.textStyle(size: compact ? 12 : 13, color: t.textSub),
                   ),
                 ),
               ],
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: compact ? 6 : 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: progress,
-              minHeight: 6,
+              minHeight: compact ? 4 : 6,
               backgroundColor: t.cardBorder,
               color: t.primary,
             ),
@@ -140,6 +146,7 @@ class PublicReservarShell extends StatelessWidget {
     required this.brandTitle,
     this.subtitle,
     this.sectionTitle,
+    this.headerStyle = PublicReservarHeaderStyle.full,
     this.progressCurrent,
     this.progressTotal,
     this.progressStepLabel,
@@ -152,7 +159,9 @@ class PublicReservarShell extends StatelessWidget {
   final PublicReservarTheme theme;
   final String brandTitle;
   final String? subtitle;
+  /// Título del paso; en modo [PublicReservarHeaderStyle.compact] conviene ponerlo dentro del scroll del [child].
   final String? sectionTitle;
+  final PublicReservarHeaderStyle headerStyle;
   final int? progressCurrent;
   final int? progressTotal;
   final String? progressStepLabel;
@@ -160,6 +169,8 @@ class PublicReservarShell extends StatelessWidget {
   final VoidCallback? onBack;
   final Widget? footer;
   final double maxWidth;
+
+  bool get _compact => headerStyle == PublicReservarHeaderStyle.compact;
 
   @override
   Widget build(BuildContext context) {
@@ -173,47 +184,60 @@ class PublicReservarShell extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (onBack != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        onPressed: onBack,
-                        icon: Icon(Icons.arrow_back_ios_new,
-                            size: 20, color: t.text),
+                if (_compact)
+                  _CompactBrandHeader(
+                    theme: t,
+                    title: brandTitle,
+                    onBack: onBack,
+                  )
+                else ...[
+                  if (onBack != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 0, 8, 0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          visualDensity: VisualDensity.compact,
+                          onPressed: onBack,
+                          icon: Icon(Icons.arrow_back_ios_new,
+                              size: 20, color: t.text),
+                        ),
                       ),
                     ),
-                  ),
-                _BrandBlock(theme: t, title: brandTitle, subtitle: subtitle),
+                  _BrandBlock(theme: t, title: brandTitle, subtitle: subtitle),
+                ],
                 if (progressCurrent != null &&
                     progressTotal != null &&
-                    progressTotal! > 0) ...[
+                    progressTotal! > 0)
                   PublicReservarProgressIndicator(
                     theme: t,
                     currentStep: progressCurrent!,
                     totalSteps: progressTotal!,
                     stepLabel: progressStepLabel,
+                    compact: _compact,
                   ),
-                  const SizedBox(height: 12),
-                ],
-                if (sectionTitle != null) ...[
+                if (!_compact && sectionTitle != null) ...[
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
                     child: Text(
                       sectionTitle!,
                       style: t.textStyle(
-                        size: 26,
+                        size: 22,
                         weight: FontWeight.w700,
                       ),
                     ),
                   ),
-                ] else
-                  const SizedBox(height: 16),
+                ] else if (!_compact)
+                  const SizedBox(height: 8),
                 Expanded(child: child),
                 if (footer != null)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      4,
+                      24,
+                      _compact ? 8 : 12,
+                    ),
                     child: footer!,
                   ),
               ],
@@ -221,6 +245,71 @@ class PublicReservarShell extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Cabecera reducida: atrás + logo + nombre (pasos con scroll).
+class _CompactBrandHeader extends StatelessWidget {
+  const _CompactBrandHeader({
+    required this.theme,
+    required this.title,
+    this.onBack,
+  });
+
+  final PublicReservarTheme theme;
+  final String title;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = theme;
+    return Column(
+      children: [
+        Container(height: 3, width: double.infinity, color: t.primary),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 6, 16, 4),
+          child: Row(
+            children: [
+              if (onBack != null)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  onPressed: onBack,
+                  icon: Icon(Icons.arrow_back_ios_new, size: 18, color: t.text),
+                )
+              else
+                const SizedBox(width: 8),
+              PublicReservarAvatar(
+                nombre: title,
+                logoUrl: t.logoUrl,
+                color: t.primary,
+                borderColor: t.background,
+                size: 40,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.textStyle(size: 16, weight: FontWeight.w700),
+                    ),
+                    Text(
+                      'Reserva online',
+                      style: t.textStyle(size: 11, color: t.textSub),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -243,11 +332,11 @@ class _BrandBlock extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          height: 72,
+          height: 48,
           color: t.primary,
         ),
         Transform.translate(
-          offset: const Offset(0, -36),
+          offset: const Offset(0, -28),
           child: Column(
             children: [
               PublicReservarAvatar(
@@ -255,31 +344,34 @@ class _BrandBlock extends StatelessWidget {
                 logoUrl: t.logoUrl,
                 color: t.primary,
                 borderColor: t.background,
+                size: 56,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: t.textStyle(size: 22, weight: FontWeight.w700),
+                  style: t.textStyle(size: 20, weight: FontWeight.w700),
                 ),
               ),
               if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 28),
                   child: Text(
                     subtitle!,
                     textAlign: TextAlign.center,
-                    style: t.textStyle(size: 14, color: t.textSub),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.textStyle(size: 13, color: t.textSub),
                   ),
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: t.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -287,7 +379,7 @@ class _BrandBlock extends StatelessWidget {
                 child: Text(
                   'Reserva online',
                   style: t.textStyle(
-                    size: 12,
+                    size: 11,
                     weight: FontWeight.w600,
                     color: t.primary,
                   ),
@@ -299,6 +391,20 @@ class _BrandBlock extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Título del paso dentro del scroll (modo compacto).
+Widget publicReservarScrollSectionTitle({
+  required PublicReservarTheme theme,
+  required String title,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Text(
+      title,
+      style: theme.textStyle(size: 20, weight: FontWeight.w700),
+    ),
+  );
 }
 
 class PublicReservarAvatar extends StatelessWidget {

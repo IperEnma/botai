@@ -60,6 +60,13 @@ class IntentClassifierServiceTest {
     }
 
     @Test
+    void classify_heuristic_hola_skipsLlm() {
+        IntentClassification r = service.classify("Hola", "tenant-1", null);
+        assertThat(r).isInstanceOf(IntentClassification.Greeting.class);
+        verifyNoInteractions(languageModel);
+    }
+
+    @Test
     void classify_heuristic_quieroAgendarCiga_skipsLlm() {
         IntentClassification r = service.classify("Quiero agendar una ciga", "tenant-1", null);
         assertThat(r).isInstanceOf(IntentClassification.CrmAction.class);

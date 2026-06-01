@@ -26,4 +26,16 @@ class InboundTextHeuristicsTest {
         assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("Quiero ver mis citas")).isTrue();
     }
 
+    @Test
+    void looksLikeGreetingOnly_hola() {
+        assertThat(InboundTextHeuristics.looksLikeGreetingOnly("Hola")).isTrue();
+        assertThat(InboundTextHeuristics.looksLikeGreetingOnly("Buenos días!")).isTrue();
+    }
+
+    @Test
+    void looksLikeGreetingOnly_conPregunta_false() {
+        assertThat(InboundTextHeuristics.looksLikeGreetingOnly("Hola, quienes son")).isFalse();
+        assertThat(InboundTextHeuristics.looksLikeGreetingOnly("Que ofrecen?")).isFalse();
+    }
+
 }

@@ -1,6 +1,9 @@
 package com.botai.application.chatbot.support;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -22,7 +25,70 @@ public final class InboundTextHeuristics {
         Pattern.compile("(?i)\\ba\\s+qu[eé]\\s+hora\\s+es\\s+mi\\s+(cita|turno)\\b")
     );
 
+    private static final Set<String> GREETING_ONLY_TOKENS = Set.of(
+        "hola", "holaa", "holaaa", "hey", "hi", "hello", "buenas", "saludos", "saludo",
+        "tal", "que", "buen", "buenos", "dia", "dias", "tardes", "noches");
+
+    private static final Pattern GREETING_ONLY_PHRASE = Pattern.compile(
+        "^(hola|hey|hi|buenas|saludos|que\\s+tal|buen\\s+dia|buenos\\s+dias|buenas\\s+tardes|buenas\\s+noches)[\\s!?.¡¿]*$",
+        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
     private InboundTextHeuristics() {}
+
+    /**
+     * Saludo sin pregunta adjunta (p. ej. «Hola», «Buenos días»). No aplica a «Hola, ¿quiénes son?».
+     */
+    public static boolean looksLikeGreetingOnly(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String n = normalizeForMatch(text.strip());
+        if (n.isEmpty()) {
+            return false;
+        }
+        if (containsSubstantiveIntent(n)) {
+            return false;
+        }
+        if (GREETING_ONLY_PHRASE.matcher(n).matches()) {
+            return true;
+        }
+        String[] tokens = n.split("\\s+");
+        if (tokens.length == 0 || tokens.length > 5) {
+            return false;
+        }
+        for (String token : tokens) {
+            String bare = token.replaceAll("[^a-z0-9]", "");
+            if (bare.isEmpty() || !GREETING_ONLY_TOKENS.contains(bare)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean containsSubstantiveIntent(String normalized) {
+        return normalized.contains("horario")
+            || normalized.contains("reserv")
+            || normalized.contains("agend")
+            || normalized.contains("cita")
+            || normalized.contains("turno")
+            || normalized.contains("servicio")
+            || normalized.contains("precio")
+            || normalized.contains("ofrec")
+            || normalized.contains("quien")
+            || normalized.contains("como")
+            || normalized.contains("donde")
+            || normalized.contains("cuando")
+            || normalized.contains("cancel")
+            || normalized.contains("http")
+            || normalized.contains("?");
+    }
+
+    private static String normalizeForMatch(String text) {
+        return Normalizer.normalize(text, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "")
+            .toLowerCase(Locale.ROOT)
+            .trim();
+    }
 
     /** Usuario pide reservar/agendar una cita nueva (no solo info de horarios). */
     public static boolean looksLikeNewBookingRequest(String text) {

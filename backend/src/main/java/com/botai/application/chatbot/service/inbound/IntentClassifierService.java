@@ -105,6 +105,10 @@ public class IntentClassifierService {
             return new IntentClassification.GeneralQuestion();
         }
 
+        if (InboundTextHeuristics.looksLikeGreetingOnly(text)) {
+            log.info("[CLASSIFIER] Heuristica saludo puro -> SALUDO");
+            return new IntentClassification.Greeting();
+        }
         if (InboundTextHeuristics.looksLikeViewAgendaBookings(text)) {
             log.info("[CLASSIFIER] Heuristica mis citas -> view_agenda_bookings_by_contact");
             return new IntentClassification.CrmAction(ViewAgendaBookingsByContactAction.ACTION_ID);

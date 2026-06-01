@@ -294,11 +294,16 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           logoUrl: business.logoUrl,
         );
 
+        final compactHeader = _step != _BookingStep.service;
+
         return PublicReservarShell(
           theme: theme,
           brandTitle: business.nombre,
-          subtitle: business.descripcion,
-          sectionTitle: _stepTitle(_step),
+          subtitle: compactHeader ? null : business.descripcion,
+          sectionTitle: compactHeader ? null : _stepTitle(_step),
+          headerStyle: compactHeader
+              ? PublicReservarHeaderStyle.compact
+              : PublicReservarHeaderStyle.full,
           progressCurrent: _stepIndex(_step),
           progressTotal: _kBookingTotalSteps,
           progressStepLabel: _stepProgressLabel(_step),
@@ -311,11 +316,28 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildStep(
-                    business,
-                    theme,
-                    servicesAsync,
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    compactHeader ? 8 : 0,
+                    20,
+                    24,
+                  ),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (compactHeader)
+                        publicReservarScrollSectionTitle(
+                          theme: theme,
+                          title: _stepTitle(_step),
+                        ),
+                      _buildStep(
+                        business,
+                        theme,
+                        servicesAsync,
+                      ),
+                    ],
                   ),
                 ),
               ),
