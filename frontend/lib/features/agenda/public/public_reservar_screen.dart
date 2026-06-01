@@ -134,6 +134,17 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     }
   }
 
+  String? _stepSubtitle(_BookingStep step) {
+    switch (step) {
+      case _BookingStep.review:
+        return 'Comprobá que todo esté correcto antes de continuar.';
+      case _BookingStep.contact:
+        return 'Solo el nombre es obligatorio; email y teléfono nos ayudan a contactarte.';
+      default:
+        return null;
+    }
+  }
+
   void _selectDate(DateTime date, PublicReservarTheme theme) {
     final staffId = _anyStaff ? null : _selectedStaff?.id;
     final key = (
@@ -294,14 +305,9 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           logoUrl: business.logoUrl,
         );
 
-        final stepTitleInScroll = _step != _BookingStep.service;
-
         return PublicReservarShell(
           theme: theme,
           brandTitle: business.nombre,
-          subtitle: business.descripcion,
-          sectionTitle: _stepTitle(_step),
-          sectionTitleInScroll: stepTitleInScroll,
           progressCurrent: _stepIndex(_step),
           progressTotal: _kBookingTotalSteps,
           progressStepLabel: _stepProgressLabel(_step),
@@ -314,17 +320,23 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (stepTitleInScroll)
-                        publicReservarScrollSectionTitle(
+                      if (_step == _BookingStep.service)
+                        publicReservarScrollBrandIntro(
                           theme: theme,
-                          title: _stepTitle(_step),
+                          title: business.nombre,
+                          subtitle: business.descripcion,
                         ),
+                      publicReservarScrollSectionTitle(
+                        theme: theme,
+                        title: _stepTitle(_step),
+                        subtitle: _stepSubtitle(_step),
+                      ),
                       _buildStep(
                         business,
                         theme,
@@ -442,7 +454,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       case _BookingStep.review:
         return _BookingReview(
           theme: theme,
-          businessName: business.nombre,
           service: _service!,
           staffLabel: _staffSummaryLabel(),
           dateLabel: _formattedSelectedDate(),
@@ -451,7 +462,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       case _BookingStep.contact:
         return _ContactStep(
           theme: theme,
-          businessName: business.nombre,
           formKey: _contactFormKey,
           nombreCtrl: _nombreCtrl,
           emailCtrl: _emailCtrl,
@@ -512,7 +522,6 @@ class _PrimaryFooterButton extends StatelessWidget {
 class _BookingReview extends StatelessWidget {
   const _BookingReview({
     required this.theme,
-    required this.businessName,
     required this.service,
     required this.staffLabel,
     required this.dateLabel,
@@ -520,7 +529,6 @@ class _BookingReview extends StatelessWidget {
   });
 
   final PublicReservarTheme theme;
-  final String businessName;
   final AgendaService service;
   final String staffLabel;
   final String dateLabel;
@@ -529,48 +537,27 @@ class _BookingReview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = theme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Comprobá que todo esté correcto antes de continuar.',
-          style: t.textStyle(size: 14, color: t.textSub),
-        ),
-        const SizedBox(height: 16),
-        _ReviewRow(theme: t, icon: Icons.storefront_outlined, label: 'Negocio', value: businessName),
-        _ReviewRow(theme: t, icon: Icons.spa_outlined, label: 'Servicio', value: service.nombre),
-        _ReviewRow(
-          theme: t,
-          icon: Icons.schedule_outlined,
-          label: 'Duración',
-          value: '${service.duracionMin} min · \$${service.precio.toStringAsFixed(0)}',
-        ),
-        _ReviewRow(theme: t, icon: Icons.person_outline, label: 'Profesional', value: staffLabel),
-        _ReviewRow(theme: t, icon: Icons.calendar_today_outlined, label: 'Fecha', value: dateLabel),
-        _ReviewRow(theme: t, icon: Icons.access_time, label: 'Horario', value: slotLabel),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: t.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: t.primary.withValues(alpha: 0.25)),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: t.cardFill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: t.cardBorder),
+      ),
+      child: Column(
+        children: [
+          _ReviewRow(theme: t, icon: Icons.spa_outlined, label: 'Servicio', value: service.nombre),
+          _ReviewRow(
+            theme: t,
+            icon: Icons.schedule_outlined,
+            label: 'Duración',
+            value: '${service.duracionMin} min · \$${service.precio.toStringAsFixed(0)}',
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.info_outline, size: 20, color: t.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'En el siguiente paso te pediremos nombre y, si querés, email o teléfono para gestionar esta reserva.',
-                  style: t.textStyle(size: 13, color: t.text),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+          _ReviewRow(theme: t, icon: Icons.person_outline, label: 'Profesional', value: staffLabel),
+          _ReviewRow(theme: t, icon: Icons.calendar_today_outlined, label: 'Fecha', value: dateLabel),
+          _ReviewRow(theme: t, icon: Icons.access_time, label: 'Horario', value: slotLabel),
+        ],
+      ),
     );
   }
 }
@@ -620,7 +607,6 @@ class _ReviewRow extends StatelessWidget {
 class _ContactStep extends StatelessWidget {
   const _ContactStep({
     required this.theme,
-    required this.businessName,
     required this.formKey,
     required this.nombreCtrl,
     required this.emailCtrl,
@@ -628,7 +614,6 @@ class _ContactStep extends StatelessWidget {
   });
 
   final PublicReservarTheme theme;
-  final String businessName;
   final GlobalKey<FormState> formKey;
   final TextEditingController nombreCtrl;
   final TextEditingController emailCtrl;
@@ -642,12 +627,6 @@ class _ContactStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Necesitamos algunos datos para registrar tu turno con $businessName. '
-            'El nombre es obligatorio; email y teléfono son opcionales pero nos ayudan a contactarte.',
-            style: t.textStyle(size: 14, color: t.textSub),
-          ),
-          const SizedBox(height: 20),
           TextFormField(
             controller: nombreCtrl,
             textInputAction: TextInputAction.next,

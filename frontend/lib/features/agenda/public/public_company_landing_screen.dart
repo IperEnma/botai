@@ -48,26 +48,33 @@ class PublicCompanyLandingScreen extends ConsumerWidget {
         return PublicReservarShell(
           theme: theme,
           brandTitle: company.brandName,
-          subtitle: company.tagline,
-          sectionTitle: 'Elegí tu sucursal',
           onBack: () => context.go('/'),
           footer: publicReservarFooterLink(
             theme: theme,
             onTap: () => context.go('/agenda/me/bookings'),
           ),
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: company.branches.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final branch = company.branches[index];
-              return PublicBranchTile(
-                nombre: branch.nombre,
-                direccion: branch.descripcion,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            children: [
+              publicReservarScrollBrandIntro(
                 theme: theme,
-                onTap: () => _goBranch(context, branch.publicSlug),
-              );
-            },
+                title: company.brandName,
+                subtitle: company.tagline,
+              ),
+              publicReservarScrollSectionTitle(
+                theme: theme,
+                title: 'Elegí tu sucursal',
+              ),
+              ...company.branches.map((b) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: PublicBranchTile(
+                  nombre: b.nombre,
+                  direccion: b.descripcion,
+                  theme: theme,
+                  onTap: () => _goBranch(context, b.publicSlug),
+                ),
+              )),
+            ],
           ),
         );
       },
