@@ -112,6 +112,10 @@ class BookingWizardController extends ChangeNotifier {
     void Function(String) onError,
   ) async {
     if (!draft.isValid) return;
+    if (!BookingDraft.clienteTieneTelefonoValido(draft.cliente)) {
+      onError('El cliente debe tener un teléfono válido (mínimo 7 dígitos) para reservar.');
+      return;
+    }
     isSubmitting = true;
     conflictError = null;
     notifyListeners();

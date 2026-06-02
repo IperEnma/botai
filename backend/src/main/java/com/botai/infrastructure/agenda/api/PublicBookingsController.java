@@ -2,6 +2,7 @@ package com.botai.infrastructure.agenda.api;
 
 import com.botai.application.agenda.dto.BookingResponse;
 import com.botai.application.agenda.dto.PublicCreateBookingRequest;
+import com.botai.application.agenda.support.AgendaPhoneNormalizer;
 import com.botai.application.agenda.mapper.BookingDtoMapper;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.exception.ServiceNotFoundException;
@@ -98,12 +99,12 @@ public class PublicBookingsController {
         if (request.clientId() != null) {
             User existing = userRepository.findById(request.clientId())
                     .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
-            if (existing.getTelefono() == null || existing.getTelefono().isBlank()) {
+            if (!AgendaPhoneNormalizer.isValid(existing.getTelefono())) {
                 throw new IllegalArgumentException("El cliente debe tener teléfono para reservar");
             }
             return existing;
         }
-        if (request.telefonoCliente() == null || request.telefonoCliente().isBlank()) {
+        if (!AgendaPhoneNormalizer.isValid(request.telefonoCliente())) {
             throw new IllegalArgumentException("Teléfono obligatorio para reservar");
         }
         if (request.nombreCliente() == null || request.nombreCliente().isBlank()) {
@@ -113,7 +114,7 @@ public class PublicBookingsController {
                 tenantId,
                 request.nombreCliente().trim(),
                 request.emailCliente(),
-                normalizePhone(request.telefonoCliente()));
+                AgendaPhoneNormalizer.normalize(request.telefonoCliente()));
     }
 
     private User resolveOrCreateClient(String tenantId,
@@ -121,18 +122,35 @@ public class PublicBookingsController {
                                        String email,
                                        String telefono) {
         if (email != null && !email.isBlank()) {
-            return userRepository.findByTenantIdAndEmail(tenantId, email.trim().toLowerCase())
-                    .orElseGet(() -> userRepository.save(new User(
-                            null,
-                            tenantId,
-                            nombre,
-                            email.trim().toLowerCase(),
-                            telefono,
-                            UserType.CLIENT,
-                            true,
-                            null,
-                            null
-                    )));
+            String emailNorm = email.trim().toLowerCase();
+            var existing = userRepository.findByTenantIdAndEmail(tenantId, emailNorm);
+            if (existing.isPresent()) {
+                User u = existing.get();
+                if (AgendaPhoneNormalizer.isValid(u.getTelefono())) {
+                    return u;
+                }
+                return userRepository.save(new User(
+                        u.getId(),
+                        u.getTenantId(),
+                        nombre,
+                        emailNorm,
+                        telefono,
+                        u.getTipoUsuario(),
+                        u.isActivo(),
+                        u.getCreatedAt(),
+                        u.getUpdatedAt()));
+            }
+            return userRepository.save(new User(
+                    null,
+                    tenantId,
+                    nombre,
+                    emailNorm,
+                    telefono,
+                    UserType.CLIENT,
+                    true,
+                    null,
+                    null
+            ));
         }
 
         return userRepository.save(new User(
@@ -146,10 +164,6 @@ public class PublicBookingsController {
                 null,
                 null
         ));
-    }
-
-    private static String normalizePhone(String raw) {
-        return raw.replaceAll("[^0-9+]", "");
     }
 }
 

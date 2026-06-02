@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/agenda_phone.dart';
 import '../../../../models/agenda/agenda_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,8 +62,11 @@ class BookingDraft {
         BookingStep.fechaHora,
       ];
 
+  static bool clienteTieneTelefonoValido(BookingCliente? c) =>
+      c != null && isValidAgendaPhone(c.telefono);
+
   bool isStepComplete(BookingStep s) => switch (s) {
-        BookingStep.cliente => cliente != null,
+        BookingStep.cliente => clienteTieneTelefonoValido(cliente),
         BookingStep.servicio => servicio != null,
         BookingStep.profesional => !requiresStaffStep ||
             profesionalId != null ||

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/agenda_phone.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/availability_slot.dart';
 import '../../../models/agenda/business.dart';
@@ -214,7 +215,19 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
 
     final nombre = _nombreCtrl.text.trim();
     final email = _emailCtrl.text.trim();
-    final telefono = _telCtrl.text.trim();
+    final telefono = normalizeAgendaPhoneDigits(_telCtrl.text);
+    if (!isValidAgendaPhone(telefono)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'El teléfono es obligatorio (mínimo 7 dígitos).',
+            style: theme.textStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
 
     setState(() => _submitting = true);
     try {
@@ -719,9 +732,9 @@ class _ContactStep extends StatelessWidget {
             keyboardType: TextInputType.phone,
             textInputAction: TextInputAction.done,
             decoration: InputDecoration(
-              labelText: 'Teléfono',
+              labelText: 'Teléfono *',
               hintText: 'Ej. 09 123 456',
-              helperText: 'Obligatorio · usalo también para consultar tus citas por WhatsApp',
+              helperText: 'Obligatorio · mismo número para consultar tus citas por WhatsApp',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
             validator: (v) {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/agenda_phone.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/availability_slot.dart';
 import '../../../models/agenda/business.dart';
@@ -577,12 +578,14 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
           FilledButton(
             onPressed: () {
               final nombre = nombreCtrl.text.trim();
-              final tel = telCtrl.text.trim().replaceAll(RegExp(r'\D'), '');
-              if (nombre.isEmpty || tel.length < 7) return;
+              final tel = normalizeAgendaPhoneDigits(telCtrl.text);
+              if (nombre.isEmpty || !isValidAgendaPhone(tel)) return;
               Navigator.of(ctx).pop(_ClientPayload(
                 nombre: nombre,
-                email: emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim(),
                 telefono: tel,
+                email: emailCtrl.text.trim().isEmpty
+                    ? null
+                    : emailCtrl.text.trim(),
               ));
             },
             child: const Text('Confirmar'),
@@ -1399,8 +1402,12 @@ TextStyle _fs(String family, {double? size, FontWeight? weight, Color? color}) {
 }
 
 class _ClientPayload {
-  const _ClientPayload({required this.nombre, this.email, this.telefono});
+  const _ClientPayload({
+    required this.nombre,
+    required this.telefono,
+    this.email,
+  });
   final String nombre;
+  final String telefono;
   final String? email;
-  final String? telefono;
 }

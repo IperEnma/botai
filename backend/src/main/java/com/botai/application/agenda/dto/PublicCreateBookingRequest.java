@@ -1,9 +1,10 @@
 package com.botai.application.agenda.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.botai.application.agenda.support.AgendaPhoneNormalizer;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.FutureOrPresent;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -25,5 +26,21 @@ public record PublicCreateBookingRequest(
         @Size(max = 32) String telefonoCliente,
         @Size(max = 500) String notas
 ) {
+
+    @AssertTrue(message = "Nombre obligatorio al reservar sin cliente existente")
+    public boolean isNombrePresentWhenNoClientId() {
+        if (clientId != null) {
+            return true;
+        }
+        return nombreCliente != null && !nombreCliente.isBlank();
+    }
+
+    @AssertTrue(message = "Teléfono obligatorio (mínimo 7 dígitos) al reservar sin cliente existente")
+    public boolean isTelefonoPresentWhenNoClientId() {
+        if (clientId != null) {
+            return true;
+        }
+        return AgendaPhoneNormalizer.isValid(telefonoCliente);
+    }
 }
 

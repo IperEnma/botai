@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../../core/agenda_phone.dart';
 import '../../../../../features/agenda/register/konecta_tokens.dart';
 import '../../../../../models/agenda/public_client.dart';
 import '../../../../../providers/agenda/agenda_api_provider.dart';
@@ -118,6 +119,16 @@ class _StepClienteState extends ConsumerState<StepCliente> {
   }
 
   void _select(BookingCliente c) {
+    if (!isValidAgendaPhone(c.telefono)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Este cliente no tiene teléfono. Creá uno nuevo o actualizalo con un número válido.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() {
       _selected = c;
       _showNewForm = false;
@@ -127,8 +138,15 @@ class _StepClienteState extends ConsumerState<StepCliente> {
 
   Future<void> _saveNewClient() async {
     final nombre = _newNombreCtrl.text.trim();
-    final telefono = _newTelefonoCtrl.text.trim().replaceAll(RegExp(r'\D'), '');
-    if (nombre.isEmpty || telefono.length < 7) return;
+    final telefono = normalizeAgendaPhoneDigits(_newTelefonoCtrl.text);
+    if (nombre.isEmpty || !isValidAgendaPhone(telefono)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nombre y teléfono (mín. 7 dígitos) son obligatorios.'),
+        ),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final api = ref.read(agendaApiServiceProvider);
@@ -323,7 +341,7 @@ class _ClienteRow extends StatelessWidget {
     return Column(
       children: [
         InkWell(
-          onTap: onTap,
+          onTap: isValidAgendaPhone(cliente.telefono) ? onTap : null,
           borderRadius: BorderRadius.circular(KTokens.rMd),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
@@ -369,10 +387,14 @@ class _ClienteRow extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${cliente.telefono ?? '-'} · ${cliente.visitCount} visitas',
+                        isValidAgendaPhone(cliente.telefono)
+                            ? '${cliente.telefono} · ${cliente.visitCount} visitas'
+                            : 'Sin teléfono — no se puede usar para reservar',
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 11,
-                          color: KTokens.inkSoft,
+                          color: isValidAgendaPhone(cliente.telefono)
+                              ? KTokens.inkSoft
+                              : Colors.orange.shade800,
                         ),
                       ),
                     ],
@@ -527,7 +549,7 @@ class _NewClienteForm extends StatelessWidget {
             decoration: _inputDec('Nombre completo'),
           ),
           const SizedBox(height: 8),
-          _PhoneField(controller: telefonoCtrl),
+          _PhoneField(controller: telefonoCtrl, required: true),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -584,8 +606,9 @@ class _NewClienteForm extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _PhoneField extends StatefulWidget {
-  const _PhoneField({required this.controller});
+  const _PhoneField({required this.controller, this.required = false});
   final TextEditingController controller;
+  final bool required;
 
   @override
   State<_PhoneField> createState() => _PhoneFieldState();
@@ -627,7 +650,7 @@ class _PhoneFieldState extends State<_PhoneField> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final field = Container(
       decoration: BoxDecoration(
         color: KTokens.bg,
         borderRadius: BorderRadius.circular(KTokens.rMd),
@@ -675,7 +698,9 @@ class _PhoneFieldState extends State<_PhoneField> {
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
-                hintText: 'Número (sin código)',
+                hintText: widget.required
+                    ? 'Número * (obligatorio)'
+                    : 'Número (sin código)',
                 hintStyle: GoogleFonts.inter(
                   fontSize: 13,
                   color: KTokens.inkPlaceholder,
@@ -689,6 +714,24 @@ class _PhoneFieldState extends State<_PhoneField> {
           ),
         ],
       ),
+    );
+    if (!widget.required) {
+      return field;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Teléfono *',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: KTokens.inkMuted,
+          ),
+        ),
+        const SizedBox(height: 6),
+        field,
+      ],
     );
   }
 }
