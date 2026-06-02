@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.Check;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import java.util.UUID;
 @Table(name = "agenda_services")
 @Check(constraints = "duracion_min > 0")
 @Check(constraints = "precio IS NULL OR precio >= 0")
+@Check(constraints = "scheduling_mode IN ('GENERAL', 'BY_STAFF')")
 public class ServiceEntity extends BaseAuditableEntity {
 
     @Id
@@ -39,6 +41,7 @@ public class ServiceEntity extends BaseAuditableEntity {
     private boolean activo = true;
 
     @Column(name = "scheduling_mode", nullable = false, length = 20)
+    @ColumnDefault("'GENERAL'")
     private String schedulingMode = "GENERAL";
 
     @Column(name = "deleted_at")
