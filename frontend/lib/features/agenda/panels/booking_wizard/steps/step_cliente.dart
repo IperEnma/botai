@@ -5,44 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/agenda_phone.dart';
 import '../../../../../features/agenda/register/konecta_tokens.dart';
+import '../../../../../widgets/agenda_phone_field.dart';
 import '../../../../../models/agenda/public_client.dart';
 import '../../../../../providers/agenda/agenda_api_provider.dart';
 import '../booking_draft.dart';
 import '../booking_wizard_controller.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Country data
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _Country {
-  final String dialCode;
-  final String flag;
-  final String name;
-  final String iso;
-  const _Country(this.dialCode, this.flag, this.name, this.iso);
-}
-
-const List<_Country> _kCountries = [
-  _Country('+598', '🇺🇾', 'Uruguay', 'UY'),
-  _Country('+54', '🇦🇷', 'Argentina', 'AR'),
-  _Country('+55', '🇧🇷', 'Brasil', 'BR'),
-  _Country('+56', '🇨🇱', 'Chile', 'CL'),
-  _Country('+595', '🇵🇾', 'Paraguay', 'PY'),
-  _Country('+591', '🇧🇴', 'Bolivia', 'BO'),
-  _Country('+57', '🇨🇴', 'Colombia', 'CO'),
-  _Country('+52', '🇲🇽', 'México', 'MX'),
-  _Country('+34', '🇪🇸', 'España', 'ES'),
-  _Country('+1', '🇺🇸', 'USA', 'US'),
-];
-
-_Country _detectDefaultCountry() {
-  final iso =
-      WidgetsBinding.instance.platformDispatcher.locale.countryCode?.toUpperCase() ?? '';
-  return _kCountries.firstWhere(
-    (c) => c.iso == iso,
-    orElse: () => _kCountries.first,
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Step widget
@@ -549,7 +516,7 @@ class _NewClienteForm extends StatelessWidget {
             decoration: _inputDec('Nombre completo'),
           ),
           const SizedBox(height: 8),
-          _PhoneField(controller: telefonoCtrl, required: true),
+          AgendaPhoneField(controller: telefonoCtrl, required: true),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -596,208 +563,6 @@ class _NewClienteForm extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Phone field with country-code picker
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _PhoneField extends StatefulWidget {
-  const _PhoneField({required this.controller, this.required = false});
-  final TextEditingController controller;
-  final bool required;
-
-  @override
-  State<_PhoneField> createState() => _PhoneFieldState();
-}
-
-class _PhoneFieldState extends State<_PhoneField> {
-  late _Country _country;
-  final _numCtrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _country = _detectDefaultCountry();
-    _numCtrl.addListener(_sync);
-  }
-
-  @override
-  void dispose() {
-    _numCtrl.removeListener(_sync);
-    _numCtrl.dispose();
-    super.dispose();
-  }
-
-  void _sync() {
-    final n = _numCtrl.text.trim();
-    widget.controller.text = n.isEmpty ? '' : '${_country.dialCode}$n';
-  }
-
-  Future<void> _pickCountry() async {
-    final picked = await showDialog<_Country>(
-      context: context,
-      builder: (ctx) => _CountryPickerDialog(selected: _country),
-    );
-    if (picked != null && mounted) {
-      setState(() => _country = picked);
-      _sync();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final field = Container(
-      decoration: BoxDecoration(
-        color: KTokens.bg,
-        borderRadius: BorderRadius.circular(KTokens.rMd),
-        border: Border.all(color: KTokens.border),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          GestureDetector(
-            onTap: _pickCountry,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-              decoration: const BoxDecoration(
-                border: Border(right: BorderSide(color: KTokens.border)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(_country.flag,
-                      style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 4),
-                  Text(
-                    _country.dialCode,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: KTokens.ink,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  const Icon(Icons.arrow_drop_down,
-                      size: 16, color: KTokens.inkSoft),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: TextField(
-              controller: _numCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: GoogleFonts.inter(fontSize: 14, color: KTokens.ink),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                hintText: widget.required
-                    ? 'Número * (obligatorio)'
-                    : 'Número (sin código)',
-                hintStyle: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: KTokens.inkPlaceholder,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 11,
-                  horizontal: 10,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (!widget.required) {
-      return field;
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Teléfono *',
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: KTokens.inkMuted,
-          ),
-        ),
-        const SizedBox(height: 6),
-        field,
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Country picker dialog
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _CountryPickerDialog extends StatelessWidget {
-  const _CountryPickerDialog({required this.selected});
-  final _Country selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(KTokens.rMd)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(KTokens.rMd),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: Text(
-                'Código de país',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: KTokens.ink,
-                ),
-              ),
-            ),
-            Divider(height: 1, color: KTokens.border),
-            ..._kCountries.map((c) {
-              final isSel = c.iso == selected.iso;
-              return InkWell(
-                onTap: () => Navigator.of(context).pop(c),
-                child: Container(
-                  color: isSel ? KTokens.accentSoft : null,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 12),
-                  child: Row(
-                    children: [
-                      Text(c.flag,
-                          style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          c.name,
-                          style: GoogleFonts.inter(
-                              fontSize: 14, color: KTokens.ink),
-                        ),
-                      ),
-                      Text(
-                        c.dialCode,
-                        style: GoogleFonts.jetBrainsMono(
-                            fontSize: 12, color: KTokens.inkSoft),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
       ),
     );
   }

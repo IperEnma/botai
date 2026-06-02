@@ -1,5 +1,6 @@
 package com.botai.application.chatbot.service.action;
 
+import com.botai.application.agenda.support.AgendaPhoneNormalizer;
 import com.botai.domain.chatbot.ConversationContextKeys;
 import com.botai.domain.chatbot.model.ConversationState;
 import com.botai.domain.chatbot.model.OutboundMessage;
@@ -98,8 +99,10 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
                 .currentIntent(ACTION_ID)
                 .context(ctx)
                 .build());
+            String cc = AgendaPhoneNormalizer.defaultCountryCode();
             return OutboundMessage.builder()
-                .text("Para buscar tus reservas pendientes, indicame el teléfono con el que las hiciste al reservar.")
+                .text("Para buscar tus reservas pendientes, indicame el teléfono con el que reservaste.\n"
+                    + "Ejemplo: 099 123 456 o +" + cc + " 99 123 456.")
                 .conversationId(convId)
                 .tenantId(tenantId)
                 .build();
@@ -108,8 +111,9 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         if (STEP_AWAITING.equals(step)) {
             Contact fromText = tryParsePhone(userInput);
             if (fromText == null) {
+                String cc = AgendaPhoneNormalizer.defaultCountryCode();
                 return OutboundMessage.builder()
-                    .text("No reconozco un teléfono válido. Ejemplo: 099123456 o 5491123456789.")
+                    .text("No reconozco un teléfono válido. Ejemplo: 099 123 456 o +" + cc + " 99 123 456.")
                     .conversationId(convId)
                     .tenantId(tenantId)
                     .build();
@@ -159,16 +163,20 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
     }
 
     List<BookingRow> findFutureBookingsByPhone(String tenantId, String phoneNormalized) {
-        if (phoneNormalized == null || phoneNormalized.isBlank()) {
+        List<String> keys = AgendaPhoneNormalizer.matchCandidates(phoneNormalized);
+        if (keys.isEmpty()) {
             return List.of();
         }
+        String placeholders = String.join(", ", keys.stream().map(k -> "?").toList());
         String sql = BASE_SQL
-            + " AND regexp_replace(coalesce(u.telefono,''), '[^0-9+]', '', 'g') = ? "
+            + " AND regexp_replace(coalesce(u.telefono,''), '\\D', '', 'g') IN (" + placeholders + ") "
             + "ORDER BY b.fecha_hora_inicio ASC LIMIT 20";
         return jdbcTemplate.query(sql,
             ps -> {
                 ps.setString(1, tenantId);
-                ps.setString(2, phoneNormalized);
+                for (int i = 0; i < keys.size(); i++) {
+                    ps.setString(2 + i, keys.get(i));
+                }
             },
             (rs, rowNum) -> mapRow(rs));
     }
@@ -196,8 +204,8 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         if (uid == null || uid.isBlank() || "unknown".equalsIgnoreCase(uid.strip())) {
             return null;
         }
-        String digits = normalizePhone(uid);
-        if (digits.length() < 7) {
+        String digits = AgendaPhoneNormalizer.normalize(uid);
+        if (!AgendaPhoneNormalizer.isValid(digits)) {
             return null;
         }
         return new Contact(digits);
@@ -210,17 +218,17 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         String text = raw.strip();
         Matcher pm = PHONE_DIGITS.matcher(text.replace(" ", ""));
         if (pm.find()) {
-            String digits = normalizePhone(pm.group());
-            if (digits.length() >= 7) {
+            String digits = AgendaPhoneNormalizer.normalize(pm.group());
+            if (AgendaPhoneNormalizer.isValid(digits)) {
                 return new Contact(digits);
             }
         }
         if (text.contains("@")) {
             return null;
         }
-        String onlyDigits = normalizePhone(text);
-        if (onlyDigits.length() >= 7) {
-            return new Contact(onlyDigits);
+        String digits = AgendaPhoneNormalizer.normalize(text);
+        if (AgendaPhoneNormalizer.isValid(digits)) {
+            return new Contact(digits);
         }
         return null;
     }
@@ -229,10 +237,6 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
     @Deprecated
     static Contact tryParseContact(String raw) {
         return tryParsePhone(raw);
-    }
-
-    static String normalizePhone(String s) {
-        return s.replaceAll("[^0-9+]", "");
     }
 
     record Contact(String phoneNormalized) {}

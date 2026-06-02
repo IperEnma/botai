@@ -19,6 +19,7 @@ import com.botai.domain.agenda.repository.BusinessSettingsRepository;
 import com.botai.domain.agenda.repository.CategoryRepository;
 import com.botai.domain.agenda.repository.TenantAccountRepository;
 import com.botai.domain.agenda.repository.TenantConfigRepository;
+import com.botai.application.agenda.support.AgendaPhoneNormalizer;
 import com.botai.domain.agenda.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -143,7 +144,7 @@ public class RegisterTenantUseCase {
                 tenantEmail,
                 null,
                 tenantNumero,
-                request.telefono() != null ? request.telefono().trim() : null,
+                AgendaPhoneNormalizer.normalizeOrNull(request.telefono()),
                 accessCode,
                 true,
                 null,
@@ -157,7 +158,7 @@ public class RegisterTenantUseCase {
                 tenantId,
                 request.nombrePropietario().trim(),
                 adminUserEmail,
-                request.telefono() != null ? request.telefono().trim() : null,
+                AgendaPhoneNormalizer.normalizeOrNull(request.telefono()),
                 UserType.ADMIN,
                 true,
                 null,

@@ -4,6 +4,7 @@ import com.botai.application.agenda.dto.CreateStaffMemberRequest;
 import com.botai.application.agenda.dto.UpdateStaffMemberRequest;
 import com.botai.application.agenda.dto.UpdateStaffServicesRequest;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
+import com.botai.application.agenda.support.AgendaPhoneNormalizer;
 import com.botai.domain.agenda.exception.StaffMemberNotFoundException;
 import com.botai.domain.agenda.model.BusinessHours;
 import com.botai.domain.agenda.model.StaffMember;
@@ -51,7 +52,7 @@ public class ManageStaffUseCase {
                 .nombre(req.nombre())
                 .rol(req.rol())
                 .avatarUrl(req.avatarUrl())
-                .telefono(req.telefono())
+                .telefono(AgendaPhoneNormalizer.normalizeOrNull(req.telefono()))
                 .color(req.color())
                 .status("ACTIVO")
                 .build();
@@ -76,7 +77,7 @@ public class ManageStaffUseCase {
                 .nombre(req.nombre())
                 .rol(req.rol())
                 .avatarUrl(req.avatarUrl())
-                .telefono(req.telefono())
+                .telefono(AgendaPhoneNormalizer.normalizeOrNull(req.telefono()))
                 .email(req.email())
                 .bio(req.bio())
                 .color(req.color())

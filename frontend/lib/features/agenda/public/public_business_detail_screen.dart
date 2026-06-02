@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/agenda_phone.dart';
+import '../../../widgets/agenda_phone_field.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/availability_slot.dart';
 import '../../../models/agenda/business.dart';
@@ -560,13 +561,11 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
               decoration: const InputDecoration(labelText: 'Email'),
             ),
             const SizedBox(height: 8),
-            TextField(
+            AgendaPhoneField(
               controller: telCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Teléfono *',
-                helperText: 'Obligatorio para reservar y consultar citas',
-              ),
+              required: true,
+              useKonectaTokens: false,
+              helperText: 'Obligatorio para reservar y consultar citas',
             ),
           ],
         ),

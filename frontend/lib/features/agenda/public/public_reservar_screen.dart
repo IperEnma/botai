@@ -11,6 +11,7 @@ import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
+import '../../../widgets/agenda_phone_field.dart';
 import 'public_booking_hours.dart';
 import 'public_reservar_layout.dart';
 
@@ -220,7 +221,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'El teléfono es obligatorio (mínimo 7 dígitos).',
+            'Ingresá un teléfono válido con código de país.',
             style: theme.textStyle(color: Colors.white),
           ),
           backgroundColor: Colors.red.shade700,
@@ -727,23 +728,12 @@ class _ContactStep extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          TextFormField(
+          AgendaPhoneField(
             controller: telCtrl,
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              labelText: 'Teléfono *',
-              hintText: 'Ej. 09 123 456',
-              helperText: 'Obligatorio · mismo número para consultar tus citas por WhatsApp',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            validator: (v) {
-              final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
-              if (digits.length < 7) {
-                return 'Ingresá un teléfono válido (mínimo 7 dígitos)';
-              }
-              return null;
-            },
+            required: true,
+            useKonectaTokens: false,
+            helperText:
+                'Obligatorio · mismo número para consultar tus citas por WhatsApp',
           ),
           const SizedBox(height: 20),
           Container(
