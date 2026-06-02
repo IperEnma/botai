@@ -9,7 +9,7 @@ El mini-LLM (`IntentClassifierService` + `BotPrompts.IntentClassifier`) debe dis
 | Ruta | Etiqueta / acción | Comportamiento |
 |------|-------------------|----------------|
 | **Información del negocio** | `PREGUNTA_GENERAL` (y a veces `SALUDO`) | Entra al pipeline generativo: RAG (`knowledge_chunk` + Agenda sync) + LLM + auto-revisión si está activa. **Horarios:** el prompt prioriza la herramienta `getHorario` frente a solo fragmentos RAG, para reducir horarios desactualizados. |
-| **Mis citas (Agenda)** | `ACCION_CRM view_agenda_bookings_by_contact` | Atajo: `ActionDispatcher` → `ViewAgendaBookingsByContactAction` (JDBC sobre `agenda_bookings` / contacto). Sin RAG + primer LLM en ese turno. |
+| **Mis citas (Agenda)** | `ACCION_CRM view_agenda_bookings_by_contact` | Atajo: `ViewAgendaBookingsByContactAction` busca por **teléfono** en `agenda_users.telefono` (mismo que al reservar). En WhatsApp usa el `from` del canal sin pedirlo. Sin RAG en ese turno. |
 | **Agendar / reservar nueva cita** | `ACCION_CRM get_agenda_public_url` | Atajo: `GetAgendaPublicUrlAction` → mensaje amistoso + URL pública `{agenda.public.base-url}/#/agenda/{slug}`. **No** se pide cédula ni se completa la reserva en el chat. Es la única ruta de producto para una reserva nueva. |
 
 Otras acciones CRM (p. ej. `create_lead`) siguen el mismo patrón de atajo por dispatcher cuando el clasificador las devuelve.
@@ -49,7 +49,7 @@ flowchart LR
 | Intención | Comportamiento |
 |-----------|----------------|
 | `get_agenda_public_url` | URL pública + texto fijo amistoso; JDBC a `agenda_businesses.public_slug`. |
-| `view_agenda_bookings_by_contact` | Pide email o teléfono; consulta reservas futuras en Agenda. Sin OTP (ver riesgos). |
+| `view_agenda_bookings_by_contact` | Consulta reservas futuras por teléfono; en WhatsApp el número del chat. Otros canales: pide el teléfono con el que reservó. Sin OTP (ver riesgos). |
 
 ## Sincronización Agenda → RAG
 

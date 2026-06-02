@@ -155,7 +155,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       case _BookingStep.review:
         return 'Comprobá que todo esté correcto antes de continuar.';
       case _BookingStep.contact:
-        return 'Solo el nombre es obligatorio; email y teléfono nos ayudan a contactarte.';
+        return 'Nombre y teléfono son obligatorios (el mismo teléfono sirve para consultar tus citas por WhatsApp).';
       default:
         return null;
     }
@@ -223,7 +223,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         businessId: business.id,
         nombre: nombre,
         email: email.isEmpty ? null : email,
-        telefono: telefono.isEmpty ? null : telefono,
+        telefono: telefono,
       );
       await api.publicCreateBooking(
         businessId: business.id,
@@ -719,11 +719,18 @@ class _ContactStep extends StatelessWidget {
             keyboardType: TextInputType.phone,
             textInputAction: TextInputAction.done,
             decoration: InputDecoration(
-              labelText: 'Teléfono (opcional)',
+              labelText: 'Teléfono',
               hintText: 'Ej. 09 123 456',
-              helperText: 'Por si el negocio debe avisarte un cambio',
+              helperText: 'Obligatorio · usalo también para consultar tus citas por WhatsApp',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
+            validator: (v) {
+              final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+              if (digits.length < 7) {
+                return 'Ingresá un teléfono válido (mínimo 7 dígitos)';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 20),
           Container(

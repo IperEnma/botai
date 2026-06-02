@@ -127,15 +127,15 @@ class _StepClienteState extends ConsumerState<StepCliente> {
 
   Future<void> _saveNewClient() async {
     final nombre = _newNombreCtrl.text.trim();
-    if (nombre.isEmpty) return;
-    final telefono = _newTelefonoCtrl.text.trim();
+    final telefono = _newTelefonoCtrl.text.trim().replaceAll(RegExp(r'\D'), '');
+    if (nombre.isEmpty || telefono.length < 7) return;
     setState(() => _saving = true);
     try {
       final api = ref.read(agendaApiServiceProvider);
       final created = await api.createClient(
         businessId: widget.businessId,
         nombre: nombre,
-        telefono: telefono.isEmpty ? null : telefono,
+        telefono: telefono,
       );
       if (!mounted) return;
       final newClient = _fromPublic(created);

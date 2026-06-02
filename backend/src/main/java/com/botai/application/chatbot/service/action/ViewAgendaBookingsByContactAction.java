@@ -5,6 +5,7 @@ import com.botai.domain.chatbot.model.ConversationState;
 import com.botai.domain.chatbot.model.OutboundMessage;
 import com.botai.domain.chatbot.repository.ConversationRepository;
 import com.botai.domain.chatbot.service.BotAction;
+import com.botai.infrastructure.chatbot.channel.whatsapp.WhatsAppAdapter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -20,17 +21,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Lista citas futuras del módulo Agenda por email o teléfono del cliente (sin OTP).
+ * Lista citas futuras del módulo Agenda por teléfono del cliente (el mismo con el que reservó).
+ * En WhatsApp usa el número del canal ({@code userId}) sin pedirlo de nuevo.
  */
 @Component
 public class ViewAgendaBookingsByContactAction implements BotAction {
 
     public static final String ACTION_ID = "view_agenda_bookings_by_contact";
     private static final String CTX_STEP = "agendaBookingsContactStep";
-    private static final String STEP_AWAITING = "awaiting_contact";
+    private static final String STEP_AWAITING = "awaiting_phone";
 
-    private static final Pattern EMAIL = Pattern.compile(
-        "[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}");
     private static final Pattern PHONE_DIGITS = Pattern.compile("(\\+?\\d[\\d\\s.-]{6,}\\d)");
 
     private static final DateTimeFormatter FMT =
@@ -81,10 +81,14 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         Map<String, Object> ctx = new HashMap<>(state.getContext());
         String step = (String) ctx.get(CTX_STEP);
 
-        if (step == null && userInput != null) {
-            Contact c = tryParseContact(userInput);
-            if (c != null) {
-                return finishWithQuery(convId, tenantId, c);
+        if (step == null) {
+            Contact channelPhone = contactFromWhatsAppChannel(state);
+            if (channelPhone != null) {
+                return finishWithQuery(convId, tenantId, channelPhone);
+            }
+            Contact fromText = tryParsePhone(userInput);
+            if (fromText != null) {
+                return finishWithQuery(convId, tenantId, fromText);
             }
             ctx.put(CTX_STEP, STEP_AWAITING);
             conversationRepository.save(ConversationState.builder()
@@ -95,22 +99,22 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
                 .context(ctx)
                 .build());
             return OutboundMessage.builder()
-                .text("Para buscar tus reservas, indicame el correo o el teléfono con el que las hiciste.")
+                .text("Para buscar tus reservas pendientes, indicame el teléfono con el que las hiciste al reservar.")
                 .conversationId(convId)
                 .tenantId(tenantId)
                 .build();
         }
 
         if (STEP_AWAITING.equals(step)) {
-            Contact c = tryParseContact(userInput);
-            if (c == null) {
+            Contact fromText = tryParsePhone(userInput);
+            if (fromText == null) {
                 return OutboundMessage.builder()
-                    .text("No reconozco un email o teléfono válido. Ejemplo: nombre@correo.com o 099123456.")
+                    .text("No reconozco un teléfono válido. Ejemplo: 099123456 o 5491123456789.")
                     .conversationId(convId)
                     .tenantId(tenantId)
                     .build();
             }
-            return finishWithQuery(convId, tenantId, c);
+            return finishWithQuery(convId, tenantId, fromText);
         }
 
         return null;
@@ -118,10 +122,11 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
 
     private OutboundMessage finishWithQuery(String convId, String tenantId, Contact contact) {
         conversationRepository.clearIntent(convId);
-        List<BookingRow> rows = findFutureBookings(tenantId, contact);
+        List<BookingRow> rows = findFutureBookingsByPhone(tenantId, contact.phoneNormalized());
         if (rows.isEmpty()) {
             return OutboundMessage.builder()
-                .text("No encontré reservas próximas asociadas a ese contacto. Si usaste otro email o teléfono, probá con ese.")
+                .text("No encontré reservas pendientes con ese teléfono. "
+                    + "Si reservaste con otro número, probá indicándolo.")
                 .conversationId(convId)
                 .tenantId(tenantId)
                 .build();
@@ -153,15 +158,9 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         };
     }
 
-    List<BookingRow> findFutureBookings(String tenantId, Contact contact) {
-        if (contact.email != null) {
-            String sql = BASE_SQL + " AND LOWER(u.email) = LOWER(?) ORDER BY b.fecha_hora_inicio ASC LIMIT 20";
-            return jdbcTemplate.query(sql,
-                ps -> {
-                    ps.setString(1, tenantId);
-                    ps.setString(2, contact.email);
-                },
-                (rs, rowNum) -> mapRow(rs));
+    List<BookingRow> findFutureBookingsByPhone(String tenantId, String phoneNormalized) {
+        if (phoneNormalized == null || phoneNormalized.isBlank()) {
+            return List.of();
         }
         String sql = BASE_SQL
             + " AND regexp_replace(coalesce(u.telefono,''), '[^0-9+]', '', 'g') = ? "
@@ -169,7 +168,7 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         return jdbcTemplate.query(sql,
             ps -> {
                 ps.setString(1, tenantId);
-                ps.setString(2, contact.phoneNormalized);
+                ps.setString(2, phoneNormalized);
             },
             (rs, rowNum) -> mapRow(rs));
     }
@@ -183,20 +182,37 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         );
     }
 
-    static Contact tryParseContact(String raw) {
+    /**
+     * Número de WhatsApp Cloud API ({@code from}) guardado como {@link ConversationState#getUserId()}.
+     */
+    public static Contact contactFromWhatsAppChannel(ConversationState state) {
+        if (state == null) {
+            return null;
+        }
+        if (!WhatsAppAdapter.CHANNEL_ID.equalsIgnoreCase(state.getChannelId())) {
+            return null;
+        }
+        String uid = state.getUserId();
+        if (uid == null || uid.isBlank() || "unknown".equalsIgnoreCase(uid.strip())) {
+            return null;
+        }
+        String digits = normalizePhone(uid);
+        if (digits.length() < 7) {
+            return null;
+        }
+        return new Contact(digits);
+    }
+
+    static Contact tryParsePhone(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         String text = raw.strip();
-        Matcher em = EMAIL.matcher(text);
-        if (em.find()) {
-            return new Contact(em.group().toLowerCase(Locale.ROOT), null);
-        }
         Matcher pm = PHONE_DIGITS.matcher(text.replace(" ", ""));
         if (pm.find()) {
             String digits = normalizePhone(pm.group());
             if (digits.length() >= 7) {
-                return new Contact(null, digits);
+                return new Contact(digits);
             }
         }
         if (text.contains("@")) {
@@ -204,24 +220,22 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         }
         String onlyDigits = normalizePhone(text);
         if (onlyDigits.length() >= 7) {
-            return new Contact(null, onlyDigits);
+            return new Contact(onlyDigits);
         }
         return null;
     }
 
-    private static String normalizePhone(String s) {
+    /** @deprecated usar {@link #tryParsePhone(String)} */
+    @Deprecated
+    static Contact tryParseContact(String raw) {
+        return tryParsePhone(raw);
+    }
+
+    static String normalizePhone(String s) {
         return s.replaceAll("[^0-9+]", "");
     }
 
-    static final class Contact {
-        final String email;
-        final String phoneNormalized;
-
-        Contact(String email, String phoneNormalized) {
-            this.email = email;
-            this.phoneNormalized = phoneNormalized;
-        }
-    }
+    record Contact(String phoneNormalized) {}
 
     record BookingRow(LocalDateTime start, String estado, String serviceName, String businessName) {}
 }

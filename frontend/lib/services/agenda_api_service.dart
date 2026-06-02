@@ -514,16 +514,16 @@ class AgendaApiService {
   Future<PublicClient> createClient({
     required String businessId,
     required String nombre,
+    required String telefono,
     String? email,
-    String? telefono,
   }) async {
     final r = await _sendPublic(() => _client.post(
           _uri('/public/businesses/$businessId/clients'),
           headers: _publicHeaders(),
           body: jsonEncode({
             'nombre': nombre,
+            'telefono': telefono,
             if (email != null && email.isNotEmpty) 'email': email,
-            if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
           }),
         ));
     return _decode(r, (body) => PublicClient.fromJson(body as Map<String, dynamic>));

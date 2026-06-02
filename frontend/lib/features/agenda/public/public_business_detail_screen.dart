@@ -562,7 +562,10 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
             TextField(
               controller: telCtrl,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Teléfono'),
+              decoration: const InputDecoration(
+                labelText: 'Teléfono *',
+                helperText: 'Obligatorio para reservar y consultar citas',
+              ),
             ),
           ],
         ),
@@ -574,11 +577,12 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
           FilledButton(
             onPressed: () {
               final nombre = nombreCtrl.text.trim();
-              if (nombre.isEmpty) return;
+              final tel = telCtrl.text.trim().replaceAll(RegExp(r'\D'), '');
+              if (nombre.isEmpty || tel.length < 7) return;
               Navigator.of(ctx).pop(_ClientPayload(
                 nombre: nombre,
                 email: emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim(),
-                telefono: telCtrl.text.trim().isEmpty ? null : telCtrl.text.trim(),
+                telefono: tel,
               ));
             },
             child: const Text('Confirmar'),

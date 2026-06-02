@@ -71,8 +71,7 @@ public class PublicClientsController {
                 request.nombre().trim(),
                 request.email() != null && !request.email().isBlank()
                         ? request.email().trim().toLowerCase() : null,
-                request.telefono() != null && !request.telefono().isBlank()
-                        ? request.telefono().trim() : null,
+                normalizePhone(request.telefono()),
                 UserType.CLIENT,
                 true,
                 null,
@@ -87,5 +86,12 @@ public class PublicClientsController {
         return businessRepository.findById(businessId)
                 .map(b -> b.getTenantId())
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
+    }
+
+    private static String normalizePhone(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return raw;
+        }
+        return raw.replaceAll("[^0-9+]", "");
     }
 }

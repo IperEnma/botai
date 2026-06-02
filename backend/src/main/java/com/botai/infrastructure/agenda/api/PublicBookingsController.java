@@ -68,10 +68,7 @@ public class PublicBookingsController {
             throw new ServiceNotFoundException(request.serviceId());
         }
 
-        User user = request.clientId() != null
-                ? userRepository.findById(request.clientId())
-                        .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"))
-                : resolveOrCreateClient(tenantId, request.nombreCliente(), request.emailCliente(), request.telefonoCliente());
+        User user = resolveBookingClient(tenantId, request);
 
         LocalDateTime inicio = request.fechaHoraInicio();
         LocalDateTime fin = inicio.plusMinutes(service.getDuracionMin());
@@ -95,6 +92,28 @@ public class PublicBookingsController {
         );
         Booking saved = bookingRepository.save(pending);
         return ResponseEntity.status(HttpStatus.CREATED).body(BookingDtoMapper.toResponse(saved));
+    }
+
+    private User resolveBookingClient(String tenantId, PublicCreateBookingRequest request) {
+        if (request.clientId() != null) {
+            User existing = userRepository.findById(request.clientId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+            if (existing.getTelefono() == null || existing.getTelefono().isBlank()) {
+                throw new IllegalArgumentException("El cliente debe tener teléfono para reservar");
+            }
+            return existing;
+        }
+        if (request.telefonoCliente() == null || request.telefonoCliente().isBlank()) {
+            throw new IllegalArgumentException("Teléfono obligatorio para reservar");
+        }
+        if (request.nombreCliente() == null || request.nombreCliente().isBlank()) {
+            throw new IllegalArgumentException("Nombre del cliente obligatorio");
+        }
+        return resolveOrCreateClient(
+                tenantId,
+                request.nombreCliente().trim(),
+                request.emailCliente(),
+                normalizePhone(request.telefonoCliente()));
     }
 
     private User resolveOrCreateClient(String tenantId,
@@ -127,6 +146,10 @@ public class PublicBookingsController {
                 null,
                 null
         ));
+    }
+
+    private static String normalizePhone(String raw) {
+        return raw.replaceAll("[^0-9+]", "");
     }
 }
 
