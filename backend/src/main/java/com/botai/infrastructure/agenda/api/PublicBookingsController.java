@@ -4,6 +4,7 @@ import com.botai.application.agenda.dto.BookingResponse;
 import com.botai.application.agenda.dto.PublicCreateBookingRequest;
 import com.botai.application.agenda.support.AgendaClientResolver;
 import com.botai.application.agenda.support.AgendaPhoneNormalizer;
+import com.botai.application.agenda.support.AgendaPhoneVerificationService;
 import com.botai.application.agenda.mapper.BookingDtoMapper;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.exception.ServiceNotFoundException;
@@ -40,17 +41,20 @@ public class PublicBookingsController {
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
     private final BookingDomainService bookingService;
+    private final AgendaPhoneVerificationService phoneVerificationService;
 
     public PublicBookingsController(BusinessRepository businessRepository,
                                     ServiceRepository serviceRepository,
                                     UserRepository userRepository,
                                     BookingRepository bookingRepository,
-                                    BookingDomainService bookingService) {
+                                    BookingDomainService bookingService,
+                                    AgendaPhoneVerificationService phoneVerificationService) {
         this.businessRepository = businessRepository;
         this.serviceRepository = serviceRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
         this.bookingService = bookingService;
+        this.phoneVerificationService = phoneVerificationService;
     }
 
     @PostMapping("/businesses/{businessId}/bookings")
@@ -107,6 +111,10 @@ public class PublicBookingsController {
         if (!AgendaPhoneNormalizer.isValid(request.telefonoCliente())) {
             throw new IllegalArgumentException("Teléfono obligatorio para reservar");
         }
+        phoneVerificationService.assertValidToken(
+            tenantId,
+            AgendaPhoneNormalizer.normalize(request.telefonoCliente()),
+            request.phoneVerificationToken());
         if (request.nombreCliente() == null || request.nombreCliente().isBlank()) {
             throw new IllegalArgumentException("Nombre del cliente obligatorio");
         }

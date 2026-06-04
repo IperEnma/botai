@@ -13,9 +13,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ViewAgendaBookingsByContactActionTest {
 
+    @BeforeEach
+    void uruguayDefault() {
+        AgendaPhoneNormalizer.configureDefaultCountryCode("598");
+    }
+
     @Test
     void tryParsePhone_normalizesLocalUruguay() {
-        AgendaPhoneNormalizer.configureDefaultCountryCode("598");
         ViewAgendaBookingsByContactAction.Contact c =
             ViewAgendaBookingsByContactAction.tryParsePhone("099 123 456");
         assertThat(c).isNotNull();
@@ -25,11 +29,6 @@ class ViewAgendaBookingsByContactActionTest {
     @Test
     void tryParsePhone_ignoresEmailOnly() {
         assertThat(ViewAgendaBookingsByContactAction.tryParsePhone("ana@test.com")).isNull();
-    }
-
-    @BeforeEach
-    void uruguayDefault() {
-        AgendaPhoneNormalizer.configureDefaultCountryCode("598");
     }
 
     @Test

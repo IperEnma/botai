@@ -24,7 +24,9 @@ public record PublicCreateBookingRequest(
         @Size(max = 120) String nombreCliente,
         @Email @Size(max = 200) String emailCliente,
         @Size(max = 32) String telefonoCliente,
-        @Size(max = 500) String notas
+        @Size(max = 500) String notas,
+        /** Token emitido por POST .../phone-verification/verify (obligatorio sin clientId si verification enabled). */
+        @Size(max = 64) String phoneVerificationToken
 ) {
 
     @AssertTrue(message = "Nombre obligatorio al reservar sin cliente existente")

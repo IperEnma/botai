@@ -235,9 +235,11 @@ class FakeAgendaApiService implements AgendaApiService {
     required String serviceId,
     String? staffMemberId,
     required DateTime fechaHoraInicio,
-    required String nombreCliente,
+    String? clientId,
+    String? nombreCliente,
     String? emailCliente,
     String? telefonoCliente,
+    String? phoneVerificationToken,
     String? notas,
   }) async {
     _maybeThrow();

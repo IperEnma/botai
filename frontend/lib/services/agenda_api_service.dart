@@ -529,6 +529,41 @@ class AgendaApiService {
     return _decode(r, (body) => PublicClient.fromJson(body as Map<String, dynamic>));
   }
 
+  /// `POST /public/businesses/{businessId}/phone-verification/send`
+  Future<SendPhoneVerificationResult> sendPublicPhoneVerification({
+    required String businessId,
+    required String telefono,
+  }) async {
+    final r = await _sendPublic(() => _client.post(
+          _uri('/public/businesses/$businessId/phone-verification/send'),
+          headers: _publicHeaders(),
+          body: jsonEncode({'telefono': telefono}),
+        ));
+    return _decode(r, (body) {
+      final m = body as Map<String, dynamic>;
+      return SendPhoneVerificationResult(
+        sent: m['sent'] == true,
+        message: m['message']?.toString() ?? '',
+        devCodeEcho: m['devCodeEcho']?.toString(),
+      );
+    });
+  }
+
+  /// `POST /public/businesses/{businessId}/phone-verification/verify`
+  Future<String> verifyPublicPhoneCode({
+    required String businessId,
+    required String telefono,
+    required String code,
+  }) async {
+    final r = await _sendPublic(() => _client.post(
+          _uri('/public/businesses/$businessId/phone-verification/verify'),
+          headers: _publicHeaders(),
+          body: jsonEncode({'telefono': telefono, 'code': code}),
+        ));
+    return _decode(r, (body) =>
+        (body as Map<String, dynamic>)['verificationToken'] as String);
+  }
+
   /// `POST /public/businesses/{businessId}/bookings`
   ///
   /// Crea una reserva en estado PENDING (flujo público, sin auth).
@@ -537,7 +572,11 @@ class AgendaApiService {
     required String serviceId,
     String? staffMemberId,
     required DateTime fechaHoraInicio,
-    required String clientId,
+    String? clientId,
+    String? nombreCliente,
+    String? emailCliente,
+    String? telefonoCliente,
+    String? phoneVerificationToken,
     String? notas,
   }) async {
     final r = await _sendPublic(() => _client.post(
@@ -547,7 +586,13 @@ class AgendaApiService {
             'serviceId': serviceId,
             if (staffMemberId != null) 'staffMemberId': staffMemberId,
             'fechaHoraInicio': _fmtLocalDateTime(fechaHoraInicio),
-            'clientId': clientId,
+            if (clientId != null) 'clientId': clientId,
+            if (nombreCliente != null) 'nombreCliente': nombreCliente,
+            if (emailCliente != null && emailCliente.isNotEmpty)
+              'emailCliente': emailCliente,
+            if (telefonoCliente != null) 'telefonoCliente': telefonoCliente,
+            if (phoneVerificationToken != null)
+              'phoneVerificationToken': phoneVerificationToken,
             if (notas != null && notas.isNotEmpty) 'notas': notas,
           }),
         ));
@@ -1396,6 +1441,19 @@ class AgendaApiService {
 
   /// Cierra el http client subyacente (testing).
   void close() => _client.close();
+}
+
+/// Resultado de envío de OTP público.
+class SendPhoneVerificationResult {
+  const SendPhoneVerificationResult({
+    required this.sent,
+    required this.message,
+    this.devCodeEcho,
+  });
+
+  final bool sent;
+  final String message;
+  final String? devCodeEcho;
 }
 
 /// Formats a [DateTime] as `"yyyy-MM-ddTHH:mm:ss"` (no sub-seconds, no timezone)

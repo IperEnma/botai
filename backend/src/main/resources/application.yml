@@ -80,6 +80,12 @@ agenda:
   phone:
     # Código de país por defecto (solo dígitos) al normalizar teléfonos locales (099… → 598…).
     default-country-code: ${AGENDA_PHONE_DEFAULT_COUNTRY_CODE:598}
+    verification:
+      enabled: ${AGENDA_PHONE_VERIFICATION_ENABLED:true}
+      code-length: ${AGENDA_PHONE_VERIFICATION_CODE_LENGTH:6}
+      ttl-minutes: ${AGENDA_PHONE_VERIFICATION_TTL_MINUTES:10}
+      # Solo dev/local: si falla el envío por WhatsApp, incluir el código en el chat (nunca en prod).
+      dev-echo-in-chat: ${AGENDA_PHONE_VERIFICATION_DEV_ECHO:false}
 
 search:
   cache-ttl-seconds: 60

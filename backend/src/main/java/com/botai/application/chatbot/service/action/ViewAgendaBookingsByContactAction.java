@@ -22,8 +22,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Lista citas futuras del módulo Agenda por teléfono del cliente (el mismo con el que reservó).
- * En WhatsApp usa el número del canal ({@code userId}) sin pedirlo de nuevo.
+ * Lista citas futuras del módulo Agenda por teléfono del cliente.
+ * En WhatsApp confía en el número del canal ({@code userId}) sin OTP.
+ * Otros canales: pide el teléfono con el que reservó.
  */
 @Component
 public class ViewAgendaBookingsByContactAction implements BotAction {
@@ -189,9 +190,6 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         );
     }
 
-    /**
-     * Número de WhatsApp Cloud API ({@code from}) guardado como {@link ConversationState#getUserId()}.
-     */
     public static Contact contactFromWhatsAppChannel(ConversationState state) {
         if (state == null) {
             return null;
@@ -230,12 +228,6 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
             return new Contact(digits);
         }
         return null;
-    }
-
-    /** @deprecated usar {@link #tryParsePhone(String)} */
-    @Deprecated
-    static Contact tryParseContact(String raw) {
-        return tryParsePhone(raw);
     }
 
     record Contact(String phoneNormalized) {}

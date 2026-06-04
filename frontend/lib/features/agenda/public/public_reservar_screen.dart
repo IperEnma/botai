@@ -15,10 +15,10 @@ import '../../../widgets/agenda_phone_field.dart';
 import 'public_booking_hours.dart';
 import 'public_reservar_layout.dart';
 
-enum _BookingStep { service, staff, date, slots, review, contact, confirmed }
+enum _BookingStep { service, staff, date, slots, review, contact, verifyCode, confirmed }
 
-const int _kBookingTotalStepsWithStaff = 6;
-const int _kBookingTotalStepsGeneral = 5;
+const int _kBookingTotalStepsWithStaff = 7;
+const int _kBookingTotalStepsGeneral = 6;
 
 /// Reserva pública unificada: /reservar/:slug (mismo look que el sheet del detalle).
 class PublicReservarScreen extends ConsumerStatefulWidget {
@@ -47,8 +47,11 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   final _nombreCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _telCtrl = TextEditingController();
+  final _codeCtrl = TextEditingController();
   final _contactFormKey = GlobalKey<FormState>();
   bool _submitting = false;
+  String? _otpError;
+  String? _otpHint;
   String? _confirmedServiceName;
   String? _confirmedSlotLabel;
   String? _confirmedDateLabel;
@@ -58,6 +61,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     _nombreCtrl.dispose();
     _emailCtrl.dispose();
     _telCtrl.dispose();
+    _codeCtrl.dispose();
     super.dispose();
   }
 
@@ -100,6 +104,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         setState(() => _step = _BookingStep.slots);
       case _BookingStep.contact:
         setState(() => _step = _BookingStep.review);
+      case _BookingStep.verifyCode:
+        setState(() => _step = _BookingStep.contact);
       case _BookingStep.confirmed:
         break;
     }
@@ -120,8 +126,10 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         return withStaff ? 5 : 4;
       case _BookingStep.contact:
         return withStaff ? 6 : 5;
+      case _BookingStep.verifyCode:
+        return withStaff ? 7 : 6;
       case _BookingStep.confirmed:
-        return withStaff ? 6 : 5;
+        return withStaff ? 7 : 6;
     }
   }
 
@@ -139,6 +147,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         return 'Revisá tu reserva';
       case _BookingStep.contact:
         return 'Tus datos de contacto';
+      case _BookingStep.verifyCode:
+        return 'Verificá tu teléfono';
       case _BookingStep.confirmed:
         return 'Confirmación';
     }
@@ -158,6 +168,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         return 'Resumen';
       case _BookingStep.contact:
         return 'Contacto';
+      case _BookingStep.verifyCode:
+        return 'Código';
       case _BookingStep.confirmed:
         return 'Listo';
     }
@@ -168,7 +180,9 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       case _BookingStep.review:
         return 'Comprobá que todo esté correcto antes de continuar.';
       case _BookingStep.contact:
-        return 'Nombre y teléfono son obligatorios (el mismo teléfono sirve para consultar tus citas por WhatsApp).';
+        return 'Te enviaremos un código por WhatsApp para confirmar que el teléfono es tuyo.';
+      case _BookingStep.verifyCode:
+        return _otpHint ?? 'Ingresá el código de 6 dígitos que recibiste por WhatsApp.';
       default:
         return null;
     }
@@ -219,11 +233,57 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     setState(() => _step = _BookingStep.contact);
   }
 
+  Future<void> _sendOtp(Business business, PublicReservarTheme theme) async {
+    if (!_contactFormKey.currentState!.validate()) return;
+    final telefono = normalizeAgendaPhoneDigits(_telCtrl.text);
+    if (!isValidAgendaPhone(telefono)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Ingresá un teléfono válido con código de país.',
+            style: theme.textStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _otpError = null;
+    });
+    try {
+      final api = ref.read(agendaApiServiceProvider);
+      final result = await api.sendPublicPhoneVerification(
+        businessId: business.id,
+        telefono: telefono,
+      );
+      if (!mounted) return;
+      if (result.devCodeEcho != null) {
+        _codeCtrl.text = result.devCodeEcho!;
+      }
+      setState(() {
+        _otpHint = result.message;
+        _step = _BookingStep.verifyCode;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo enviar el código: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   Future<void> _confirm(Business business, PublicReservarTheme theme) async {
     final svc = _service;
     final slot = _selectedSlot;
     if (svc == null || slot == null) return;
-    if (!_contactFormKey.currentState!.validate()) return;
 
     final nombre = _nombreCtrl.text.trim();
     final email = _emailCtrl.text.trim();
@@ -240,22 +300,32 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       );
       return;
     }
+    final code = _codeCtrl.text.trim();
+    if (code.isEmpty) {
+      setState(() => _otpError = 'Ingresá el código de WhatsApp.');
+      return;
+    }
 
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _otpError = null;
+    });
     try {
       final api = ref.read(agendaApiServiceProvider);
-      final client = await api.createClient(
+      final token = await api.verifyPublicPhoneCode(
         businessId: business.id,
-        nombre: nombre,
-        email: email.isEmpty ? null : email,
         telefono: telefono,
+        code: code,
       );
       await api.publicCreateBooking(
         businessId: business.id,
         serviceId: svc.id,
         staffMemberId: _effectiveStaffId,
         fechaHoraInicio: slot.inicio,
-        clientId: client.id,
+        nombreCliente: nombre,
+        emailCliente: email.isEmpty ? null : email,
+        telefonoCliente: telefono,
+        phoneVerificationToken: token,
       );
 
       if (!mounted) return;
@@ -317,6 +387,13 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       case _BookingStep.contact:
         return _PrimaryFooterButton(
           theme: theme,
+          label: 'Enviar código por WhatsApp',
+          loading: _submitting,
+          onPressed: _submitting ? null : () => _sendOtp(business, theme),
+        );
+      case _BookingStep.verifyCode:
+        return _PrimaryFooterButton(
+          theme: theme,
           label: 'Confirmar reserva',
           loading: _submitting,
           onPressed: _submitting ? null : () => _confirm(business, theme),
@@ -338,6 +415,9 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
               _nombreCtrl.clear();
               _emailCtrl.clear();
               _telCtrl.clear();
+              _codeCtrl.clear();
+              _otpError = null;
+              _otpHint = null;
             });
           },
         );
@@ -549,6 +629,14 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           nombreCtrl: _nombreCtrl,
           emailCtrl: _emailCtrl,
           telCtrl: _telCtrl,
+        );
+      case _BookingStep.verifyCode:
+        return _VerifyCodeStep(
+          theme: theme,
+          codeCtrl: _codeCtrl,
+          phone: normalizeAgendaPhoneDigits(_telCtrl.text),
+          error: _otpError,
+          hint: _otpHint,
         );
       case _BookingStep.confirmed:
         return _BookingConfirmedStep(
@@ -795,6 +883,59 @@ class _ReviewRow extends StatelessWidget {
   }
 }
 
+class _VerifyCodeStep extends StatelessWidget {
+  const _VerifyCodeStep({
+    required this.theme,
+    required this.codeCtrl,
+    required this.phone,
+    this.error,
+    this.hint,
+  });
+
+  final PublicReservarTheme theme;
+  final TextEditingController codeCtrl;
+  final String phone;
+  final String? error;
+  final String? hint;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          hint ?? 'Ingresá el código de 6 dígitos que recibiste por WhatsApp.',
+          style: t.textStyle(size: 14, color: t.textSub),
+        ),
+        if (phone.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Enviado a $phone',
+            style: t.textStyle(size: 13, weight: FontWeight.w600),
+          ),
+        ],
+        const SizedBox(height: 20),
+        TextField(
+          controller: codeCtrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          maxLength: 6,
+          decoration: InputDecoration(
+            labelText: 'Código de verificación',
+            counterText: '',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 8),
+          Text(error!, style: t.textStyle(size: 13, color: Colors.red.shade700)),
+        ],
+      ],
+    );
+  }
+}
+
 class _ContactStep extends StatelessWidget {
   const _ContactStep({
     required this.theme,
@@ -852,7 +993,7 @@ class _ContactStep extends StatelessWidget {
             required: true,
             useKonectaTokens: false,
             helperText:
-                'Obligatorio · mismo número para consultar tus citas por WhatsApp',
+                'Obligatorio · te enviaremos un código por WhatsApp para confirmar la reserva',
           ),
           const SizedBox(height: 20),
           Container(

@@ -9,7 +9,7 @@ El mini-LLM (`IntentClassifierService` + `BotPrompts.IntentClassifier`) debe dis
 | Ruta | Etiqueta / acción | Comportamiento |
 |------|-------------------|----------------|
 | **Información del negocio** | `PREGUNTA_GENERAL` (y a veces `SALUDO`) | Entra al pipeline generativo: RAG (`knowledge_chunk` + Agenda sync) + LLM + auto-revisión si está activa. **Horarios:** el prompt prioriza la herramienta `getHorario` frente a solo fragmentos RAG, para reducir horarios desactualizados. |
-| **Mis citas (Agenda)** | `ACCION_CRM view_agenda_bookings_by_contact` | Atajo: `ViewAgendaBookingsByContactAction` busca por **teléfono** en `agenda_users.telefono` (mismo que al reservar). En WhatsApp usa el `from` del canal sin pedirlo. Sin RAG en ese turno. |
+| **Mis citas (Agenda)** | `ACCION_CRM view_agenda_bookings_by_contact` | Atajo: consulta por teléfono. **WhatsApp:** usa el `from` del chat (sin OTP). Otros canales: pide teléfono. |
 | **Agendar / reservar nueva cita** | `ACCION_CRM get_agenda_public_url` | Atajo: `GetAgendaPublicUrlAction` → mensaje amistoso + URL pública `{agenda.public.base-url}/#/agenda/{slug}`. **No** se pide cédula ni se completa la reserva en el chat. Es la única ruta de producto para una reserva nueva. |
 
 Otras acciones CRM (p. ej. `create_lead`) siguen el mismo patrón de atajo por dispatcher cuando el clasificador las devuelve.
@@ -49,7 +49,7 @@ flowchart LR
 | Intención | Comportamiento |
 |-----------|----------------|
 | `get_agenda_public_url` | URL pública + texto fijo amistoso; JDBC a `agenda_businesses.public_slug`. |
-| `view_agenda_bookings_by_contact` | Consulta reservas futuras por teléfono; en WhatsApp el número del chat. Otros canales: pide el teléfono con el que reservó. Sin OTP (ver riesgos). |
+| `view_agenda_bookings_by_contact` | Reservas futuras por teléfono; WhatsApp = identidad del canal (sin OTP). |
 
 ## Sincronización Agenda → RAG
 
@@ -61,9 +61,17 @@ flowchart LR
 - `agenda.public.base-url` — Base del **frontend** para el link público de agenda.
 - `bot.rag.self-review-enabled` — Activa el paso 4 de auto-revisión en turnos generativos.
 
-## Riesgos: “mis citas” sin verificación
+## Verificación teléfono (solo reserva pública)
 
-Quien conozca el email o teléfono puede listar turnos futuros. Mitigaciones actuales: solo futuras, estados acotados, límite. Evolución: OTP, código de reserva, o identidad del canal.
+Al **reservar** desde la web pública (`POST .../phone-verification/send|verify`), se envía OTP por WhatsApp para confirmar titularidad del teléfono antes de `POST .../bookings`.
+
+**Mis citas por WhatsApp:** no lleva OTP (el canal ya identifica al usuario).
+
+Config: `agenda.phone.verification.*` en `application.yml`.
+
+## Riesgos residuales
+
+Consulta de citas en canales no WhatsApp: quien conozca el teléfono puede listar turnos. Reserva web: mitigado con OTP.
 
 ## Archivos clave
 
