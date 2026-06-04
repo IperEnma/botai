@@ -27,6 +27,17 @@ class InboundTextHeuristicsTest {
     }
 
     @Test
+    void looksLikeViewAgendaBookings_agendasPendientes() {
+        assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings(
+            "Quiero saber si tengo agendas pendientes")).isTrue();
+    }
+
+    @Test
+    void looksLikeViewAgendaBookings_horarioInformativo_false() {
+        assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("¿A qué hora abren el lunes?")).isFalse();
+    }
+
+    @Test
     void looksLikeGreetingOnly_hola() {
         assertThat(InboundTextHeuristics.looksLikeGreetingOnly("Hola")).isTrue();
         assertThat(InboundTextHeuristics.looksLikeGreetingOnly("Buenos días!")).isTrue();

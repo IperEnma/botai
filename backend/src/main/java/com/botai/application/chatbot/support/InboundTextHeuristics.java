@@ -19,10 +19,13 @@ public final class InboundTextHeuristics {
     );
 
     private static final List<Pattern> VIEW_BOOKINGS_PATTERNS = List.of(
-        Pattern.compile("(?i)\\b(mis|mis\\s+propias)\\s+(citas|turnos|reservas)\\b"),
-        Pattern.compile("(?i)\\b(ver|consultar|mostrar)\\b[^.]{0,40}\\b(mis\\s+)?(citas|turnos|reservas)\\b"),
-        Pattern.compile("(?i)\\bqu[eé]\\s+turnos?\\s+tengo\\b"),
-        Pattern.compile("(?i)\\ba\\s+qu[eé]\\s+hora\\s+es\\s+mi\\s+(cita|turno)\\b")
+        Pattern.compile("(?i)\\b(mis|mis\\s+propias)\\s+(citas|turnos|reservas|agendas)\\b"),
+        Pattern.compile("(?i)\\b(ver|consultar|mostrar|saber)\\b[^.]{0,50}\\b(tengo|hay|tienen)\\b[^.]{0,40}\\b(agendas?|citas?|turnos?|reservas?)\\b"),
+        Pattern.compile("(?i)\\b(ver|consultar|mostrar)\\b[^.]{0,40}\\b(mis\\s+)?(citas|turnos|reservas|agendas)\\b"),
+        Pattern.compile("(?i)\\b(agendas?|citas?|turnos?|reservas?)\\s+pendientes?\\b"),
+        Pattern.compile("(?i)\\btengo\\s+(agendas?|citas?|turnos?|reservas?)\\s*(pendientes?|programadas?|reservadas?)?\\b"),
+        Pattern.compile("(?i)\\bqu[eé]\\s+(turnos?|citas?|agendas?)\\s+tengo\\b"),
+        Pattern.compile("(?i)\\ba\\s+qu[eé]\\s+hora\\s+es\\s+mi\\s+(cita|turno|agenda)\\b")
     );
 
     private static final Set<String> GREETING_ONLY_TOKENS = Set.of(

@@ -92,6 +92,12 @@ public class ConversationModeOrchestrator {
             return bookingShortcut;
         }
 
+        Optional<ConversationRouteResult> viewBookingsShortcut = actionRouting.routeViewAgendaBookingsFirst(ctx);
+        if (viewBookingsShortcut.isPresent()) {
+            log.info("[ORCH] Consulta mis citas -> view_agenda_bookings_by_contact (sin LLM) tenant={}", tenantId);
+            return viewBookingsShortcut;
+        }
+
         ConversationMode mode = modeResolver.resolve(tenantId);
         if (mode == ConversationMode.NONE) {
             log.debug("[ORCH] Modo NONE tenant={}", tenantId);

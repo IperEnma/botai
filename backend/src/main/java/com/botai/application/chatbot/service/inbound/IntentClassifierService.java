@@ -204,6 +204,7 @@ public class IntentClassifierService {
             return new IntentClassification.Greeting();
         }
         if (line.contains("PREGUNTA_GENERAL") || (line.contains("PREGUNTA") && line.contains("GENERAL"))) {
+            log.info("[CLASSIFIER] LLM -> PREGUNTA_GENERAL");
             return new IntentClassification.GeneralQuestion();
         }
         if (line.contains("ACCION_CRM")) {

@@ -10,6 +10,7 @@ import com.botai.application.chatbot.orchestration.ConversationModeHandler;
 import com.botai.application.chatbot.prompt.BotPrompts;
 import com.botai.application.chatbot.service.conversation.common.ConversationActionRouting;
 import com.botai.application.chatbot.service.action.GetAgendaPublicUrlAction;
+import com.botai.application.chatbot.service.action.ViewAgendaBookingsByContactAction;
 import com.botai.application.chatbot.service.inbound.ChatSessionService;
 import com.botai.application.chatbot.support.StandardRouteResponses;
 import com.botai.application.chatbot.service.inbound.MessageHistoryService;
@@ -122,6 +123,7 @@ public class RagLlmChatService implements ConversationModeHandler {
             .or(() -> whenBadIntentThenLlm(ctx))
             .or(() -> actionRouting.startCrmFromClassificationIfEnabled(ctx))
             .or(() -> whenBookingHeuristicOverridesGeneralQuestion(ctx))
+            .or(() -> whenViewBookingsHeuristicOverridesGeneralQuestion(ctx))
             .or(() -> actionRouting.respondIfCrmIntentButActionsDisabled(ctx))
             .or(() -> replyWithLlm(AiConversationRequest.of(ctx.inbound(), ctx.state(), ctx.classification())));
     }
@@ -139,6 +141,21 @@ public class RagLlmChatService implements ConversationModeHandler {
         var bookingCtx = new ConversationHandlingContext(
             ctx.conversationId(), ctx.tenantId(), ctx.text(), ctx.inbound(), ctx.state(), bookingIntent);
         return actionRouting.startCrmFromClassificationIfEnabled(bookingCtx);
+    }
+
+    /** Si el mini-LLM dijo PREGUNTA_GENERAL pero el texto pide ver citas/agendas propias, forzar acción CRM. */
+    private Optional<ConversationRouteResult> whenViewBookingsHeuristicOverridesGeneralQuestion(
+        ConversationHandlingContext ctx) {
+        if (!ctx.classification().isGeneralQuestion()
+            || !InboundTextHeuristics.looksLikeViewAgendaBookings(ctx.text())
+            || !featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, ctx.tenantId())) {
+            return Optional.empty();
+        }
+        log.info("[RAG-LLM] PREGUNTA_GENERAL + heuristica mis citas -> view_agenda_bookings_by_contact");
+        var viewIntent = new IntentClassification.CrmAction(ViewAgendaBookingsByContactAction.ACTION_ID);
+        var viewCtx = new ConversationHandlingContext(
+            ctx.conversationId(), ctx.tenantId(), ctx.text(), ctx.inbound(), ctx.state(), viewIntent);
+        return actionRouting.startCrmFromClassificationIfEnabled(viewCtx);
     }
 
     private Optional<ConversationRouteResult> whenClassifierFailedThenLlm(ConversationHandlingContext ctx) {

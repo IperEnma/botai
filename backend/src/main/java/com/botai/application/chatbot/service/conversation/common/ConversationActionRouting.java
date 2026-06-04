@@ -5,6 +5,7 @@ import com.botai.application.chatbot.dto.ConversationRouteResult;
 import com.botai.application.chatbot.dto.IntentClassification;
 import com.botai.application.chatbot.orchestration.ConversationHandlingContext;
 import com.botai.application.chatbot.service.action.GetAgendaPublicUrlAction;
+import com.botai.application.chatbot.service.action.ViewAgendaBookingsByContactAction;
 import com.botai.application.chatbot.service.inbound.ActionDispatcher;
 import com.botai.application.chatbot.support.InboundTextHeuristics;
 import com.botai.application.chatbot.support.StandardRouteResponses;
@@ -80,6 +81,27 @@ public class ConversationActionRouting {
             ctx.inbound(),
             ctx.state(),
             new IntentClassification.CrmAction(GetAgendaPublicUrlAction.ACTION_ID));
+        return startCrmFromClassificationIfEnabled(forcedCtx);
+    }
+
+    /**
+     * Atajo global: consultar citas/reservas/agendas propias → acción SQL por teléfono (sin RAG inventado).
+     */
+    public Optional<ConversationRouteResult> routeViewAgendaBookingsFirst(ConversationHandlingContext ctx) {
+        if (!InboundTextHeuristics.looksLikeViewAgendaBookings(ctx.text())) {
+            return Optional.empty();
+        }
+        if (!featureFlagService.isEnabled(BotFeatures.ACTIONS_ENABLED, ctx.tenantId())) {
+            return Optional.empty();
+        }
+        log.info("[CRM-VIEW-BOOKINGS] Atajo heuristica -> view_agenda_bookings_by_contact tenant={}", ctx.tenantId());
+        var forcedCtx = new ConversationHandlingContext(
+            ctx.conversationId(),
+            ctx.tenantId(),
+            ctx.text(),
+            ctx.inbound(),
+            ctx.state(),
+            new IntentClassification.CrmAction(ViewAgendaBookingsByContactAction.ACTION_ID));
         return startCrmFromClassificationIfEnabled(forcedCtx);
     }
 
