@@ -14,5 +14,8 @@ public interface UserRepository {
 
     Optional<User> findByTenantIdAndEmail(String tenantId, String email);
 
+    /** Cliente activo cuyo teléfono coincide tras normalización canónica. */
+    Optional<User> findClientByTenantIdAndTelefono(String tenantId, String telefonoNormalized);
+
     List<User> searchClients(String tenantId, String q);
 }

@@ -65,6 +65,16 @@ public final class AgendaPhoneNormalizer {
         return matchCandidates(raw, defaultCountryCode);
     }
 
+    /** Comparación robusta: normaliza ambos lados (p. ej. {@code 097205089} ≡ {@code 59897205089}). */
+    public static boolean phonesMatch(String stored, String input) {
+        if (stored == null || stored.isBlank() || input == null || input.isBlank()) {
+            return false;
+        }
+        String a = normalize(stored);
+        String b = normalize(input);
+        return !a.isEmpty() && a.equals(b);
+    }
+
     public static List<String> matchCandidates(String raw, String countryCodeDigits) {
         String cc = digitsOnly(countryCodeDigits);
         if (cc.isEmpty()) {

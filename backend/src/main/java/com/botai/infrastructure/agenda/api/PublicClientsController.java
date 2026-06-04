@@ -2,10 +2,10 @@ package com.botai.infrastructure.agenda.api;
 
 import com.botai.application.agenda.dto.ClientResponse;
 import com.botai.application.agenda.dto.CreateClientRequest;
+import com.botai.application.agenda.support.AgendaClientResolver;
 import com.botai.application.agenda.support.AgendaPhoneNormalizer;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.User;
-import com.botai.domain.agenda.model.UserType;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -57,55 +57,13 @@ public class PublicClientsController {
             @Valid @RequestBody CreateClientRequest request) {
 
         final String tenantId = resolveTenant(businessId);
-        final String phoneNorm = AgendaPhoneNormalizer.normalize(request.telefono());
-        if (!AgendaPhoneNormalizer.isValid(phoneNorm)) {
-            throw new IllegalArgumentException("Teléfono obligatorio (mínimo 7 dígitos)");
-        }
-
-        if (request.email() != null && !request.email().isBlank()) {
-            String email = request.email().trim().toLowerCase();
-            var existing = userRepository.findByTenantIdAndEmail(tenantId, email);
-            if (existing.isPresent()) {
-                User u = existing.get();
-                User saved = ensurePhone(u, request.nombre().trim(), email, phoneNorm);
-                return ResponseEntity.ok(toResponse(saved));
-            }
-        }
-
-        User saved = userRepository.save(new User(
-                null,
+        User saved = AgendaClientResolver.resolveOrCreate(
+                userRepository,
                 tenantId,
-                request.nombre().trim(),
-                request.email() != null && !request.email().isBlank()
-                        ? request.email().trim().toLowerCase() : null,
-                phoneNorm,
-                UserType.CLIENT,
-                true,
-                null,
-                null
-        ));
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(saved));
-    }
-
-    /**
-     * Si el cliente ya existía sin teléfono, lo actualiza; si tenía otro teléfono, se mantiene.
-     */
-    private User ensurePhone(User existing, String nombre, String email, String phoneNorm) {
-        if (existing.getTelefono() != null && !existing.getTelefono().isBlank()) {
-            return existing;
-        }
-        return userRepository.save(new User(
-                existing.getId(),
-                existing.getTenantId(),
-                nombre.isBlank() ? existing.getNombre() : nombre,
-                email,
-                phoneNorm,
-                existing.getTipoUsuario(),
-                existing.isActivo(),
-                existing.getCreatedAt(),
-                existing.getUpdatedAt()
-        ));
+                request.nombre(),
+                request.email(),
+                request.telefono());
+        return ResponseEntity.ok(toResponse(saved));
     }
 
     private static ClientResponse toResponse(User u) {

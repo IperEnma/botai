@@ -2,6 +2,7 @@ package com.botai.infrastructure.agenda.api;
 
 import com.botai.application.agenda.dto.BookingResponse;
 import com.botai.application.agenda.dto.PublicCreateBookingRequest;
+import com.botai.application.agenda.support.AgendaClientResolver;
 import com.botai.application.agenda.support.AgendaPhoneNormalizer;
 import com.botai.application.agenda.mapper.BookingDtoMapper;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
@@ -10,7 +11,6 @@ import com.botai.domain.agenda.model.Booking;
 import com.botai.domain.agenda.model.BookingEstado;
 import com.botai.domain.agenda.model.Service;
 import com.botai.domain.agenda.model.User;
-import com.botai.domain.agenda.model.UserType;
 import com.botai.domain.agenda.repository.BookingRepository;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
@@ -110,60 +110,12 @@ public class PublicBookingsController {
         if (request.nombreCliente() == null || request.nombreCliente().isBlank()) {
             throw new IllegalArgumentException("Nombre del cliente obligatorio");
         }
-        return resolveOrCreateClient(
+        return AgendaClientResolver.resolveOrCreate(
+                userRepository,
                 tenantId,
-                request.nombreCliente().trim(),
+                request.nombreCliente(),
                 request.emailCliente(),
-                AgendaPhoneNormalizer.normalize(request.telefonoCliente()));
-    }
-
-    private User resolveOrCreateClient(String tenantId,
-                                       String nombre,
-                                       String email,
-                                       String telefono) {
-        if (email != null && !email.isBlank()) {
-            String emailNorm = email.trim().toLowerCase();
-            var existing = userRepository.findByTenantIdAndEmail(tenantId, emailNorm);
-            if (existing.isPresent()) {
-                User u = existing.get();
-                if (AgendaPhoneNormalizer.isValid(u.getTelefono())) {
-                    return u;
-                }
-                return userRepository.save(new User(
-                        u.getId(),
-                        u.getTenantId(),
-                        nombre,
-                        emailNorm,
-                        telefono,
-                        u.getTipoUsuario(),
-                        u.isActivo(),
-                        u.getCreatedAt(),
-                        u.getUpdatedAt()));
-            }
-            return userRepository.save(new User(
-                    null,
-                    tenantId,
-                    nombre,
-                    emailNorm,
-                    telefono,
-                    UserType.CLIENT,
-                    true,
-                    null,
-                    null
-            ));
-        }
-
-        return userRepository.save(new User(
-                null,
-                tenantId,
-                nombre,
-                null,
-                telefono,
-                UserType.CLIENT,
-                true,
-                null,
-                null
-        ));
+                request.telefonoCliente());
     }
 }
 

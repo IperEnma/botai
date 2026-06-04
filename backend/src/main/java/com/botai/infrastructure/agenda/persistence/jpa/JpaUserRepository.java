@@ -1,5 +1,6 @@
 package com.botai.infrastructure.agenda.persistence.jpa;
 
+import com.botai.application.agenda.support.AgendaPhoneNormalizer;
 import com.botai.domain.agenda.model.User;
 import com.botai.domain.agenda.repository.UserRepository;
 import com.botai.infrastructure.agenda.persistence.entity.UserEntity;
@@ -37,6 +38,17 @@ public class JpaUserRepository implements UserRepository {
     @Override
     public Optional<User> findByTenantIdAndEmail(String tenantId, String email) {
         return jpa.findByTenantIdAndEmail(tenantId, email).map(UserMapper::toDomain);
+    }
+
+    @Override
+    public Optional<User> findClientByTenantIdAndTelefono(String tenantId, String telefonoNormalized) {
+        if (tenantId == null || tenantId.isBlank() || telefonoNormalized == null || telefonoNormalized.isBlank()) {
+            return Optional.empty();
+        }
+        return jpa.findActiveClientsWithTelefono(tenantId).stream()
+                .map(UserMapper::toDomain)
+                .filter(u -> AgendaPhoneNormalizer.phonesMatch(u.getTelefono(), telefonoNormalized))
+                .findFirst();
     }
 
     @Override

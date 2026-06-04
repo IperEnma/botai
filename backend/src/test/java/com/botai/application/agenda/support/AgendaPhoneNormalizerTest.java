@@ -34,6 +34,12 @@ class AgendaPhoneNormalizerTest {
     }
 
     @Test
+    void phonesMatch_localVsInternationalUruguay() {
+        assertThat(AgendaPhoneNormalizer.phonesMatch("097205089", "59897205089")).isTrue();
+        assertThat(AgendaPhoneNormalizer.phonesMatch("59897205089", "097205089")).isTrue();
+    }
+
+    @Test
     void digitsOnly_stripsPlusAndSpaces() {
         assertThat(AgendaPhoneNormalizer.digitsOnly("+598 99-123-456")).isEqualTo("59899123456");
     }

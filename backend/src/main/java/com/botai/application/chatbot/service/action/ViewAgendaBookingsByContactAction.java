@@ -38,7 +38,7 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-AR"));
 
     private static final String BASE_SQL = """
-        SELECT b.fecha_hora_inicio, b.estado, s.nombre AS svc, bus.nombre AS bname
+        SELECT b.fecha_hora_inicio, b.estado, s.nombre AS svc, bus.nombre AS bname, u.telefono AS tel
         FROM agenda_bookings b
         JOIN agenda_services s ON s.id = b.service_id
         JOIN agenda_businesses bus ON bus.id = b.business_id
@@ -163,30 +163,29 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
     }
 
     List<BookingRow> findFutureBookingsByPhone(String tenantId, String phoneNormalized) {
-        List<String> keys = AgendaPhoneNormalizer.matchCandidates(phoneNormalized);
-        if (keys.isEmpty()) {
+        if (phoneNormalized == null || phoneNormalized.isBlank()) {
             return List.of();
         }
-        String placeholders = String.join(", ", keys.stream().map(k -> "?").toList());
         String sql = BASE_SQL
-            + " AND regexp_replace(coalesce(u.telefono,''), '\\D', '', 'g') IN (" + placeholders + ") "
-            + "ORDER BY b.fecha_hora_inicio ASC LIMIT 20";
+            + " AND u.telefono IS NOT NULL AND trim(u.telefono) <> '' "
+            + "ORDER BY b.fecha_hora_inicio ASC LIMIT 80";
         return jdbcTemplate.query(sql,
-            ps -> {
-                ps.setString(1, tenantId);
-                for (int i = 0; i < keys.size(); i++) {
-                    ps.setString(2 + i, keys.get(i));
-                }
-            },
-            (rs, rowNum) -> mapRow(rs));
+            ps -> ps.setString(1, tenantId),
+            (rs, rowNum) -> mapRowWithPhone(rs))
+            .stream()
+            .filter(row -> AgendaPhoneNormalizer.phonesMatch(row.clientPhone(), phoneNormalized))
+            .limit(20)
+            .map(BookingRowWithPhone::toBookingRow)
+            .toList();
     }
 
-    private static BookingRow mapRow(ResultSet rs) throws SQLException {
-        return new BookingRow(
+    private static BookingRowWithPhone mapRowWithPhone(ResultSet rs) throws SQLException {
+        return new BookingRowWithPhone(
             rs.getTimestamp("fecha_hora_inicio").toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime(),
             rs.getString("estado"),
             rs.getString("svc"),
-            rs.getString("bname")
+            rs.getString("bname"),
+            rs.getString("tel")
         );
     }
 
@@ -242,4 +241,11 @@ public class ViewAgendaBookingsByContactAction implements BotAction {
     record Contact(String phoneNormalized) {}
 
     record BookingRow(LocalDateTime start, String estado, String serviceName, String businessName) {}
+
+    record BookingRowWithPhone(LocalDateTime start, String estado, String serviceName, String businessName,
+                               String clientPhone) {
+        BookingRow toBookingRow() {
+            return new BookingRow(start, estado, serviceName, businessName);
+        }
+    }
 }

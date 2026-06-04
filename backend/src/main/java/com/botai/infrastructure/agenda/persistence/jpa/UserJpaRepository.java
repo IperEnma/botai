@@ -17,4 +17,8 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, UUID> {
            "AND (:q = '' OR LOWER(u.nombre) LIKE LOWER(CONCAT('%', :q, '%')) OR u.telefono LIKE CONCAT('%', :q, '%')) " +
            "ORDER BY u.nombre ASC")
     List<UserEntity> searchClients(@Param("tenantId") String tenantId, @Param("q") String q);
+
+    @Query("SELECT u FROM UserEntity u WHERE u.tenantId = :tenantId AND u.tipoUsuario = 'CLIENT' " +
+           "AND u.activo = true AND u.telefono IS NOT NULL AND u.telefono <> ''")
+    List<UserEntity> findActiveClientsWithTelefono(@Param("tenantId") String tenantId);
 }

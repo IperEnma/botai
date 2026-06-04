@@ -15,7 +15,7 @@ import '../../../widgets/agenda_phone_field.dart';
 import 'public_booking_hours.dart';
 import 'public_reservar_layout.dart';
 
-enum _BookingStep { service, staff, date, slots, review, contact }
+enum _BookingStep { service, staff, date, slots, review, contact, confirmed }
 
 const int _kBookingTotalStepsWithStaff = 6;
 const int _kBookingTotalStepsGeneral = 5;
@@ -49,6 +49,9 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   final _telCtrl = TextEditingController();
   final _contactFormKey = GlobalKey<FormState>();
   bool _submitting = false;
+  String? _confirmedServiceName;
+  String? _confirmedSlotLabel;
+  String? _confirmedDateLabel;
 
   @override
   void dispose() {
@@ -97,6 +100,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         setState(() => _step = _BookingStep.slots);
       case _BookingStep.contact:
         setState(() => _step = _BookingStep.review);
+      case _BookingStep.confirmed:
+        break;
     }
   }
 
@@ -115,6 +120,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         return withStaff ? 5 : 4;
       case _BookingStep.contact:
         return withStaff ? 6 : 5;
+      case _BookingStep.confirmed:
+        return withStaff ? 6 : 5;
     }
   }
 
@@ -132,6 +139,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         return 'Revisá tu reserva';
       case _BookingStep.contact:
         return 'Tus datos de contacto';
+      case _BookingStep.confirmed:
+        return 'Confirmación';
     }
   }
 
@@ -149,6 +158,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         return 'Resumen';
       case _BookingStep.contact:
         return 'Contacto';
+      case _BookingStep.confirmed:
+        return 'Listo';
     }
   }
 
@@ -248,31 +259,13 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '¡Turno solicitado! ${svc.nombre} · ${slot.label}',
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: theme.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-      if (widget.companySlug != null && widget.companySlug!.isNotEmpty) {
-        context.go('/reservar?company=${widget.companySlug}');
-      } else {
-        context.go('/');
-      }
+      setState(() {
+        _confirmedServiceName = svc.nombre;
+        _confirmedSlotLabel = slot.label;
+        _confirmedDateLabel = _formattedSelectedDate();
+        _step = _BookingStep.confirmed;
+        _submitting = false;
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -328,6 +321,26 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           loading: _submitting,
           onPressed: _submitting ? null : () => _confirm(business, theme),
         );
+      case _BookingStep.confirmed:
+        return _PrimaryFooterButton(
+          theme: theme,
+          label: 'Reservar otro turno',
+          onPressed: () {
+            setState(() {
+              _step = _BookingStep.service;
+              _service = null;
+              _selectedDate = null;
+              _selectedSlot = null;
+              _slotsFuture = null;
+              _confirmedServiceName = null;
+              _confirmedSlotLabel = null;
+              _confirmedDateLabel = null;
+              _nombreCtrl.clear();
+              _emailCtrl.clear();
+              _telCtrl.clear();
+            });
+          },
+        );
       default:
         return null;
     }
@@ -355,17 +368,21 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           logoUrl: business.logoUrl,
         );
 
+        final isConfirmed = _step == _BookingStep.confirmed;
+
         return PublicReservarShell(
           theme: theme,
           brandTitle: business.nombre,
-          progressCurrent: _stepIndex(_step),
+          progressCurrent: isConfirmed ? _progressTotal(_service) : _stepIndex(_step),
           progressTotal: _progressTotal(_service),
-          progressStepLabel: _stepProgressLabel(_step),
-          onBack: () => _goBack(theme, business),
-          footer: publicReservarFooterLink(
-            theme: theme,
-            onTap: () => context.go('/agenda/me/bookings'),
-          ),
+          progressStepLabel: isConfirmed ? 'Confirmación' : _stepProgressLabel(_step),
+          onBack: isConfirmed ? null : () => _goBack(theme, business),
+          footer: isConfirmed
+              ? null
+              : publicReservarFooterLink(
+                  theme: theme,
+                  onTap: () => context.go('/agenda/me/bookings'),
+                ),
           child: Column(
             children: [
               Expanded(
@@ -381,11 +398,12 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                           theme: theme,
                           subtitle: business.descripcion,
                         ),
-                      publicReservarScrollSectionTitle(
-                        theme: theme,
-                        title: _stepTitle(_step),
-                        subtitle: _stepSubtitle(_step),
-                      ),
+                      if (_step != _BookingStep.confirmed)
+                        publicReservarScrollSectionTitle(
+                          theme: theme,
+                          title: _stepTitle(_step),
+                          subtitle: _stepSubtitle(_step),
+                        ),
                       _buildStep(
                         business,
                         theme,
@@ -532,7 +550,108 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           emailCtrl: _emailCtrl,
           telCtrl: _telCtrl,
         );
+      case _BookingStep.confirmed:
+        return _BookingConfirmedStep(
+          theme: theme,
+          businessName: business.nombre,
+          serviceName: _confirmedServiceName ?? '—',
+          dateLabel: _confirmedDateLabel ?? '—',
+          slotLabel: _confirmedSlotLabel ?? '—',
+        );
     }
+  }
+}
+
+class _BookingConfirmedStep extends StatelessWidget {
+  const _BookingConfirmedStep({
+    required this.theme,
+    required this.businessName,
+    required this.serviceName,
+    required this.dateLabel,
+    required this.slotLabel,
+  });
+
+  final PublicReservarTheme theme;
+  final String businessName;
+  final String serviceName;
+  final String dateLabel;
+  final String slotLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 24),
+        Icon(Icons.check_circle_rounded, size: 72, color: t.primary),
+        const SizedBox(height: 20),
+        Text(
+          '¡Reserva solicitada!',
+          textAlign: TextAlign.center,
+          style: t.textStyle(
+            size: 24,
+            weight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Te confirmamos el turno en $businessName cuando el negocio lo revise.',
+          textAlign: TextAlign.center,
+          style: t.textStyle(color: t.textSub, size: 15),
+        ),
+        const SizedBox(height: 28),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: t.cardFill,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: t.cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _confirmRow(t, 'Servicio', serviceName),
+              const SizedBox(height: 10),
+              _confirmRow(t, 'Fecha', dateLabel),
+              const SizedBox(height: 10),
+              _confirmRow(t, 'Horario', slotLabel),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Guardá este número de WhatsApp: con el mismo teléfono podés consultar tus citas por el bot.',
+          textAlign: TextAlign.center,
+          style: t.textStyle(color: t.textSub, size: 13),
+        ),
+      ],
+    );
+  }
+
+  Widget _confirmRow(PublicReservarTheme t, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 72,
+          child: Text(
+            label,
+            style: t.textStyle(
+              color: t.textSub,
+              size: 13,
+              weight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: t.textStyle(size: 15, weight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
   }
 }
 
