@@ -9,29 +9,41 @@
 - [CLAUDE.md](CLAUDE.md) has monorepo rules (Agenda + Chatbot, package isolation).
 - Component docs override this file when guidance conflicts.
 
-## AI Skills Setup
+## AI Skills (optional setup)
 
-```bash
-./skills/setup.sh --claude    # Git Bash / WSL / macOS / Linux
-./skills/setup.ps1 -Claude    # Windows PowerShell
-./skills/skill-sync/assets/sync.sh   # After editing skill metadata
-```
+**Cursor and most agents already read `AGENTS.md` (and `backend/AGENTS.md`, `frontend/AGENTS.md`) from the repo.** You do **not** need `.claude/` or `setup` for day-to-day work.
 
-Skills live in [`skills/`](skills/) (committed). Tool-specific dirs (`.claude/skills`, etc.) are symlinks created by `setup`.
+Committed sources of truth:
+
+- [AGENTS.md](AGENTS.md) — monorepo rules + skill index
+- [CLAUDE.md](CLAUDE.md) — detailed guide
+- [skills/](skills/) — full skill procedures
+
+**Optional** local symlinks (only if skills do not show up in your IDE): [Prowler-style](https://github.com/prowler-cloud/prowler) `skills/setup.sh` for Git Bash / Mac / Linux.
+
+| OS | Command (not `./skills/setup.sh` in PowerShell — it does nothing there) |
+|----|------------------------------------------------------------------------|
+| Windows | `.\skills\setup.ps1` or `skills\setup.cmd` |
+| Git Bash | `./skills/setup.sh` |
+
+Regenerate **Available Skills** and **Action | Skill** tables after editing skill metadata: `.\skills\skill-sync\assets\sync.ps1` (Windows) or `./skills/skill-sync/assets/sync.sh` (Git Bash).
+
+Details: [skills/README.md](skills/README.md).
 
 ## Available Skills
 
 | Skill | Description | Path |
 |-------|-------------|------|
-| `botai` | Monorepo overview and navigation | [SKILL.md](skills/botai/SKILL.md) |
-| `new-agenda-feature` | End-to-end Agenda feature scaffolding | [SKILL.md](skills/new-agenda-feature/SKILL.md) |
-| `new-agenda-entity` | Entity + JPA + port + adapter + migration | [SKILL.md](skills/new-agenda-entity/SKILL.md) |
-| `new-agenda-migration` | Flyway migration only | [SKILL.md](skills/new-agenda-migration/SKILL.md) |
-| `agenda-boundary-check` | Package isolation + Agenda conventions (no cross-imports) | [SKILL.md](skills/agenda-boundary-check/SKILL.md) |
-| `new-agenda-screen` | New Flutter Agenda screen | [SKILL.md](skills/new-agenda-screen/SKILL.md) |
-| `agenda-style-check` | Flutter design system audit | [SKILL.md](skills/agenda-style-check/SKILL.md) |
-| `skill-creator` | Author new skills | [SKILL.md](skills/skill-creator/SKILL.md) |
-| `skill-sync` | Regenerate Auto-invoke tables | [SKILL.md](skills/skill-sync/SKILL.md) |
+| `agenda-boundary-check` | Chequeo pre-commit de aislamiento entre paquetes agenda y chatbot (sin imports cruzados) y convenciones Agenda (prefi... | [SKILL.md](skills/agenda-boundary-check/SKILL.md) |
+| `agenda-style-check` | Auditoría rápida de consistencia visual de uno o varios archivos Flutter del módulo Agenda. Verifica tokens de col... | [SKILL.md](skills/agenda-style-check/SKILL.md) |
+| `botai` | Project overview and navigation for the botai monorepo (Agenda + Chatbot). | [SKILL.md](skills/botai/SKILL.md) |
+| `new-agenda-entity` | Crea una entidad nueva del módulo AGENDA y sus piezas mínimas — domain POJO + JPA entity con prefijo agenda_ + Sp... | [SKILL.md](skills/new-agenda-entity/SKILL.md) |
+| `new-agenda-feature` | Scaffolding end-to-end de una feature nueva del módulo AGENDA. Crea domain model + port + adapter JPA + use case + c... | [SKILL.md](skills/new-agenda-feature/SKILL.md) |
+| `new-agenda-migration` | Crea una migración Flyway nueva bajo backend/src/main/resources/db/migration/agenda/ siguiendo la convención V<N>__... | [SKILL.md](skills/new-agenda-migration/SKILL.md) |
+| `new-agenda-screen` | Scaffolding de una nueva pantalla Flutter del módulo Agenda. Genera el archivo con los tokens de diseño correctos, ... | [SKILL.md](skills/new-agenda-screen/SKILL.md) |
+| `skill-creator` | Create or update botai Agent Skills under skills/. | [SKILL.md](skills/skill-creator/SKILL.md) |
+| `skill-sync` | Syncs skill metadata to AGENTS.md Auto-invoke sections. | [SKILL.md](skills/skill-sync/SKILL.md) |
+
 
 ## Available Subagents (Cursor)
 
@@ -52,12 +64,15 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 
 | Action | Skill |
 |--------|-------|
+| After creating/modifying a skill | `skill-creator` |
 | After creating/modifying a skill | `skill-sync` |
 | Before committing Agenda changes | `agenda-boundary-check` |
 | Creating new skills | `skill-creator` |
 | General botai development questions | `botai` |
+| Navigating botai monorepo (backend + frontend) | `botai` |
 | Regenerate AGENTS.md Auto-invoke tables (sync.sh) | `skill-sync` |
 | Troubleshoot why a skill is missing from AGENTS.md auto-invoke | `skill-sync` |
+| Understanding Agenda vs Chatbot package boundaries | `botai` |
 | Verifying agenda/chatbot package isolation (no cross-imports) | `agenda-boundary-check` |
 
 ---

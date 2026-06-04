@@ -5,7 +5,10 @@ metadata:
   author: botai
   version: "1.0"
   scope: [backend]
-  auto_invoke: "Creating a new Agenda entity and persistence layer"
+  auto_invoke:
+    - "Creating a new Agenda entity and persistence layer"
+    - "Adding JPA entity with agenda_ table prefix"
+    - "Creating domain port and Jpa adapter for Agenda"
 ---
 
 # new-agenda-entity

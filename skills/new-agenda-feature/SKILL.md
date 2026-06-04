@@ -5,7 +5,10 @@ metadata:
   author: botai
   version: "1.0"
   scope: [backend]
-  auto_invoke: "Adding a full Agenda feature across layers"
+  auto_invoke:
+    - "Adding a full Agenda feature across layers"
+    - "Creating Agenda use case and REST controller"
+    - "Adding new Agenda API endpoint under /api/agenda/"
 ---
 
 # new-agenda-feature

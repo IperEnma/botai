@@ -5,7 +5,10 @@ metadata:
   author: botai
   version: "1.0"
   scope: [frontend]
-  auto_invoke: "Creating a new Agenda Flutter screen"
+  auto_invoke:
+    - "Creating a new Agenda Flutter screen"
+    - "Registering Agenda route in go_router"
+    - "Scaffolding Flutter feature under lib/features/agenda/"
 ---
 
 # new-agenda-screen

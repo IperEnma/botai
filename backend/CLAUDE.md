@@ -6,13 +6,12 @@ Scoped to `backend/`. Root rules: [AGENTS.md](../AGENTS.md). Full guide: [CLAUDE
 
 ## Available Skills
 
-| Skill | Description | Path |
-|-------|-------------|------|
-| `agenda-boundary-check` | Chequeo pre-commit de aislamiento entre paquetes agenda y chatbot (sin imports cruzados) y convenciones Agenda (prefi... | [SKILL.md](../skills/agenda-boundary-check/SKILL.md) |
-| `new-agenda-entity` | Crea una entidad nueva del módulo AGENDA y sus piezas mínimas — domain POJO + JPA entity con prefijo agenda_ + Sp... | [SKILL.md](../skills/new-agenda-entity/SKILL.md) |
-| `new-agenda-feature` | Scaffolding end-to-end de una feature nueva del módulo AGENDA. Crea domain model + port + adapter JPA + use case + c... | [SKILL.md](../skills/new-agenda-feature/SKILL.md) |
-| `new-agenda-migration` | Crea una migración Flyway nueva bajo backend/src/main/resources/db/migration/agenda/ siguiendo la convención V<N>__... | [SKILL.md](../skills/new-agenda-migration/SKILL.md) |
-
+| Skill | Path |
+|-------|------|
+| `new-agenda-feature` | [SKILL.md](../skills/new-agenda-feature/SKILL.md) |
+| `new-agenda-entity` | [SKILL.md](../skills/new-agenda-entity/SKILL.md) |
+| `new-agenda-migration` | [SKILL.md](../skills/new-agenda-migration/SKILL.md) |
+| `agenda-boundary-check` | [SKILL.md](../skills/agenda-boundary-check/SKILL.md) |
 
 ### Auto-invoke Skills
 
@@ -21,15 +20,9 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 | Action | Skill |
 |--------|-------|
 | Adding a full Agenda feature across layers | `new-agenda-feature` |
-| Adding Flyway script under db/migration/agenda/ | `new-agenda-migration` |
-| Adding JPA entity with agenda_ table prefix | `new-agenda-entity` |
-| Adding new Agenda API endpoint under /api/agenda/ | `new-agenda-feature` |
 | Before committing Agenda changes | `agenda-boundary-check` |
 | Creating a new Agenda entity and persistence layer | `new-agenda-entity` |
-| Creating Agenda use case and REST controller | `new-agenda-feature` |
-| Creating domain port and Jpa adapter for Agenda | `new-agenda-entity` |
 | Creating or updating Agenda Flyway migrations | `new-agenda-migration` |
-| Schema change for Agenda tables (agenda_* prefix) | `new-agenda-migration` |
 | Verifying agenda/chatbot package isolation (no cross-imports) | `agenda-boundary-check` |
 
 ---

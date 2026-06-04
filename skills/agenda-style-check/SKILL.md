@@ -5,7 +5,9 @@ metadata:
   author: botai
   version: "1.0"
   scope: [frontend]
-  auto_invoke: "Reviewing Agenda Flutter UI against the design system"
+  auto_invoke:
+    - "Reviewing Agenda Flutter UI against the design system"
+    - "Auditing Agenda screen for design tokens and responsive layout"
 ---
 
 # agenda-style-check

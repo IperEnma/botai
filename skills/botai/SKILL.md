@@ -7,7 +7,10 @@ metadata:
   author: botai
   version: "1.1"
   scope: [root]
-  auto_invoke: "General botai development questions"
+  auto_invoke:
+    - "General botai development questions"
+    - "Navigating botai monorepo (backend + frontend)"
+    - "Understanding Agenda vs Chatbot package boundaries"
 ---
 
 # Botai

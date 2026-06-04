@@ -5,7 +5,10 @@ metadata:
   author: botai
   version: "1.0"
   scope: [backend]
-  auto_invoke: "Creating or updating Agenda Flyway migrations"
+  auto_invoke:
+    - "Creating or updating Agenda Flyway migrations"
+    - "Schema change for Agenda tables (agenda_* prefix)"
+    - "Adding Flyway script under db/migration/agenda/"
 ---
 
 # new-agenda-migration

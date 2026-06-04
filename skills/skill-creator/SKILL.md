@@ -38,9 +38,8 @@ metadata:
 
 1. Create `skills/<name>/SKILL.md` (imperative steps, examples, boundaries).
 2. Set `metadata.scope` and `metadata.auto_invoke`.
-3. Run `./skills/skill-sync/assets/sync.sh`.
-4. Run `./skills/setup.sh --claude` (or `setup.ps1`) if symlinks are missing.
-5. Add the skill to the **Available Skills** table in root `AGENTS.md` if it is a major skill.
+3. Run `./skills/skill-sync/assets/sync.sh` (regenerates **Available Skills** and **Action | Skill** tables in all `AGENTS.md` — Prowler-style).
+4. Run `./skills/setup.ps1 -Claude` (Windows) or `./skills/setup.sh --claude` if symlinks are missing.
 
 ## Scope guide
 

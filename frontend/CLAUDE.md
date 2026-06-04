@@ -6,11 +6,10 @@ Scoped to `frontend/`. Root rules: [AGENTS.md](../AGENTS.md).
 
 ## Available Skills
 
-| Skill | Description | Path |
-|-------|-------------|------|
-| `agenda-style-check` | Auditoría rápida de consistencia visual de uno o varios archivos Flutter del módulo Agenda. Verifica tokens de col... | [SKILL.md](../skills/agenda-style-check/SKILL.md) |
-| `new-agenda-screen` | Scaffolding de una nueva pantalla Flutter del módulo Agenda. Genera el archivo con los tokens de diseño correctos, ... | [SKILL.md](../skills/new-agenda-screen/SKILL.md) |
-
+| Skill | Path |
+|-------|------|
+| `new-agenda-screen` | [SKILL.md](../skills/new-agenda-screen/SKILL.md) |
+| `agenda-style-check` | [SKILL.md](../skills/agenda-style-check/SKILL.md) |
 
 ### Auto-invoke Skills
 
@@ -18,11 +17,8 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 
 | Action | Skill |
 |--------|-------|
-| Auditing Agenda screen for design tokens and responsive layout | `agenda-style-check` |
 | Creating a new Agenda Flutter screen | `new-agenda-screen` |
-| Registering Agenda route in go_router | `new-agenda-screen` |
 | Reviewing Agenda Flutter UI against the design system | `agenda-style-check` |
-| Scaffolding Flutter feature under lib/features/agenda/ | `new-agenda-screen` |
 
 ---
 
