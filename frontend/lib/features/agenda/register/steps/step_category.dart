@@ -55,8 +55,11 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
   List<Category> _suggestions(List<Category> all) {
     final available = all.where((c) => !_selected.any((s) => s.id == c.id));
     final q = _query.toLowerCase().trim();
-    if (q.isEmpty) return available.toList();
-    return available.where((c) => c.nombre.toLowerCase().contains(q)).toList();
+    if (q.isEmpty) return available.take(5).toList();
+    return available
+        .where((c) => c.nombre.toLowerCase().contains(q))
+        .take(5)
+        .toList();
   }
 
   void _selectCategory(Category cat, List<Category> all) {

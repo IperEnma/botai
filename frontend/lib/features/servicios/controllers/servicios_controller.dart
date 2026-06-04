@@ -5,6 +5,7 @@ import '../../../models/agenda/business.dart';
 import '../../../models/agenda/service_scheduling_mode.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
+import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../models/business_category.dart';
@@ -55,7 +56,7 @@ class ServiciosState {
   final List<StaffMember> staff;
   final ServicioFilter filter;
   final String query;
-  final BusinessCategory category;
+  final List<BusinessCategory> categories;
   final bool isLoading;
   final String? error;
 
@@ -64,7 +65,7 @@ class ServiciosState {
     this.staff = const [],
     this.filter = ServicioFilter.all,
     this.query = '',
-    this.category = BusinessCategory.otra,
+    this.categories = const [BusinessCategory.otra],
     this.isLoading = false,
     this.error,
   });
@@ -74,7 +75,7 @@ class ServiciosState {
     List<StaffMember>? staff,
     ServicioFilter? filter,
     String? query,
-    BusinessCategory? category,
+    List<BusinessCategory>? categories,
     bool? isLoading,
     Object? error = _sentinel,
   }) =>
@@ -83,12 +84,20 @@ class ServiciosState {
         staff: staff ?? this.staff,
         filter: filter ?? this.filter,
         query: query ?? this.query,
-        category: category ?? this.category,
+        categories: categories ?? this.categories,
         isLoading: isLoading ?? this.isLoading,
         error: identical(error, _sentinel) ? this.error : error as String?,
       );
 
   static const _sentinel = Object();
+
+  /// Primera categoría (fallback `otra` si la lista está vacía).
+  BusinessCategory get primaryCategory =>
+      categories.isEmpty ? BusinessCategory.otra : categories.first;
+
+  /// `true` si la única categoría es `otra` — gatilla el modo "desde cero" directo.
+  bool get isOnlyOtra =>
+      categories.length == 1 && categories.first == BusinessCategory.otra;
 
   int get countActive => items.where((s) => s.active).length;
   int get countInactive => items.where((s) => !s.active).length;
@@ -115,8 +124,24 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
     final business =
         businesses.where((b) => b.id == _key.businessId).firstOrNull;
     if (business == null || business.categorias.isEmpty) return;
-    final cat = BusinessCategory.fromSlug(business.categorias.first);
-    if (state.category != cat) state = state.copyWith(category: cat);
+    final seen = <BusinessCategory>{};
+    final cats = <BusinessCategory>[];
+    for (final slug in business.categorias) {
+      final c = BusinessCategory.fromSlug(slug);
+      if (seen.add(c)) cats.add(c);
+    }
+    if (cats.isEmpty) return;
+    if (!_listEquals(state.categories, cats)) {
+      state = state.copyWith(categories: cats);
+    }
+  }
+
+  bool _listEquals(List<BusinessCategory> a, List<BusinessCategory> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   final Map<String, ServicioExtras> _extras = {};
@@ -265,8 +290,38 @@ class ServiciosNotifier extends StateNotifier<ServiciosState> {
     state = state.copyWith(items: state.items.where((s) => s.id != id).toList());
   }
 
-  void changeCategory(BusinessCategory category) =>
-      state = state.copyWith(category: category);
+  Future<void> changeCategory(BusinessCategory category) =>
+      setCategories([category]);
+
+  Future<void> setCategories(List<BusinessCategory> categories) async {
+    final newList = categories.isEmpty
+        ? const [BusinessCategory.otra]
+        : categories;
+
+    // Optimistic UI update — el listener de businessesProvider reconcilia tras el reload.
+    state = state.copyWith(categories: newList);
+
+    try {
+      final all = await _ref.read(publicCategoriesProvider.future);
+      final ids = <String>[];
+      for (final c in newList) {
+        if (c == BusinessCategory.otra) continue; // sin equivalente en backend
+        final match = all.where((cat) => cat.slug == c.slug).firstOrNull;
+        if (match != null) ids.add(match.id);
+      }
+
+      await _ref
+          .read(businessesProvider(_key.tenantId).notifier)
+          .associateCategories(
+            businessId: _key.businessId,
+            categoryIds: ids,
+          );
+    } catch (e) {
+      state = state.copyWith(
+        error: 'No se pudieron guardar las categorías: $e',
+      );
+    }
+  }
 
   void duplicate(ServicioItem s) async {
     final extras = _extras[s.id] ?? const ServicioExtras();

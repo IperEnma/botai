@@ -62,7 +62,7 @@ class ServiciosScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
             CategoryBar(
-              category: state.category,
+              categories: state.categories,
               onChangeCategory: () => showChangeCategoryModal(context, _key),
             ),
             const SizedBox(height: 20),

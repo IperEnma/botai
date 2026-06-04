@@ -1,21 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../models/agenda/service_scheduling_mode.dart';
 import '../../../agenda/register/konecta_tokens.dart';
 import '../../data/template_catalog.dart';
 import '../../models/business_category.dart';
 import '../../models/service_template.dart';
 
+/// Datos de scheduling que aplica a TODOS los servicios creados desde sugerencias.
+class SuggestedSchedulingData {
+  final ServiceSchedulingMode mode;
+  final List<String> professionalIds;
+
+  const SuggestedSchedulingData({
+    required this.mode,
+    required this.professionalIds,
+  });
+
+  bool get usesStaff => mode == ServiceSchedulingMode.byStaff;
+}
+
 class SuggestedMode extends StatefulWidget {
   const SuggestedMode({
     super.key,
-    required this.category,
+    required this.categories,
     required this.existingNames,
     required this.onSelectionChanged,
     required this.onSwitchToCustom,
   });
 
-  final BusinessCategory category;
+  final List<BusinessCategory> categories;
   final Set<String> existingNames;
   final ValueChanged<Set<String>> onSelectionChanged;
   final VoidCallback onSwitchToCustom;
@@ -27,9 +41,16 @@ class SuggestedMode extends StatefulWidget {
 class _SuggestedModeState extends State<SuggestedMode> {
   final Set<String> _selected = {};
 
+  String _categoriesLabel(List<BusinessCategory> cats) {
+    final names = cats.map((c) => c.displayName).toList();
+    if (names.length <= 1) return names.isEmpty ? '' : names.first;
+    if (names.length == 2) return '${names[0]} y ${names[1]}';
+    return '${names.sublist(0, names.length - 1).join(', ')} y ${names.last}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final templates = TemplateCatalog.forCategory(widget.category);
+    final templates = TemplateCatalog.forCategories(widget.categories);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -58,7 +79,7 @@ class _SuggestedModeState extends State<SuggestedMode> {
                 ),
                 Expanded(
                   child: Text(
-                    'Mostramos sugerencias típicas para ${widget.category.displayName}. '
+                    'Mostramos sugerencias típicas para ${_categoriesLabel(widget.categories)}. '
                     'Tocá para agregarlas — podés editar precio y duración después.',
                     style: GoogleFonts.inter(
                       fontSize: 12,

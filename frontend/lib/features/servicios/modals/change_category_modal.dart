@@ -7,6 +7,8 @@ import '../../agenda/register/konecta_tokens.dart';
 import '../controllers/servicios_controller.dart';
 import '../models/business_category.dart';
 
+const int _kMaxCategories = 3;
+
 void showChangeCategoryModal(BuildContext context, ServiciosKey key) {
   showDialog(
     context: context,
@@ -26,16 +28,78 @@ class _ChangeCategoryModal extends ConsumerStatefulWidget {
 }
 
 class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
-  BusinessCategory? _target;
+  late List<BusinessCategory> _selected;
+  late List<BusinessCategory> _initial;
 
-  void _confirm() {
-    if (_target == null) return;
-    ref.read(serviciosProvider(widget.servKey).notifier).changeCategory(_target!);
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
+  @override
+  void initState() {
+    super.initState();
+    final cats =
+        ref.read(serviciosProvider(widget.servKey)).categories;
+    _initial = List<BusinessCategory>.from(cats);
+    _selected = List<BusinessCategory>.from(cats);
+  }
+
+  bool get _isDirty {
+    if (_selected.length != _initial.length) return true;
+    final initSet = _initial.toSet();
+    for (final c in _selected) {
+      if (!initSet.contains(c)) return true;
+    }
+    return false;
+  }
+
+  bool get _atLimit => _selected.length >= _kMaxCategories;
+  bool get _hasOtra => _selected.contains(BusinessCategory.otra);
+  bool get _hasNonOtra =>
+      _selected.any((c) => c != BusinessCategory.otra);
+
+  bool _isBlocked(BusinessCategory cat) {
+    if (_selected.contains(cat)) return false;
+    if (_atLimit) return true;
+    final isOtra = cat == BusinessCategory.otra;
+    if (isOtra && _hasNonOtra) return true;
+    if (!isOtra && _hasOtra) return true;
+    return false;
+  }
+
+  void _toggle(BusinessCategory cat) {
+    setState(() {
+      if (_selected.contains(cat)) {
+        _selected.remove(cat);
+      } else if (!_isBlocked(cat)) {
+        _selected.add(cat);
+      }
+    });
+  }
+
+  bool _saving = false;
+
+  Future<void> _confirm() async {
+    if (_selected.isEmpty || !_isDirty || _saving) return;
+    setState(() => _saving = true);
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final snapshot = List<BusinessCategory>.from(_selected);
+
+    try {
+      await ref
+          .read(serviciosProvider(widget.servKey).notifier)
+          .setCategories(snapshot);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+
+    if (!mounted) return;
+    navigator.pop();
+    final label = snapshot.length == 1
+        ? snapshot.first.displayName
+        : '${snapshot.length} categorías';
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
-          'Categoría cambiada a ${_target!.displayName}',
+          'Categorías actualizadas: $label',
           style: GoogleFonts.inter(fontSize: 13, color: Colors.white),
         ),
         backgroundColor: KTokens.ink,
@@ -58,14 +122,12 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(serviciosProvider(widget.servKey));
     final businessesState =
         ref.watch(businessesProvider(widget.servKey.tenantId));
     final business = businessesState.items
         .where((b) => b.id == widget.servKey.businessId)
         .firstOrNull;
     final sinceLabel = _sinceLabel(business?.createdAt);
-    final current = state.category;
 
     return Dialog(
       backgroundColor: Colors.white,
@@ -79,25 +141,26 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             _ModalHeader(
-              current: current,
+              isMulti: _initial.length > 1,
               onClose: () => Navigator.of(context).pop(),
             ),
             const Divider(height: 1, color: KTokens.border),
 
-            // Scrollable body
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Current category row
+                    // Current categories row
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
-                          'CATEGORÍA ACTUAL',
+                          _initial.length > 1
+                              ? 'CATEGORÍAS ACTUALES'
+                              : 'CATEGORÍA ACTUAL',
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 10,
                             letterSpacing: 1.2,
@@ -105,24 +168,38 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: KTokens.accent,
-                            shape: BoxShape.circle,
+                        Expanded(
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              for (final c in _initial)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: KTokens.accent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      c.displayName,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: KTokens.accent,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          current.displayName,
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: KTokens.accent,
-                          ),
-                        ),
-                        const Spacer(),
                         if (sinceLabel.isNotEmpty)
                           Text(
                             sinceLabel,
@@ -137,17 +214,36 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                     const Divider(color: KTokens.border, height: 1),
                     const SizedBox(height: 16),
 
-                    Text(
-                      'ELEGÍ UNA NUEVA',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
-                        letterSpacing: 1.4,
-                        color: KTokens.inkSoft,
-                      ),
+                    // Section header with counter
+                    Row(
+                      children: [
+                        Text(
+                          'ELEGÍ HASTA $_kMaxCategories',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 10,
+                            letterSpacing: 1.4,
+                            color: KTokens.inkSoft,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${_selected.length}/$_kMaxCategories',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 10,
+                            letterSpacing: 1.0,
+                            color: _atLimit
+                                ? KTokens.accent
+                                : KTokens.inkSoft,
+                            fontWeight: _atLimit
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
 
-                    // Category grid
+                    // Category grid (multi-select)
                     GridView.count(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -156,14 +252,13 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
                       children: BusinessCategory.values.map((cat) {
-                        final isCurrent = cat == current;
-                        final isSelected = _target == cat;
+                        final isSelected = _selected.contains(cat);
+                        final isInitial = _initial.contains(cat);
+                        final disabled = _isBlocked(cat);
                         return GestureDetector(
-                          onTap: isCurrent
-                              ? null
-                              : () => setState(() => _target = cat),
+                          onTap: disabled ? null : () => _toggle(cat),
                           child: Opacity(
-                            opacity: isCurrent ? 0.5 : 1.0,
+                            opacity: disabled ? 0.4 : 1.0,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
                               padding: const EdgeInsets.symmetric(
@@ -178,7 +273,8 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                                       : KTokens.border,
                                   width: isSelected ? 1.5 : 1.0,
                                 ),
-                                borderRadius: BorderRadius.circular(KTokens.rSm),
+                                borderRadius:
+                                    BorderRadius.circular(KTokens.rSm),
                               ),
                               child: Row(
                                 children: [
@@ -191,7 +287,7 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                                       children: [
                                         Text(
                                           cat.displayName +
-                                              (isCurrent ? ' · ACTUAL' : ''),
+                                              (isInitial ? ' · ACTUAL' : ''),
                                           style: GoogleFonts.inter(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
@@ -212,6 +308,12 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                                       ],
                                     ),
                                   ),
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_rounded,
+                                      size: 16,
+                                      color: KTokens.accent,
+                                    ),
                                 ],
                               ),
                             ),
@@ -220,23 +322,56 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                       }).toList(),
                     ),
 
-                    // Warning (visible when target selected and != current)
-                    if (_target != null && _target != current) ...[
+                    if (_atLimit) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Llegaste al máximo. Desmarcá una para elegir otra.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: KTokens.inkMuted,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ] else if (_hasOtra) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        '"Otra" no se combina con otras categorías. Desmarcala para elegir alguna específica.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: KTokens.inkMuted,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ] else if (_hasNonOtra) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        '"Otra" no se combina con categorías específicas.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: KTokens.inkMuted,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+
+                    if (_isDirty && _selected.isNotEmpty) ...[
                       const SizedBox(height: 20),
-                      _WarningBox(targetName: _target!.displayName),
+                      const _WarningBox(),
                     ],
                   ],
                 ),
               ),
             ),
 
-            // Footer
             const Divider(height: 1, color: KTokens.border),
             _ModalFooter(
-              target: _target,
-              current: current,
-              onCancel: () => Navigator.of(context).pop(),
-              onConfirm: _target != null && _target != current ? _confirm : null,
+              selectedCount: _selected.length,
+              isDirty: _isDirty,
+              saving: _saving,
+              onCancel: _saving ? null : () => Navigator.of(context).pop(),
+              onConfirm: _selected.isNotEmpty && _isDirty && !_saving
+                  ? _confirm
+                  : null,
             ),
           ],
         ),
@@ -249,11 +384,11 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
 
 class _ModalHeader extends StatelessWidget {
   const _ModalHeader({
-    required this.current,
+    required this.isMulti,
     required this.onClose,
   });
 
-  final BusinessCategory current;
+  final bool isMulti;
   final VoidCallback onClose;
 
   @override
@@ -277,7 +412,7 @@ class _ModalHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Cambiar categoría',
+                  isMulti ? 'Cambiar categorías' : 'Cambiar categoría',
                   style: GoogleFonts.inter(
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
@@ -286,7 +421,7 @@ class _ModalHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'La categoría define las sugerencias disponibles.',
+                  'Elegí hasta $_kMaxCategories. Definen las sugerencias disponibles.',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     color: KTokens.inkMuted,
@@ -310,9 +445,7 @@ class _ModalHeader extends StatelessWidget {
 // ─── Warning box ──────────────────────────────────────────────────────────────
 
 class _WarningBox extends StatelessWidget {
-  const _WarningBox({required this.targetName});
-
-  final String targetName;
+  const _WarningBox();
 
   @override
   Widget build(BuildContext context) {
@@ -332,7 +465,7 @@ class _WarningBox extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Cambiar a $targetName afecta tu catálogo actual',
+                  'Cambio en categorías afecta tu catálogo de sugerencias',
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -343,10 +476,10 @@ class _WarningBox extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _WarnLine(
-            'LAS SUGERENCIAS DE LA CATEGORÍA ACTUAL SE REEMPLAZAN POR LAS DE $targetName'.toUpperCase(),
+          const _WarnLine(
+            'LAS SUGERENCIAS SE AJUSTAN A LAS CATEGORÍAS SELECCIONADAS',
           ),
-          _WarnLine('TURNOS Y PROFESIONALES NO CAMBIAN'),
+          const _WarnLine('TURNOS Y PROFESIONALES NO CAMBIAN'),
         ],
       ),
     );
@@ -391,22 +524,28 @@ class _WarnLine extends StatelessWidget {
 
 class _ModalFooter extends StatelessWidget {
   const _ModalFooter({
-    required this.target,
-    required this.current,
+    required this.selectedCount,
+    required this.isDirty,
+    required this.saving,
     required this.onCancel,
     required this.onConfirm,
   });
 
-  final BusinessCategory? target;
-  final BusinessCategory current;
-  final VoidCallback onCancel;
+  final int selectedCount;
+  final bool isDirty;
+  final bool saving;
+  final VoidCallback? onCancel;
   final VoidCallback? onConfirm;
 
   @override
   Widget build(BuildContext context) {
-    final label = target != null && target != current
-        ? 'Cambiar a ${target!.displayName} →'
-        : 'Seleccioná una categoría';
+    final label = selectedCount == 0
+        ? 'Seleccioná al menos una'
+        : (!isDirty
+            ? 'Sin cambios'
+            : (selectedCount == 1
+                ? 'Guardar 1 categoría →'
+                : 'Guardar $selectedCount categorías →'));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -440,7 +579,16 @@ class _ModalFooter extends StatelessWidget {
               textStyle:
                   GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
             ),
-            child: Text(label),
+            child: saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(label),
           ),
         ],
       ),

@@ -19,6 +19,18 @@ enum BusinessCategory {
         _ => BusinessCategory.otra,
       };
 
+  /// Slug usado por el backend (coincide con `agenda_categories.slug`).
+  String get slug => switch (this) {
+        BusinessCategory.peluqueria => 'peluqueria',
+        BusinessCategory.barberia => 'barberia',
+        BusinessCategory.manicure => 'manicure',
+        BusinessCategory.pedicure => 'pedicure',
+        BusinessCategory.spa => 'spa',
+        BusinessCategory.estetica => 'estetica',
+        BusinessCategory.yogaPilates => 'yoga',
+        BusinessCategory.otra => 'otra',
+      };
+
   String get displayName => switch (this) {
         BusinessCategory.peluqueria => 'Peluquería',
         BusinessCategory.barberia => 'Barbería',
