@@ -7,6 +7,19 @@ class TemplateCatalog {
   static List<ServiceTemplate> forCategory(BusinessCategory c) =>
       _catalog[c] ?? [];
 
+  /// Aggrega templates de varias categorías deduplicando por id (preserva el orden
+  /// de aparición — primera categoría primero).
+  static List<ServiceTemplate> forCategories(List<BusinessCategory> cats) {
+    final seen = <String>{};
+    final out = <ServiceTemplate>[];
+    for (final c in cats) {
+      for (final t in forCategory(c)) {
+        if (seen.add(t.id)) out.add(t);
+      }
+    }
+    return out;
+  }
+
   static const _catalog = <BusinessCategory, List<ServiceTemplate>>{
     BusinessCategory.peluqueria: [
       ServiceTemplate(

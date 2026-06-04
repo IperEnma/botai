@@ -152,7 +152,7 @@ class _CustomModeState extends State<CustomMode> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1. Nombre
-          _EyebrowLabel('NOMBRE DEL SERVICIO'),
+          EyebrowLabel('NOMBRE DEL SERVICIO'),
           const SizedBox(height: 6),
           TextField(
             controller: _nameCtrl,
@@ -186,7 +186,7 @@ class _CustomModeState extends State<CustomMode> {
           const SizedBox(height: 20),
 
           // 2. Descripción
-          _EyebrowLabel('DESCRIPCIÓN · opcional'),
+          EyebrowLabel('DESCRIPCIÓN · opcional'),
           const SizedBox(height: 6),
           _DescriptionField(
             controller: _descCtrl,
@@ -376,18 +376,18 @@ class _CustomModeState extends State<CustomMode> {
           ),
           const SizedBox(height: 20),
 
-          _EyebrowLabel('CÓMO SE AGENDA'),
+          EyebrowLabel('CÓMO SE AGENDA'),
           const SizedBox(height: 10),
-          _SchedulingModePicker(
+          SchedulingModePicker(
             value: _schedulingMode,
             onChanged: _setSchedulingMode,
           ),
           if (_schedulingMode == ServiceSchedulingMode.byStaff) ...[
             const SizedBox(height: 16),
-            _StaffAssignmentHint(),
+            StaffAssignmentHint(),
             const SizedBox(height: 12),
             if (_activeStaff.isEmpty)
-              _EmptyStaffCallout(
+              EmptyStaffCallout(
                 onCreate: widget.servKey == null
                     ? null
                     : () async {
@@ -404,7 +404,7 @@ class _CustomModeState extends State<CustomMode> {
                       },
               )
             else ...[
-              _EyebrowLabel('PROFESIONALES QUE LO REALIZAN'),
+              EyebrowLabel('PROFESIONALES QUE LO REALIZAN'),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -507,8 +507,8 @@ class _CustomModeState extends State<CustomMode> {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-class _EyebrowLabel extends StatelessWidget {
-  const _EyebrowLabel(this.text);
+class EyebrowLabel extends StatelessWidget {
+  const EyebrowLabel(this.text, {super.key});
   final String text;
 
   @override
@@ -642,8 +642,9 @@ class _CheckRow extends StatelessWidget {
   }
 }
 
-class _SchedulingModePicker extends StatelessWidget {
-  const _SchedulingModePicker({
+class SchedulingModePicker extends StatelessWidget {
+  const SchedulingModePicker({
+    super.key,
     required this.value,
     required this.onChanged,
   });
@@ -738,7 +739,9 @@ class _ModeCard extends StatelessWidget {
   }
 }
 
-class _StaffAssignmentHint extends StatelessWidget {
+class StaffAssignmentHint extends StatelessWidget {
+  const StaffAssignmentHint({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -762,8 +765,8 @@ class _StaffAssignmentHint extends StatelessWidget {
   }
 }
 
-class _EmptyStaffCallout extends StatelessWidget {
-  const _EmptyStaffCallout({this.onCreate});
+class EmptyStaffCallout extends StatelessWidget {
+  const EmptyStaffCallout({super.key, this.onCreate});
 
   final VoidCallback? onCreate;
 
