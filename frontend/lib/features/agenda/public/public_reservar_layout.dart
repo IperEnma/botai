@@ -746,12 +746,13 @@ class PublicBranchTile extends StatelessWidget {
 Widget publicReservarFooterLink({
   required PublicReservarTheme theme,
   required VoidCallback onTap,
+  String label = 'Ver o cancelar mis turnos',
 }) {
   return Center(
     child: TextButton(
       onPressed: onTap,
       child: Text(
-        'Ver o cancelar mis turnos',
+        label,
         style: theme.textStyle(
           size: 14,
           weight: FontWeight.w600,

@@ -12,7 +12,42 @@ import java.util.Optional;
  */
 public final class AgendaClientResolver {
 
+    /** Placeholder hasta que el cliente indique su nombre al reservar. */
+    public static final String PENDING_NAME = "Cliente";
+
     private AgendaClientResolver() {}
+
+    public record ClientEnsureResult(User user, boolean needsName) {}
+
+    /**
+     * Devuelve el cliente existente por teléfono o crea uno mínimo (nombre pendiente).
+     */
+    public static ClientEnsureResult ensureClientByPhone(UserRepository userRepository,
+                                                         String tenantId,
+                                                         String telefonoRaw) {
+        String phoneNorm = AgendaPhoneNormalizer.normalize(telefonoRaw);
+        if (!AgendaPhoneNormalizer.isValid(phoneNorm)) {
+            throw new IllegalArgumentException("Teléfono obligatorio (mínimo 7 dígitos)");
+        }
+        Optional<User> byPhone = userRepository.findClientByTenantIdAndTelefono(tenantId, phoneNorm);
+        if (byPhone.isPresent()) {
+            User u = byPhone.get();
+            boolean needsName = PENDING_NAME.equals(u.getNombre());
+            return new ClientEnsureResult(u, needsName);
+        }
+        User created = userRepository.save(new User(
+                null,
+                tenantId,
+                PENDING_NAME,
+                null,
+                phoneNorm,
+                UserType.CLIENT,
+                true,
+                null,
+                null
+        ));
+        return new ClientEnsureResult(created, true);
+    }
 
     public static User resolveOrCreate(UserRepository userRepository,
                                        String tenantId,

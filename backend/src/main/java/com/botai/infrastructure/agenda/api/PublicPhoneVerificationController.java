@@ -5,12 +5,14 @@ import com.botai.application.agenda.dto.SendPhoneVerificationResponse;
 import com.botai.application.agenda.dto.VerifyPhoneVerificationRequest;
 import com.botai.application.agenda.dto.VerifyPhoneVerificationResponse;
 import com.botai.application.agenda.support.AgendaPhoneNormalizer;
-import com.botai.application.agenda.support.AgendaPhoneVerificationService;
+import com.botai.application.agenda.support.AgendaPublicClientSessionService;
+import com.botai.application.agenda.usecase.publicclient.VerifyPublicClientPhoneUseCase;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,16 +24,22 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/agenda/public/businesses/{businessId}/phone-verification")
-@Tag(name = "Agenda Public · Phone verification", description = "OTP por WhatsApp al reservar (confirmar titularidad del teléfono)")
+@Tag(name = "Agenda Public · Phone verification", description = "OTP por WhatsApp → sesión de cliente público")
 public class PublicPhoneVerificationController {
 
     private final BusinessRepository businessRepository;
-    private final AgendaPhoneVerificationService verificationService;
+    private final AgendaPublicClientSessionService sessionService;
+    private final VerifyPublicClientPhoneUseCase verifyPublicClientPhoneUseCase;
+    private final boolean verificationEnabled;
 
     public PublicPhoneVerificationController(BusinessRepository businessRepository,
-                                           AgendaPhoneVerificationService verificationService) {
+                                           AgendaPublicClientSessionService sessionService,
+                                           VerifyPublicClientPhoneUseCase verifyPublicClientPhoneUseCase,
+                                           @Value("${agenda.phone.verification.enabled:true}") boolean verificationEnabled) {
         this.businessRepository = businessRepository;
-        this.verificationService = verificationService;
+        this.sessionService = sessionService;
+        this.verifyPublicClientPhoneUseCase = verifyPublicClientPhoneUseCase;
+        this.verificationEnabled = verificationEnabled;
     }
 
     @PostMapping("/send")
@@ -41,10 +49,10 @@ public class PublicPhoneVerificationController {
             @Valid @RequestBody SendPhoneVerificationRequest request) {
         String tenantId = resolveTenantId(businessId);
         String phone = normalizePhone(request.telefono());
-        AgendaPhoneVerificationService.SendResult result = verificationService.sendCode(tenantId, phone);
-        if (result.immediateTokenWhenDisabled() != null) {
+        AgendaPublicClientSessionService.SendResult result = sessionService.sendCode(tenantId, phone);
+        if (!verificationEnabled) {
             return ResponseEntity.ok(new SendPhoneVerificationResponse(
-                true, "Verificación deshabilitada en este entorno.", null));
+                true, "Verificación deshabilitada; ingresá cualquier código.", null));
         }
         if (result.delivered()) {
             return ResponseEntity.ok(new SendPhoneVerificationResponse(
@@ -52,21 +60,22 @@ public class PublicPhoneVerificationController {
         }
         if (result.devCodeEcho() != null) {
             return ResponseEntity.ok(new SendPhoneVerificationResponse(
-                false, "No se pudo enviar WhatsApp; usá el código de prueba.", result.devCodeEcho()));
+                false, "Modo prueba: usá el código mostrado.", result.devCodeEcho()));
         }
         return ResponseEntity.ok(new SendPhoneVerificationResponse(
             false, "No pudimos enviar el código. Revisá el número o probá más tarde.", null));
     }
 
     @PostMapping("/verify")
-    @Operation(summary = "Validar código y obtener token para crear la reserva")
+    @Operation(summary = "Validar OTP y abrir sesión de cliente (perfil + reservas)")
     public ResponseEntity<VerifyPhoneVerificationResponse> verify(
             @PathVariable UUID businessId,
             @Valid @RequestBody VerifyPhoneVerificationRequest request) {
-        String tenantId = resolveTenantId(businessId);
         String phone = normalizePhone(request.telefono());
-        String token = verificationService.verifyAndIssueToken(tenantId, phone, request.code());
-        return ResponseEntity.ok(new VerifyPhoneVerificationResponse(token));
+        VerifyPhoneVerificationResponse body = verificationEnabled
+                ? verifyPublicClientPhoneUseCase.execute(businessId, phone, request.code())
+                : verifyPublicClientPhoneUseCase.executeWithoutOtp(businessId, phone);
+        return ResponseEntity.ok(body);
     }
 
     private String resolveTenantId(UUID businessId) {

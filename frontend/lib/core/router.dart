@@ -11,6 +11,7 @@ import '../features/agenda/register/business_register_screen.dart';
 import '../features/agenda/register/register_success_screen.dart';
 import '../features/agenda/register/intent_screen.dart';
 import '../features/agenda/public/public_company_landing_screen.dart';
+import '../features/agenda/public/public_mis_reservas_screen.dart';
 import '../features/agenda/public/public_reservar_screen.dart';
 import '../features/agenda/public/category_businesses_screen.dart';
 import '../features/agenda/public/public_business_detail_screen.dart';
@@ -243,6 +244,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             companySlug: company,
           );
         },
+        routes: [
+          GoRoute(
+            path: 'mis-reservas',
+            builder: (context, state) {
+              final slug = state.pathParameters['slug']!;
+              final company = state.uri.queryParameters['company'];
+              return PublicMisReservasScreen(
+                slug: slug,
+                companySlug: company,
+              );
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/agenda',

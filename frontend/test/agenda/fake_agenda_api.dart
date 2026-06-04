@@ -11,6 +11,7 @@ import 'package:botai_admin/models/agenda/category.dart';
 import 'package:botai_admin/models/agenda/loyalty_suggestion.dart';
 import 'package:botai_admin/models/agenda/notification_template.dart';
 import 'package:botai_admin/models/agenda/plan.dart';
+import 'package:botai_admin/models/agenda/public_client_profile.dart';
 import 'package:botai_admin/models/agenda/register_tenant.dart';
 import 'package:botai_admin/models/agenda/staff_member.dart';
 import 'package:botai_admin/models/agenda/tenant_admin_context.dart';
@@ -239,7 +240,7 @@ class FakeAgendaApiService implements AgendaApiService {
     String? nombreCliente,
     String? emailCliente,
     String? telefonoCliente,
-    String? phoneVerificationToken,
+    String? clientSessionToken,
     String? notas,
   }) async {
     _maybeThrow();
@@ -255,6 +256,57 @@ class FakeAgendaApiService implements AgendaApiService {
           estado: BookingEstado.pendiente,
           tipoReserva: BookingTipo.pagoPorTurno,
         );
+  }
+
+  @override
+  Future<SendPhoneVerificationResult> sendPublicPhoneVerification({
+    required String businessId,
+    required String telefono,
+  }) async {
+    _maybeThrow();
+    return const SendPhoneVerificationResult(sent: true, message: 'Código enviado');
+  }
+
+  @override
+  Future<VerifyPublicPhoneResult> verifyPublicPhoneCode({
+    required String businessId,
+    required String telefono,
+    required String code,
+  }) async {
+    _maybeThrow();
+    return VerifyPublicPhoneResult(
+      clientSessionToken: 'fake-session-token',
+      client: PublicClientProfile(
+        id: 'user-public-1',
+        nombre: 'Cliente test',
+        telefono: telefono,
+        needsName: false,
+      ),
+      bookings: nextBookings ?? const [],
+    );
+  }
+
+  @override
+  Future<List<Booking>> listPublicClientBookings({
+    required String sessionToken,
+    required String businessId,
+  }) async {
+    _maybeThrow();
+    return nextBookings ?? const [];
+  }
+
+  @override
+  Future<PublicClientProfile> updatePublicClientProfile({
+    required String sessionToken,
+    required String nombre,
+  }) async {
+    _maybeThrow();
+    return PublicClientProfile(
+      id: 'user-public-1',
+      nombre: nombre,
+      telefono: '59899123456',
+      needsName: false,
+    );
   }
 
   @override

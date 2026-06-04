@@ -86,6 +86,7 @@ agenda:
       ttl-minutes: ${AGENDA_PHONE_VERIFICATION_TTL_MINUTES:10}
       # Solo dev/local: si falla el envío por WhatsApp, incluir el código en el chat (nunca en prod).
       dev-echo-in-chat: ${AGENDA_PHONE_VERIFICATION_DEV_ECHO:false}
+      session-minutes: ${AGENDA_PHONE_VERIFICATION_SESSION_MINUTES:15}
 
 search:
   cache-ttl-seconds: 60

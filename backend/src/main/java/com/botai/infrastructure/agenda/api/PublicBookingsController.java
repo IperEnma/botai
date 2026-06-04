@@ -2,10 +2,10 @@ package com.botai.infrastructure.agenda.api;
 
 import com.botai.application.agenda.dto.BookingResponse;
 import com.botai.application.agenda.dto.PublicCreateBookingRequest;
+import com.botai.application.agenda.mapper.BookingDtoMapper;
 import com.botai.application.agenda.support.AgendaClientResolver;
 import com.botai.application.agenda.support.AgendaPhoneNormalizer;
-import com.botai.application.agenda.support.AgendaPhoneVerificationService;
-import com.botai.application.agenda.mapper.BookingDtoMapper;
+import com.botai.application.agenda.support.AgendaPublicClientSessionService;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.exception.ServiceNotFoundException;
 import com.botai.domain.agenda.model.Booking;
@@ -25,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,26 +42,28 @@ public class PublicBookingsController {
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
     private final BookingDomainService bookingService;
-    private final AgendaPhoneVerificationService phoneVerificationService;
+    private final AgendaPublicClientSessionService sessionService;
 
     public PublicBookingsController(BusinessRepository businessRepository,
                                     ServiceRepository serviceRepository,
                                     UserRepository userRepository,
                                     BookingRepository bookingRepository,
                                     BookingDomainService bookingService,
-                                    AgendaPhoneVerificationService phoneVerificationService) {
+                                    AgendaPublicClientSessionService sessionService) {
         this.businessRepository = businessRepository;
         this.serviceRepository = serviceRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
         this.bookingService = bookingService;
-        this.phoneVerificationService = phoneVerificationService;
+        this.sessionService = sessionService;
     }
 
     @PostMapping("/businesses/{businessId}/bookings")
     @Operation(summary = "Solicitar un turno (PENDING) en un negocio")
     public ResponseEntity<BookingResponse> create(
             @PathVariable("businessId") UUID businessId,
+            @RequestHeader(value = AgendaPublicClientSessionService.SESSION_HEADER, required = false)
+            String sessionToken,
             @Valid @RequestBody PublicCreateBookingRequest request) {
 
         final String tenantId = businessRepository.findById(businessId)
@@ -73,7 +76,7 @@ public class PublicBookingsController {
             throw new ServiceNotFoundException(request.serviceId());
         }
 
-        User user = resolveBookingClient(tenantId, request);
+        User user = resolveBookingClient(tenantId, sessionToken, request);
 
         LocalDateTime inicio = request.fechaHoraInicio();
         LocalDateTime fin = inicio.plusMinutes(service.getDuracionMin());
@@ -84,7 +87,7 @@ public class PublicBookingsController {
                 businessId,
                 request.serviceId(),
                 user.getId(),
-                null, // subscriptionId
+                null,
                 request.staffMemberId(),
                 inicio,
                 fin,
@@ -99,7 +102,7 @@ public class PublicBookingsController {
         return ResponseEntity.status(HttpStatus.CREATED).body(BookingDtoMapper.toResponse(saved));
     }
 
-    private User resolveBookingClient(String tenantId, PublicCreateBookingRequest request) {
+    private User resolveBookingClient(String tenantId, String sessionToken, PublicCreateBookingRequest request) {
         if (request.clientId() != null) {
             User existing = userRepository.findById(request.clientId())
                     .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
@@ -108,22 +111,40 @@ public class PublicBookingsController {
             }
             return existing;
         }
-        if (!AgendaPhoneNormalizer.isValid(request.telefonoCliente())) {
-            throw new IllegalArgumentException("Teléfono obligatorio para reservar");
+
+        AgendaPublicClientSessionService.ClientSession session =
+                sessionService.requireSessionForTenant(sessionToken, tenantId);
+        User user = userRepository.findById(session.userId())
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+
+        if (request.telefonoCliente() != null && !request.telefonoCliente().isBlank()) {
+            String norm = AgendaPhoneNormalizer.normalize(request.telefonoCliente());
+            if (!norm.equals(session.phoneNormalized())) {
+                throw new IllegalArgumentException("Teléfono no coincide con la sesión verificada.");
+            }
         }
-        phoneVerificationService.assertValidToken(
-            tenantId,
-            AgendaPhoneNormalizer.normalize(request.telefonoCliente()),
-            request.phoneVerificationToken());
-        if (request.nombreCliente() == null || request.nombreCliente().isBlank()) {
-            throw new IllegalArgumentException("Nombre del cliente obligatorio");
+
+        boolean needsName = AgendaClientResolver.PENDING_NAME.equals(user.getNombre());
+        if (needsName) {
+            if (request.nombreCliente() == null || request.nombreCliente().isBlank()) {
+                throw new IllegalArgumentException("Nombre obligatorio en tu primera reserva.");
+            }
+            return AgendaClientResolver.resolveOrCreate(
+                    userRepository,
+                    tenantId,
+                    request.nombreCliente(),
+                    request.emailCliente(),
+                    session.phoneNormalized());
         }
-        return AgendaClientResolver.resolveOrCreate(
-                userRepository,
-                tenantId,
-                request.nombreCliente(),
-                request.emailCliente(),
-                request.telefonoCliente());
+
+        if (request.emailCliente() != null && !request.emailCliente().isBlank()) {
+            return AgendaClientResolver.resolveOrCreate(
+                    userRepository,
+                    tenantId,
+                    user.getNombre(),
+                    request.emailCliente(),
+                    session.phoneNormalized());
+        }
+        return user;
     }
 }
-

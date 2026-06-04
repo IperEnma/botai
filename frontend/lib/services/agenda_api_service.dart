@@ -20,6 +20,7 @@ import '../models/agenda/loyalty_suggestion.dart';
 import '../models/agenda/notification_template.dart';
 import '../models/agenda/plan.dart';
 import '../models/agenda/public_client.dart';
+import '../models/agenda/public_client_profile.dart';
 import '../models/agenda/public_company.dart';
 import '../models/agenda/register_tenant.dart';
 import '../models/agenda/tenant_admin_context.dart';
@@ -34,6 +35,8 @@ import 'agenda_api_exception.dart';
 /// **Aislado del bot:** no comparte estado con `ApiService`. El access token y
 /// el `X-User-Id` se setean explícitamente desde el provider correspondiente.
 class AgendaApiService {
+  static const publicClientSessionHeader = 'X-Agenda-Client-Session';
+
   AgendaApiService({
     String? baseUrl,
     http.Client? client,
@@ -71,12 +74,18 @@ class AgendaApiService {
   }
 
   /// Headers para `/api/agenda/public/**` — sin JWT para no provocar 401 con token vencido.
-  Map<String, String> _publicHeaders({String? idempotencyKey}) {
+  Map<String, String> _publicHeaders({
+    String? idempotencyKey,
+    String? clientSessionToken,
+  }) {
     final h = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
     if (idempotencyKey != null) h['Idempotency-Key'] = idempotencyKey;
+    if (clientSessionToken != null && clientSessionToken.isNotEmpty) {
+      h[publicClientSessionHeader] = clientSessionToken;
+    }
     return h;
   }
 
@@ -550,7 +559,7 @@ class AgendaApiService {
   }
 
   /// `POST /public/businesses/{businessId}/phone-verification/verify`
-  Future<String> verifyPublicPhoneCode({
+  Future<VerifyPublicPhoneResult> verifyPublicPhoneCode({
     required String businessId,
     required String telefono,
     required String code,
@@ -560,8 +569,45 @@ class AgendaApiService {
           headers: _publicHeaders(),
           body: jsonEncode({'telefono': telefono, 'code': code}),
         ));
+    return _decode(r, (body) {
+      final m = body as Map<String, dynamic>;
+      final bookingsRaw = m['bookings'] as List<dynamic>? ?? const [];
+      return VerifyPublicPhoneResult(
+        clientSessionToken: m['clientSessionToken']?.toString() ?? '',
+        client: PublicClientProfile.fromJson(
+          m['client'] as Map<String, dynamic>? ?? const {},
+        ),
+        bookings: bookingsRaw
+            .map((e) => Booking.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+    });
+  }
+
+  /// `GET /public/me/bookings?businessId=`
+  Future<List<Booking>> listPublicClientBookings({
+    required String sessionToken,
+    required String businessId,
+  }) async {
+    final r = await _sendPublic(() => _client.get(
+          _uri('/public/me/bookings', {'businessId': businessId}),
+          headers: _publicHeaders(clientSessionToken: sessionToken),
+        ));
+    return _decodeList(r, Booking.fromJson);
+  }
+
+  /// `PATCH /public/me/profile`
+  Future<PublicClientProfile> updatePublicClientProfile({
+    required String sessionToken,
+    required String nombre,
+  }) async {
+    final r = await _sendPublic(() => _client.patch(
+          _uri('/public/me/profile'),
+          headers: _publicHeaders(clientSessionToken: sessionToken),
+          body: jsonEncode({'nombre': nombre}),
+        ));
     return _decode(r, (body) =>
-        (body as Map<String, dynamic>)['verificationToken'] as String);
+        PublicClientProfile.fromJson(body as Map<String, dynamic>));
   }
 
   /// `POST /public/businesses/{businessId}/bookings`
@@ -576,12 +622,12 @@ class AgendaApiService {
     String? nombreCliente,
     String? emailCliente,
     String? telefonoCliente,
-    String? phoneVerificationToken,
+    String? clientSessionToken,
     String? notas,
   }) async {
     final r = await _sendPublic(() => _client.post(
           _uri('/public/businesses/$businessId/bookings'),
-          headers: _publicHeaders(),
+          headers: _publicHeaders(clientSessionToken: clientSessionToken),
           body: jsonEncode({
             'serviceId': serviceId,
             if (staffMemberId != null) 'staffMemberId': staffMemberId,
@@ -591,8 +637,6 @@ class AgendaApiService {
             if (emailCliente != null && emailCliente.isNotEmpty)
               'emailCliente': emailCliente,
             if (telefonoCliente != null) 'telefonoCliente': telefonoCliente,
-            if (phoneVerificationToken != null)
-              'phoneVerificationToken': phoneVerificationToken,
             if (notas != null && notas.isNotEmpty) 'notas': notas,
           }),
         ));

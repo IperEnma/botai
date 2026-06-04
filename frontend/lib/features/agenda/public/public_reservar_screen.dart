@@ -8,8 +8,10 @@ import '../../../models/agenda/availability_slot.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/business_hours.dart';
 import '../../../models/agenda/staff_member.dart';
+import '../../../models/agenda/public_client_profile.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
+import '../../../providers/agenda/public/public_client_session_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../../../widgets/agenda_phone_field.dart';
 import 'public_booking_hours.dart';
@@ -52,6 +54,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   bool _submitting = false;
   String? _otpError;
   String? _otpHint;
+  StoredPublicClientSession? _session;
+  bool _sessionRestored = false;
   String? _confirmedServiceName;
   String? _confirmedSlotLabel;
   String? _confirmedDateLabel;
@@ -233,6 +237,109 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     setState(() => _step = _BookingStep.contact);
   }
 
+  String _misReservasPath() {
+    final base = '/reservar/${widget.slug}/mis-reservas';
+    final company = widget.companySlug;
+    if (company != null && company.isNotEmpty) {
+      return '$base?company=$company';
+    }
+    return base;
+  }
+
+  Future<void> _restoreSession(Business business) async {
+    final stored =
+        await ref.read(publicClientSessionStorageProvider).load(widget.slug);
+    if (stored == null || stored.businessId != business.id) return;
+    if (!mounted) return;
+    setState(() {
+      _session = stored;
+      _telCtrl.text = stored.phone;
+      if (stored.nombre != null && !stored.needsName) {
+        _nombreCtrl.text = stored.nombre!;
+      }
+    });
+  }
+
+  Future<void> _persistSession(
+    VerifyPublicPhoneResult result,
+    Business business,
+  ) async {
+    final telefono = normalizeAgendaPhoneDigits(_telCtrl.text);
+    final session = StoredPublicClientSession.fresh(
+      token: result.clientSessionToken,
+      businessId: business.id,
+      phone: telefono,
+      needsName: result.client.needsName,
+      nombre: result.client.needsName ? null : result.client.nombre,
+    );
+    await ref.read(publicClientSessionStorageProvider).save(widget.slug, session);
+    ref.invalidate(publicClientSessionProvider(widget.slug));
+    if (!mounted) return;
+    setState(() => _session = session);
+  }
+
+  Future<void> _submitBookingWithSession(
+    Business business,
+    PublicReservarTheme theme,
+  ) async {
+    final svc = _service;
+    final slot = _selectedSlot;
+    final session = _session;
+    if (svc == null || slot == null || session == null) return;
+
+    final nombre = _nombreCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
+    if (session.needsName && nombre.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Ingresá tu nombre para continuar.',
+            style: theme.textStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      final api = ref.read(agendaApiServiceProvider);
+      await api.publicCreateBooking(
+        businessId: business.id,
+        serviceId: svc.id,
+        staffMemberId: _effectiveStaffId,
+        fechaHoraInicio: slot.inicio,
+        nombreCliente: session.needsName ? nombre : (nombre.isEmpty ? null : nombre),
+        emailCliente: email.isEmpty ? null : email,
+        telefonoCliente: session.phone,
+        clientSessionToken: session.token,
+      );
+      if (session.needsName && nombre.isNotEmpty) {
+        final updated = session.copyWith(needsName: false, nombre: nombre);
+        await ref.read(publicClientSessionStorageProvider).save(widget.slug, updated);
+        if (mounted) setState(() => _session = updated);
+      }
+      if (!mounted) return;
+      setState(() {
+        _confirmedServiceName = svc.nombre;
+        _confirmedSlotLabel = slot.label;
+        _confirmedDateLabel = _formattedSelectedDate();
+        _step = _BookingStep.confirmed;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo solicitar el turno: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   Future<void> _sendOtp(Business business, PublicReservarTheme theme) async {
     if (!_contactFormKey.currentState!.validate()) return;
     final telefono = normalizeAgendaPhoneDigits(_telCtrl.text);
@@ -312,11 +419,12 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     });
     try {
       final api = ref.read(agendaApiServiceProvider);
-      final token = await api.verifyPublicPhoneCode(
+      final result = await api.verifyPublicPhoneCode(
         businessId: business.id,
         telefono: telefono,
         code: code,
       );
+      await _persistSession(result, business);
       await api.publicCreateBooking(
         businessId: business.id,
         serviceId: svc.id,
@@ -325,8 +433,13 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         nombreCliente: nombre,
         emailCliente: email.isEmpty ? null : email,
         telefonoCliente: telefono,
-        phoneVerificationToken: token,
+        clientSessionToken: result.clientSessionToken,
       );
+      if (result.client.needsName && nombre.isNotEmpty) {
+        final updated = _session!.copyWith(needsName: false, nombre: nombre);
+        await ref.read(publicClientSessionStorageProvider).save(widget.slug, updated);
+        if (mounted) setState(() => _session = updated);
+      }
 
       if (!mounted) return;
       setState(() {
@@ -379,12 +492,34 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           onPressed: _goToReview,
         );
       case _BookingStep.review:
+        if (_session != null && !_session!.needsName) {
+          return _PrimaryFooterButton(
+            theme: theme,
+            label: 'Confirmar reserva',
+            loading: _submitting,
+            onPressed:
+                _submitting ? null : () => _submitBookingWithSession(business, theme),
+          );
+        }
         return _PrimaryFooterButton(
           theme: theme,
           label: 'Continuar con tus datos',
           onPressed: _goToContact,
         );
       case _BookingStep.contact:
+        if (_session != null && _session!.needsName) {
+          return _PrimaryFooterButton(
+            theme: theme,
+            label: 'Confirmar reserva',
+            loading: _submitting,
+            onPressed: _submitting
+                ? null
+                : () {
+                    if (!_contactFormKey.currentState!.validate()) return;
+                    _submitBookingWithSession(business, theme);
+                  },
+          );
+        }
         return _PrimaryFooterButton(
           theme: theme,
           label: 'Enviar código por WhatsApp',
@@ -399,27 +534,44 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           onPressed: _submitting ? null : () => _confirm(business, theme),
         );
       case _BookingStep.confirmed:
-        return _PrimaryFooterButton(
-          theme: theme,
-          label: 'Reservar otro turno',
-          onPressed: () {
-            setState(() {
-              _step = _BookingStep.service;
-              _service = null;
-              _selectedDate = null;
-              _selectedSlot = null;
-              _slotsFuture = null;
-              _confirmedServiceName = null;
-              _confirmedSlotLabel = null;
-              _confirmedDateLabel = null;
-              _nombreCtrl.clear();
-              _emailCtrl.clear();
-              _telCtrl.clear();
-              _codeCtrl.clear();
-              _otpError = null;
-              _otpHint = null;
-            });
-          },
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _PrimaryFooterButton(
+              theme: theme,
+              label: 'Ver mis reservas',
+              onPressed: () => context.go(_misReservasPath()),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                side: BorderSide(color: theme.primary),
+              ),
+              onPressed: () {
+                setState(() {
+                  _step = _BookingStep.service;
+                  _service = null;
+                  _selectedDate = null;
+                  _selectedSlot = null;
+                  _slotsFuture = null;
+                  _confirmedServiceName = null;
+                  _confirmedSlotLabel = null;
+                  _confirmedDateLabel = null;
+                  _codeCtrl.clear();
+                  _otpError = null;
+                  _otpHint = null;
+                });
+              },
+              child: Text(
+                'Reservar otro turno',
+                style: theme.textStyle(color: theme.primary, weight: FontWeight.w600),
+              ),
+            ),
+          ],
         );
       default:
         return null;
@@ -450,6 +602,13 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
 
         final isConfirmed = _step == _BookingStep.confirmed;
 
+        if (!_sessionRestored) {
+          _sessionRestored = true;
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _restoreSession(business),
+          );
+        }
+
         return PublicReservarShell(
           theme: theme,
           brandTitle: business.nombre,
@@ -461,7 +620,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
               ? null
               : publicReservarFooterLink(
                   theme: theme,
-                  onTap: () => context.go('/agenda/me/bookings'),
+                  onTap: () => context.go(_misReservasPath()),
                 ),
           child: Column(
             children: [
@@ -629,6 +788,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           nombreCtrl: _nombreCtrl,
           emailCtrl: _emailCtrl,
           telCtrl: _telCtrl,
+          phoneReadOnly: _session != null,
+          requireName: _session == null || _session!.needsName,
         );
       case _BookingStep.verifyCode:
         return _VerifyCodeStep(
@@ -943,6 +1104,8 @@ class _ContactStep extends StatelessWidget {
     required this.nombreCtrl,
     required this.emailCtrl,
     required this.telCtrl,
+    this.phoneReadOnly = false,
+    this.requireName = true,
   });
 
   final PublicReservarTheme theme;
@@ -950,6 +1113,8 @@ class _ContactStep extends StatelessWidget {
   final TextEditingController nombreCtrl;
   final TextEditingController emailCtrl;
   final TextEditingController telCtrl;
+  final bool phoneReadOnly;
+  final bool requireName;
 
   @override
   Widget build(BuildContext context) {
@@ -969,6 +1134,7 @@ class _ContactStep extends StatelessWidget {
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
             validator: (v) {
+              if (!requireName) return null;
               if (v == null || v.trim().isEmpty) {
                 return 'Ingresá tu nombre para continuar';
               }
@@ -988,13 +1154,25 @@ class _ContactStep extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          AgendaPhoneField(
-            controller: telCtrl,
-            required: true,
-            useKonectaTokens: false,
-            helperText:
-                'Obligatorio · te enviaremos un código por WhatsApp para confirmar la reserva',
-          ),
+          if (phoneReadOnly)
+            InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Teléfono (verificado)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                telCtrl.text,
+                style: t.textStyle(size: 16),
+              ),
+            )
+          else
+            AgendaPhoneField(
+              controller: telCtrl,
+              required: true,
+              useKonectaTokens: false,
+              helperText:
+                  'Obligatorio · te enviaremos un código por WhatsApp para confirmar la reserva',
+            ),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(14),
