@@ -29,7 +29,7 @@ flowchart LR
 ```
 
 1. **Intención** — Mini-LLM: saludo, pregunta general, mala intención, o `ACCION_CRM <action_id>`.
-2. **RAG** — Para turnos generativos (`RagAiContextBuilder`): embeddings + `knowledge_chunk` por `tenant_id`, incluyendo chunks **Agenda** mantenidos por `AgendaRagSourceSync` (negocio, servicios, horarios, políticas).
+2. **RAG** — Para turnos generativos (`RagAiContextBuilder`): embeddings + `knowledge_chunk` por `tenant_id`, incluyendo chunks **Agenda** mantenidos por `AgendaRagSourceSync` (negocio, servicios, horarios, políticas). **Fase 1** (expansión de query, filtro topic, CRAG): ver [RAG_ROADMAP.md](./RAG_ROADMAP.md).
 3. **LLM principal** — `chatClientWithTools`: mensaje actual, system con fragmentos + fecha + reglas, **memoria** (`PromptChatMemoryAdvisor`), y herramientas cuando aplica (p. ej. `getHorario`, consultas de citas existentes, cancelación).
 4. **Razonamiento / auto-revisión** — Si `bot.rag.self-review-enabled=true`: segunda llamada con `chatClientPlain` y `BotPrompts.RagChat.buildSelfReviewSystemPrompt`, con FACTS (RAG), hilo reciente, mensaje actual y borrador.
 5. **Respuesta al cliente** — Texto validado (`ResponseValidator`) y envío por el canal.

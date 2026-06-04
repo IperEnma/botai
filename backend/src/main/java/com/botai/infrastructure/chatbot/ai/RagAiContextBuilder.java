@@ -4,7 +4,10 @@ import com.botai.application.chatbot.prompt.BotPrompts;
 import com.botai.application.chatbot.service.agenda.PublicAgendaLinkResolver;
 import com.botai.application.chatbot.support.InboundTextHeuristics;
 import com.botai.application.chatbot.service.conversation.ai.RagLlmChatService;
+import com.botai.application.chatbot.service.inbound.ChatSessionService;
+import com.botai.application.chatbot.service.inbound.MessageHistoryService;
 import com.botai.application.chatbot.service.knowledge.KnowledgeService;
+import com.botai.domain.chatbot.model.RagRetrievalResult;
 import com.botai.domain.chatbot.ConversationContextKeys;
 import com.botai.domain.chatbot.model.ConversationState;
 import com.botai.domain.chatbot.model.KnowledgeChunk;
@@ -32,13 +35,16 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
     private static final int RAG_MAX_CHUNKS = 5;
 
     private final KnowledgeService knowledgeService;
+    private final MessageHistoryService messageHistoryService;
     private final PublicAgendaLinkResolver publicAgendaLinkResolver;
     private final int maxChunks;
 
     public RagAiContextBuilder(KnowledgeService knowledgeService,
+                               MessageHistoryService messageHistoryService,
                                PublicAgendaLinkResolver publicAgendaLinkResolver,
                                @Value("${bot.rag.max-chunks:3}") int maxChunks) {
         this.knowledgeService = knowledgeService;
+        this.messageHistoryService = messageHistoryService;
         this.publicAgendaLinkResolver = publicAgendaLinkResolver;
         this.maxChunks = maxChunks > 0 ? maxChunks : RAG_MAX_CHUNKS;
     }
@@ -54,13 +60,20 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
                 BotPrompts.RagChat.ragGreetingOnlyPreambleLines());
         }
 
-        List<KnowledgeChunk> chunks = knowledgeService.findRelevant(userMessage, maxChunks, tenantId);
+        String conversationId = state.getConversationId();
+        String sessionId = ChatSessionService.sessionIdFrom(state);
+        List<String> history = messageHistoryService.getHistory(conversationId, sessionId);
+        RagRetrievalResult retrieval = knowledgeService.retrieveForTurn(userMessage, maxChunks, tenantId, history);
+        List<KnowledgeChunk> chunks = retrieval.chunks();
 
-        log.info("[RAG] buildContext tenantId={} query='{}' chunks={} topics={}",
+        log.info("[RAG] buildContext tenantId={} userQuery='{}' retrievalQueryLen={} chunks={} cragRejected={} topicHints={} avgSim={}",
             tenantId,
             userMessage,
+            retrieval.retrievalQuery() != null ? retrieval.retrievalQuery().length() : 0,
             chunks.size(),
-            chunks.stream().map(KnowledgeChunk::getTopic).toList());
+            retrieval.cragRejected(),
+            retrieval.topicPrefixes(),
+            String.format(Locale.ROOT, "%.3f", retrieval.avgSimilarity()));
 
         List<String> lines = new ArrayList<>(BotPrompts.RagChat.ragInstructionPreambleLines());
 
@@ -84,7 +97,11 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
         appendOfficialBookingUrl(lines, tenantId);
 
         if (chunks.isEmpty()) {
-            log.warn("[RAG] buildContext sin chunks para tenantId={} query='{}' -> contexto mínimo (solo reglas + fecha)", tenantId, userMessage);
+            if (retrieval.cragRejected()) {
+                log.warn("[RAG] buildContext CRAG rechazó chunks tenantId={} -> solo tools", tenantId);
+            } else {
+                log.warn("[RAG] buildContext sin chunks tenantId={} query='{}' -> contexto mínimo", tenantId, userMessage);
+            }
             return RagLlmChatService.BuildContextResult.noChunks(lines);
         }
 

@@ -1,6 +1,7 @@
 package com.botai.domain.chatbot.repository;
 
 import com.botai.domain.chatbot.model.KnowledgeChunk;
+import com.botai.domain.chatbot.model.KnowledgeChunkHit;
 
 import java.util.List;
 
@@ -29,4 +30,11 @@ public interface KnowledgeRepository {
 
     List<KnowledgeChunk> findRelevantBySimilarity(List<Double> queryEmbedding, int limit, String tenantId,
                                                   Double maxCosineDistance);
+
+    /**
+     * Igual que {@link #findRelevantBySimilarity} pero devuelve distancia coseno por fila.
+     * {@code topicPrefixes} vacío = sin filtro por topic; si no vacío, solo chunks cuyo topic empieza con algún prefijo.
+     */
+    List<KnowledgeChunkHit> findRelevantBySimilarityScored(List<Double> queryEmbedding, int limit, String tenantId,
+                                                           Double maxCosineDistance, List<String> topicPrefixes);
 }

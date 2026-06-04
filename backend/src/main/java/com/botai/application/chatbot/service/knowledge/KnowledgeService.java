@@ -1,6 +1,8 @@
 package com.botai.application.chatbot.service.knowledge;
 
 import com.botai.domain.chatbot.model.KnowledgeChunk;
+import com.botai.domain.chatbot.model.KnowledgeChunkHit;
+import com.botai.domain.chatbot.model.RagRetrievalResult;
 import com.botai.domain.chatbot.repository.KnowledgeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,24 +41,107 @@ public class KnowledgeService {
     private final Double maxCosineDistance;
     private final IntSupplier pendingEmbeddingBackfill;
     private final ConcurrentHashMap<String, Long> lastBackfillAttemptMs = new ConcurrentHashMap<>();
+    private final boolean phase1Enabled;
+    private final int phase1HistoryTurns;
+    private final double phase1MinAvgSimilarity;
+    private final double phase1MinChunkSimilarity;
+    private final int phase1PrefetchMultiplier;
 
     public KnowledgeService(KnowledgeRepository knowledgeRepository,
                             EmbeddingModel embeddingModel,
                             @Value("${bot.rag.min-similarity:0}") double minSimilarity) {
-        this(knowledgeRepository, embeddingModel, minSimilarity, () -> 0);
+        this(knowledgeRepository, embeddingModel, minSimilarity, () -> 0,
+                true, 2, 0.52, 0.40, 2);
     }
 
     public KnowledgeService(KnowledgeRepository knowledgeRepository,
                             EmbeddingModel embeddingModel,
                             @Value("${bot.rag.min-similarity:0}") double minSimilarity,
                             IntSupplier pendingEmbeddingBackfill) {
+        this(knowledgeRepository, embeddingModel, minSimilarity, pendingEmbeddingBackfill,
+                true, 2, 0.52, 0.40, 2);
+    }
+
+    public KnowledgeService(KnowledgeRepository knowledgeRepository,
+                            EmbeddingModel embeddingModel,
+                            double minSimilarity,
+                            IntSupplier pendingEmbeddingBackfill,
+                            boolean phase1Enabled,
+                            int phase1HistoryTurns,
+                            double phase1MinAvgSimilarity,
+                            double phase1MinChunkSimilarity,
+                            int phase1PrefetchMultiplier) {
         this.knowledgeRepository = knowledgeRepository;
         this.embeddingModel = embeddingModel;
         this.pendingEmbeddingBackfill = pendingEmbeddingBackfill != null ? pendingEmbeddingBackfill : () -> 0;
         this.maxCosineDistance = (minSimilarity > 0 && minSimilarity < 1) ? (1.0 - minSimilarity) : null;
+        this.phase1Enabled = phase1Enabled;
+        this.phase1HistoryTurns = Math.max(0, phase1HistoryTurns);
+        this.phase1MinAvgSimilarity = clamp01(phase1MinAvgSimilarity);
+        this.phase1MinChunkSimilarity = clamp01(phase1MinChunkSimilarity);
+        this.phase1PrefetchMultiplier = Math.max(1, phase1PrefetchMultiplier);
         if (this.maxCosineDistance != null) {
             log.info("[RAG] Filtro similitud activo: min-similarity={} -> distancia coseno máxima {}", minSimilarity, this.maxCosineDistance);
         }
+        if (phase1Enabled) {
+            log.info("[RAG] Fase 1 activa: historyTurns={} minAvgSim={} minChunkSim={} prefetch×{}",
+                    this.phase1HistoryTurns, this.phase1MinAvgSimilarity, this.phase1MinChunkSimilarity, this.phase1PrefetchMultiplier);
+        }
+    }
+
+    public boolean isPhase1Enabled() {
+        return phase1Enabled;
+    }
+
+    /**
+     * Recuperación Fase 1: query expandida, filtro topic, CRAG. Si Fase 1 está desactivada, delega en {@link #findRelevant}.
+     */
+    public RagRetrievalResult retrieveForTurn(String userMessage, int maxChunks, String tenantId,
+                                              List<String> historyLines) {
+        if (!phase1Enabled) {
+            List<KnowledgeChunk> legacy = findRelevant(userMessage, maxChunks, tenantId);
+            return new RagRetrievalResult(legacy, false, userMessage, List.of(), legacy.isEmpty() ? 0.0 : 0.75);
+        }
+        int limit = maxChunks > 0 ? maxChunks : DEFAULT_MAX_CHUNKS;
+        String retrievalQuery = RagQueryExpander.buildRetrievalQuery(userMessage, historyLines, phase1HistoryTurns);
+        List<String> topicPrefixes = RagTopicHintService.topicPrefixesForQuery(retrievalQuery);
+        int prefetch = limit * phase1PrefetchMultiplier;
+
+        List<KnowledgeChunkHit> hits = findScoredHits(retrievalQuery, prefetch, tenantId, topicPrefixes);
+        if (hits.isEmpty() && !topicPrefixes.isEmpty()) {
+            log.info("[RAG] Fase1 sin hits con topics {} -> reintento sin filtro topic", topicPrefixes);
+            hits = findScoredHits(retrievalQuery, prefetch, tenantId, List.of());
+        }
+
+        List<KnowledgeChunkHit> passed = hits.stream()
+                .filter(h -> h.similarity() >= phase1MinChunkSimilarity)
+                .limit(limit)
+                .toList();
+
+        if (!passed.isEmpty()) {
+            double avg = passed.stream().mapToDouble(KnowledgeChunkHit::similarity).average().orElse(0.0);
+            if (avg >= phase1MinAvgSimilarity) {
+                List<KnowledgeChunk> chunks = passed.stream().map(KnowledgeChunkHit::chunk).toList();
+                log.info("[RAG] Fase1 OK tenantId={} topics={} avgSim={} chunks={}",
+                        tenantId, topicPrefixes, String.format(Locale.ROOT, "%.3f", avg), chunks.size());
+                return new RagRetrievalResult(chunks, false, retrievalQuery, topicPrefixes, avg);
+            }
+            log.info("[RAG] Fase1 CRAG rechazado (avgSim {} < {}) tenantId={} query='{}'",
+                    String.format(Locale.ROOT, "%.3f", avg), phase1MinAvgSimilarity, tenantId, retrievalQuery);
+            return RagRetrievalResult.empty(retrievalQuery, topicPrefixes, true);
+        }
+
+        List<KnowledgeChunk> fallback = findRelevantByTextFallback(retrievalQuery, limit, tenantId, topicPrefixes);
+        if (fallback.isEmpty() && !topicPrefixes.isEmpty()) {
+            fallback = findRelevantByTextFallback(retrievalQuery, limit, tenantId, List.of());
+        }
+        if (!fallback.isEmpty()) {
+            log.info("[RAG] Fase1 fallback texto: {} chunk(s) tenantId={}", fallback.size(), tenantId);
+            return new RagRetrievalResult(fallback, false, retrievalQuery, topicPrefixes, 0.58);
+        }
+
+        log.info("[RAG] Fase1 CRAG sin chunks tenantId={} query='{}'", tenantId, retrievalQuery);
+        return RagRetrievalResult.empty(retrievalQuery, topicPrefixes, true);
     }
 
     /**
@@ -82,7 +167,7 @@ public class KnowledgeService {
         if (result.isEmpty() && tenantId != null && !tenantId.isBlank()) {
             long total = knowledgeRepository.countActiveByTenantId(tenantId);
             if (total > 0) {
-                result = findRelevantByTextFallback(query, limit, tenantId);
+                result = findRelevantByTextFallback(query, limit, tenantId, List.of());
                 if (!result.isEmpty()) {
                     log.info("[RAG] Fallback texto: {} chunk(s) para tenantId={} query='{}' (embeddings NULL o sin match semántico)",
                             result.size(), tenantId, query);
@@ -133,10 +218,48 @@ public class KnowledgeService {
         return false;
     }
 
-    private List<KnowledgeChunk> findRelevantByTextFallback(String query, int limit, String tenantId) {
+    private List<KnowledgeChunkHit> findScoredHits(String query, int limit, String tenantId, List<String> topicPrefixes) {
+        if (embeddingModel == null || query == null || query.isBlank()) {
+            return List.of();
+        }
+        try {
+            EmbeddingResponse resp = embeddingModel.embedForResponse(List.of(query));
+            if (resp.getResults() == null || resp.getResults().isEmpty()) {
+                return List.of();
+            }
+            List<Double> vector = toListOfDouble(resp.getResults().get(0).getOutput());
+            if (vector.isEmpty()) {
+                return List.of();
+            }
+            List<KnowledgeChunkHit> hits = knowledgeRepository.findRelevantBySimilarityScored(
+                    vector, limit, tenantId, maxCosineDistance, topicPrefixes);
+            if (hits.isEmpty() && tenantId != null && !tenantId.isBlank()) {
+                long total = knowledgeRepository.countActiveByTenantId(tenantId);
+                if (total > 0 && tryBackfillEmbeddings(tenantId)) {
+                    hits = knowledgeRepository.findRelevantBySimilarityScored(
+                            vector, limit, tenantId, maxCosineDistance, topicPrefixes);
+                }
+            }
+            return hits;
+        } catch (Exception e) {
+            log.error("[RAG] Fase1 error embedding tenantId={} query='{}': {}", tenantId, query, e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<KnowledgeChunk> findRelevantByTextFallback(String query, int limit, String tenantId,
+                                                             List<String> topicPrefixes) {
         List<KnowledgeChunk> active = knowledgeRepository.findAllActiveByTenantId(tenantId);
         if (active.isEmpty()) {
             return List.of();
+        }
+        if (topicPrefixes != null && !topicPrefixes.isEmpty()) {
+            active = active.stream()
+                    .filter(c -> matchesTopicPrefix(c.getTopic(), topicPrefixes))
+                    .toList();
+            if (active.isEmpty()) {
+                return List.of();
+            }
         }
         String normalizedQuery = normalizeForMatch(query);
         Set<String> queryTokens = tokenize(normalizedQuery);
@@ -215,6 +338,28 @@ public class KnowledgeService {
                 .toLowerCase(Locale.ROOT)
                 .trim();
         return normalized;
+    }
+
+    private static boolean matchesTopicPrefix(String topic, List<String> prefixes) {
+        if (topic == null || prefixes == null) {
+            return false;
+        }
+        for (String prefix : prefixes) {
+            if (prefix != null && topic.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static double clamp01(double v) {
+        if (v < 0) {
+            return 0;
+        }
+        if (v > 1) {
+            return 1;
+        }
+        return v;
     }
 
     private static List<Double> toListOfDouble(Object output) {
