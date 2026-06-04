@@ -8,7 +8,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Prefijos de {@code knowledge_chunk.topic} para acotar retrieval (Fase 1).
+ * Prefijos de {@code knowledge_chunk.topic} para acotar retrieval en el flujo RAG.
  * Alineado con topics de {@code AgendaRagSourceSync}.
  */
 public final class RagTopicHintService {

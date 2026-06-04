@@ -49,21 +49,19 @@ public class BotEngineConfig {
                                              Optional<EmbeddingModel> embeddingModel,
                                              Optional<KnowledgeChunkEmbeddingSync> embeddingSync,
                                              @Value("${bot.rag.min-similarity:0}") double minSimilarity,
-                                             @Value("${bot.rag.phase1.enabled:true}") boolean phase1Enabled,
-                                             @Value("${bot.rag.phase1.history-turns-for-query:2}") int phase1HistoryTurns,
-                                             @Value("${bot.rag.phase1.min-avg-similarity:0.52}") double phase1MinAvgSimilarity,
-                                             @Value("${bot.rag.phase1.min-chunk-similarity:0.40}") double phase1MinChunkSimilarity,
-                                             @Value("${bot.rag.phase1.prefetch-multiplier:2}") int phase1PrefetchMultiplier) {
+                                             @Value("${bot.rag.history-turns-for-query:2}") int historyTurnsForQuery,
+                                             @Value("${bot.rag.crag-min-avg-similarity:0.52}") double cragMinAvgSimilarity,
+                                             @Value("${bot.rag.crag-min-chunk-similarity:0.40}") double cragMinChunkSimilarity,
+                                             @Value("${bot.rag.retrieval-prefetch-multiplier:2}") int retrievalPrefetchMultiplier) {
         return new KnowledgeService(
                 knowledgeRepository,
                 embeddingModel.orElse(null),
                 minSimilarity,
                 () -> embeddingSync.map(KnowledgeChunkEmbeddingSync::syncPendingEmbeddings).orElse(0),
-                phase1Enabled,
-                phase1HistoryTurns,
-                phase1MinAvgSimilarity,
-                phase1MinChunkSimilarity,
-                phase1PrefetchMultiplier);
+                historyTurnsForQuery,
+                cragMinAvgSimilarity,
+                cragMinChunkSimilarity,
+                retrievalPrefetchMultiplier);
     }
 
     /**

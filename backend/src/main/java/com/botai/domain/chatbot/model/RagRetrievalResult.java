@@ -3,7 +3,7 @@ package com.botai.domain.chatbot.model;
 import java.util.List;
 
 /**
- * Resultado de recuperación RAG (Fase 1: expansión de query, filtro topic, CRAG).
+ * Resultado de recuperación RAG por turno (query expandida, filtro topic, gate CRAG).
  */
 public record RagRetrievalResult(
         List<KnowledgeChunk> chunks,

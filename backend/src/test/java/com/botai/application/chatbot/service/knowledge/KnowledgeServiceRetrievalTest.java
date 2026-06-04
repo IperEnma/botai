@@ -22,7 +22,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class KnowledgeServicePhase1Test {
+class KnowledgeServiceRetrievalTest {
 
     private static final String TENANT = "tenant-1";
 
@@ -48,7 +48,6 @@ class KnowledgeServicePhase1Test {
                 embeddingModel,
                 0.0,
                 () -> 0,
-                true,
                 2,
                 0.52,
                 0.40,

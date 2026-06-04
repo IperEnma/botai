@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Expande la consulta de embedding con turnos recientes de la sesión (Fase 1).
+ * Expande la consulta de embedding con turnos recientes de la sesión.
  */
 public final class RagQueryExpander {
 

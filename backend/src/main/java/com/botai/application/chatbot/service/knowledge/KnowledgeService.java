@@ -41,93 +41,76 @@ public class KnowledgeService {
     private final Double maxCosineDistance;
     private final IntSupplier pendingEmbeddingBackfill;
     private final ConcurrentHashMap<String, Long> lastBackfillAttemptMs = new ConcurrentHashMap<>();
-    private final boolean phase1Enabled;
-    private final int phase1HistoryTurns;
-    private final double phase1MinAvgSimilarity;
-    private final double phase1MinChunkSimilarity;
-    private final int phase1PrefetchMultiplier;
+    private final int historyTurnsForQuery;
+    private final double cragMinAvgSimilarity;
+    private final double cragMinChunkSimilarity;
+    private final int retrievalPrefetchMultiplier;
 
     public KnowledgeService(KnowledgeRepository knowledgeRepository,
                             EmbeddingModel embeddingModel,
                             @Value("${bot.rag.min-similarity:0}") double minSimilarity) {
-        this(knowledgeRepository, embeddingModel, minSimilarity, () -> 0,
-                true, 2, 0.52, 0.40, 2);
+        this(knowledgeRepository, embeddingModel, minSimilarity, () -> 0, 2, 0.52, 0.40, 2);
     }
 
     public KnowledgeService(KnowledgeRepository knowledgeRepository,
                             EmbeddingModel embeddingModel,
                             @Value("${bot.rag.min-similarity:0}") double minSimilarity,
                             IntSupplier pendingEmbeddingBackfill) {
-        this(knowledgeRepository, embeddingModel, minSimilarity, pendingEmbeddingBackfill,
-                true, 2, 0.52, 0.40, 2);
+        this(knowledgeRepository, embeddingModel, minSimilarity, pendingEmbeddingBackfill, 2, 0.52, 0.40, 2);
     }
 
     public KnowledgeService(KnowledgeRepository knowledgeRepository,
                             EmbeddingModel embeddingModel,
                             double minSimilarity,
                             IntSupplier pendingEmbeddingBackfill,
-                            boolean phase1Enabled,
-                            int phase1HistoryTurns,
-                            double phase1MinAvgSimilarity,
-                            double phase1MinChunkSimilarity,
-                            int phase1PrefetchMultiplier) {
+                            int historyTurnsForQuery,
+                            double cragMinAvgSimilarity,
+                            double cragMinChunkSimilarity,
+                            int retrievalPrefetchMultiplier) {
         this.knowledgeRepository = knowledgeRepository;
         this.embeddingModel = embeddingModel;
         this.pendingEmbeddingBackfill = pendingEmbeddingBackfill != null ? pendingEmbeddingBackfill : () -> 0;
         this.maxCosineDistance = (minSimilarity > 0 && minSimilarity < 1) ? (1.0 - minSimilarity) : null;
-        this.phase1Enabled = phase1Enabled;
-        this.phase1HistoryTurns = Math.max(0, phase1HistoryTurns);
-        this.phase1MinAvgSimilarity = clamp01(phase1MinAvgSimilarity);
-        this.phase1MinChunkSimilarity = clamp01(phase1MinChunkSimilarity);
-        this.phase1PrefetchMultiplier = Math.max(1, phase1PrefetchMultiplier);
+        this.historyTurnsForQuery = Math.max(0, historyTurnsForQuery);
+        this.cragMinAvgSimilarity = clamp01(cragMinAvgSimilarity);
+        this.cragMinChunkSimilarity = clamp01(cragMinChunkSimilarity);
+        this.retrievalPrefetchMultiplier = Math.max(1, retrievalPrefetchMultiplier);
         if (this.maxCosineDistance != null) {
             log.info("[RAG] Filtro similitud activo: min-similarity={} -> distancia coseno máxima {}", minSimilarity, this.maxCosineDistance);
         }
-        if (phase1Enabled) {
-            log.info("[RAG] Fase 1 activa: historyTurns={} minAvgSim={} minChunkSim={} prefetch×{}",
-                    this.phase1HistoryTurns, this.phase1MinAvgSimilarity, this.phase1MinChunkSimilarity, this.phase1PrefetchMultiplier);
-        }
-    }
-
-    public boolean isPhase1Enabled() {
-        return phase1Enabled;
     }
 
     /**
-     * Recuperación Fase 1: query expandida, filtro topic, CRAG. Si Fase 1 está desactivada, delega en {@link #findRelevant}.
+     * Recuperación por turno (flujo RAG estándar): query con historial reciente, filtro por topic, gate CRAG.
      */
     public RagRetrievalResult retrieveForTurn(String userMessage, int maxChunks, String tenantId,
                                               List<String> historyLines) {
-        if (!phase1Enabled) {
-            List<KnowledgeChunk> legacy = findRelevant(userMessage, maxChunks, tenantId);
-            return new RagRetrievalResult(legacy, false, userMessage, List.of(), legacy.isEmpty() ? 0.0 : 0.75);
-        }
         int limit = maxChunks > 0 ? maxChunks : DEFAULT_MAX_CHUNKS;
-        String retrievalQuery = RagQueryExpander.buildRetrievalQuery(userMessage, historyLines, phase1HistoryTurns);
+        String retrievalQuery = RagQueryExpander.buildRetrievalQuery(userMessage, historyLines, historyTurnsForQuery);
         List<String> topicPrefixes = RagTopicHintService.topicPrefixesForQuery(retrievalQuery);
-        int prefetch = limit * phase1PrefetchMultiplier;
+        int prefetch = limit * retrievalPrefetchMultiplier;
 
         List<KnowledgeChunkHit> hits = findScoredHits(retrievalQuery, prefetch, tenantId, topicPrefixes);
         if (hits.isEmpty() && !topicPrefixes.isEmpty()) {
-            log.info("[RAG] Fase1 sin hits con topics {} -> reintento sin filtro topic", topicPrefixes);
+            log.info("[RAG] Sin hits con filtro topic {} -> reintento sin filtro", topicPrefixes);
             hits = findScoredHits(retrievalQuery, prefetch, tenantId, List.of());
         }
 
         List<KnowledgeChunkHit> passed = hits.stream()
-                .filter(h -> h.similarity() >= phase1MinChunkSimilarity)
+                .filter(h -> h.similarity() >= cragMinChunkSimilarity)
                 .limit(limit)
                 .toList();
 
         if (!passed.isEmpty()) {
             double avg = passed.stream().mapToDouble(KnowledgeChunkHit::similarity).average().orElse(0.0);
-            if (avg >= phase1MinAvgSimilarity) {
+            if (avg >= cragMinAvgSimilarity) {
                 List<KnowledgeChunk> chunks = passed.stream().map(KnowledgeChunkHit::chunk).toList();
-                log.info("[RAG] Fase1 OK tenantId={} topics={} avgSim={} chunks={}",
-                        tenantId, topicPrefixes, String.format(Locale.ROOT, "%.3f", avg), chunks.size());
+                log.info("[RAG] Recuperados {} chunk(s) tenantId={} topics={} avgSim={}",
+                        chunks.size(), tenantId, topicPrefixes, String.format(Locale.ROOT, "%.3f", avg));
                 return new RagRetrievalResult(chunks, false, retrievalQuery, topicPrefixes, avg);
             }
-            log.info("[RAG] Fase1 CRAG rechazado (avgSim {} < {}) tenantId={} query='{}'",
-                    String.format(Locale.ROOT, "%.3f", avg), phase1MinAvgSimilarity, tenantId, retrievalQuery);
+            log.info("[RAG] CRAG rechazó chunks (avgSim {} < {}) tenantId={}",
+                    String.format(Locale.ROOT, "%.3f", avg), cragMinAvgSimilarity, tenantId);
             return RagRetrievalResult.empty(retrievalQuery, topicPrefixes, true);
         }
 
@@ -136,11 +119,11 @@ public class KnowledgeService {
             fallback = findRelevantByTextFallback(retrievalQuery, limit, tenantId, List.of());
         }
         if (!fallback.isEmpty()) {
-            log.info("[RAG] Fase1 fallback texto: {} chunk(s) tenantId={}", fallback.size(), tenantId);
+            log.info("[RAG] Fallback texto: {} chunk(s) tenantId={}", fallback.size(), tenantId);
             return new RagRetrievalResult(fallback, false, retrievalQuery, topicPrefixes, 0.58);
         }
 
-        log.info("[RAG] Fase1 CRAG sin chunks tenantId={} query='{}'", tenantId, retrievalQuery);
+        log.info("[RAG] Sin chunks recuperados tenantId={} (CRAG/tools)", tenantId);
         return RagRetrievalResult.empty(retrievalQuery, topicPrefixes, true);
     }
 
@@ -242,7 +225,7 @@ public class KnowledgeService {
             }
             return hits;
         } catch (Exception e) {
-            log.error("[RAG] Fase1 error embedding tenantId={} query='{}': {}", tenantId, query, e.getMessage());
+            log.error("[RAG] Error embedding tenantId={} query='{}': {}", tenantId, query, e.getMessage());
             return List.of();
         }
     }

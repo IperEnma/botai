@@ -118,13 +118,10 @@ bot:
     min-similarity: 0.0
     embed-retry-delay-ms: ${BOT_RAG_EMBED_RETRY_DELAY_MS:600000}
     self-review-enabled: true
-    # Fase 1 — ver backend/docs/RAG_ROADMAP.md
-    phase1:
-      enabled: ${BOT_RAG_PHASE1_ENABLED:true}
-      history-turns-for-query: 2
-      min-avg-similarity: 0.52
-      min-chunk-similarity: 0.40
-      prefetch-multiplier: 2
+    history-turns-for-query: 2
+    crag-min-avg-similarity: 0.52
+    crag-min-chunk-similarity: 0.40
+    retrieval-prefetch-multiplier: 2
 
   memory:
     max-history-turns: 10
