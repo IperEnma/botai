@@ -1,11 +1,6 @@
 ---
 name: new-agenda-feature
-description: Scaffolding end-to-end de una feature nueva del módulo AGENDA. Crea domain model + port + adapter JPA + use case + controller + migración Flyway + tests, siguiendo la arquitectura hexagonal. Úsese cuando el usuario pide "agregar X a AGENDA" y la feature toca múltiples capas. No importa paquetes chatbot desde agenda.
-metadata:
-  author: botai
-  version: "1.0"
-  scope: [backend]
-  auto_invoke: "Adding a full Agenda feature across layers"
+description: Scaffolding end-to-end de una feature nueva del módulo AGENDA. Crea domain model + port + adapter JPA + use case + controller + migración Flyway + tests, siguiendo la arquitectura hexagonal. Úsese cuando el usuario pide "agregar X a AGENDA" y la feature toca múltiples capas. Nunca modifica com.botai.chatbot.
 ---
 
 # new-agenda-feature
@@ -27,7 +22,7 @@ No usar si:
 
 1. Leer `CLAUDE.md` y `PLAN_AGENDA.md`.
 2. Verificar que la feature esté en el plan (o confirmar con el usuario si es una extensión).
-3. Si la feature integra con el bot, hacerlo sin imports de dominio chatbot en agenda (acción, API o wiring en infra).
+3. Confirmar que ningún archivo bajo `com.botai.chatbot` va a tocarse.
 
 ## Pasos
 
@@ -95,7 +90,7 @@ Invocar al subagente `agenda-boundary-guard` para confirmar que no hubo fugas de
 
 ## Reglas que nunca se rompen
 
-- Sin `import com.botai.*.chatbot` en código agenda.
+- Ningún archivo bajo `com.botai.chatbot` se modifica.
 - El prefijo `agenda_` está en toda tabla nueva.
 - Cada use case tiene al menos un test.
 - Ninguna `@Transactional` se pone en controllers ni en adapters.

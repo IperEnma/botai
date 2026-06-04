@@ -4,24 +4,22 @@ Este archivo es la instrucción maestra para Claude al trabajar sobre `botai`. *
 
 ---
 
-## 🚧 Regla #1 (INNEGOCIABLE): solo trabajamos sobre AGENDA
+## 🏗️ Monorepo unificado (Agenda + Chatbot)
 
-El backend es **un solo módulo Maven** (`chatbot-engine`) con **capas** (`application`, `domain`, `infrastructure`), rama **`chatbot`** / **`agenda`**, y la clase **`@SpringBootApplication`** en **`com.botai`** (raíz del código). Lo transversal va **en la capa y subpaquete que corresponda** (p. ej. contexto de identidad por hilo → `infrastructure.security.context`), sin un `common` genérico paralelo a las capas.
+El backend es **un solo módulo Maven** (`chatbot-engine`) con **capas** (`application`, `domain`, `infrastructure`) y dos dominios en paquetes paralelos: **`agenda`** y **`chatbot`**. La clase **`@SpringBootApplication`** está en **`com.botai`**. Lo transversal va en la capa y subpaquete que corresponda (p. ej. `infrastructure.security.context`), sin un `common` genérico paralelo a las capas.
 
-**Claude NO debe:**
-- Modificar ningún archivo bajo `backend/src/main/java/com/botai/application/chatbot/**`, `domain/chatbot/**`, `infrastructure/chatbot/**` (salvo autorización explícita del usuario).
-- Modificar ningún archivo bajo `backend/src/main/resources/` que sea exclusivo del bot (salvo añadir claves `agenda.*` al `application.yml`, que se marcan como bloque separado).
-- Tocar tablas existentes del bot (`bot`, `appointment`, `conversation`, `faq`, `knowledge_chunk`, `lead`, `menu`, `menu_option`, `message`, `business_hours`, `service`, `feature_config`, `menu_trigger`).
-- Añadir valores al enum `BotFeatures` ni columnas a `BotEntity`.
+**Podés modificar ambos dominios** según la tarea del usuario:
 
-**Claude SÍ debe:**
-- Crear y modificar código bajo `backend/src/main/java/com/botai/application/agenda/**`, `domain/agenda/**`, `infrastructure/agenda/**`.
-- Colocar utilidades **realmente comunes** en la capa y subpaquete adecuados (p. ej. contexto de identidad por hilo → `infrastructure.security.context`; DTOs compartidos solo si aplica → `application` con nombre claro).
-- Crear tablas nuevas en el schema `public` con **prefijo obligatorio `agenda_`**.
-- Añadir dependencias al `pom.xml` solo si son estrictamente necesarias para AGENDA.
-- Añadir bloques de configuración bajo la key `agenda:` en `application.yml`.
+| Dominio | Paquetes | Convenciones clave |
+|---------|----------|-------------------|
+| **Agenda** | `application.agenda`, `domain.agenda`, `infrastructure.agenda` | Tablas nuevas con prefijo `agenda_`, Flyway en `db/migration/agenda/`, `agenda:` en `application.yml` |
+| **Chatbot** | `application.chatbot`, `domain.chatbot`, `infrastructure.chatbot` | Tablas del bot existentes, `BotEntity` / `BotFeatures` solo cuando la feature lo requiera |
 
-Si una tarea parece requerir tocar el bot, **Claude debe detenerse y preguntar al usuario** antes de proceder.
+**Aislamiento entre dominios (sí aplica):**
+- **No** `import` directo entre `com.botai.*.agenda` y `com.botai.*.chatbot`. Integración vía APIs REST, eventos, JDBC en capa de infra compartida o contratos explícitos acordados — no acoplar dominios en código.
+- Migraciones **Agenda** no deben alterar tablas del bot; migraciones del bot no deben tocar tablas `agenda_*` sin diseño explícito.
+
+Si la integración Agenda ↔ Bot necesita un canal nuevo (p. ej. acción del bot que llama Agenda), implementalo en el lado correcto y documentá el contrato; no cruces imports de dominio.
 
 ---
 
@@ -169,7 +167,7 @@ Cuando el usuario pide una feature de AGENDA:
 2. **Localizar** los archivos afectados con Grep / Glob (nunca importar a ciegas).
 3. **Diseñar primero** (usar subagente `agenda-architect` si es una feature no trivial).
 4. **Implementar** respetando el patrón de capas. Para scaffolding usar las skills (`new-agenda-feature`, `new-agenda-entity`, `new-agenda-migration`).
-5. **Validar boundaries** con la skill `agenda-boundary-check` o el subagente `agenda-boundary-guard` antes de terminar.
+5. **Validar aislamiento de paquetes** con `agenda-boundary-check` si el cambio toca Agenda (imports cruzados, prefijos `agenda_`).
 6. **Test** siempre (unit + integration). Sin test, la feature no está terminada.
 7. **Revisar** con el subagente `agenda-reviewer` antes de entregar.
 
@@ -178,23 +176,27 @@ Cuando el usuario pide una feature de AGENDA:
 ## 📚 Referencias dentro del repo
 
 - [PLAN_AGENDA.md](./PLAN_AGENDA.md) — plan técnico completo del módulo.
-- [backend/docs/ESTRATEGIA_IA_Y_AGENDAR.md](./backend/docs/ESTRATEGIA_IA_Y_AGENDAR.md) — estrategia del bot (solo contexto, **no tocar**).
-- [backend/docs/ANALISIS_SPRING_AI_TOOLS.md](./backend/docs/ANALISIS_SPRING_AI_TOOLS.md) — análisis Spring AI del bot (contexto).
+- [backend/docs/ESTRATEGIA_IA_Y_AGENDAR.md](./backend/docs/ESTRATEGIA_IA_Y_AGENDAR.md) — estrategia del bot e integración con Agenda.
+- [backend/docs/ANALISIS_SPRING_AI_TOOLS.md](./backend/docs/ANALISIS_SPRING_AI_TOOLS.md) — análisis Spring AI del bot.
+- [backend/docs/BOT_AGENDA_INTENTS.md](./backend/docs/BOT_AGENDA_INTENTS.md) — intenciones del bot ligadas a Agenda.
 - [.claude/agents/](./.claude/agents/) — subagentes especializados.
-- [.claude/skills/](./.claude/skills/) — skills para tareas recurrentes.
+- [skills/](./skills/) — skills (fuente de verdad, estilo [Prowler](https://github.com/prowler-cloud/prowler)); ver [AGENTS.md](./AGENTS.md) y `./skills/setup.sh`.
+- [agents/](./agents/) — subagentes Cursor (symlink vía setup).
 
 ---
 
 ## ✅ Checklist antes de cerrar cualquier cambio
 
-- [ ] No se modificó nada en `com.botai.application.chatbot.**`, `domain/chatbot/**`, `infrastructure/chatbot/**`.
-- [ ] No se modificó `BotFeatures`, `BotEntity` ni tablas del bot.
-- [ ] Todas las tablas nuevas tienen prefijo `agenda_`.
-- [ ] Hay migración Flyway `V*__agenda_*.sql` por cada cambio de schema.
-- [ ] Entidades de AGENDA usan `@Table(name = "agenda_...")`.
-- [ ] Puerto en `domain/repository/` + adapter en `infrastructure/persistence/jpa/`.
-- [ ] Caso de uso en `application/usecase/` (no lógica de negocio en controllers).
-- [ ] Hay tests unitarios + integración.
-- [ ] `AgendaFeatureGuard` protege los endpoints sensibles.
-- [ ] OpenAPI describe los nuevos endpoints.
-- [ ] `mvn compile` pasa sin warnings nuevos en el bot.
+**Siempre:**
+- [ ] `mvn compile` pasa.
+- [ ] Tests del área tocada (Agenda y/o chatbot).
+- [ ] Sin `import` cruzado `agenda` ↔ `chatbot` (ver `agenda-boundary-check`).
+
+**Si tocó Agenda:**
+- [ ] Tablas nuevas con prefijo `agenda_` y migración `V*__agenda_*.sql` si hubo schema.
+- [ ] Entidades Agenda: `@Table(name = "agenda_...")`, hexagonal (puerto + adapter + use case).
+- [ ] `AgendaFeatureGuard` en endpoints sensibles; OpenAPI actualizado.
+
+**Si tocó Chatbot:**
+- [ ] Cambios acotados al paquete `chatbot` y tablas/recursos del bot.
+- [ ] `BotFeatures` / `BotEntity` solo si la feature lo exige; sin romper conversaciones existentes sin migración planificada.

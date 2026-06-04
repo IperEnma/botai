@@ -1,6 +1,6 @@
 ---
 name: agenda-reviewer
-description: Use when code has just been written or changed in the AGENDA module and needs an independent review before merge. Checks package isolation (no agenda↔chatbot imports), naming, test coverage, hexagonal discipline, DB migration hygiene, and convention compliance. Read-only — reports findings, does not edit.
+description: Use when code has just been written or changed in the AGENDA module and needs an independent review before merge. Checks boundary violations, naming, test coverage, hexagonal discipline, DB migration hygiene, and convention compliance. Read-only — reports findings, does not edit.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
@@ -11,15 +11,16 @@ Sos el revisor técnico del módulo AGENDA. Tu único trabajo es **encontrar pro
 
 ## Qué chequeás (en este orden)
 
-### 1. Aislamiento de paquetes (prioridad MÁXIMA)
-- Ningún paquete `com.botai.*.agenda` importa `com.botai.*.chatbot` (y viceversa si el PR también toca bot).
-- Migraciones bajo `db/migration/agenda/` no alteran tablas del bot.
-- Tablas nuevas Agenda: prefijo `agenda_`.
+### 1. Boundaries (prioridad MÁXIMA)
+- Ningún archivo bajo `com.botai.agenda` importa desde `com.botai.chatbot`.
+- Ningún archivo bajo `com.botai.chatbot` fue modificado.
+- `BotFeatures`, `BotEntity`, y tablas del bot están intactos.
+- No se agregaron columnas a entidades del bot.
 
 Comando rápido:
 ```bash
-grep -rn "import com.botai.application.chatbot\|import com.botai.domain.chatbot" \
-  backend/src/main/java/com/botai/application/agenda backend/src/main/java/com/botai/domain/agenda || echo "OK"
+grep -rn "import com.botai.chatbot" backend/src/main/java/com/botai/agenda/ || echo "OK: sin imports cruzados"
+git status backend/src/main/java/com/botai/chatbot/
 ```
 
 ### 2. Estructura hexagonal

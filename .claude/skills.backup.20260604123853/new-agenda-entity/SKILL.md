@@ -1,11 +1,6 @@
 ---
 name: new-agenda-entity
 description: Crea una entidad nueva del módulo AGENDA y sus piezas mínimas — domain POJO + JPA entity con prefijo agenda_ + Spring Data repo + port + adapter + migración Flyway. No crea casos de uso ni controllers. Úsese cuando se necesita persistir un concepto nuevo pero la lógica de negocio la vas a implementar después.
-metadata:
-  author: botai
-  version: "1.0"
-  scope: [backend]
-  auto_invoke: "Creating a new Agenda entity and persistence layer"
 ---
 
 # new-agenda-entity
@@ -102,4 +97,4 @@ cd backend && mvn test -Dtest='*Foo*'
 - IDs `UUID` siempre.
 - Auditoría `@CreatedDate` y `@LastModifiedDate` obligatorias.
 - `tenant_id` obligatorio salvo catálogo global (como `agenda_categories`).
-- Sin imports desde `com.botai.*.chatbot` en paquetes agenda.
+- Nunca importar desde `com.botai.chatbot`.

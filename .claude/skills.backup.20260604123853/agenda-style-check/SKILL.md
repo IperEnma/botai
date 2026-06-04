@@ -1,11 +1,6 @@
 ---
 name: agenda-style-check
 description: Auditoría rápida de consistencia visual de uno o varios archivos Flutter del módulo Agenda. Verifica tokens de color, tipografía, responsive layout, navegación y patrones Riverpod contra el design system de landing_screen.dart. Solo lectura — reporta, no edita.
-metadata:
-  author: botai
-  version: "1.0"
-  scope: [frontend]
-  auto_invoke: "Reviewing Agenda Flutter UI against the design system"
 ---
 
 # agenda-style-check

@@ -1,11 +1,6 @@
 ---
 name: new-agenda-screen
 description: Scaffolding de una nueva pantalla Flutter del módulo Agenda. Genera el archivo con los tokens de diseño correctos, estructura Riverpod, responsive layout y registra la ruta en router.dart. Úsese cuando el usuario pide "crear/agregar la pantalla de X".
-metadata:
-  author: botai
-  version: "1.0"
-  scope: [frontend]
-  auto_invoke: "Creating a new Agenda Flutter screen"
 ---
 
 # new-agenda-screen

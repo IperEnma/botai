@@ -1,11 +1,6 @@
 ---
 name: new-agenda-migration
 description: Crea una migración Flyway nueva bajo backend/src/main/resources/db/migration/agenda/ siguiendo la convención V<N>__agenda_<descripcion>.sql. Valida que el nombre tenga prefijo agenda_, que no toque tablas del bot, y que el número de versión sea correlativo. Úsese cuando hay un cambio de schema aislado.
-metadata:
-  author: botai
-  version: "1.0"
-  scope: [backend]
-  auto_invoke: "Creating or updating Agenda Flyway migrations"
 ---
 
 # new-agenda-migration

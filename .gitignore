@@ -23,4 +23,12 @@ Thumbs.db
 # Local dev config (credenciales locales, no subir)
 backend/src/main/resources/application-local.yml
 
-.claude/
+# AI coding assistants (generated symlinks — run skills/setup.sh)
+.claude/skills
+.claude/agents
+.cursor/skills
+.codex/skills
+.gemini/skills
+.github/copilot-instructions.md
+CLAUDE.md
+GEMINI.md
