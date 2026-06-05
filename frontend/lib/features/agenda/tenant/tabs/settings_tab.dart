@@ -31,6 +31,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   late final TextEditingController _alertDaysCtrl;
   late final TextEditingController _alertCreditsCtrl;
   bool _autoNotify = false;
+  bool _requireBookingConfirmation = true;
 
   bool _initialized = false;
 
@@ -59,7 +60,10 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
     _cancellationCtrl.text = s.hoursCancellationLimit.toString();
     _alertDaysCtrl.text = s.expirationAlertDays.toString();
     _alertCreditsCtrl.text = s.expirationAlertCredits.toString();
-    setState(() => _autoNotify = s.autoNotifyEnabled);
+    setState(() {
+      _autoNotify = s.autoNotifyEnabled;
+      _requireBookingConfirmation = s.requireBookingConfirmation;
+    });
   }
 
   Future<void> _save(BusinessSettings current) async {
@@ -69,6 +73,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
       expirationAlertDays: int.parse(_alertDaysCtrl.text.trim()),
       expirationAlertCredits: int.parse(_alertCreditsCtrl.text.trim()),
       autoNotifyEnabled: _autoNotify,
+      requireBookingConfirmation: _requireBookingConfirmation,
     );
     await ref.read(settingsProvider(_key).notifier).save(updated);
     if (mounted) {
@@ -219,6 +224,15 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
               ],
             ),
             const SizedBox(height: 12),
+            SwitchListTile(
+              value: _requireBookingConfirmation,
+              onChanged: (v) => setState(() => _requireBookingConfirmation = v),
+              title: const Text('Confirmar reservas manualmente'),
+              subtitle: const Text(
+                'Si está activo, las reservas quedan pendientes hasta que las confirmes.',
+              ),
+              contentPadding: EdgeInsets.zero,
+            ),
             SwitchListTile(
               value: _autoNotify,
               onChanged: (v) => setState(() => _autoNotify = v),

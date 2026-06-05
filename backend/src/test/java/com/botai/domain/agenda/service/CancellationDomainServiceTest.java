@@ -145,7 +145,7 @@ class CancellationDomainServiceTest {
     @Test
     void ventanaDe24h_cancelarConMenos12h_lanzaExcepcion() {
         BusinessSettings settings24 = new BusinessSettings(
-                UUID.randomUUID(), 24, 3, 30, 7, 2, true);
+                UUID.randomUUID(), 24, 3, 30, 7, 2, true, true);
         Booking booking = booking(BookingEstado.CONFIRMED, now.plusHours(12));
 
         assertThrows(CancellationNotAllowedException.class,
@@ -155,7 +155,7 @@ class CancellationDomainServiceTest {
     @Test
     void ventanaDe24h_cancelarCon25h_ok() {
         BusinessSettings settings24 = new BusinessSettings(
-                UUID.randomUUID(), 24, 3, 30, 7, 2, true);
+                UUID.randomUUID(), 24, 3, 30, 7, 2, true, true);
         Booking booking = booking(BookingEstado.CONFIRMED, now.plusHours(25));
 
         Booking result = service.cancelar(booking, settings24, now);

@@ -3,6 +3,7 @@ package com.botai.application.agenda.service;
 import com.botai.domain.agenda.model.Booking;
 import com.botai.domain.agenda.model.BookingEstado;
 import com.botai.domain.agenda.model.BusinessHours;
+import com.botai.domain.agenda.model.ServiceSchedulingMode;
 import com.botai.domain.agenda.repository.BookingRepository;
 import com.botai.domain.agenda.repository.BusinessHoursRepository;
 import com.botai.domain.agenda.repository.StaffMemberRepository;
@@ -31,6 +32,8 @@ class PublicAvailabilityServiceTest {
 
     private final UUID businessId = UUID.randomUUID();
     private final UUID serviceId = UUID.randomUUID();
+    private final UUID staffA = UUID.randomUUID();
+    private final UUID staffB = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -114,6 +117,31 @@ class PublicAvailabilityServiceTest {
 
         var slots = service.computeSlots(businessId, 60, null, day);
         assertThat(slots.stream().noneMatch(s -> s.inicio().contains("T09:00"))).isTrue();
+        assertThat(slots.stream().anyMatch(s -> s.inicio().contains("T10:00"))).isTrue();
+    }
+
+    @Test
+    void anyStaff_unionShowsSlotWhenOneProfessionalIsFree() {
+        var day = LocalDate.now().plusDays(7);
+        int diaSemana = day.getDayOfWeek().getValue() - 1;
+        when(hoursRepository.findByBusinessId(businessId)).thenReturn(List.of(
+                new BusinessHours(UUID.randomUUID(), businessId, diaSemana,
+                        LocalTime.of(9, 0), LocalTime.of(12, 0), null, null, false)
+        ));
+        var busyStaffA = new Booking(
+                UUID.randomUUID(), businessId, serviceId,
+                UUID.randomUUID(), null, staffA,
+                day.atTime(9, 0),
+                day.atTime(10, 0),
+                BookingEstado.CONFIRMED,
+                null, null, null, null, null);
+        when(bookingRepository.findAllByBusinessIdAndFecha(eq(businessId), any(), any()))
+                .thenReturn(List.of(busyStaffA));
+
+        var slots = service.computeSlots(
+                businessId, 60, null, day, ServiceSchedulingMode.BY_STAFF, List.of(staffA, staffB));
+
+        assertThat(slots.stream().anyMatch(s -> s.inicio().contains("T09:00"))).isTrue();
         assertThat(slots.stream().anyMatch(s -> s.inicio().contains("T10:00"))).isTrue();
     }
 }

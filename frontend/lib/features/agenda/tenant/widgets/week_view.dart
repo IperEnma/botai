@@ -555,6 +555,8 @@ class _BookingBlock extends StatelessWidget {
 
   static String _fmt2(int v) => v.toString().padLeft(2, '0');
 
+  static const _pendingColor = Color(0xFFC2410C);
+
   @override
   Widget build(BuildContext context) {
     final minH = height.clamp(24.0, double.infinity);
@@ -562,6 +564,8 @@ class _BookingBlock extends StatelessWidget {
     final fin = booking.fechaHoraFin;
     final timeStr =
         '${_fmt2(inicio.hour)}:${_fmt2(inicio.minute)}–${_fmt2(fin.hour)}:${_fmt2(fin.minute)}';
+    final isPending = booking.estado == BookingEstado.pendiente;
+    final blockColor = isPending ? _pendingColor : color;
 
     return Positioned(
       top: top,
@@ -572,19 +576,22 @@ class _BookingBlock extends StatelessWidget {
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: KTokens.blockBg(color),
+            color: KTokens.blockBg(blockColor),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: KTokens.blockBorder(color), width: 1.5),
+            border: Border.all(
+              color: isPending ? _pendingColor : KTokens.blockBorder(color),
+              width: isPending ? 2 : 1.5,
+            ),
           ),
           padding: const EdgeInsets.fromLTRB(4, 3, 4, 3),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                timeStr,
+                isPending ? 'Pend. · $timeStr' : timeStr,
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 8,
-                  color: color,
+                  color: blockColor,
                   fontWeight: FontWeight.w600,
                 ),
                 maxLines: 1,

@@ -9,5 +9,6 @@ public record BusinessSettingsResponse(
         int loyaltyWindowDays,
         int expirationAlertDays,
         int expirationAlertCredits,
-        boolean autoNotifyEnabled
+        boolean autoNotifyEnabled,
+        boolean requireBookingConfirmation
 ) {}

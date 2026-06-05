@@ -19,7 +19,8 @@ public final class BusinessSettingsMapper {
                 entity.getLoyaltyWindowDays(),
                 entity.getExpirationAlertDays(),
                 entity.getExpirationAlertCredits(),
-                entity.isAutoNotifyEnabled()
+                entity.isAutoNotifyEnabled(),
+                entity.isRequireBookingConfirmation()
         );
     }
 
@@ -35,6 +36,7 @@ public final class BusinessSettingsMapper {
         entity.setExpirationAlertDays(settings.getExpirationAlertDays());
         entity.setExpirationAlertCredits(settings.getExpirationAlertCredits());
         entity.setAutoNotifyEnabled(settings.isAutoNotifyEnabled());
+        entity.setRequireBookingConfirmation(settings.isRequireBookingConfirmation());
         return entity;
     }
 }

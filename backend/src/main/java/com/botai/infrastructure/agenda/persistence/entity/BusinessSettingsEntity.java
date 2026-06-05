@@ -37,6 +37,9 @@ public class BusinessSettingsEntity extends BaseAuditableEntity {
     @Column(name = "auto_notify_enabled", nullable = false)
     private boolean autoNotifyEnabled = true;
 
+    @Column(name = "require_booking_confirmation", nullable = false)
+    private boolean requireBookingConfirmation = true;
+
     public UUID getBusinessId() { return businessId; }
     public void setBusinessId(UUID businessId) { this.businessId = businessId; }
     public int getHoursCancellationLimit() { return hoursCancellationLimit; }
@@ -51,4 +54,6 @@ public class BusinessSettingsEntity extends BaseAuditableEntity {
     public void setExpirationAlertCredits(int v) { this.expirationAlertCredits = v; }
     public boolean isAutoNotifyEnabled() { return autoNotifyEnabled; }
     public void setAutoNotifyEnabled(boolean v) { this.autoNotifyEnabled = v; }
+    public boolean isRequireBookingConfirmation() { return requireBookingConfirmation; }
+    public void setRequireBookingConfirmation(boolean v) { this.requireBookingConfirmation = v; }
 }

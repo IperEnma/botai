@@ -4,6 +4,7 @@ import com.botai.application.agenda.dto.AvailabilitySlotResponse;
 import com.botai.domain.agenda.model.Booking;
 import com.botai.domain.agenda.model.BookingEstado;
 import com.botai.domain.agenda.model.BusinessHours;
+import com.botai.domain.agenda.model.ServiceSchedulingMode;
 import com.botai.domain.agenda.model.StaffMember;
 import com.botai.domain.agenda.repository.BookingRepository;
 import com.botai.domain.agenda.repository.BusinessHoursRepository;
@@ -15,9 +16,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -48,10 +51,49 @@ public class PublicAvailabilityService {
                                                        int serviceDurationMin,
                                                        UUID staffMemberId,
                                                        LocalDate date) {
+        return computeSlots(
+                businessId, serviceDurationMin, staffMemberId, date,
+                ServiceSchedulingMode.GENERAL, List.of());
+    }
+
+    /**
+     * @param eligibleStaffIds profesionales del servicio; si {@code staffMemberId} es null y el
+     *                         modo es {@code BY_STAFF}, devuelve la unión de turnos libres.
+     */
+    public List<AvailabilitySlotResponse> computeSlots(UUID businessId,
+                                                       int serviceDurationMin,
+                                                       UUID staffMemberId,
+                                                       LocalDate date,
+                                                       ServiceSchedulingMode schedulingMode,
+                                                       List<UUID> eligibleStaffIds) {
         if (serviceDurationMin <= 0) {
             return List.of();
         }
+        if (staffMemberId != null) {
+            return computeSlotsForStaff(businessId, serviceDurationMin, staffMemberId, date);
+        }
+        if (schedulingMode == ServiceSchedulingMode.BY_STAFF
+                && eligibleStaffIds != null
+                && !eligibleStaffIds.isEmpty()) {
+            Set<String> seen = new LinkedHashSet<>();
+            List<AvailabilitySlotResponse> union = new ArrayList<>();
+            for (UUID staffId : eligibleStaffIds) {
+                for (AvailabilitySlotResponse slot
+                        : computeSlotsForStaff(businessId, serviceDurationMin, staffId, date)) {
+                    if (seen.add(slot.inicio())) {
+                        union.add(slot);
+                    }
+                }
+            }
+            return union;
+        }
+        return computeSlotsForStaff(businessId, serviceDurationMin, null, date);
+    }
 
+    private List<AvailabilitySlotResponse> computeSlotsForStaff(UUID businessId,
+                                                                int serviceDurationMin,
+                                                                UUID staffMemberId,
+                                                                LocalDate date) {
         int diaSemana = date.getDayOfWeek().getValue() - 1;
         List<BusinessHours> allHours = hoursRepository.findByBusinessId(businessId);
         Optional<BusinessHours> dayHours = allHours.stream()
@@ -59,11 +101,9 @@ public class PublicAvailabilityService {
                 .findFirst();
 
         if (dayHours.isEmpty()) {
-            // Negocio con horarios guardados pero sin fila para este día → cerrado.
             if (!allHours.isEmpty()) {
                 return List.of();
             }
-            // Sin configuración de horarios: no inventar turnos por defecto.
             return List.of();
         }
 

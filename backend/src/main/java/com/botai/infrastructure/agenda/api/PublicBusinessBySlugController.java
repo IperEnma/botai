@@ -138,8 +138,14 @@ public class PublicBusinessBySlugController {
             return List.of();
         }
 
+        List<UUID> eligibleStaff = serviceStaffLookup.eligibleStaffForService(b.getId(), serviceId);
         return publicAvailabilityService.computeSlots(
-                b.getId(), service.getDuracionMin(), staffMemberId, date);
+                b.getId(),
+                service.getDuracionMin(),
+                staffMemberId,
+                date,
+                service.getSchedulingMode(),
+                eligibleStaff);
     }
 }
 

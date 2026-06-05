@@ -10,9 +10,11 @@ import '../../../../providers/agenda/tenant/agenda_month_provider.dart';
 import '../../../../providers/agenda/tenant/agenda_week_provider.dart';
 import '../../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../register/konecta_tokens.dart';
+import '../../../../models/agenda/booking.dart';
 import 'day_view.dart';
 import 'month_view.dart';
 import 'new_turno_panel.dart';
+import 'turno_detail_sheet.dart';
 import 'week_view.dart';
 
 enum _AgendaViewMode { month, week, day }
@@ -120,6 +122,16 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
     );
     if (!mounted) return;
     _refreshCurrentView(businessId);
+  }
+
+  void _openTurnoDetail(String businessId, Booking booking) {
+    showTurnoDetailSheet(
+      context: context,
+      ref: ref,
+      businessId: businessId,
+      tenantId: widget.tenantId,
+      booking: booking,
+    );
   }
 
   void _refreshCurrentView(String businessId) {
@@ -255,7 +267,7 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
                 tenantId: widget.tenantId,
                 onSlotTap: (start, proId) =>
                     _openNewTurno(start: start, proId: proId),
-                onTurnoTap: (_) {},
+                onTurnoTap: (b) => _openTurnoDetail(businessId, b),
               ),
             _AgendaViewMode.day => DayView(
                 date: _focusDate,
@@ -264,7 +276,7 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
                 visibleProId: _selectedProId,
                 onSlotTap: (start, proId) =>
                     _openNewTurno(start: start, proId: proId),
-                onTurnoTap: (_) {},
+                onTurnoTap: (b) => _openTurnoDetail(businessId, b),
               ),
           },
         ),

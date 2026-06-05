@@ -580,6 +580,7 @@ class FakeAgendaApiService implements AgendaApiService {
           expirationAlertDays: 7,
           expirationAlertCredits: 2,
           autoNotifyEnabled: false,
+          requireBookingConfirmation: true,
         );
   }
 
@@ -933,6 +934,29 @@ class FakeAgendaApiService implements AgendaApiService {
       nombre: nombre,
       telefono: telefono,
       email: email,
+    );
+  }
+
+  @override
+  Future<Booking> confirmTenantBooking({
+    required String businessId,
+    required String bookingId,
+  }) async {
+    _maybeThrow();
+    final existing = nextCreatedBooking;
+    if (existing != null && existing.id == bookingId) {
+      return existing.copyWith(estado: BookingEstado.confirmada);
+    }
+    return Booking(
+      id: bookingId,
+      userId: 'client-fake-1',
+      serviceId: 'svc-1',
+      servicioNombre: 'Servicio test',
+      businessId: businessId,
+      fechaHoraInicio: DateTime.now(),
+      fechaHoraFin: DateTime.now().add(const Duration(minutes: 60)),
+      estado: BookingEstado.confirmada,
+      tipoReserva: BookingTipo.pagoPorTurno,
     );
   }
 

@@ -10,7 +10,28 @@ import 'package:botai_admin/providers/agenda/tenant/agenda_week_provider.dart';
 import 'package:botai_admin/providers/agenda/tenant/business_staff_provider.dart';
 import 'package:botai_admin/features/agenda/tenant/tabs/horarios/utils/slot_generator.dart';
 import 'package:botai_admin/providers/agenda/tenant/horarios_controller_provider.dart';
+import '../booking_draft.dart';
 import '../booking_wizard_controller.dart';
+
+const _dayScheduleKeys = [
+  'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo',
+];
+
+List<StaffMember> _eligibleStaffForService(BookingDraft draft, List<StaffMember> members) {
+  final servicioId = draft.servicio?.id;
+  return members.where((s) {
+    if (!s.activo) return false;
+    if (servicioId == null) return true;
+    return s.serviceIds.isEmpty || s.serviceIds.contains(servicioId);
+  }).toList();
+}
+
+bool _staffWorksDay(StaffMember staff, int diaSemana) {
+  final cs = staff.customSchedule;
+  if (cs == null) return true;
+  final day = cs[_dayScheduleKeys[diaSemana]] as Map<String, dynamic>?;
+  return day?['open'] == true;
+}
 
 class StepFechaHora extends ConsumerStatefulWidget {
   const StepFechaHora({
@@ -79,17 +100,24 @@ class _StepFechaHoraState extends ConsumerState<StepFechaHora> {
 
     final draft = widget.controller.draft;
     final proId = draft.effectiveStaffMemberId;
+    final eligibleStaff = _eligibleStaffForService(draft, staffState.members);
     final selectedStaff = proId == null
         ? null
-        : staffState.members.where((s) => s.id == proId).firstOrNull;
+        : eligibleStaff.where((s) => s.id == proId).firstOrNull;
 
-    // Build a day-availability override map from the staff's custom schedule
     Map<int, bool>? staffWorkDays;
-    if (selectedStaff?.customSchedule != null) {
-      const keys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+    if (draft.anyProfessional && draft.requiresStaffStep) {
+      if (eligibleStaff.any((s) => s.customSchedule != null)) {
+        staffWorkDays = {
+          for (var i = 0; i < 7; i++)
+            i: eligibleStaff.any((s) => _staffWorksDay(s, i)),
+        };
+      }
+    } else if (selectedStaff?.customSchedule != null) {
       staffWorkDays = {};
-      for (var i = 0; i < keys.length; i++) {
-        final day = selectedStaff!.customSchedule![keys[i]] as Map<String, dynamic>?;
+      for (var i = 0; i < _dayScheduleKeys.length; i++) {
+        final day =
+            selectedStaff!.customSchedule![_dayScheduleKeys[i]] as Map<String, dynamic>?;
         staffWorkDays[i] = day?['open'] == true;
       }
     }
@@ -97,7 +125,7 @@ class _StepFechaHoraState extends ConsumerState<StepFechaHora> {
     final proName = !draft.requiresStaffStep
         ? 'el negocio'
         : draft.anyProfessional
-            ? 'cualquier profesional'
+            ? 'cualquiera disponible'
             : (selectedStaff?.nombre ?? 'el profesional');
 
     return SingleChildScrollView(
@@ -156,6 +184,8 @@ class _StepFechaHoraState extends ConsumerState<StepFechaHora> {
               selectedTime: _selectedTime,
               dayAbbrs: _dayAbbrs,
               selectedStaff: selectedStaff,
+              eligibleStaff: eligibleStaff,
+              anyProfessional: draft.anyProfessional && draft.requiresStaffStep,
             ),
           ],
           // WhatsApp + Notes
@@ -478,6 +508,8 @@ class _SlotsSection extends ConsumerWidget {
     required this.selectedTime,
     required this.dayAbbrs,
     this.selectedStaff,
+    required this.eligibleStaff,
+    required this.anyProfessional,
   });
 
   final BookingWizardController controller;
@@ -487,6 +519,8 @@ class _SlotsSection extends ConsumerWidget {
   final TimeOfDay? selectedTime;
   final List<String> dayAbbrs;
   final StaffMember? selectedStaff;
+  final List<StaffMember> eligibleStaff;
+  final bool anyProfessional;
 
   int _bHoursDiaSemana(DateTime d) => (d.weekday - 1) % 7;
 
@@ -518,8 +552,34 @@ class _SlotsSection extends ConsumerWidget {
     final bizClosed = hourEntry != null && hourEntry.cerrado;
 
     if (bizClosed) {
-      // Business is closed on this day — no slots regardless of staff schedule.
       dayDraft = DayDraft(diaSemana: dia, open: false);
+    } else if (anyProfessional) {
+      if (eligibleStaff.isNotEmpty &&
+          eligibleStaff.every((s) => !_staffWorksDay(s, dia))) {
+        dayDraft = DayDraft(diaSemana: dia, open: false);
+      } else if (hourEntry == null) {
+        dayDraft = DayDraft(diaSemana: dia, open: false);
+      } else {
+        final from1 = _parseTimeStr(
+            hourEntry.apertura, const TimeOfDay(hour: 9, minute: 0));
+        final to1 = _parseTimeStr(
+            hourEntry.cierre, const TimeOfDay(hour: 18, minute: 0));
+        final hasBreak =
+            hourEntry.apertura2 != null && hourEntry.cierre2 != null;
+        final from2 = _parseTimeStr(
+            hourEntry.apertura2, const TimeOfDay(hour: 15, minute: 0));
+        final to2 = _parseTimeStr(
+            hourEntry.cierre2, const TimeOfDay(hour: 19, minute: 0));
+        dayDraft = DayDraft(
+          diaSemana: dia,
+          open: true,
+          from1: from1,
+          to1: to1,
+          hasBreak: hasBreak,
+          from2: from2,
+          to2: to2,
+        );
+      }
     } else if (cs != null) {
       // Staff has a custom schedule that is already clamped to business hours
       // by the backend sanitizer — use it directly.
@@ -615,12 +675,15 @@ class _SlotsSection extends ConsumerWidget {
         onSelect: (t) => controller.setDateTime(selectedDate, t),
         selectedDate: selectedDate,
         dayAbbrs: dayAbbrs,
+        anyProfessional: anyProfessional,
+        eligibleStaff: eligibleStaff,
       ),
       data: (bookings) {
         final dayBookings = bookings.where((b) {
           final sameDay = b.fechaHoraInicio.year == selectedDate.year &&
               b.fechaHoraInicio.month == selectedDate.month &&
               b.fechaHoraInicio.day == selectedDate.day;
+          if (anyProfessional) return sameDay;
           final sameProf = proId == null || b.staffMemberId == proId;
           return sameDay && sameProf;
         }).toList();
@@ -633,6 +696,8 @@ class _SlotsSection extends ConsumerWidget {
           onSelect: (t) => controller.setDateTime(selectedDate, t),
           selectedDate: selectedDate,
           dayAbbrs: dayAbbrs,
+          anyProfessional: anyProfessional,
+          eligibleStaff: eligibleStaff,
         );
       },
     );
@@ -648,6 +713,8 @@ class _SlotsGrid extends StatelessWidget {
     required this.onSelect,
     required this.selectedDate,
     required this.dayAbbrs,
+    required this.anyProfessional,
+    required this.eligibleStaff,
   });
 
   final List<SlotPreview> slots;
@@ -657,15 +724,29 @@ class _SlotsGrid extends StatelessWidget {
   final void Function(TimeOfDay) onSelect;
   final DateTime selectedDate;
   final List<String> dayAbbrs;
+  final bool anyProfessional;
+  final List<StaffMember> eligibleStaff;
+
+  bool _bookingOverlapsSlot(Booking b, int slotStart, int slotEnd) {
+    final bStart = b.fechaHoraInicio.hour * 60 + b.fechaHoraInicio.minute;
+    final bEnd = b.fechaHoraFin.hour * 60 + b.fechaHoraFin.minute;
+    return slotStart < bEnd && slotEnd > bStart;
+  }
 
   bool _isOccupied(SlotPreview slot) {
     final slotStart = slot.time.hour * 60 + slot.time.minute;
     final slotEnd = slotStart + durMin;
+    if (anyProfessional && eligibleStaff.isNotEmpty) {
+      return eligibleStaff.every((staff) {
+        final staffBookings = occupiedSlots
+            .where((b) => b.staffMemberId == staff.id)
+            .toList();
+        return staffBookings
+            .any((b) => _bookingOverlapsSlot(b, slotStart, slotEnd));
+      });
+    }
     for (final b in occupiedSlots) {
-      final bStart =
-          b.fechaHoraInicio.hour * 60 + b.fechaHoraInicio.minute;
-      final bEnd = b.fechaHoraFin.hour * 60 + b.fechaHoraFin.minute;
-      if (slotStart < bEnd && slotEnd > bStart) return true;
+      if (_bookingOverlapsSlot(b, slotStart, slotEnd)) return true;
     }
     return false;
   }

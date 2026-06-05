@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/agenda_phone.dart';
 import '../../../models/agenda/agenda_service.dart';
+import '../../../models/agenda/booking.dart';
 import '../../../models/agenda/availability_slot.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/business_hours.dart';
@@ -59,6 +60,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   String? _confirmedServiceName;
   String? _confirmedSlotLabel;
   String? _confirmedDateLabel;
+  BookingEstado? _confirmedEstado;
 
   @override
   void dispose() {
@@ -246,6 +248,8 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     return base;
   }
 
+  String _explorarMasPath() => '/agenda/search';
+
   Future<void> _restoreSession(Business business) async {
     final stored =
         await ref.read(publicClientSessionStorageProvider).load(widget.slug);
@@ -305,7 +309,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     setState(() => _submitting = true);
     try {
       final api = ref.read(agendaApiServiceProvider);
-      await api.publicCreateBooking(
+      final booking = await api.publicCreateBooking(
         businessId: business.id,
         serviceId: svc.id,
         staffMemberId: _effectiveStaffId,
@@ -325,6 +329,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         _confirmedServiceName = svc.nombre;
         _confirmedSlotLabel = slot.label;
         _confirmedDateLabel = _formattedSelectedDate();
+        _confirmedEstado = booking.estado;
         _step = _BookingStep.confirmed;
       });
     } catch (e) {
@@ -422,7 +427,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         code: code,
       );
       await _persistSession(result, business);
-      await api.publicCreateBooking(
+      final booking = await api.publicCreateBooking(
         businessId: business.id,
         serviceId: svc.id,
         staffMemberId: _effectiveStaffId,
@@ -443,6 +448,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         _confirmedServiceName = svc.nombre;
         _confirmedSlotLabel = slot.label;
         _confirmedDateLabel = _formattedSelectedDate();
+        _confirmedEstado = booking.estado;
         _step = _BookingStep.confirmed;
         _submitting = false;
       });
@@ -475,7 +481,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
 
   String _staffSummaryLabel() {
     if (!_usesStaffStep(_service)) return 'Agenda del negocio';
-    if (_anyStaff) return 'Cualquier profesional disponible';
+    if (_anyStaff) return 'Cualquiera disponible';
     return _selectedStaff?.nombre ?? '—';
   }
 
@@ -540,6 +546,22 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
               onPressed: () => context.go(_misReservasPath()),
             ),
             const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                side: BorderSide(color: theme.primary),
+              ),
+              icon: Icon(Icons.explore_outlined, color: theme.primary, size: 20),
+              onPressed: () => context.go(_explorarMasPath()),
+              label: Text(
+                'Explorar más',
+                style: theme.textStyle(color: theme.primary, weight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 10),
             OutlinedButton(
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
@@ -558,6 +580,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                   _confirmedServiceName = null;
                   _confirmedSlotLabel = null;
                   _confirmedDateLabel = null;
+                  _confirmedEstado = null;
                   _codeCtrl.clear();
                   _otpError = null;
                   _otpHint = null;
@@ -803,6 +826,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           serviceName: _confirmedServiceName ?? '—',
           dateLabel: _confirmedDateLabel ?? '—',
           slotLabel: _confirmedSlotLabel ?? '—',
+          estado: _confirmedEstado ?? BookingEstado.pendiente,
         );
     }
   }
@@ -815,6 +839,7 @@ class _BookingConfirmedStep extends StatelessWidget {
     required this.serviceName,
     required this.dateLabel,
     required this.slotLabel,
+    required this.estado,
   });
 
   final PublicReservarTheme theme;
@@ -822,10 +847,12 @@ class _BookingConfirmedStep extends StatelessWidget {
   final String serviceName;
   final String dateLabel;
   final String slotLabel;
+  final BookingEstado estado;
 
   @override
   Widget build(BuildContext context) {
     final t = theme;
+    final isConfirmed = estado == BookingEstado.confirmada;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -833,7 +860,7 @@ class _BookingConfirmedStep extends StatelessWidget {
         Icon(Icons.check_circle_rounded, size: 72, color: t.primary),
         const SizedBox(height: 20),
         Text(
-          '¡Reserva solicitada!',
+          isConfirmed ? '¡Turno confirmado!' : '¡Reserva solicitada!',
           textAlign: TextAlign.center,
           style: t.textStyle(
             size: 24,
@@ -842,7 +869,9 @@ class _BookingConfirmedStep extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'Te confirmamos el turno en $businessName cuando el negocio lo revise.',
+          isConfirmed
+              ? 'Tu turno en $businessName quedó confirmado. Te esperamos.'
+              : 'Tu solicitud fue enviada a $businessName. Te avisaremos cuando la confirmen.',
           textAlign: TextAlign.center,
           style: t.textStyle(color: t.textSub, size: 15),
         ),
@@ -1318,10 +1347,10 @@ class _StaffAnyTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Cualquier profesional disponible',
+                  Text('Cualquiera disponible',
                       style: t.textStyle(
                           size: 14, weight: FontWeight.w600)),
-                  Text('Te asignamos el próximo turno libre',
+                  Text('El primer turno libre con cualquier profesional',
                       style: t.textStyle(size: 12, color: t.textSub)),
                 ],
               ),

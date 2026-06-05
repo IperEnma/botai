@@ -87,6 +87,7 @@ class _BusinessConfigViewState extends ConsumerState<_BusinessConfigView> {
   late final TextEditingController _alertDaysCtrl;
   late final TextEditingController _alertCreditsCtrl;
   bool _autoNotify  = false;
+  bool _requireBookingConfirmation = true;
   bool _initialized = false;
 
   ({String tenantId, String businessId}) get _key =>
@@ -114,7 +115,10 @@ class _BusinessConfigViewState extends ConsumerState<_BusinessConfigView> {
     _cancellationCtrl.text = s.hoursCancellationLimit.toString();
     _alertDaysCtrl.text    = s.expirationAlertDays.toString();
     _alertCreditsCtrl.text = s.expirationAlertCredits.toString();
-    setState(() => _autoNotify = s.autoNotifyEnabled);
+    setState(() {
+      _autoNotify = s.autoNotifyEnabled;
+      _requireBookingConfirmation = s.requireBookingConfirmation;
+    });
   }
 
   Future<void> _save(BusinessSettings current) async {
@@ -124,6 +128,7 @@ class _BusinessConfigViewState extends ConsumerState<_BusinessConfigView> {
       expirationAlertDays:    int.parse(_alertDaysCtrl.text.trim()),
       expirationAlertCredits: int.parse(_alertCreditsCtrl.text.trim()),
       autoNotifyEnabled:      _autoNotify,
+      requireBookingConfirmation: _requireBookingConfirmation,
     );
     await ref.read(settingsProvider(_key).notifier).save(updated);
     if (mounted) {
@@ -296,6 +301,16 @@ class _BusinessConfigViewState extends ConsumerState<_BusinessConfigView> {
                         ],
                       ),
                       const SizedBox(height: 4),
+                      SwitchListTile(
+                        value: _requireBookingConfirmation,
+                        onChanged: (v) =>
+                            setState(() => _requireBookingConfirmation = v),
+                        title: const Text('Confirmar reservas manualmente'),
+                        subtitle: const Text(
+                          'Si está activo, las reservas quedan pendientes hasta que las confirmes.',
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                       SwitchListTile(
                         value: _autoNotify,
                         onChanged: (v) => setState(() => _autoNotify = v),

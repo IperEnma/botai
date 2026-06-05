@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../models/agenda/agenda_service.dart';
+import '../../../../models/agenda/booking.dart';
 import '../../../../services/agenda_api_exception.dart';
 import '../../../../services/agenda_api_service.dart';
 import 'booking_draft.dart';
@@ -108,7 +109,7 @@ class BookingWizardController extends ChangeNotifier {
 
   Future<void> confirm(
     AgendaApiService api,
-    VoidCallback onSuccess,
+    void Function(Booking booking) onSuccess,
     void Function(String) onError,
   ) async {
     if (!draft.isValid) return;
@@ -132,7 +133,7 @@ class BookingWizardController extends ChangeNotifier {
         time.minute,
       );
 
-      await api.tenantCreatePendingBooking(
+      final booking = await api.tenantCreatePendingBooking(
         businessId: businessId,
         clientId: d.cliente!.id,
         serviceId: d.servicio!.id,
@@ -143,7 +144,7 @@ class BookingWizardController extends ChangeNotifier {
 
       isSubmitting = false;
       notifyListeners();
-      onSuccess();
+      onSuccess(booking);
     } catch (e) {
       isSubmitting = false;
       conflictError = null;

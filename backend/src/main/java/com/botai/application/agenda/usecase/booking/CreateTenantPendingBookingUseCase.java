@@ -1,17 +1,20 @@
 package com.botai.application.agenda.usecase.booking;
 
 import com.botai.application.agenda.support.AgendaPhoneNormalizer;
+import com.botai.application.agenda.support.BookingConfirmedOutboxService;
+import com.botai.application.agenda.support.StaffBookingAssignmentService;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.exception.ServiceNotFoundException;
 import com.botai.domain.agenda.model.Booking;
 import com.botai.domain.agenda.model.BookingEstado;
+import com.botai.domain.agenda.model.BusinessSettings;
 import com.botai.domain.agenda.model.Service;
 import com.botai.domain.agenda.model.User;
 import com.botai.domain.agenda.repository.BookingRepository;
 import com.botai.domain.agenda.repository.BusinessRepository;
+import com.botai.domain.agenda.repository.BusinessSettingsRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
 import com.botai.domain.agenda.repository.UserRepository;
-import com.botai.domain.agenda.service.BookingDomainService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,18 +28,24 @@ public class CreateTenantPendingBookingUseCase {
     private final ServiceRepository serviceRepository;
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
-    private final BookingDomainService bookingService;
+    private final BusinessSettingsRepository settingsRepository;
+    private final StaffBookingAssignmentService staffAssignment;
+    private final BookingConfirmedOutboxService confirmedOutbox;
 
     public CreateTenantPendingBookingUseCase(BusinessRepository businessRepository,
                                              ServiceRepository serviceRepository,
                                              UserRepository userRepository,
                                              BookingRepository bookingRepository,
-                                             BookingDomainService bookingService) {
+                                             BusinessSettingsRepository settingsRepository,
+                                             StaffBookingAssignmentService staffAssignment,
+                                             BookingConfirmedOutboxService confirmedOutbox) {
         this.businessRepository = businessRepository;
         this.serviceRepository = serviceRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
-        this.bookingService = bookingService;
+        this.settingsRepository = settingsRepository;
+        this.staffAssignment = staffAssignment;
+        this.confirmedOutbox = confirmedOutbox;
     }
 
     @Transactional
@@ -66,24 +75,35 @@ public class CreateTenantPendingBookingUseCase {
         }
 
         LocalDateTime fin = fechaHoraInicio.plusMinutes(service.getDuracionMin());
-        bookingService.validarDisponibilidad(businessId, staffMemberId, fechaHoraInicio, fin);
+        UUID resolvedStaff = staffAssignment.resolveStaffMemberId(
+                businessId, service, staffMemberId, fechaHoraInicio, fin);
 
-        Booking pending = new Booking(
+        BusinessSettings settings = settingsRepository.findByBusinessId(businessId)
+                .orElseGet(() -> BusinessSettings.defaults(businessId));
+        BookingEstado estado = settings.isRequireBookingConfirmation()
+                ? BookingEstado.PENDING
+                : BookingEstado.CONFIRMED;
+
+        Booking booking = new Booking(
                 null,
                 businessId,
                 serviceId,
                 clientId,
                 null,
-                staffMemberId,
+                resolvedStaff,
                 fechaHoraInicio,
                 fin,
-                BookingEstado.PENDING,
+                estado,
                 notas,
                 null,
                 null,
                 null,
                 null
         );
-        return bookingRepository.save(pending);
+        Booking saved = bookingRepository.save(booking);
+        if (estado == BookingEstado.CONFIRMED) {
+            confirmedOutbox.enqueue(saved);
+        }
+        return saved;
     }
 }

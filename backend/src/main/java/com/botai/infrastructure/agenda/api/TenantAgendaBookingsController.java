@@ -3,6 +3,7 @@ package com.botai.infrastructure.agenda.api;
 import com.botai.application.agenda.dto.BookingResponse;
 import com.botai.application.agenda.dto.TenantCreatePendingBookingRequest;
 import com.botai.application.agenda.mapper.BookingDtoMapper;
+import com.botai.application.agenda.usecase.booking.ConfirmBookingUseCase;
 import com.botai.application.agenda.usecase.booking.CreateTenantPendingBookingUseCase;
 import com.botai.application.agenda.usecase.booking.ListBusinessBookingsUseCase;
 import com.botai.domain.agenda.model.User;
@@ -19,6 +20,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,17 +43,20 @@ public class TenantAgendaBookingsController {
 
     private final ListBusinessBookingsUseCase listBusinessBookings;
     private final CreateTenantPendingBookingUseCase createTenantPendingBooking;
+    private final ConfirmBookingUseCase confirmBooking;
     private final AgendaCurrentTenantService currentTenant;
     private final ServiceRepository serviceRepository;
     private final UserRepository userRepository;
 
     public TenantAgendaBookingsController(ListBusinessBookingsUseCase listBusinessBookings,
                                           CreateTenantPendingBookingUseCase createTenantPendingBooking,
+                                          ConfirmBookingUseCase confirmBooking,
                                           AgendaCurrentTenantService currentTenant,
                                           ServiceRepository serviceRepository,
                                           UserRepository userRepository) {
         this.listBusinessBookings = listBusinessBookings;
         this.createTenantPendingBooking = createTenantPendingBooking;
+        this.confirmBooking = confirmBooking;
         this.currentTenant = currentTenant;
         this.serviceRepository = serviceRepository;
         this.userRepository = userRepository;
@@ -82,7 +87,7 @@ public class TenantAgendaBookingsController {
     }
 
     @PostMapping("/bookings")
-    @Operation(summary = "Crear reserva PENDING para un cliente (panel tenant)")
+    @Operation(summary = "Crear reserva para un cliente (PENDING o CONFIRMED según configuración)")
     public ResponseEntity<BookingResponse> createPending(
             @PathVariable("businessId") UUID businessId,
             @Valid @RequestBody TenantCreatePendingBookingRequest request) {
@@ -101,6 +106,20 @@ public class TenantAgendaBookingsController {
         User user = userRepository.findById(booking.getUserId()).orElse(null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BookingDtoMapper.toResponse(booking, serviceName, user));
+    }
+
+    @PutMapping("/bookings/{bookingId}/confirm")
+    @Operation(summary = "Confirmar una reserva pendiente")
+    public ResponseEntity<BookingResponse> confirm(
+            @PathVariable("businessId") UUID businessId,
+            @PathVariable("bookingId") UUID bookingId) {
+        String tenantId = currentTenant.requireBusinessOwnedByCurrentTenant(businessId).getTenantId();
+        var booking = confirmBooking.execute(tenantId, businessId, bookingId);
+        String serviceName = serviceRepository.findById(booking.getServiceId())
+                .map(s -> s.getNombre())
+                .orElse(null);
+        User user = userRepository.findById(booking.getUserId()).orElse(null);
+        return ResponseEntity.ok(BookingDtoMapper.toResponse(booking, serviceName, user));
     }
 }
 

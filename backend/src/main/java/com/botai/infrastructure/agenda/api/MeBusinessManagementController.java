@@ -166,7 +166,8 @@ public class MeBusinessManagementController {
                 request.loyaltyWindowDays(),
                 request.expirationAlertDays(),
                 request.expirationAlertCredits(),
-                request.autoNotifyEnabled()
+                request.autoNotifyEnabled(),
+                request.requireBookingConfirmation()
         ));
         knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return ResponseEntity.ok(toSettingsResponse(updated));
@@ -180,7 +181,8 @@ public class MeBusinessManagementController {
                 s.getLoyaltyWindowDays(),
                 s.getExpirationAlertDays(),
                 s.getExpirationAlertCredits(),
-                s.isAutoNotifyEnabled()
+                s.isAutoNotifyEnabled(),
+                s.isRequireBookingConfirmation()
         );
     }
 }

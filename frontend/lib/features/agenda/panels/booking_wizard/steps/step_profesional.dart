@@ -73,28 +73,30 @@ class StepProfesional extends ConsumerWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          else if (filtered.isEmpty)
-            _EmptyService(servicioNombre: servicioNombre)
           else ...[
-            // Staff rows
-            ...filtered.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final member = entry.value;
-              final isSelected =
-                  !controller.draft.anyProfessional &&
-                  controller.draft.profesionalId == member.id;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: _ProRow(
-                  member: member,
-                  idx: idx,
-                  isSelected: isSelected,
-                  onTap: () =>
-                      controller.setProfesional(member.id, any: false),
-                ),
-              );
-            }),
-            // "Cualquiera" row
+            if (filtered.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _EmptyService(servicioNombre: servicioNombre),
+              )
+            else
+              ...filtered.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final member = entry.value;
+                final isSelected =
+                    !controller.draft.anyProfessional &&
+                    controller.draft.profesionalId == member.id;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: _ProRow(
+                    member: member,
+                    idx: idx,
+                    isSelected: isSelected,
+                    onTap: () =>
+                        controller.setProfesional(member.id, any: false),
+                  ),
+                );
+              }),
             const SizedBox(height: 4),
             _AnyProfRow(
               isSelected: controller.draft.anyProfessional,

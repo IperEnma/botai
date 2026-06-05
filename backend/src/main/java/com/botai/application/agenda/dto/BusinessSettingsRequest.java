@@ -9,5 +9,6 @@ public record BusinessSettingsRequest(
         @Min(1) int loyaltyWindowDays,
         @Min(1) int expirationAlertDays,
         @Min(0) int expirationAlertCredits,
-        @NotNull Boolean autoNotifyEnabled
+        @NotNull Boolean autoNotifyEnabled,
+        @NotNull Boolean requireBookingConfirmation
 ) {}

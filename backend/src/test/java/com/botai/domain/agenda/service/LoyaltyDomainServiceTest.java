@@ -50,7 +50,7 @@ class LoyaltyDomainServiceTest {
     @Test
     void umbralPersonalizado_respetaConfiguracion() {
         BusinessSettings settings5 = new BusinessSettings(
-                UUID.randomUUID(), 4, 5, 60, 7, 2, true);
+                UUID.randomUUID(), 4, 5, 60, 7, 2, true, true);
         assertFalse(service.debeGenerarSugerencia(4, settings5),
                 "Con 4 asistencias y umbral 5 no debe generar");
         assertTrue(service.debeGenerarSugerencia(5, settings5),

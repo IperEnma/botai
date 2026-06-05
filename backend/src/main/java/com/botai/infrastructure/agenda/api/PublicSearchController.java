@@ -174,7 +174,13 @@ public class PublicSearchController {
             return List.of();
         }
 
+        List<UUID> eligibleStaff = serviceStaffLookup.eligibleStaffForService(businessId, serviceId);
         return publicAvailabilityService.computeSlots(
-                businessId, service.getDuracionMin(), staffMemberId, date);
+                businessId,
+                service.getDuracionMin(),
+                staffMemberId,
+                date,
+                service.getSchedulingMode(),
+                eligibleStaff);
     }
 }

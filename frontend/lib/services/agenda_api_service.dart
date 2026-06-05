@@ -1343,7 +1343,19 @@ class AgendaApiService {
     return _decodeList(r, Booking.fromJson);
   }
 
-  /// `POST /me/businesses/{businessId}/agenda/bookings` — reserva PENDING (panel tenant).
+  /// `PUT /me/businesses/{businessId}/agenda/bookings/{bookingId}/confirm`
+  Future<Booking> confirmTenantBooking({
+    required String businessId,
+    required String bookingId,
+  }) async {
+    final r = await _send(() => _client.put(
+          _uri('/me/businesses/$businessId/agenda/bookings/$bookingId/confirm'),
+          headers: _headers(),
+        ));
+    return _decode(r, (body) => Booking.fromJson(body as Map<String, dynamic>));
+  }
+
+  /// `POST /me/businesses/{businessId}/agenda/bookings` — PENDING o CONFIRMED según settings.
   Future<Booking> tenantCreatePendingBooking({
     required String businessId,
     required String clientId,

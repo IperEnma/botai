@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../features/agenda/register/konecta_tokens.dart';
+import '../../../../models/agenda/booking.dart';
 import '../../../../providers/agenda/agenda_api_provider.dart';
 import '../../../../providers/agenda/tenant/agenda_bookings_provider.dart';
 import '../../../../providers/agenda/tenant/agenda_month_provider.dart';
@@ -110,7 +111,7 @@ class _BookingWizardPanelState extends ConsumerState<_BookingWizardPanel> {
     final api = ref.read(agendaApiServiceProvider);
     _controller.confirm(
       api,
-      () {
+      (booking) {
         if (!mounted) return;
         final d = _controller.draft;
         final date = d.date!;
@@ -139,13 +140,16 @@ class _BookingWizardPanelState extends ConsumerState<_BookingWizardPanel> {
         final proNombre = !d.requiresStaffStep
             ? 'agenda del negocio'
             : d.anyProfessional
-                ? 'cualquier profesional'
+                ? 'Cualquiera disponible'
                 : (d.profesionalId ?? 'el profesional');
 
+        final pendingNote = booking.estado == BookingEstado.pendiente
+            ? ' · pendiente de confirmación'
+            : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✓ Turno agendado · ${d.cliente!.nombre} · $dayAbbr ${date.day} $timeStr con $proNombre',
+              '✓ Turno agendado$pendingNote · ${d.cliente!.nombre} · $dayAbbr ${date.day} $timeStr con $proNombre',
               style: GoogleFonts.inter(fontSize: 13),
             ),
             backgroundColor: KTokens.accent,

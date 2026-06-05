@@ -12,11 +12,14 @@ public final class BusinessSettings {
     private final int expirationAlertDays;
     private final int expirationAlertCredits;
     private final boolean autoNotifyEnabled;
+    /** Si true, las reservas web/panel quedan PENDING hasta confirmación del negocio. */
+    private final boolean requireBookingConfirmation;
 
     public BusinessSettings(UUID businessId, int hoursCancellationLimit,
                             int loyaltyMinAttendances, int loyaltyWindowDays,
                             int expirationAlertDays, int expirationAlertCredits,
-                            boolean autoNotifyEnabled) {
+                            boolean autoNotifyEnabled,
+                            boolean requireBookingConfirmation) {
         this.businessId = Objects.requireNonNull(businessId, "businessId");
         this.hoursCancellationLimit = hoursCancellationLimit;
         this.loyaltyMinAttendances = loyaltyMinAttendances;
@@ -24,10 +27,11 @@ public final class BusinessSettings {
         this.expirationAlertDays = expirationAlertDays;
         this.expirationAlertCredits = expirationAlertCredits;
         this.autoNotifyEnabled = autoNotifyEnabled;
+        this.requireBookingConfirmation = requireBookingConfirmation;
     }
 
     public static BusinessSettings defaults(UUID businessId) {
-        return new BusinessSettings(businessId, 4, 3, 30, 7, 2, true);
+        return new BusinessSettings(businessId, 4, 3, 30, 7, 2, true, true);
     }
 
     public UUID getBusinessId() { return businessId; }
@@ -37,4 +41,5 @@ public final class BusinessSettings {
     public int getExpirationAlertDays() { return expirationAlertDays; }
     public int getExpirationAlertCredits() { return expirationAlertCredits; }
     public boolean isAutoNotifyEnabled() { return autoNotifyEnabled; }
+    public boolean isRequireBookingConfirmation() { return requireBookingConfirmation; }
 }
