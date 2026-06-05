@@ -66,21 +66,6 @@ public class VerifyPublicClientPhoneUseCase {
         return new VerifyPhoneVerificationResponse(sessionToken, profile, bookings);
     }
 
-    public VerifyPhoneVerificationResponse executeWithoutOtp(UUID businessId, String telefonoRaw, String clientIp) {
-        var business = businessRepository.findById(businessId)
-                .orElseThrow(() -> new BusinessNotFoundException(businessId));
-        String tenantId = business.getTenantId();
-        String phone = AgendaPhoneNormalizer.normalize(telefonoRaw);
-        AgendaClientResolver.ClientEnsureResult ensured =
-                AgendaClientResolver.ensureClientByPhone(userRepository, tenantId, phone);
-        User user = ensured.user();
-        String sessionToken = sessionService.issueSessionToken(tenantId, user.getId(), phone, clientIp);
-        return new VerifyPhoneVerificationResponse(
-                sessionToken,
-                toProfile(user, ensured.needsName()),
-                listUpcomingForUser(businessId, user.getId()));
-    }
-
     List<BookingResponse> listUpcomingForUser(UUID businessId, UUID userId) {
         List<Booking> all = bookingRepository.findAllByUserId(userId).stream()
                 .filter(b -> businessId.equals(b.getBusinessId()))

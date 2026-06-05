@@ -1,8 +1,7 @@
 package com.botai.infrastructure.agenda.config;
 
+import com.botai.application.agenda.support.AgendaSecurityAuditService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,23 +11,23 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import com.botai.infrastructure.agenda.support.HttpRequestClientIp;
 
-import java.time.Duration;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Límite grueso por IP en OTP/sesión pública (complementa rate guard por teléfono en servicio).
+ * Límite grueso por IP en OTP/sesión pública. Conteo en PostgreSQL (multi-instancia).
  */
 @Component
 public class AgendaPhoneVerificationRateLimitInterceptor implements HandlerInterceptor {
 
-    private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private final AgendaSecurityAuditService audit;
     private final int requestsPerMinute;
     private final ObjectMapper objectMapper;
 
     public AgendaPhoneVerificationRateLimitInterceptor(
+            AgendaSecurityAuditService audit,
             @Value("${agenda.phone.verification.rate-limit.http-per-ip-per-minute:120}") int requestsPerMinute,
             ObjectMapper objectMapper) {
+        this.audit = audit;
         this.requestsPerMinute = requestsPerMinute;
         this.objectMapper = objectMapper;
     }
@@ -38,8 +37,9 @@ public class AgendaPhoneVerificationRateLimitInterceptor implements HandlerInter
                              HttpServletResponse response,
                              Object handler) throws Exception {
         String ip = HttpRequestClientIp.resolve(request);
-        Bucket bucket = buckets.computeIfAbsent(ip, k -> newBucket());
-        if (bucket.tryConsume(1)) {
+        AgendaSecurityAuditService.HttpRateCheck result =
+                audit.checkAndRecordPublicHttpAccess(ip, requestsPerMinute);
+        if (result == AgendaSecurityAuditService.HttpRateCheck.ALLOWED) {
             return true;
         }
         response.setStatus(429);
@@ -48,13 +48,5 @@ public class AgendaPhoneVerificationRateLimitInterceptor implements HandlerInter
                 "code", "RATE_LIMIT_EXCEEDED",
                 "message", "Demasiadas solicitudes. Intentá en unos segundos.")));
         return false;
-    }
-
-    private Bucket newBucket() {
-        Bandwidth limit = Bandwidth.builder()
-                .capacity(requestsPerMinute)
-                .refillGreedy(requestsPerMinute, Duration.ofMinutes(1))
-                .build();
-        return Bucket.builder().addLimit(limit).build();
     }
 }

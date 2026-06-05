@@ -14,9 +14,20 @@ class AgendaPhoneVerificationStartupValidatorTest {
         AgendaSecurityHasher hasher = mock(AgendaSecurityHasher.class);
         when(hasher.isDevPepper()).thenReturn(true);
         var validator = new AgendaPhoneVerificationStartupValidator(
-                true, hasher, "prod");
+                true, hasher, "prod", "https://api.example.com", "https://app.example.com");
         assertThatThrownBy(() -> validator.onApplicationEvent(null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("hash-pepper");
+    }
+
+    @Test
+    void prodProfile_failsWhenPublicUrlsNotHttps() {
+        AgendaSecurityHasher hasher = mock(AgendaSecurityHasher.class);
+        when(hasher.isDevPepper()).thenReturn(false);
+        var validator = new AgendaPhoneVerificationStartupValidator(
+                true, hasher, "prod", "http://api.example.com", "https://app.example.com");
+        assertThatThrownBy(() -> validator.onApplicationEvent(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("HTTPS");
     }
 }

@@ -18,6 +18,8 @@ public record BusinessResponse(
         String facebookUrl,
         String colorFondo,
         String fontFamily,
+        /** Slug público para /reservar/{slug}; null si aún no se generó. */
+        String publicSlug,
         /** PK del bot en {@code bot}; null si no hay vínculo. */
         Long botId,
         List<String> categorias

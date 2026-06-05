@@ -53,7 +53,7 @@ class _StepClienteState extends ConsumerState<StepCliente> {
   Future<void> _loadClients() async {
     try {
       final api = ref.read(agendaApiServiceProvider);
-      final results = await api.searchClients(
+      final results = await api.tenantSearchClients(
         businessId: widget.businessId,
         q: '',
       );
@@ -117,7 +117,7 @@ class _StepClienteState extends ConsumerState<StepCliente> {
     setState(() => _saving = true);
     try {
       final api = ref.read(agendaApiServiceProvider);
-      final created = await api.createClient(
+      final created = await api.tenantCreateClient(
         businessId: widget.businessId,
         nombre: nombre,
         telefono: telefono,

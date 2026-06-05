@@ -81,7 +81,6 @@ agenda:
     # Código de país por defecto (solo dígitos) al normalizar teléfonos locales (099… → 598…).
     default-country-code: ${AGENDA_PHONE_DEFAULT_COUNTRY_CODE:598}
     verification:
-      enabled: ${AGENDA_PHONE_VERIFICATION_ENABLED:true}
       code-length: ${AGENDA_PHONE_VERIFICATION_CODE_LENGTH:6}
       ttl-minutes: ${AGENDA_PHONE_VERIFICATION_TTL_MINUTES:10}
       session-minutes: ${AGENDA_PHONE_VERIFICATION_SESSION_MINUTES:15}

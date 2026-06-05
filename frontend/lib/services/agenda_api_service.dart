@@ -507,28 +507,29 @@ class AgendaApiService {
     return _decodeList(r, AgendaService.fromJson);
   }
 
-  /// `GET /public/businesses/{businessId}/clients?q=`
-  Future<List<PublicClient>> searchClients({
+  /// `GET /public/businesses/{businessId}/clients?q=` — **eliminado** (usar panel tenant).
+  /// `GET /me/businesses/{businessId}/clients?q=`
+  Future<List<PublicClient>> tenantSearchClients({
     required String businessId,
     required String q,
   }) async {
-    final r = await _sendPublic(() => _client.get(
-          _uri('/public/businesses/$businessId/clients', {'q': q}),
-          headers: _publicHeaders(),
+    final r = await _send(() => _client.get(
+          _uri('/me/businesses/$businessId/clients', {'q': q}),
+          headers: _headers(),
         ));
     return _decodeList(r, PublicClient.fromJson);
   }
 
-  /// `POST /public/businesses/{businessId}/clients`
-  Future<PublicClient> createClient({
+  /// `POST /me/businesses/{businessId}/clients`
+  Future<PublicClient> tenantCreateClient({
     required String businessId,
     required String nombre,
     required String telefono,
     String? email,
   }) async {
-    final r = await _sendPublic(() => _client.post(
-          _uri('/public/businesses/$businessId/clients'),
-          headers: _publicHeaders(),
+    final r = await _send(() => _client.post(
+          _uri('/me/businesses/$businessId/clients'),
+          headers: _headers(),
           body: jsonEncode({
             'nombre': nombre,
             'telefono': telefono,
@@ -611,17 +612,16 @@ class AgendaApiService {
 
   /// `POST /public/businesses/{businessId}/bookings`
   ///
-  /// Crea una reserva en estado PENDING (flujo público, sin auth).
+  /// Crea una reserva en estado PENDING (flujo público con sesión OTP).
   Future<Booking> publicCreateBooking({
     required String businessId,
     required String serviceId,
     String? staffMemberId,
     required DateTime fechaHoraInicio,
-    String? clientId,
+    required String clientSessionToken,
     String? nombreCliente,
     String? emailCliente,
     String? telefonoCliente,
-    String? clientSessionToken,
     String? notas,
   }) async {
     final r = await _sendPublic(() => _client.post(
@@ -631,7 +631,6 @@ class AgendaApiService {
             'serviceId': serviceId,
             if (staffMemberId != null) 'staffMemberId': staffMemberId,
             'fechaHoraInicio': _fmtLocalDateTime(fechaHoraInicio),
-            if (clientId != null) 'clientId': clientId,
             if (nombreCliente != null) 'nombreCliente': nombreCliente,
             if (emailCliente != null && emailCliente.isNotEmpty)
               'emailCliente': emailCliente,
@@ -1342,6 +1341,29 @@ class AgendaApiService {
           headers: _headers(),
         ));
     return _decodeList(r, Booking.fromJson);
+  }
+
+  /// `POST /me/businesses/{businessId}/agenda/bookings` — reserva PENDING (panel tenant).
+  Future<Booking> tenantCreatePendingBooking({
+    required String businessId,
+    required String clientId,
+    required String serviceId,
+    String? staffMemberId,
+    required DateTime fechaHoraInicio,
+    String? notas,
+  }) async {
+    final r = await _send(() => _client.post(
+          _uri('/me/businesses/$businessId/agenda/bookings'),
+          headers: _headers(),
+          body: jsonEncode({
+            'clientId': clientId,
+            'serviceId': serviceId,
+            if (staffMemberId != null) 'staffMemberId': staffMemberId,
+            'fechaHoraInicio': _fmtLocalDateTime(fechaHoraInicio),
+            if (notas != null && notas.isNotEmpty) 'notas': notas,
+          }),
+        ));
+    return _decode(r, (body) => Booking.fromJson(body as Map<String, dynamic>));
   }
 
   /// `DELETE /me/businesses/{businessId}/bookings/{bookingId}`

@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,16 +31,13 @@ public class PublicPhoneVerificationController {
     private final BusinessRepository businessRepository;
     private final AgendaPublicClientSessionService sessionService;
     private final VerifyPublicClientPhoneUseCase verifyPublicClientPhoneUseCase;
-    private final boolean verificationEnabled;
 
     public PublicPhoneVerificationController(BusinessRepository businessRepository,
                                            AgendaPublicClientSessionService sessionService,
-                                           VerifyPublicClientPhoneUseCase verifyPublicClientPhoneUseCase,
-                                           @Value("${agenda.phone.verification.enabled:true}") boolean verificationEnabled) {
+                                           VerifyPublicClientPhoneUseCase verifyPublicClientPhoneUseCase) {
         this.businessRepository = businessRepository;
         this.sessionService = sessionService;
         this.verifyPublicClientPhoneUseCase = verifyPublicClientPhoneUseCase;
-        this.verificationEnabled = verificationEnabled;
     }
 
     @PostMapping("/send")
@@ -55,10 +51,6 @@ public class PublicPhoneVerificationController {
         String clientIp = HttpRequestClientIp.resolve(httpRequest);
         AgendaPublicClientSessionService.SendResult result =
                 sessionService.sendCode(tenantId, phone, clientIp);
-        if (!verificationEnabled) {
-            return ResponseEntity.ok(new SendPhoneVerificationResponse(
-                true, "Verificación deshabilitada; ingresá cualquier código."));
-        }
         if (result.delivered()) {
             return ResponseEntity.ok(new SendPhoneVerificationResponse(
                 true, "Te enviamos un código por WhatsApp."));
@@ -75,9 +67,8 @@ public class PublicPhoneVerificationController {
             HttpServletRequest httpRequest) {
         String phone = normalizePhone(request.telefono());
         String clientIp = HttpRequestClientIp.resolve(httpRequest);
-        VerifyPhoneVerificationResponse body = verificationEnabled
-                ? verifyPublicClientPhoneUseCase.execute(businessId, phone, request.code(), clientIp)
-                : verifyPublicClientPhoneUseCase.executeWithoutOtp(businessId, phone, clientIp);
+        VerifyPhoneVerificationResponse body =
+                verifyPublicClientPhoneUseCase.execute(businessId, phone, request.code(), clientIp);
         return ResponseEntity.ok(body);
     }
 

@@ -132,12 +132,12 @@ class BookingWizardController extends ChangeNotifier {
         time.minute,
       );
 
-      await api.publicCreateBooking(
+      await api.tenantCreatePendingBooking(
         businessId: businessId,
+        clientId: d.cliente!.id,
         serviceId: d.servicio!.id,
         staffMemberId: d.effectiveStaffMemberId,
         fechaHoraInicio: fechaHora,
-        clientId: d.cliente!.id,
         notas: d.notes.isEmpty ? null : d.notes,
       );
 

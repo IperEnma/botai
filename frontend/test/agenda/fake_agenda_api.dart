@@ -11,6 +11,7 @@ import 'package:botai_admin/models/agenda/category.dart';
 import 'package:botai_admin/models/agenda/loyalty_suggestion.dart';
 import 'package:botai_admin/models/agenda/notification_template.dart';
 import 'package:botai_admin/models/agenda/plan.dart';
+import 'package:botai_admin/models/agenda/public_client.dart';
 import 'package:botai_admin/models/agenda/public_client_profile.dart';
 import 'package:botai_admin/models/agenda/register_tenant.dart';
 import 'package:botai_admin/models/agenda/staff_member.dart';
@@ -236,11 +237,10 @@ class FakeAgendaApiService implements AgendaApiService {
     required String serviceId,
     String? staffMemberId,
     required DateTime fechaHoraInicio,
-    String? clientId,
+    required String clientSessionToken,
     String? nombreCliente,
     String? emailCliente,
     String? telefonoCliente,
-    String? clientSessionToken,
     String? notas,
   }) async {
     _maybeThrow();
@@ -909,6 +909,55 @@ class FakeAgendaApiService implements AgendaApiService {
   }) async {
     _maybeThrow();
     return nextBookings ?? const [];
+  }
+
+  @override
+  Future<List<PublicClient>> tenantSearchClients({
+    required String businessId,
+    required String q,
+  }) async {
+    _maybeThrow();
+    return const [];
+  }
+
+  @override
+  Future<PublicClient> tenantCreateClient({
+    required String businessId,
+    required String nombre,
+    required String telefono,
+    String? email,
+  }) async {
+    _maybeThrow();
+    return PublicClient(
+      id: 'client-fake-1',
+      nombre: nombre,
+      telefono: telefono,
+      email: email,
+    );
+  }
+
+  @override
+  Future<Booking> tenantCreatePendingBooking({
+    required String businessId,
+    required String clientId,
+    required String serviceId,
+    String? staffMemberId,
+    required DateTime fechaHoraInicio,
+    String? notas,
+  }) async {
+    _maybeThrow();
+    return nextCreatedBooking ??
+        Booking(
+          id: 'booking-tenant-1',
+          userId: clientId,
+          serviceId: serviceId,
+          servicioNombre: 'Servicio test',
+          businessId: businessId,
+          fechaHoraInicio: fechaHoraInicio,
+          fechaHoraFin: fechaHoraInicio.add(const Duration(minutes: 60)),
+          estado: BookingEstado.pendiente,
+          tipoReserva: BookingTipo.pagoPorTurno,
+        );
   }
 
   @override

@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 /**
  * Registro append-only de eventos de seguridad del flujo OTP/sesión pública.
  */
@@ -23,12 +25,21 @@ public class AgendaSecurityAuditService {
         SESSION_ISSUED,
         SESSION_USED,
         SESSION_REJECTED,
-        RATE_LIMITED
+        RATE_LIMITED,
+        PUBLIC_HTTP_ACCESS
     }
 
     public enum Outcome {
         SUCCESS,
         FAIL,
+        BLOCKED
+    }
+
+    /**
+     * Resultado de comprobar límite HTTP por IP (multi-instancia vía PostgreSQL).
+     */
+    public enum HttpRateCheck {
+        ALLOWED,
         BLOCKED
     }
 
@@ -78,6 +89,22 @@ public class AgendaSecurityAuditService {
     @Transactional(readOnly = true)
     public long countRecentByIpAndEventType(String clientIp, String eventType, java.time.LocalDateTime since) {
         return repository.countByClientIpAndEventTypeAndCreatedAtAfter(clientIp, eventType, since);
+    }
+
+    /**
+     * Cuenta solicitudes HTTP recientes por IP y registra la actual si está permitida.
+     */
+    @Transactional
+    public HttpRateCheck checkAndRecordPublicHttpAccess(String clientIp, int maxPerMinute) {
+        String ip = AgendaPhoneVerificationRateGuard.normalizeIp(clientIp);
+        LocalDateTime since = LocalDateTime.now().minusMinutes(1);
+        long count = countRecentByIpAndEventType(ip, EventType.PUBLIC_HTTP_ACCESS.name(), since);
+        if (count >= maxPerMinute) {
+            record(EventType.RATE_LIMITED, Outcome.BLOCKED, null, ip, null, null, "HTTP limit per IP");
+            return HttpRateCheck.BLOCKED;
+        }
+        record(EventType.PUBLIC_HTTP_ACCESS, Outcome.SUCCESS, null, ip, null, null, null);
+        return HttpRateCheck.ALLOWED;
     }
 
     private static String truncate(String value, int max) {

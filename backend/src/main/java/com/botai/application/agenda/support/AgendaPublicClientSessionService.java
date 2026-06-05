@@ -37,7 +37,6 @@ public class AgendaPublicClientSessionService {
     private final AgendaSecurityAuditService audit;
     private final AgendaPhoneVerificationRateGuard rateGuard;
     private final Clock clock;
-    private final boolean enabled;
     private final long sessionTtlMillis;
 
     public AgendaPublicClientSessionService(
@@ -49,7 +48,6 @@ public class AgendaPublicClientSessionService {
             AgendaSecurityAuditService audit,
             AgendaPhoneVerificationRateGuard rateGuard,
             Clock clock,
-            @Value("${agenda.phone.verification.enabled:true}") boolean enabled,
             @Value("${agenda.phone.verification.session-minutes:15}") int sessionMinutes) {
         this.otpService = otpService;
         this.deliveryPort = deliveryPort;
@@ -59,15 +57,11 @@ public class AgendaPublicClientSessionService {
         this.audit = audit;
         this.rateGuard = rateGuard;
         this.clock = clock;
-        this.enabled = enabled;
         this.sessionTtlMillis = Math.max(1, sessionMinutes) * 60L * 1000L;
     }
 
     @Transactional
     public SendResult sendCode(String tenantId, String phoneNormalized, String clientIp) {
-        if (!enabled) {
-            return new SendResult(true);
-        }
         rateGuard.assertCanSend(tenantId, phoneNormalized, clientIp);
 
         String code = otpService.generateCode();
@@ -149,9 +143,6 @@ public class AgendaPublicClientSessionService {
 
     @Transactional
     public void verifyOtpCode(String tenantId, String phoneNormalized, String userCode, String clientIp) {
-        if (!enabled) {
-            return;
-        }
         rateGuard.assertCanVerify(tenantId, phoneNormalized, clientIp);
 
         String phoneHash = hasher.phoneKey(tenantId, phoneNormalized);

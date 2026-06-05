@@ -64,7 +64,7 @@ public class PublicBookingsController {
     @Operation(summary = "Solicitar un turno (PENDING) en un negocio")
     public ResponseEntity<BookingResponse> create(
             @PathVariable("businessId") UUID businessId,
-            @RequestHeader(value = AgendaPublicClientSessionService.SESSION_HEADER, required = false)
+            @RequestHeader(value = AgendaPublicClientSessionService.SESSION_HEADER)
             String sessionToken,
             @Valid @RequestBody PublicCreateBookingRequest request,
             HttpServletRequest httpRequest) {
@@ -103,9 +103,7 @@ public class PublicBookingsController {
                 null
         );
         Booking saved = bookingRepository.save(pending);
-        if (sessionToken != null && !sessionToken.isBlank()) {
-            sessionService.recordSessionUsed(sessionToken, tenantId, clientIp, "create_booking");
-        }
+        sessionService.recordSessionUsed(sessionToken, tenantId, clientIp, "create_booking");
         return ResponseEntity.status(HttpStatus.CREATED).body(BookingDtoMapper.toResponse(saved));
     }
 
@@ -113,15 +111,6 @@ public class PublicBookingsController {
                                       String sessionToken,
                                       PublicCreateBookingRequest request,
                                       String clientIp) {
-        if (request.clientId() != null) {
-            User existing = userRepository.findById(request.clientId())
-                    .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
-            if (!AgendaPhoneNormalizer.isValid(existing.getTelefono())) {
-                throw new IllegalArgumentException("El cliente debe tener teléfono para reservar");
-            }
-            return existing;
-        }
-
         AgendaPublicClientSessionService.ClientSession session =
                 sessionService.requireSessionForTenant(sessionToken, tenantId, clientIp);
         User user = userRepository.findById(session.userId())

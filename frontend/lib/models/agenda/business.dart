@@ -17,6 +17,8 @@ class Business {
   final String? facebookUrl;
   final String? colorFondo;
   final String? fontFamily;
+  /// Slug para `/reservar/{publicSlug}` (respuesta pública del backend).
+  final String? publicSlug;
   /// PK del bot en el backend (`bot.id`); mismo workspace que [tenantId].
   final int? botId;
   final DateTime? createdAt;
@@ -38,6 +40,7 @@ class Business {
     this.facebookUrl,
     this.colorFondo,
     this.fontFamily,
+    this.publicSlug,
     this.botId,
     this.createdAt,
     this.updatedAt,
@@ -60,6 +63,7 @@ class Business {
       facebookUrl: AgendaJson.parseStringOrNull(json['facebookUrl']),
       colorFondo: AgendaJson.parseStringOrNull(json['colorFondo']),
       fontFamily: AgendaJson.parseStringOrNull(json['fontFamily']),
+      publicSlug: AgendaJson.parseStringOrNull(json['publicSlug']),
       botId: AgendaJson.parseIntOrNull(json['botId']),
       createdAt: AgendaJson.parseDateTimeOrNull(json['createdAt']),
       updatedAt: AgendaJson.parseDateTimeOrNull(json['updatedAt']),
