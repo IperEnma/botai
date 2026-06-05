@@ -44,6 +44,7 @@ public class JpaKnowledgeRepository implements KnowledgeRepository {
             return List.of();
         }
         return jpaRepository.findByTenantIdAndActiveTrue(tenantId).stream()
+            .filter(this::isCurrentlyValid)
             .map(this::toChunk)
             .collect(Collectors.toList());
     }
@@ -111,7 +112,8 @@ public class JpaKnowledgeRepository implements KnowledgeRepository {
         StringBuilder sql = new StringBuilder(256);
         sql.append("SELECT topic, content, COALESCE(keywords, ''), (").append(col)
                 .append(" <=> CAST(? AS vector)) AS dist FROM knowledge_chunk WHERE active = true AND ")
-                .append(col).append(" IS NOT NULL ");
+                .append(col).append(" IS NOT NULL ")
+                .append("AND (valid_until IS NULL OR valid_until > CURRENT_TIMESTAMP) ");
         if (tenantId != null && !tenantId.isBlank()) {
             sql.append("AND tenant_id = ? ");
         }
@@ -165,6 +167,18 @@ public class JpaKnowledgeRepository implements KnowledgeRepository {
     }
 
     private KnowledgeChunk toChunk(KnowledgeChunkEntity e) {
-        return new KnowledgeChunk(e.getTopic(), e.getContent(), e.getKeywords());
+        return new KnowledgeChunk(
+            e.getTopic(),
+            e.getContent(),
+            e.getKeywords(),
+            e.getSourceType(),
+            e.getLanguage());
+    }
+
+    private boolean isCurrentlyValid(KnowledgeChunkEntity e) {
+        if (e.getValidUntil() == null) {
+            return true;
+        }
+        return e.getValidUntil().isAfter(java.time.Instant.now());
     }
 }

@@ -47,6 +47,9 @@ public class KnowledgeChunkAdminService {
                 existing.setContent(chunk.getContent());
                 existing.setKeywords(chunk.getKeywords());
                 existing.setActive(chunk.isActive());
+                existing.setSourceType(chunk.getSourceType());
+                existing.setLanguage(chunk.getLanguage());
+                existing.setValidUntil(chunk.getValidUntil());
                 KnowledgeChunkEntity saved = knowledgeRepository.save(existing);
                 embeddingClearer.clearEmbeddingForChunk(saved.getId());
                 return saved;

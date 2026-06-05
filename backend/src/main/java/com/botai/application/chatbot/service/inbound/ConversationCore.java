@@ -4,6 +4,7 @@ import com.botai.application.chatbot.dto.ConversationIntentSource;
 import com.botai.application.chatbot.dto.ConversationRouteResult;
 import com.botai.application.chatbot.dto.ProcessMessageResult;
 import com.botai.application.chatbot.orchestration.ConversationModeOrchestrator;
+import com.botai.application.chatbot.service.feedback.ConversationFeedbackFlowService;
 import com.botai.application.chatbot.support.InboundMetadata;
 import com.botai.domain.chatbot.ConversationContextKeys;
 import com.botai.domain.chatbot.model.ConversationState;
@@ -29,15 +30,18 @@ public class ConversationCore {
     private final ConversationModeOrchestrator conversationOrchestrator;
     private final MessageHistoryService messageHistoryService;
     private final ChatSessionService chatSessionService;
+    private final ConversationFeedbackFlowService conversationFeedbackFlowService;
 
     public ConversationCore(ConversationRepository conversationRepository,
                            ConversationModeOrchestrator conversationOrchestrator,
                            MessageHistoryService messageHistoryService,
-                           ChatSessionService chatSessionService) {
+                           ChatSessionService chatSessionService,
+                           ConversationFeedbackFlowService conversationFeedbackFlowService) {
         this.conversationRepository = conversationRepository;
         this.conversationOrchestrator = conversationOrchestrator;
         this.messageHistoryService = messageHistoryService;
         this.chatSessionService = chatSessionService;
+        this.conversationFeedbackFlowService = conversationFeedbackFlowService;
     }
 
     public ProcessMessageResult process(InboundMessage inbound) {
@@ -84,11 +88,28 @@ public class ConversationCore {
             ChatSessionService.sessionIdFrom(state),
             state.getContext());
 
+        Optional<ConversationRouteResult> feedbackResult =
+            conversationFeedbackFlowService.tryHandlePendingResponse(inbound, state);
+        if (feedbackResult.isPresent()) {
+            ConversationRouteResult result = feedbackResult.get();
+            OutboundMessage outMessage = result.message();
+            String sessionId = ChatSessionService.sessionIdFrom(state);
+            saveToHistory(conversationId, sessionId, inbound.getText(),
+                outMessage.getText() != null ? outMessage.getText() : "", result.intentSource());
+            return new ProcessMessageResult(outMessage, result.intentSource(), conversationId);
+        }
+
         ConversationRouteResult result = conversationOrchestrator.route(inbound, state);
         OutboundMessage outMessage = result != null ? result.message() : null;
         String intentSource = result != null ? result.intentSource() : null;
 
         if (outMessage != null && result != null) {
+            ConversationFeedbackFlowService.FeedbackPromptOutcome prompted =
+                conversationFeedbackFlowService.maybeAppendEndOfConversationPrompt(
+                    inbound.getText(), outMessage, state, intentSource);
+            outMessage = prompted.message();
+            state = prompted.state();
+
             String assistantText = outMessage.getText();
             String sessionId = ChatSessionService.sessionIdFrom(state);
             saveToHistory(conversationId, sessionId, inbound.getText(), assistantText != null ? assistantText : "", intentSource);

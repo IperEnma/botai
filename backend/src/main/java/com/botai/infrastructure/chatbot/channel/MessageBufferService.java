@@ -7,9 +7,9 @@ import com.botai.application.chatbot.usecase.ProcessInboundMessageUseCase;
 import com.botai.domain.chatbot.model.InboundMessage;
 import com.botai.domain.chatbot.model.OutboundMessage;
 import com.botai.infrastructure.chatbot.channel.whatsapp.WhatsAppLogRedaction;
+import com.botai.infrastructure.chatbot.config.BotProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -35,11 +35,10 @@ public class MessageBufferService {
     private final Map<String, BufferedConversation> buffers = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
-    public MessageBufferService(
-            ProcessInboundMessageUseCase processInboundMessageUseCase,
-            @Value("${bot.buffer.debounce-ms:2500}") long debounceMs) {
+    public MessageBufferService(ProcessInboundMessageUseCase processInboundMessageUseCase,
+                                BotProperties botProperties) {
         this.processInboundMessageUseCase = processInboundMessageUseCase;
-        this.debounceMs = debounceMs;
+        this.debounceMs = botProperties.getBuffer().getDebounceMs();
     }
 
     /**

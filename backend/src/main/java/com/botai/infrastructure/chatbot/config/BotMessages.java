@@ -13,7 +13,7 @@ public class BotMessages {
 
     /** Mala intención detectada (clasificador). */
     private String badIntent = "No puedo responder a eso. ¿En qué puedo ayudarte con el negocio?";
-    /** Guardrail bloqueó (jailbreak/regex); se usa si bot.guardrails.out-of-scope-message está vacío. */
+    /** Guardrail bloqueó (jailbreak/regex) o salida con código. */
     private String guardrailBlock = "Solo puedo ayudarte con temas del negocio. ¿En qué más puedo ayudarte?";
     /** Sin match en menú/FAQ/acción ni IA. */
     private String noMatch = "No tengo una respuesta para eso. Revisa servicios, horario y conocimiento en el panel (y menú si usas FAQ).";
@@ -29,6 +29,12 @@ public class BotMessages {
     private String greeting = "Hola, ¿en qué podemos ayudarte?";
     /** Usuario pidió agendar/ver citas pero acciones están desactivadas para el tenant. */
     private String actionsDisabled = "Por el momento no manejamos reservas o citas por aquí. ¿Quieres saber horarios o servicios?";
+
+    /** Pregunta al cliente al cerrar la conversación. */
+    private String feedbackQuestion = "¿Te resultó útil esta conversación? Respondé Sí o No.";
+    private String feedbackThanksPositive = "¡Gracias! Nos alegra haberte ayudado.";
+    private String feedbackThanksNegative = "Gracias por contarnos. Trabajaremos para mejorar.";
+    private String feedbackThanksUnclear = "Respondé Sí o No para saber si te fue útil.";
 
     public String getBadIntent() { return badIntent; }
     public void setBadIntent(String badIntent) { this.badIntent = badIntent; }
@@ -48,4 +54,12 @@ public class BotMessages {
     public void setGreeting(String greeting) { this.greeting = greeting; }
     public String getActionsDisabled() { return actionsDisabled; }
     public void setActionsDisabled(String actionsDisabled) { this.actionsDisabled = actionsDisabled; }
+    public String getFeedbackQuestion() { return feedbackQuestion; }
+    public void setFeedbackQuestion(String feedbackQuestion) { this.feedbackQuestion = feedbackQuestion; }
+    public String getFeedbackThanksPositive() { return feedbackThanksPositive; }
+    public void setFeedbackThanksPositive(String feedbackThanksPositive) { this.feedbackThanksPositive = feedbackThanksPositive; }
+    public String getFeedbackThanksNegative() { return feedbackThanksNegative; }
+    public void setFeedbackThanksNegative(String feedbackThanksNegative) { this.feedbackThanksNegative = feedbackThanksNegative; }
+    public String getFeedbackThanksUnclear() { return feedbackThanksUnclear; }
+    public void setFeedbackThanksUnclear(String feedbackThanksUnclear) { this.feedbackThanksUnclear = feedbackThanksUnclear; }
 }

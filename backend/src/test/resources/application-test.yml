@@ -46,17 +46,6 @@ schedulers:
 bot:
   embedding:
     provider: none
-  rag:
-    max-chunks: 1
-    min-similarity: 0.7
-  memory:
-    max-history-turns: 1
-  session:
-    idle-minutes: 45
-  buffer:
-    debounce-ms: 2500
-  guardrails:
-    enabled: false
   channels:
     web:
       base-path: /api/v1/webhook

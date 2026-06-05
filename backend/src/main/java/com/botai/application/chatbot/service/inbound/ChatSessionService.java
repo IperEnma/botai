@@ -3,9 +3,9 @@ package com.botai.application.chatbot.service.inbound;
 import com.botai.domain.chatbot.model.ConversationState;
 import com.botai.domain.chatbot.repository.ConversationRepository;
 import com.botai.domain.chatbot.session.ChatSessionKeys;
+import com.botai.infrastructure.chatbot.config.BotProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -25,10 +25,9 @@ public class ChatSessionService {
     private final ConversationRepository conversationRepository;
     private final int idleMinutes;
 
-    public ChatSessionService(ConversationRepository conversationRepository,
-                              @Value("${bot.session.idle-minutes:45}") int idleMinutes) {
+    public ChatSessionService(ConversationRepository conversationRepository, BotProperties botProperties) {
         this.conversationRepository = conversationRepository;
-        this.idleMinutes = idleMinutes;
+        this.idleMinutes = botProperties.getSession().getIdleMinutes();
     }
 
     /**

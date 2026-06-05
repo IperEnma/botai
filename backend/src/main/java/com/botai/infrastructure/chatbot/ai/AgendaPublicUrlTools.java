@@ -17,13 +17,20 @@ public class AgendaPublicUrlTools {
     private static final Logger log = LoggerFactory.getLogger(AgendaPublicUrlTools.class);
 
     private final PublicAgendaLinkResolver publicAgendaLinkResolver;
+    private final BotToolCallGuard toolCallGuard;
 
-    public AgendaPublicUrlTools(PublicAgendaLinkResolver publicAgendaLinkResolver) {
+    public AgendaPublicUrlTools(PublicAgendaLinkResolver publicAgendaLinkResolver,
+                                BotToolCallGuard toolCallGuard) {
         this.publicAgendaLinkResolver = publicAgendaLinkResolver;
+        this.toolCallGuard = toolCallGuard;
     }
 
     @Tool(description = BotPrompts.ToolsAgendar.TOOL_OBTENER_ENLACE_AGENDA)
     public String obtenerEnlaceReservaOnline() {
+        String blocked = toolCallGuard.gate();
+        if (blocked != null) {
+            return blocked;
+        }
         String tenantId = ThreadTenantContext.getTenantId();
         if (tenantId == null || tenantId.isBlank()) {
             return BotPrompts.ToolsAgendar.ERR_TENANT_UNKNOWN;

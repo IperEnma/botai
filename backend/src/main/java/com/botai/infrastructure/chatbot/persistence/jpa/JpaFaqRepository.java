@@ -1,6 +1,7 @@
 package com.botai.infrastructure.chatbot.persistence.jpa;
 
 import com.botai.domain.chatbot.model.FaqEntry;
+import com.botai.domain.chatbot.model.FaqResponseMode;
 import com.botai.domain.chatbot.repository.FaqRepository;
 import com.botai.infrastructure.chatbot.persistence.entity.FaqEntity;
 import org.springframework.stereotype.Repository;
@@ -32,6 +33,11 @@ public class JpaFaqRepository implements FaqRepository {
     }
 
     private FaqEntry toEntry(FaqEntity e) {
-        return new FaqEntry(e.getIntent(), e.getKeywords(), e.getResponse(), e.isUseRegex());
+        return new FaqEntry(
+            e.getIntent(),
+            e.getKeywords(),
+            e.getResponse(),
+            e.isUseRegex(),
+            FaqResponseMode.fromDb(e.getResponseMode()));
     }
 }

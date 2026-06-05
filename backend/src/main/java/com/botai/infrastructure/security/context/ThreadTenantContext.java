@@ -53,5 +53,32 @@ public final class ThreadTenantContext {
         TENANT_ID.remove();
         USER_ID.remove();
         CONVERSATION_ID.remove();
+        clearToolCallBudget();
+    }
+
+    private static final ThreadLocal<Integer> TOOL_CALLS_USED = new ThreadLocal<>();
+    private static final ThreadLocal<Integer> TOOL_CALLS_MAX = new ThreadLocal<>();
+
+    public static void beginToolCallBudget(int maxCalls) {
+        TOOL_CALLS_USED.set(0);
+        TOOL_CALLS_MAX.set(Math.max(1, maxCalls));
+    }
+
+    public static boolean tryConsumeToolCall() {
+        Integer max = TOOL_CALLS_MAX.get();
+        if (max == null) {
+            return true;
+        }
+        int used = TOOL_CALLS_USED.get() != null ? TOOL_CALLS_USED.get() : 0;
+        if (used >= max) {
+            return false;
+        }
+        TOOL_CALLS_USED.set(used + 1);
+        return true;
+    }
+
+    public static void clearToolCallBudget() {
+        TOOL_CALLS_USED.remove();
+        TOOL_CALLS_MAX.remove();
     }
 }

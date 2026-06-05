@@ -3,7 +3,6 @@ package com.botai.infrastructure.chatbot.rag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -18,14 +17,11 @@ public class RagEmbeddingRetryScheduler {
 
     private final KnowledgeChunkEmbeddingSync embeddingSync;
     private final EmbeddingVectorStore vectorStore;
-    private final long retryDelayMs;
 
     public RagEmbeddingRetryScheduler(KnowledgeChunkEmbeddingSync embeddingSync,
-                                      EmbeddingVectorStore vectorStore,
-                                      @Value("${bot.rag.embed-retry-delay-ms:600000}") long retryDelayMs) {
+                                      EmbeddingVectorStore vectorStore) {
         this.embeddingSync = embeddingSync;
         this.vectorStore = vectorStore;
-        this.retryDelayMs = Math.max(60_000L, retryDelayMs);
     }
 
     @Scheduled(fixedDelayString = "${bot.rag.embed-retry-delay-ms:600000}")
@@ -34,8 +30,7 @@ public class RagEmbeddingRetryScheduler {
         if (pendingBefore == 0) {
             return;
         }
-        log.info("[RAG-EMBED] Retry programado (cada {} ms): {} chunk(s) sin vector en {}",
-                retryDelayMs, pendingBefore, vectorStore.columnName());
+        log.info("[RAG-EMBED] Retry programado: {} chunk(s) sin vector en {}", pendingBefore, vectorStore.columnName());
         int filled = embeddingSync.syncPendingEmbeddings();
         long pendingAfter = embeddingSync.countPendingEmbeddings();
         if (filled > 0) {

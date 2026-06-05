@@ -2,7 +2,6 @@ package com.botai.application.chatbot.service.conversation.ai;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -10,7 +9,6 @@ import java.util.regex.Pattern;
 
 /**
  * Filtra el texto del usuario antes del LLM: detecta patrones típicos de jailbreak, cambio de rol o abuso del prompt (regex).
- * Si está desactivado ({@code bot.guardrails.enabled=false}), deja pasar todo.
  */
 @Service
 public class JailbreakInputFilter {
@@ -31,17 +29,6 @@ public class JailbreakInputFilter {
         Pattern.compile("(?i)(bypass|omitir\\s+restricciones|sin\\s+restricciones)")
     );
 
-    private final boolean enabled;
-    private final String blockedMessage;
-
-    public JailbreakInputFilter(@Value("${bot.guardrails.enabled:true}") boolean enabled,
-                                @Value("${bot.guardrails.out-of-scope-message:}") String blockedMessage) {
-        this.enabled = enabled;
-        this.blockedMessage = blockedMessage != null && !blockedMessage.isBlank()
-            ? blockedMessage
-            : "";
-    }
-
     public boolean isJailbreakPattern(String userMessage) {
         if (userMessage == null || userMessage.isBlank()) return false;
         String normalized = userMessage.strip();
@@ -52,12 +39,9 @@ public class JailbreakInputFilter {
     }
 
     /**
-     * Si el filtro está desactivado → permite todo. Si está activo → bloquea solo si coincide un patrón de jailbreak.
+     * Bloquea solo si coincide un patrón de jailbreak; el turno sigue al LLM con suplementos de límite.
      */
     public Decision evaluate(String userMessage, String tenantId) {
-        if (!enabled) {
-            return Decision.allow();
-        }
         if (userMessage == null || userMessage.isBlank()) {
             return Decision.allow();
         }
@@ -65,17 +49,12 @@ public class JailbreakInputFilter {
         for (Pattern p : JAILBREAK_PATTERNS) {
             if (p.matcher(normalized).find()) {
                 log.info("[JAILBREAK-FILTER] Entrada bloqueada (tenant={}): {}", tenantId, p.pattern());
-                return Decision.block(blockedMessage);
+                return Decision.block(null);
             }
         }
         return Decision.allow();
     }
 
-    public String getBlockedMessage() {
-        return blockedMessage;
-    }
-
-    /** Resultado del filtro: permitir el mensaje o bloquearlo (con texto opcional fijo). */
     public record Decision(boolean allowed, String blockMessage) {
         public static Decision allow() {
             return new Decision(true, null);

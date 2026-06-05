@@ -137,9 +137,9 @@ public class FaqConversationService implements ConversationModeHandler {
     }
 
     private Optional<ConversationRouteResult> matchFaqToResult(String conversationId, String tenantId, String text) {
-        return faqService.findMatch(text)
+        return faqService.findFixedMatch(text)
             .map(m -> {
-                log.info("[FAQ-SVC] Keyword match: {}", m.intent());
+                log.info("[FAQ-SVC] Keyword match (FIXED): {}", m.intent());
                 return new ConversationRouteResult(
                     OutboundMessage.builder()
                         .text(m.response())

@@ -47,7 +47,7 @@ public class OllamaModelConfig {
     }
 
     @Bean
-    public LanguageModel languageModel(ChatModel chatModel) {
-        return new SpringAiLanguageModel(chatModel);
+    public LanguageModel languageModel(ChatModel chatModel, BotLlmStageOptionsFactory stageOptionsFactory) {
+        return new SpringAiLanguageModel(chatModel, stageOptionsFactory);
     }
 }

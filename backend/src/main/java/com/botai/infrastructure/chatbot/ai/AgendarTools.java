@@ -32,15 +32,29 @@ public class AgendarTools {
     private static final Logger log = LoggerFactory.getLogger(AgendarTools.class);
 
     private final AppointmentJpaRepository appointmentRepository;
+    private final BotToolCallGuard toolCallGuard;
 
-    public AgendarTools(AppointmentJpaRepository appointmentRepository) {
+    public AgendarTools(AppointmentJpaRepository appointmentRepository, BotToolCallGuard toolCallGuard) {
         this.appointmentRepository = appointmentRepository;
+        this.toolCallGuard = toolCallGuard;
+    }
+
+    private String gated(java.util.function.Supplier<String> action) {
+        String blocked = toolCallGuard.gate();
+        if (blocked != null) {
+            return blocked;
+        }
+        return action.get();
     }
 
     @Tool(description = BotPrompts.ToolsAgendar.TOOL_VERIFICAR_CITA)
     public String verificarCitaExistentePorDocumento(
             @ToolParam(description = BotPrompts.ToolsAgendar.PARAM_NOMBRE_VERIF) String nombreCliente,
             @ToolParam(description = BotPrompts.ToolsAgendar.PARAM_DOC_VERIF) String documento) {
+        return gated(() -> verificarCitaExistentePorDocumentoInternal(nombreCliente, documento));
+    }
+
+    private String verificarCitaExistentePorDocumentoInternal(String nombreCliente, String documento) {
         String tenantId = ThreadTenantContext.getTenantId();
         if (tenantId == null || tenantId.isBlank()) {
             return BotPrompts.ToolsAgendar.ERR_TENANT_UNKNOWN;
@@ -82,6 +96,10 @@ public class AgendarTools {
             @ToolParam(description = BotPrompts.ToolsAgendar.PARAM_DOC_CANCELAR) String documento,
             @ToolParam(description = BotPrompts.ToolsAgendar.PARAM_FECHA_CANCELAR) String fecha,
             @ToolParam(description = BotPrompts.ToolsAgendar.PARAM_HORA_CANCELAR) String hora) {
+        return gated(() -> cancelarCitaInternal(documento, fecha, hora));
+    }
+
+    private String cancelarCitaInternal(String documento, String fecha, String hora) {
         String tenantId = ThreadTenantContext.getTenantId();
         if (tenantId == null || tenantId.isBlank()) {
             return BotPrompts.ToolsAgendar.ERR_TENANT_UNKNOWN;
@@ -140,6 +158,10 @@ public class AgendarTools {
 
     @Tool(description = BotPrompts.ToolsAgendar.TOOL_CANCELAR_TODAS)
     public String cancelarTodasLasCitasDelCanal() {
+        return gated(this::cancelarTodasLasCitasDelCanalInternal);
+    }
+
+    private String cancelarTodasLasCitasDelCanalInternal() {
         String tenantId = ThreadTenantContext.getTenantId();
         if (tenantId == null || tenantId.isBlank()) {
             return BotPrompts.ToolsAgendar.ERR_TENANT_UNKNOWN;
@@ -165,6 +187,10 @@ public class AgendarTools {
 
     @Tool(description = BotPrompts.ToolsAgendar.TOOL_LISTAR_CITAS_CANAL)
     public String listarCitasActivasDelCanal() {
+        return gated(this::listarCitasActivasDelCanalInternal);
+    }
+
+    private String listarCitasActivasDelCanalInternal() {
         String tenantId = ThreadTenantContext.getTenantId();
         if (tenantId == null || tenantId.isBlank()) {
             return BotPrompts.ToolsAgendar.ERR_TENANT_UNKNOWN;

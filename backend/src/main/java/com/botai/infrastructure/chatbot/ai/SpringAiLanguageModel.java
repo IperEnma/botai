@@ -3,11 +3,13 @@ package com.botai.infrastructure.chatbot.ai;
 import com.botai.domain.chatbot.model.LlmRequest;
 import com.botai.domain.chatbot.model.LlmResponse;
 import com.botai.domain.chatbot.service.LanguageModel;
+import com.botai.infrastructure.chatbot.config.BotLlmStageOptionsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,9 +24,11 @@ public class SpringAiLanguageModel implements LanguageModel {
     private static final Logger log = LoggerFactory.getLogger(SpringAiLanguageModel.class);
 
     private final ChatModel chatModel;
+    private final BotLlmStageOptionsFactory stageOptionsFactory;
 
-    public SpringAiLanguageModel(ChatModel chatModel) {
+    public SpringAiLanguageModel(ChatModel chatModel, BotLlmStageOptionsFactory stageOptionsFactory) {
         this.chatModel = chatModel;
+        this.stageOptionsFactory = stageOptionsFactory;
     }
 
     @Override
@@ -44,7 +48,8 @@ public class SpringAiLanguageModel implements LanguageModel {
         messages.add(new UserMessage(userMessage));
 
         try {
-            var prompt = new Prompt(messages);
+            ChatOptions options = stageOptionsFactory != null ? stageOptionsFactory.forClassifier() : ChatOptions.builder().build();
+            var prompt = new Prompt(messages, options);
             var response = chatModel.call(prompt);
             String text = response.getResult() != null && response.getResult().getOutput() != null
                 ? response.getResult().getOutput().getText()

@@ -121,6 +121,55 @@ public final class InboundTextHeuristics {
         return false;
     }
 
+    private static final List<Pattern> CONVERSATION_CLOSING_PATTERNS = List.of(
+        Pattern.compile("(?i)^(muchas\\s+)?gracias[\\s!?.¡¿]*$"),
+        Pattern.compile("(?i)^(ok|okay|dale|listo|perfecto|genial|excelente)[\\s!?.¡¿]*$"),
+        Pattern.compile("(?i).*(chau|chao|adi[oó]s|hasta\\s+luego|nos\\s+vemos|bye)\\s*[.!]?$"),
+        Pattern.compile("(?i)^(nada\\s+m[aá]s|eso\\s+es\\s+todo|eso\\s+ser[ií]a\\s+todo|ya\\s+est[aá]|no\\s+necesito\\s+m[aá]s)[\\s!?.¡¿]*$"),
+        Pattern.compile("(?i)^gracias[,\\s]+(eso\\s+es\\s+todo|nada\\s+m[aá]s|chau|chao|adi[oó]s)[\\s!?.¡¿]*$")
+    );
+
+    /**
+     * Despedida o cierre sin pregunta nueva (p. ej. «Gracias», «Listo, chau»).
+     */
+    public static boolean looksLikeConversationClosing(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String n = normalizeForMatch(text.strip());
+        if (n.isEmpty() || containsSubstantiveIntent(n)) {
+            return false;
+        }
+        for (Pattern p : CONVERSATION_CLOSING_PATTERNS) {
+            if (p.matcher(n).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Respuesta a «¿Te resultó útil?» — {@code true}=útil, {@code false}=no útil, vacío=no reconocido.
+     */
+    public static java.util.Optional<Boolean> parseFeedbackYesNo(String text) {
+        if (text == null || text.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        String n = normalizeForMatch(text.strip()).replaceAll("[^a-z0-9\\s]", "").strip();
+        if (n.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        if (Set.of("si", "sip", "see", "yes", "y", "1", "util", "bueno", "bien", "ok", "dale").contains(n)
+            || n.startsWith("si ") || n.startsWith("muy util")) {
+            return java.util.Optional.of(true);
+        }
+        if (Set.of("no", "nop", "nope", "mal", "0", "n").contains(n)
+            || n.startsWith("no ") || n.contains("no util") || n.contains("no fue util")) {
+            return java.util.Optional.of(false);
+        }
+        return java.util.Optional.empty();
+    }
+
     public static boolean containsHttpUrl(String text) {
         return BookingUrlSanitizer.containsHttpUrl(text);
     }

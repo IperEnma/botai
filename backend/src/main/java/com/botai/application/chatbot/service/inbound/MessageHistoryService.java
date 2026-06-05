@@ -2,7 +2,7 @@ package com.botai.application.chatbot.service.inbound;
 
 import com.botai.infrastructure.chatbot.persistence.entity.MessageEntity;
 import com.botai.infrastructure.chatbot.persistence.jpa.MessageJpaRepository;
-import org.springframework.beans.factory.annotation.Value;
+import com.botai.infrastructure.chatbot.config.BotProperties;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +21,7 @@ import java.util.List;
  * </ul>
  * {@link com.botai.application.chatbot.dto.ConversationIntentSource#historyManagedByAiLayer(String)} evita duplicar
  * guardado en {@link com.botai.application.chatbot.service.inbound.ConversationCore} cuando la IA ya persistió el turno.
- * Ventana IA: {@code bot.memory.max-history-turns} (≈ {@code 2 ×} turnos en mensajes).
+ * Ventana IA: {@code bot.memory.max-history-turns}.
  */
 @Service
 public class MessageHistoryService {
@@ -32,10 +32,9 @@ public class MessageHistoryService {
     private final MessageJpaRepository messageRepository;
     private final int maxHistoryTurns;
 
-    public MessageHistoryService(MessageJpaRepository messageRepository,
-                                 @Value("${bot.memory.max-history-turns:10}") int maxHistoryTurns) {
+    public MessageHistoryService(MessageJpaRepository messageRepository, BotProperties botProperties) {
         this.messageRepository = messageRepository;
-        this.maxHistoryTurns = maxHistoryTurns;
+        this.maxHistoryTurns = botProperties.getMemory().getMaxHistoryTurns();
     }
 
     /**

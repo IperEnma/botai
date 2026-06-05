@@ -1,5 +1,6 @@
 package com.botai.application.chatbot.service.knowledge;
 
+import com.botai.domain.chatbot.model.BotLesson;
 import com.botai.domain.chatbot.model.KnowledgeChunk;
 import com.botai.domain.chatbot.model.KnowledgeChunkHit;
 import com.botai.domain.chatbot.model.RagRetrievalResult;
@@ -8,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingResponse;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.text.Normalizer;
 import java.util.Comparator;
@@ -45,18 +45,18 @@ public class KnowledgeService {
     private final double cragMinAvgSimilarity;
     private final double cragMinChunkSimilarity;
     private final int retrievalPrefetchMultiplier;
+    private final BotLessonService botLessonService;
 
     public KnowledgeService(KnowledgeRepository knowledgeRepository,
-                            EmbeddingModel embeddingModel,
-                            @Value("${bot.rag.min-similarity:0}") double minSimilarity) {
-        this(knowledgeRepository, embeddingModel, minSimilarity, () -> 0, 2, 0.52, 0.40, 2);
+                            EmbeddingModel embeddingModel) {
+        this(knowledgeRepository, embeddingModel, 0.0, () -> 0, 2, 0.52, 0.40, 2, null);
     }
 
     public KnowledgeService(KnowledgeRepository knowledgeRepository,
                             EmbeddingModel embeddingModel,
-                            @Value("${bot.rag.min-similarity:0}") double minSimilarity,
+                            double minSimilarity,
                             IntSupplier pendingEmbeddingBackfill) {
-        this(knowledgeRepository, embeddingModel, minSimilarity, pendingEmbeddingBackfill, 2, 0.52, 0.40, 2);
+        this(knowledgeRepository, embeddingModel, minSimilarity, pendingEmbeddingBackfill, 2, 0.52, 0.40, 2, null);
     }
 
     public KnowledgeService(KnowledgeRepository knowledgeRepository,
@@ -66,7 +66,8 @@ public class KnowledgeService {
                             int historyTurnsForQuery,
                             double cragMinAvgSimilarity,
                             double cragMinChunkSimilarity,
-                            int retrievalPrefetchMultiplier) {
+                            int retrievalPrefetchMultiplier,
+                            BotLessonService botLessonService) {
         this.knowledgeRepository = knowledgeRepository;
         this.embeddingModel = embeddingModel;
         this.pendingEmbeddingBackfill = pendingEmbeddingBackfill != null ? pendingEmbeddingBackfill : () -> 0;
@@ -75,9 +76,23 @@ public class KnowledgeService {
         this.cragMinAvgSimilarity = clamp01(cragMinAvgSimilarity);
         this.cragMinChunkSimilarity = clamp01(cragMinChunkSimilarity);
         this.retrievalPrefetchMultiplier = Math.max(1, retrievalPrefetchMultiplier);
+        this.botLessonService = botLessonService;
         if (this.maxCosineDistance != null) {
             log.info("[RAG] Filtro similitud activo: min-similarity={} -> distancia coseno máxima {}", minSimilarity, this.maxCosineDistance);
         }
+    }
+
+    /** Compat tests sin lessons. */
+    public KnowledgeService(KnowledgeRepository knowledgeRepository,
+                            EmbeddingModel embeddingModel,
+                            double minSimilarity,
+                            IntSupplier pendingEmbeddingBackfill,
+                            int historyTurnsForQuery,
+                            double cragMinAvgSimilarity,
+                            double cragMinChunkSimilarity,
+                            int retrievalPrefetchMultiplier) {
+        this(knowledgeRepository, embeddingModel, minSimilarity, pendingEmbeddingBackfill,
+            historyTurnsForQuery, cragMinAvgSimilarity, cragMinChunkSimilarity, retrievalPrefetchMultiplier, null);
     }
 
     /**
@@ -88,6 +103,7 @@ public class KnowledgeService {
         int limit = maxChunks > 0 ? maxChunks : DEFAULT_MAX_CHUNKS;
         String retrievalQuery = RagQueryExpander.buildRetrievalQuery(userMessage, historyLines, historyTurnsForQuery);
         List<String> topicPrefixes = RagTopicHintService.topicPrefixesForQuery(retrievalQuery);
+        List<BotLesson> lessons = resolveLessons(tenantId, userMessage);
         int prefetch = limit * retrievalPrefetchMultiplier;
 
         List<KnowledgeChunkHit> hits = findScoredHits(retrievalQuery, prefetch, tenantId, topicPrefixes);
@@ -107,11 +123,11 @@ public class KnowledgeService {
                 List<KnowledgeChunk> chunks = passed.stream().map(KnowledgeChunkHit::chunk).toList();
                 log.info("[RAG] Recuperados {} chunk(s) tenantId={} topics={} avgSim={}",
                         chunks.size(), tenantId, topicPrefixes, String.format(Locale.ROOT, "%.3f", avg));
-                return new RagRetrievalResult(chunks, false, retrievalQuery, topicPrefixes, avg);
+                return new RagRetrievalResult(chunks, false, retrievalQuery, topicPrefixes, avg, lessons);
             }
             log.info("[RAG] CRAG rechazó chunks (avgSim {} < {}) tenantId={}",
                     String.format(Locale.ROOT, "%.3f", avg), cragMinAvgSimilarity, tenantId);
-            return RagRetrievalResult.empty(retrievalQuery, topicPrefixes, true);
+            return new RagRetrievalResult(List.of(), true, retrievalQuery, topicPrefixes, avg, lessons);
         }
 
         List<KnowledgeChunk> fallback = findRelevantByTextFallback(retrievalQuery, limit, tenantId, topicPrefixes);
@@ -120,11 +136,18 @@ public class KnowledgeService {
         }
         if (!fallback.isEmpty()) {
             log.info("[RAG] Fallback texto: {} chunk(s) tenantId={}", fallback.size(), tenantId);
-            return new RagRetrievalResult(fallback, false, retrievalQuery, topicPrefixes, 0.58);
+            return new RagRetrievalResult(fallback, false, retrievalQuery, topicPrefixes, 0.58, lessons);
         }
 
         log.info("[RAG] Sin chunks recuperados tenantId={} (CRAG/tools)", tenantId);
-        return RagRetrievalResult.empty(retrievalQuery, topicPrefixes, true);
+        return new RagRetrievalResult(List.of(), true, retrievalQuery, topicPrefixes, 0.0, lessons);
+    }
+
+    private List<BotLesson> resolveLessons(String tenantId, String userMessage) {
+        if (botLessonService == null) {
+            return List.of();
+        }
+        return botLessonService.findActiveForQuery(tenantId, userMessage);
     }
 
     /**

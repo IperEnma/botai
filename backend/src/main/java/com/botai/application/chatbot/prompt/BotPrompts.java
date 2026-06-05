@@ -167,11 +167,23 @@ public final class BotPrompts {
                 + "For existing appointments on this channel, use listarCitasActivasDelCanal, verificarCitaExistentePorDocumento, cancelarCita, or cancelarTodasLasCitasDelCanal as needed. "
                 + "For hours or services without snippets, use getHorario, listarServicios, buscarConocimiento.";
 
+        public static final String FAQ_HINTS_SECTION_TITLE = "--- Pistas FAQ (parafrasear; no copiar literal salvo datos sensibles) ---";
+        public static final String LESSONS_SECTION_TITLE = "--- Contexto de negocio (aplicar solo si encaja con la consulta) ---";
+        public static final String ATTRIBUTION_SECTION_TITLE = "--- Tono de confianza (solo frases naturales; nada técnico al usuario) ---";
+
+        public static String noInformationUserPhrase(String configuredMessage) {
+            String msg = configuredMessage != null && !configuredMessage.isBlank()
+                ? configuredMessage.strip()
+                : "No tenemos esa información disponible. ¿En qué más podemos ayudarte?";
+            return "Si tras usar herramientas sigue faltando el dato concreto que pidieron, responde en español con un tono amable usando una frase equivalente a: «"
+                + msg + "». No menciones sistemas internos.";
+        }
+
         public static final String FALLBACK_SYSTEM_WHEN_BLANK =
             "Eres el asistente del negocio. Responde en español solo con datos de fragmentos recuperados o de herramientas; si falta un dato, dilo con claridad.";
 
         /**
-         * Segunda pasada opcional: revisar borrador del asistente sin herramientas (ver {@code bot.rag.self-review-enabled}).
+         * Segunda pasada: revisar borrador del asistente sin herramientas (pipeline generativo).
          */
         /**
          * @param recentThread líneas "role: content" de turnos previos en la sesión (sin el borrador actual).
@@ -327,6 +339,8 @@ public final class BotPrompts {
         public static final String ERR_SIN_RESULTADOS_RAG =
             "SIN_RESULTADOS_RAG: no hay fragmentos para esa búsqueda exacta. Si la pregunta del usuario es general, responde con getHorario o listarServicios; "
                 + "si es un dato puntual, dilo solo para ese detalle y ofrece lo verificado que tengas.";
+        public static final String ERR_TOOL_BUDGET_EXCEEDED =
+            "Límite de consultas automáticas en este turno. Responde con la información ya verificada o indica amablemente que no tenés ese dato.";
 
         private ToolsConsulta() {}
     }

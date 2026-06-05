@@ -2,18 +2,20 @@ package com.botai.infrastructure.chatbot.ai;
 
 import com.botai.application.chatbot.prompt.BotPrompts;
 import com.botai.application.chatbot.service.agenda.PublicAgendaLinkResolver;
+import com.botai.application.chatbot.service.conversation.common.FaqService;
 import com.botai.application.chatbot.support.InboundTextHeuristics;
 import com.botai.application.chatbot.service.conversation.ai.RagLlmChatService;
 import com.botai.application.chatbot.service.inbound.ChatSessionService;
 import com.botai.application.chatbot.service.inbound.MessageHistoryService;
 import com.botai.application.chatbot.service.knowledge.KnowledgeService;
+import com.botai.domain.chatbot.model.BotLesson;
 import com.botai.domain.chatbot.model.RagRetrievalResult;
 import com.botai.domain.chatbot.ConversationContextKeys;
 import com.botai.domain.chatbot.model.ConversationState;
 import com.botai.domain.chatbot.model.KnowledgeChunk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import com.botai.infrastructure.chatbot.config.BotProperties;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -25,28 +27,31 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * RAG: construye el system prompt con fragmentos devueltos por búsqueda (semántica o keywords).
+ * RAG: construye el system prompt con fragmentos devueltos por búsqueda (semántica o keywords),
+ * pistas FAQ, lessons y tono de confianza (sin exponer detalles técnicos al usuario).
  */
 @Component
 @Primary
 public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
 
     private static final Logger log = LoggerFactory.getLogger(RagAiContextBuilder.class);
-    private static final int RAG_MAX_CHUNKS = 5;
 
     private final KnowledgeService knowledgeService;
     private final MessageHistoryService messageHistoryService;
     private final PublicAgendaLinkResolver publicAgendaLinkResolver;
+    private final FaqService faqService;
     private final int maxChunks;
 
     public RagAiContextBuilder(KnowledgeService knowledgeService,
                                MessageHistoryService messageHistoryService,
                                PublicAgendaLinkResolver publicAgendaLinkResolver,
-                               @Value("${bot.rag.max-chunks:3}") int maxChunks) {
+                               FaqService faqService,
+                               BotProperties botProperties) {
         this.knowledgeService = knowledgeService;
         this.messageHistoryService = messageHistoryService;
         this.publicAgendaLinkResolver = publicAgendaLinkResolver;
-        this.maxChunks = maxChunks > 0 ? maxChunks : RAG_MAX_CHUNKS;
+        this.faqService = faqService;
+        this.maxChunks = botProperties.getRag().getMaxChunks();
     }
 
     @Override
@@ -65,15 +70,18 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
         List<String> history = messageHistoryService.getHistory(conversationId, sessionId);
         RagRetrievalResult retrieval = knowledgeService.retrieveForTurn(userMessage, maxChunks, tenantId, history);
         List<KnowledgeChunk> chunks = retrieval.chunks();
+        List<FaqService.FaqRagHint> faqHints = faqService.findRagHints(userMessage);
 
-        log.info("[RAG] buildContext tenantId={} userQuery='{}' retrievalQueryLen={} chunks={} cragRejected={} topicHints={} avgSim={}",
+        log.info("[RAG] buildContext tenantId={} userQuery='{}' retrievalQueryLen={} chunks={} cragRejected={} topicHints={} avgSim={} faqHints={} lessons={}",
             tenantId,
             userMessage,
             retrieval.retrievalQuery() != null ? retrieval.retrievalQuery().length() : 0,
             chunks.size(),
             retrieval.cragRejected(),
             retrieval.topicPrefixes(),
-            String.format(Locale.ROOT, "%.3f", retrieval.avgSimilarity()));
+            String.format(Locale.ROOT, "%.3f", retrieval.avgSimilarity()),
+            faqHints.size(),
+            retrieval.activeLessons() != null ? retrieval.activeLessons().size() : 0);
 
         List<String> lines = new ArrayList<>(BotPrompts.RagChat.ragInstructionPreambleLines());
 
@@ -89,28 +97,59 @@ public class RagAiContextBuilder implements RagLlmChatService.AiContextBuilder {
 
         lines.add(BotPrompts.RagChat.CURRENT_DATE_SECTION_TITLE);
         lines.add("HOY (zona horaria del servidor del bot): " + today.format(DateTimeFormatter.ISO_LOCAL_DATE) + " (" + dayName + ").");
-        // Mantener líneas cortas y no “explicativas”: el modelo tiende a repetir texto literal al usuario.
         lines.add("MAÑANA: " + tomorrowLine + ".");
         lines.add("PASADO MAÑANA: " + dayAfterLine + ".");
         lines.add(BotPrompts.RagChat.CURRENT_DATE_RULE);
         lines.add("");
         appendOfficialBookingUrl(lines, tenantId);
+        appendFaqHints(lines, faqHints);
+        appendLessons(lines, retrieval.activeLessons());
 
-        if (chunks.isEmpty()) {
-            if (retrieval.cragRejected()) {
-                log.warn("[RAG] buildContext CRAG rechazó chunks tenantId={} -> solo tools", tenantId);
-            } else {
-                log.warn("[RAG] buildContext sin chunks tenantId={} query='{}' -> contexto mínimo", tenantId, userMessage);
+        boolean hasChunks = !chunks.isEmpty();
+        if (hasChunks) {
+            lines.add(BotPrompts.RagChat.FRAGMENTS_SECTION_TITLE);
+            for (KnowledgeChunk c : chunks) {
+                lines.add(c.getContent());
             }
-            return RagLlmChatService.BuildContextResult.noChunks(lines);
+            lines.add(BotPrompts.RagChat.FRAGMENTS_SECTION_END);
+            String attribution = RagAttributionHints.promptInstructionForChunks(chunks);
+            if (!attribution.isBlank()) {
+                lines.add(BotPrompts.RagChat.ATTRIBUTION_SECTION_TITLE);
+                lines.add(attribution);
+            }
+            return RagLlmChatService.BuildContextResult.withChunks(lines);
         }
 
-        lines.add(BotPrompts.RagChat.FRAGMENTS_SECTION_TITLE);
-        for (KnowledgeChunk c : chunks) {
-            lines.add("[" + c.getTopic() + "] " + c.getContent());
+        if (retrieval.cragRejected()) {
+            log.warn("[RAG] buildContext CRAG rechazó chunks tenantId={} -> solo tools", tenantId);
+        } else {
+            log.warn("[RAG] buildContext sin chunks tenantId={} query='{}' -> contexto mínimo", tenantId, userMessage);
         }
-        lines.add(BotPrompts.RagChat.FRAGMENTS_SECTION_END);
-        return RagLlmChatService.BuildContextResult.withChunks(lines);
+        boolean hasHints = !faqHints.isEmpty()
+            || (retrieval.activeLessons() != null && !retrieval.activeLessons().isEmpty());
+        return RagLlmChatService.BuildContextResult.noChunks(lines, retrieval.cragRejected(), hasHints);
+    }
+
+    private static void appendFaqHints(List<String> lines, List<FaqService.FaqRagHint> hints) {
+        if (hints == null || hints.isEmpty()) {
+            return;
+        }
+        lines.add(BotPrompts.RagChat.FAQ_HINTS_SECTION_TITLE);
+        for (FaqService.FaqRagHint hint : hints) {
+            lines.add("Pregunta frecuente (" + hint.intent() + "): " + hint.suggestedAnswer());
+        }
+        lines.add("");
+    }
+
+    private static void appendLessons(List<String> lines, List<BotLesson> lessons) {
+        if (lessons == null || lessons.isEmpty()) {
+            return;
+        }
+        lines.add(BotPrompts.RagChat.LESSONS_SECTION_TITLE);
+        for (BotLesson lesson : lessons) {
+            lines.add("[" + lesson.getName() + "] " + lesson.getContent());
+        }
+        lines.add("");
     }
 
     private void appendOfficialBookingUrl(List<String> lines, String tenantId) {

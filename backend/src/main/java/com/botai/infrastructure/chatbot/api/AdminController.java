@@ -36,6 +36,8 @@ public class AdminController {
     private final BotWhatsAppConfig botWhatsAppConfig;
     private final WhatsAppVerifyTokenService whatsAppVerifyTokenService;
     private final WhatsAppAccessTokenCipher whatsAppAccessTokenCipher;
+    private final FaqJpaRepository faqJpaRepository;
+    private final BotLessonJpaRepository botLessonJpaRepository;
 
     public AdminController(
             MenuJpaRepository menuRepository,
@@ -47,7 +49,9 @@ public class AdminController {
             LinkBotToAgendaBusinessesUseCase linkBotToAgendaBusinessesUseCase,
             BotWhatsAppConfig botWhatsAppConfig,
             WhatsAppVerifyTokenService whatsAppVerifyTokenService,
-            WhatsAppAccessTokenCipher whatsAppAccessTokenCipher) {
+            WhatsAppAccessTokenCipher whatsAppAccessTokenCipher,
+            FaqJpaRepository faqJpaRepository,
+            BotLessonJpaRepository botLessonJpaRepository) {
         this.menuRepository = menuRepository;
         this.triggerRepository = triggerRepository;
         this.featureConfigRepository = featureConfigRepository;
@@ -58,6 +62,8 @@ public class AdminController {
         this.botWhatsAppConfig = botWhatsAppConfig;
         this.whatsAppVerifyTokenService = whatsAppVerifyTokenService;
         this.whatsAppAccessTokenCipher = whatsAppAccessTokenCipher;
+        this.faqJpaRepository = faqJpaRepository;
+        this.botLessonJpaRepository = botLessonJpaRepository;
     }
 
     // ============ AUTH ============
@@ -433,6 +439,72 @@ public class AdminController {
         return knowledgeChunkAdminService.delete(tenantId, chunkId)
             ? ResponseEntity.noContent().build()
             : ResponseEntity.notFound().build();
+    }
+
+    // ============ FAQ (global) ============
+
+    @GetMapping("/faqs")
+    public ResponseEntity<List<FaqEntity>> listFaqs() {
+        return ResponseEntity.ok(faqJpaRepository.findAll());
+    }
+
+    @PostMapping("/faqs")
+    public ResponseEntity<FaqEntity> createFaq(@RequestBody FaqEntity faq) {
+        if (faq.getResponseMode() == null || faq.getResponseMode().isBlank()) {
+            faq.setResponseMode("FIXED");
+        }
+        return ResponseEntity.ok(faqJpaRepository.save(faq));
+    }
+
+    @PutMapping("/faqs/{faqId}")
+    public ResponseEntity<FaqEntity> updateFaq(@PathVariable Long faqId, @RequestBody FaqEntity faq) {
+        return faqJpaRepository.findById(faqId)
+            .map(existing -> {
+                existing.setIntent(faq.getIntent());
+                existing.setKeywords(faq.getKeywords());
+                existing.setResponse(faq.getResponse());
+                existing.setUseRegex(faq.isUseRegex());
+                existing.setActive(faq.isActive());
+                if (faq.getResponseMode() != null && !faq.getResponseMode().isBlank()) {
+                    existing.setResponseMode(faq.getResponseMode());
+                }
+                return ResponseEntity.ok(faqJpaRepository.save(existing));
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ============ BOT LESSONS (por tenant) ============
+
+    @GetMapping("/tenants/{tenantId}/lessons")
+    public ResponseEntity<List<BotLessonEntity>> listLessons(@PathVariable String tenantId) {
+        return ResponseEntity.ok(botLessonJpaRepository.findByTenantIdAndActiveTrueOrderByNameAsc(tenantId));
+    }
+
+    @PostMapping("/tenants/{tenantId}/lessons")
+    public ResponseEntity<BotLessonEntity> createLesson(@PathVariable String tenantId,
+                                                         @RequestBody BotLessonEntity lesson) {
+        lesson.setTenantId(tenantId);
+        lesson.setActive(true);
+        if (lesson.getCreatedAt() == null) {
+            lesson.setCreatedAt(java.time.Instant.now());
+        }
+        return ResponseEntity.ok(botLessonJpaRepository.save(lesson));
+    }
+
+    @PutMapping("/tenants/{tenantId}/lessons/{lessonId}")
+    public ResponseEntity<BotLessonEntity> updateLesson(@PathVariable String tenantId,
+                                                        @PathVariable Long lessonId,
+                                                        @RequestBody BotLessonEntity lesson) {
+        return botLessonJpaRepository.findById(lessonId)
+            .filter(l -> tenantId.equals(l.getTenantId()))
+            .map(existing -> {
+                existing.setName(lesson.getName());
+                existing.setTriggerKeywords(lesson.getTriggerKeywords());
+                existing.setContent(lesson.getContent());
+                existing.setActive(lesson.isActive());
+                return ResponseEntity.ok(botLessonJpaRepository.save(existing));
+            })
+            .orElse(ResponseEntity.notFound().build());
     }
 
     // ============ FEATURE FLAGS ============

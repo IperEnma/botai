@@ -16,6 +16,7 @@ public final class ConversationIntentSource {
     public static final String CLASSIFIER_ERROR = "classifier_error";
     public static final String BAD_INTENT = "bad_intent";
     public static final String NO_MATCH = "no_match";
+    public static final String FEEDBACK = "feedback";
 
     private ConversationIntentSource() {}
 

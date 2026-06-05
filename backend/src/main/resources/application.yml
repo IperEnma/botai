@@ -116,7 +116,8 @@ schedulers:
   enabled: ${APP_SCHEDULERS_ENABLED:true}
 
 # -----------------------------------------------------------------------------
-# Bot: chat, RAG, WhatsApp, canales
+# Bot: infraestructura + umbrales operativos (un solo pipeline; sin flags de modos).
+# Mensajes al cliente: override opcional vía bot.messages.* (ver BotMessages.java)
 # -----------------------------------------------------------------------------
 bot:
   embedding:
@@ -131,12 +132,14 @@ bot:
   rag:
     max-chunks: 3
     min-similarity: 0.0
-    embed-retry-delay-ms: ${BOT_RAG_EMBED_RETRY_DELAY_MS:600000}
-    self-review-enabled: true
     history-turns-for-query: 2
     crag-min-avg-similarity: 0.52
     crag-min-chunk-similarity: 0.40
     retrieval-prefetch-multiplier: 2
+    embed-retry-delay-ms: ${BOT_RAG_EMBED_RETRY_DELAY_MS:600000}
+
+  tools:
+    max-calls-per-turn: 4
 
   memory:
     max-history-turns: 10
@@ -147,10 +150,11 @@ bot:
   buffer:
     debounce-ms: 2500
 
-  guardrails:
-    enabled: true
-
-  messages: {}
+  llm:
+    temperature:
+      classifier: 0.1
+      rag-reply: 0.3
+      self-review: 0.0
 
   whatsapp:
     verify-secret: ${BOT_WHATSAPP_VERIFY_SECRET:dev-insecure-change-me}

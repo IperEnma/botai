@@ -11,5 +11,11 @@ public final class ConversationContextKeys {
     public static final String CUSTOMER_DOCUMENT = "customerDocument";
     public static final String CUSTOMER_NAME = "customerName";
 
+    /** Esperando Sí/No del cliente tras cierre de conversación. */
+    public static final String FEEDBACK_AWAITING = "feedbackAwaiting";
+    public static final String FEEDBACK_SNAPSHOT_USER = "feedbackSnapshotUser";
+    public static final String FEEDBACK_SNAPSHOT_BOT = "feedbackSnapshotBot";
+    public static final String FEEDBACK_SNAPSHOT_SOURCE = "feedbackSnapshotSource";
+
     private ConversationContextKeys() {}
 }

@@ -29,9 +29,9 @@ flowchart LR
 ```
 
 1. **Intención** — Mini-LLM: saludo, pregunta general, mala intención, o `ACCION_CRM <action_id>`.
-2. **RAG** — Para turnos generativos (`RagAiContextBuilder` → `KnowledgeService.retrieveForTurn`): embeddings, historial en la query, filtro por topic, gate CRAG, chunks Agenda (`AgendaRagSourceSync`). Config y pendientes: [RAG_ROADMAP.md](./RAG_ROADMAP.md).
+2. **RAG** — Para turnos generativos (`RagAiContextBuilder` → `KnowledgeService.retrieveForTurn`): embeddings, historial en la query, filtro por topic, gate CRAG, chunks Agenda (`AgendaRagSourceSync`). Config y pendientes: [RAG_ROADMAP.md](./RAG_ROADMAP.md). **Implementación completa:** [BOT_IMPLEMENTATION.md](./BOT_IMPLEMENTATION.md).
 3. **LLM principal** — `chatClientWithTools`: mensaje actual, system con fragmentos + fecha + reglas, **memoria** (`PromptChatMemoryAdvisor`), y herramientas cuando aplica (p. ej. `getHorario`, consultas de citas existentes, cancelación).
-4. **Razonamiento / auto-revisión** — Si `bot.rag.self-review-enabled=true`: segunda llamada con `chatClientPlain` y `BotPrompts.RagChat.buildSelfReviewSystemPrompt`, con FACTS (RAG), hilo reciente, mensaje actual y borrador.
+4. **Razonamiento / auto-revisión** — Segunda llamada con `chatClientPlain` (parte fija del pipeline generativo).
 5. **Respuesta al cliente** — Texto validado (`ResponseValidator`) y envío por el canal.
 
 ### Mejoras posibles (recomendaciones)
@@ -41,7 +41,7 @@ flowchart LR
 | Modelo más chico o cuantizado solo para la revisión | Menor costo/latencia en el paso 4 |
 | Salida estructurada (p. ej. JSON `{"final":"...","changed":true}`) | Menos ambigüedad; descartar si `changed` y contradice FACTS |
 | Revisor con temperatura 0 y límite de tokens bajo | Menos reescritura innecesaria |
-| Métricas: tasa de cambio draft→final, longitud, tiempo | Afinar `self-review-enabled` en prod |
+| Métricas: tasa de cambio draft→final, longitud, tiempo | Afinar `bot.llm.temperature.self-review` |
 | Incluir en FACTS también el resultado de tools del turno (extracto) | Mejor coherencia cuando el borrador cita datos de herramientas |
 
 ## Qué queda fuera del pipeline generativo (atajos CRM)
@@ -59,7 +59,7 @@ flowchart LR
 ## Configuración
 
 - `agenda.public.base-url` — Base del **frontend** para el link público de agenda.
-- `bot.rag.self-review-enabled` — Activa el paso 4 de auto-revisión en turnos generativos.
+- Motor RAG/LLM — umbrales en `bot.rag.*`, `bot.llm.temperature.*` (ver [BOT_IMPLEMENTATION.md](./BOT_IMPLEMENTATION.md) §11).
 
 ## Verificación teléfono (solo reserva pública)
 

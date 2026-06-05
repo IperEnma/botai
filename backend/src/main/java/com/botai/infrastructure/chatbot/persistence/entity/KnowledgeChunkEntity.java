@@ -54,6 +54,17 @@ public class KnowledgeChunkEntity {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    /** Origen del fragmento: MANUAL, AGENDA_SYNC, FAQ_HINT, etc. */
+    @Column(name = "source_type", length = 64)
+    private String sourceType;
+
+    @Column(name = "language", length = 16)
+    private String language;
+
+    /** Si está definido, el chunk deja de usarse en retrieval después de esta fecha. */
+    @Column(name = "valid_until")
+    private Instant validUntil;
+
     /**
      * Vectores RAG por dimensión (pgvector). Solo JDBC — ver {@link com.botai.infrastructure.chatbot.rag.EmbeddingVectorStore}.
      * DJL local → {@code embedding_384}; OpenRouter/API → {@code embedding_1536}.
@@ -110,6 +121,30 @@ public class KnowledgeChunkEntity {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public Instant getValidUntil() {
+        return validUntil;
+    }
+
+    public void setValidUntil(Instant validUntil) {
+        this.validUntil = validUntil;
     }
 
     public String getEmbedding384() {

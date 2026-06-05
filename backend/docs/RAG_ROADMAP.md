@@ -13,23 +13,11 @@ Evolución del asistente (un solo flujo: clasificador → recuperación → LLM 
 | Contexto en prompt | `RagAiContextBuilder` |
 | Sync chunks desde Agenda | `AgendaRagSourceSync` |
 | Tools en vivo | `ConsultaTools`, `getHorario`, etc. |
-| Auto-revisión | `bot.rag.self-review-enabled` |
+| Auto-revisión | `RagLlmChatService` (siempre en pipeline generativo) |
 
-### Configuración (`bot.rag` en `application.yml`)
+### Umbrales (`bot.rag.*` en `application.yml`)
 
-```yaml
-bot:
-  rag:
-    max-chunks: 3
-    min-similarity: 0.0
-    self-review-enabled: true
-    history-turns-for-query: 2
-    crag-min-avg-similarity: 0.52
-    crag-min-chunk-similarity: 0.40
-    retrieval-prefetch-multiplier: 2
-```
-
-Todo vive bajo **`bot.rag`**; no hay sub-bloques ni flags de “fases” distintas.
+`max-chunks`, `min-similarity`, `history-turns-for-query`, `crag-min-*`, etc. Ver `BotProperties.java`.
 
 ---
 
@@ -40,7 +28,8 @@ Todo vive bajo **`bot.rag`**; no hay sub-bloques ni flags de “fases” distint
 | Self-review con extracto de tool calls en FACTS | Coherencia con `getHorario` |
 | Re-ranking post-retrieval | Mejor top-k |
 | Métricas (0-chunk, CRAG reject) | Afinar umbrales en prod |
-| Feedback 👍👎 por conversación | Ajustar chunks / `min-similarity` |
+
+**Implementado:** feedback al cliente al cerrar conversación, FAQ FIXED/RAG_HINT, lessons, metadata chunks, límites tools, stages LLM. Ver [BOT_IMPLEMENTATION.md](./BOT_IMPLEMENTATION.md).
 
 ---
 

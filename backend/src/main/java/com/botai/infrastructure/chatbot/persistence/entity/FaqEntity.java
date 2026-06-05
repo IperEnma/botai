@@ -28,6 +28,10 @@ public class FaqEntity {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
+    /** FIXED = respuesta literal; RAG_HINT = inyectar al contexto generativo. */
+    @Column(name = "response_mode", nullable = false, length = 32)
+    private String responseMode = "FIXED";
+
     public Long getId() {
         return id;
     }
@@ -74,5 +78,13 @@ public class FaqEntity {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public String getResponseMode() {
+        return responseMode;
+    }
+
+    public void setResponseMode(String responseMode) {
+        this.responseMode = responseMode;
     }
 }

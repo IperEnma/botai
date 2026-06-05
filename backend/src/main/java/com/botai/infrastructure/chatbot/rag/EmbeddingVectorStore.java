@@ -56,27 +56,30 @@ public class EmbeddingVectorStore {
         return "UPDATE knowledge_chunk SET " + columnName + " = NULL WHERE id = ?";
     }
 
+    private static final String VALID_CHUNK_CLAUSE =
+        " AND (valid_until IS NULL OR valid_until > CURRENT_TIMESTAMP)";
+
     public String similaritySqlTenant(boolean filtered) {
         if (filtered) {
             return "SELECT topic, content, COALESCE(keywords, '') FROM knowledge_chunk "
-                    + "WHERE active = true AND " + columnName + " IS NOT NULL AND tenant_id = ? "
+                    + "WHERE active = true" + VALID_CHUNK_CLAUSE + " AND " + columnName + " IS NOT NULL AND tenant_id = ? "
                     + "AND (" + columnName + " <=> CAST(? AS vector)) <= ? "
                     + "ORDER BY " + columnName + " <=> CAST(? AS vector) LIMIT ?";
         }
         return "SELECT topic, content, COALESCE(keywords, '') FROM knowledge_chunk "
-                + "WHERE active = true AND " + columnName + " IS NOT NULL AND tenant_id = ? "
+                + "WHERE active = true" + VALID_CHUNK_CLAUSE + " AND " + columnName + " IS NOT NULL AND tenant_id = ? "
                 + "ORDER BY " + columnName + " <=> CAST(? AS vector) LIMIT ?";
     }
 
     public String similaritySqlGlobal(boolean filtered) {
         if (filtered) {
             return "SELECT topic, content, COALESCE(keywords, '') FROM knowledge_chunk "
-                    + "WHERE active = true AND " + columnName + " IS NOT NULL "
+                    + "WHERE active = true" + VALID_CHUNK_CLAUSE + " AND " + columnName + " IS NOT NULL "
                     + "AND (" + columnName + " <=> CAST(? AS vector)) <= ? "
                     + "ORDER BY " + columnName + " <=> CAST(? AS vector) LIMIT ?";
         }
         return "SELECT topic, content, COALESCE(keywords, '') FROM knowledge_chunk "
-                + "WHERE active = true AND " + columnName + " IS NOT NULL "
+                + "WHERE active = true" + VALID_CHUNK_CLAUSE + " AND " + columnName + " IS NOT NULL "
                 + "ORDER BY " + columnName + " <=> CAST(? AS vector) LIMIT ?";
     }
 

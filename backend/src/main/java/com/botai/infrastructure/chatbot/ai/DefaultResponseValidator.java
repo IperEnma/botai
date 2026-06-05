@@ -5,7 +5,6 @@ import com.botai.application.chatbot.service.conversation.ai.RagLlmChatService;
 import com.botai.infrastructure.chatbot.config.BotMessages;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.regex.Pattern;
@@ -30,15 +29,9 @@ public class DefaultResponseValidator implements RagLlmChatService.ResponseValid
         "(?i)(#include\\s*<|int\\s+main\\s*\\(|printf\\s*\\(|return\\s+0\\s*;|def\\s+\\w+\\s*\\(|function\\s+\\w+\\s*\\()"
     );
 
-    private final String outOfScopeFallback;
     private final BotMessages botMessages;
 
-    public DefaultResponseValidator(
-            @Value("${bot.guardrails.out-of-scope-message:}") String outOfScopeMessage,
-            BotMessages botMessages) {
-        this.outOfScopeFallback = outOfScopeMessage != null && !outOfScopeMessage.isBlank()
-            ? outOfScopeMessage
-            : "";
+    public DefaultResponseValidator(BotMessages botMessages) {
         this.botMessages = botMessages;
     }
 
@@ -65,7 +58,7 @@ public class DefaultResponseValidator implements RagLlmChatService.ResponseValid
 
         // Guardrail de salida: si contiene bloques de código o indicadores de código, no exponer
         if (CODE_BLOCK.matcher(s).find() || CODE_INDICATORS.matcher(s).find()) {
-            return outOfScopeFallback;
+            return botMessages.getGuardrailBlock();
         }
 
         if (s.length() > MAX_LENGTH) {

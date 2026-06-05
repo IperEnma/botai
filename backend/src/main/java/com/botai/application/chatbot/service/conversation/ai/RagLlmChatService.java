@@ -24,7 +24,10 @@ import com.botai.domain.chatbot.model.InboundMessage;
 import com.botai.domain.chatbot.model.OutboundMessage;
 import com.botai.domain.chatbot.repository.ConversationRepository;
 import com.botai.infrastructure.chatbot.ai.memory.ChatMemoryConversationIdCodec;
+import com.botai.infrastructure.chatbot.config.BotLlmStageOptionsFactory;
 import com.botai.infrastructure.chatbot.config.BotMessages;
+import com.botai.infrastructure.chatbot.ai.BotToolCallGuard;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -34,7 +37,6 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -74,9 +76,11 @@ public class RagLlmChatService implements ConversationModeHandler {
     private final ConversationRepository conversationRepository;
     private final ChatMemory chatMemory;
     private final ChatClient chatClientPlain;
-    private final boolean selfReviewEnabled;
     private final String messageTenantUnknown;
     private final String messageAiError;
+    private final String messageNoRagInfo;
+    private final BotToolCallGuard toolCallGuard;
+    private final BotLlmStageOptionsFactory llmStageOptions;
 
     public RagLlmChatService(ChatClient chatClientWithTools,
                              AiContextBuilder aiContextBuilder,
@@ -90,8 +94,9 @@ public class RagLlmChatService implements ConversationModeHandler {
                              ConversationRepository conversationRepository,
                              ChatMemory chatMemory,
                              @Qualifier("chatClientPlain") ChatClient chatClientPlain,
-                             @Value("${bot.rag.self-review-enabled:false}") boolean selfReviewEnabled,
-                             BotMessages botMessages) {
+                             BotMessages botMessages,
+                             BotToolCallGuard toolCallGuard,
+                             BotLlmStageOptionsFactory llmStageOptions) {
         this.chatClientWithTools = chatClientWithTools;
         this.aiContextBuilder = aiContextBuilder;
         this.defaultAiContextBuilder = defaultAiContextBuilder;
@@ -104,11 +109,14 @@ public class RagLlmChatService implements ConversationModeHandler {
         this.conversationRepository = conversationRepository;
         this.chatMemory = chatMemory;
         this.chatClientPlain = chatClientPlain;
-        this.selfReviewEnabled = selfReviewEnabled;
+        this.toolCallGuard = toolCallGuard;
+        this.llmStageOptions = llmStageOptions;
         String tu = botMessages.getTenantUnknown();
         String ae = botMessages.getAiError();
+        String nr = botMessages.getNoRagInfo();
         this.messageTenantUnknown = tu != null && !tu.isBlank() ? tu : "No se pudo identificar el negocio. Revisa la configuración del bot.";
         this.messageAiError = ae != null && !ae.isBlank() ? ae : "No pude conectar con el asistente. Verifica que Ollama esté en marcha.";
+        this.messageNoRagInfo = nr != null && !nr.isBlank() ? nr : "No tenemos esa información disponible. ¿En qué más podemos ayudarte?";
     }
 
     @Override
@@ -283,8 +291,10 @@ public class RagLlmChatService implements ConversationModeHandler {
         ThreadTenantContext.setTenantId(tenantId);
         ThreadTenantContext.setUserId(resolveUserIdForTools(inbound, state));
         ThreadTenantContext.setConversationId(conversationId);
+        toolCallGuard.beginTurn();
         try {
             BuildContextResult ctxResult = contextBuilder.buildContext(state, userText);
+
             List<String> systemLines = new ArrayList<>(ctxResult.systemPromptLines());
             boolean greetingTurn = ctxResult.greetingOnlyTurn()
                 || (classification != null && classification.isGreeting())
@@ -297,6 +307,7 @@ public class RagLlmChatService implements ConversationModeHandler {
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_USE_TOOLS);
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_SIN_DATOS);
                 systemLines.add(BotPrompts.RagChat.NO_CHUNKS_LINE_AGENDAR_TOOLS);
+                systemLines.add(BotPrompts.RagChat.noInformationUserPhrase(messageNoRagInfo));
             } else if (greetingTurn) {
                 log.info("[RAG-LLM] Turno saludo -> sin tools ni bloque «usar herramientas»");
             }
@@ -333,7 +344,10 @@ public class RagLlmChatService implements ConversationModeHandler {
                     .build();
             }
 
+            ChatOptions stageOptions = llmStageOptions.forRagReply();
+
             String rawText = activeClient.prompt(turnPrompt)
+                .options(stageOptions)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, memoryKey))
                 .call()
                 .content();
@@ -350,7 +364,7 @@ public class RagLlmChatService implements ConversationModeHandler {
             }
             String safeText = responseValidator.validateAndSanitize(rawText);
 
-            if (selfReviewEnabled && chatClientPlain != null && !greetingTurn && ut.length() >= 2) {
+            if (chatClientPlain != null && !greetingTurn && ut.length() >= 2) {
                 String ragFacts = extractRagFactsFromSystemLines(systemLines);
                 List<String> histLines = messageHistoryService.getHistory(conversationId, sessionId);
                 String threadBlock = histLines.isEmpty() ? "" : String.join("\n", histLines);
@@ -377,6 +391,7 @@ public class RagLlmChatService implements ConversationModeHandler {
                 .tenantId(tenantId)
                 .build();
         } finally {
+            toolCallGuard.endTurn();
             ThreadTenantContext.clear();
         }
     }
@@ -436,7 +451,10 @@ public class RagLlmChatService implements ConversationModeHandler {
                 new SystemMessage(sys),
                 new UserMessage("Produce only the final Spanish message.")
             ));
-            String out = chatClientPlain.prompt(reviewPrompt).call().content();
+            String out = chatClientPlain.prompt(reviewPrompt)
+                .options(llmStageOptions.forSelfReview())
+                .call()
+                .content();
             if (out == null || out.isBlank()) {
                 return Optional.empty();
             }
@@ -466,15 +484,19 @@ public class RagLlmChatService implements ConversationModeHandler {
     /**
      * Resultado de construir el system prompt para el LLM (fragmentos RAG + reglas).
      */
-    public record BuildContextResult(List<String> systemPromptLines, boolean hasRelevantChunks, boolean greetingOnlyTurn) {
+    public record BuildContextResult(List<String> systemPromptLines, boolean hasRelevantChunks,
+                                     boolean greetingOnlyTurn, boolean cragRejected, boolean hasSupplementalHints) {
         public static BuildContextResult withChunks(List<String> lines) {
-            return new BuildContextResult(lines, true, false);
+            return new BuildContextResult(lines, true, false, false, false);
         }
         public static BuildContextResult noChunks(List<String> lines) {
-            return new BuildContextResult(lines, false, false);
+            return noChunks(lines, false, false);
+        }
+        public static BuildContextResult noChunks(List<String> lines, boolean cragRejected, boolean hasSupplementalHints) {
+            return new BuildContextResult(lines, false, false, cragRejected, hasSupplementalHints);
         }
         public static BuildContextResult greetingOnly(List<String> lines) {
-            return new BuildContextResult(lines, false, true);
+            return new BuildContextResult(lines, false, true, false, false);
         }
     }
 

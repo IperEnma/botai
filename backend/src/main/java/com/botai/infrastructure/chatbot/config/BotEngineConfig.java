@@ -3,13 +3,16 @@ package com.botai.infrastructure.chatbot.config;
 import com.botai.application.chatbot.orchestration.ConversationModeOrchestrator;
 import com.botai.application.chatbot.service.conversation.common.FaqService;
 import com.botai.application.chatbot.service.inbound.ActionDispatcher;
+import com.botai.application.chatbot.service.feedback.ConversationFeedbackFlowService;
 import com.botai.application.chatbot.service.inbound.ChatSessionService;
 import com.botai.application.chatbot.service.inbound.ConversationCore;
 import com.botai.application.chatbot.service.inbound.MessageHistoryService;
+import com.botai.application.chatbot.service.knowledge.BotLessonService;
 import com.botai.application.chatbot.service.knowledge.KnowledgeService;
 import com.botai.application.chatbot.usecase.ProcessInboundMessageUseCase;
 import com.botai.domain.chatbot.feature.FeatureFlagService;
 import com.botai.domain.chatbot.repository.ConversationRepository;
+import com.botai.domain.chatbot.repository.BotLessonRepository;
 import com.botai.domain.chatbot.repository.FaqRepository;
 import com.botai.domain.chatbot.repository.KnowledgeRepository;
 import com.botai.domain.chatbot.service.BotAction;
@@ -26,7 +29,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -45,33 +47,36 @@ public class BotEngineConfig {
     }
 
     @Bean
+    public BotLessonService botLessonService(BotLessonRepository botLessonRepository) {
+        return new BotLessonService(botLessonRepository);
+    }
+
+    @Bean
     public KnowledgeService knowledgeService(KnowledgeRepository knowledgeRepository,
                                              Optional<EmbeddingModel> embeddingModel,
                                              Optional<KnowledgeChunkEmbeddingSync> embeddingSync,
-                                             @Value("${bot.rag.min-similarity:0}") double minSimilarity,
-                                             @Value("${bot.rag.history-turns-for-query:2}") int historyTurnsForQuery,
-                                             @Value("${bot.rag.crag-min-avg-similarity:0.52}") double cragMinAvgSimilarity,
-                                             @Value("${bot.rag.crag-min-chunk-similarity:0.40}") double cragMinChunkSimilarity,
-                                             @Value("${bot.rag.retrieval-prefetch-multiplier:2}") int retrievalPrefetchMultiplier) {
+                                             BotLessonService botLessonService,
+                                             BotProperties botProperties) {
+        BotProperties.Rag rag = botProperties.getRag();
         return new KnowledgeService(
                 knowledgeRepository,
                 embeddingModel.orElse(null),
-                minSimilarity,
+                rag.getMinSimilarity(),
                 () -> embeddingSync.map(KnowledgeChunkEmbeddingSync::syncPendingEmbeddings).orElse(0),
-                historyTurnsForQuery,
-                cragMinAvgSimilarity,
-                cragMinChunkSimilarity,
-                retrievalPrefetchMultiplier);
+                rag.getHistoryTurnsForQuery(),
+                rag.getCragMinAvgSimilarity(),
+                rag.getCragMinChunkSimilarity(),
+                rag.getRetrievalPrefetchMultiplier(),
+                botLessonService);
     }
 
     /**
      * {@link com.botai.infrastructure.chatbot.ai.memory.JpaChatMemoryRepository} implementa {@link ChatMemoryRepository}.
-     * Ventana alineada con {@code bot.memory.max-history-turns} (cada turno ≈ user + assistant).
+     * Ventana alineada con {@code bot.memory.max-history-turns}.
      */
     @Bean
-    public ChatMemory chatMemory(ChatMemoryRepository chatMemoryRepository,
-                                 @Value("${bot.memory.max-history-turns:10}") int maxHistoryTurns) {
-        int cap = Math.max(2, maxHistoryTurns * 2);
+    public ChatMemory chatMemory(ChatMemoryRepository chatMemoryRepository, BotProperties botProperties) {
+        int cap = Math.max(2, botProperties.getMemory().getMaxHistoryTurns() * 2);
         return MessageWindowChatMemory.builder()
             .chatMemoryRepository(chatMemoryRepository)
             .maxMessages(cap)
@@ -113,7 +118,7 @@ public class BotEngineConfig {
     }
 
     /**
-     * Cliente sin tools ni memoria: segunda pasada de auto-revisión de respuesta ({@code bot.rag.self-review-enabled}).
+     * Cliente sin tools ni memoria: segunda pasada de auto-revisión de respuesta (pipeline fijo).
      */
     @Bean
     @Qualifier("chatClientPlain")
@@ -131,8 +136,10 @@ public class BotEngineConfig {
     public ConversationCore conversationCore(ConversationRepository conversationRepository,
                                               ConversationModeOrchestrator conversationModeOrchestrator,
                                               MessageHistoryService messageHistoryService,
-                                              ChatSessionService chatSessionService) {
-        return new ConversationCore(conversationRepository, conversationModeOrchestrator, messageHistoryService, chatSessionService);
+                                              ChatSessionService chatSessionService,
+                                              ConversationFeedbackFlowService conversationFeedbackFlowService) {
+        return new ConversationCore(conversationRepository, conversationModeOrchestrator, messageHistoryService,
+            chatSessionService, conversationFeedbackFlowService);
     }
 
     @Bean

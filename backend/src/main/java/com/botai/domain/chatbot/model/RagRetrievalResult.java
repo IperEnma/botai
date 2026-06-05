@@ -10,9 +10,15 @@ public record RagRetrievalResult(
         boolean cragRejected,
         String retrievalQuery,
         List<String> topicPrefixes,
-        double avgSimilarity
+        double avgSimilarity,
+        List<BotLesson> activeLessons
 ) {
+    public RagRetrievalResult(List<KnowledgeChunk> chunks, boolean cragRejected, String retrievalQuery,
+                              List<String> topicPrefixes, double avgSimilarity) {
+        this(chunks, cragRejected, retrievalQuery, topicPrefixes, avgSimilarity, List.of());
+    }
+
     public static RagRetrievalResult empty(String retrievalQuery, List<String> topicPrefixes, boolean cragRejected) {
-        return new RagRetrievalResult(List.of(), cragRejected, retrievalQuery, topicPrefixes, 0.0);
+        return new RagRetrievalResult(List.of(), cragRejected, retrievalQuery, topicPrefixes, 0.0, List.of());
     }
 }
