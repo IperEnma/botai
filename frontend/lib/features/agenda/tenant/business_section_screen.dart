@@ -9,6 +9,7 @@ import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../navigation/agenda_tenant_nav.dart';
 import '../theme/agenda_tokens.dart';
+import 'tabs/clientes_tab.dart';
 import 'tabs/hours_tab.dart';
 import 'tabs/plans_tab.dart';
 import 'tabs/services_tab.dart';
@@ -32,6 +33,7 @@ class BusinessSectionScreen extends ConsumerWidget {
     'services' => 'Servicios',
     'plans'    => 'Planes',
     'staff'    => 'Equipo',
+    'clientes' => 'Clientes',
     _          => section,
   };
 
@@ -153,6 +155,12 @@ class _SectionView extends ConsumerWidget {
     } else if (section == 'hours') {
       // HoursTab manages its own header — no AppBar wrapper needed
       content = HoursTab(tenantId: tenantId, businessId: businessId);
+    } else if (section == 'clientes') {
+      content = Scaffold(
+        backgroundColor: AgendaTokens.surface,
+        appBar: isWide ? null : _appBar(title),
+        body: const ClientesTab(),
+      );
     } else {
       final body = switch (section) {
         'services' => ServicesTab(tenantId: tenantId, businessId: businessId),

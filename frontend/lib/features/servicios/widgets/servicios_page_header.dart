@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../agenda/register/konecta_tokens.dart';
+import '../../agenda/shared/k_button.dart';
 
 class ServiciosPageHeader extends StatelessWidget {
   const ServiciosPageHeader({
@@ -34,12 +35,7 @@ class ServiciosPageHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Servicios',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 36,
-                  fontStyle: FontStyle.italic,
-                  color: KTokens.ink,
-                  height: 1.1,
-                ),
+                style: KTokens.tDisplay,
               ),
               const SizedBox(height: 8),
               Text(
@@ -56,45 +52,18 @@ class ServiciosPageHeader extends StatelessWidget {
         const SizedBox(width: 24),
         Row(
           children: [
-            OutlinedButton(
+            KButton.secondary(
+              label: 'Importar catálogo',
+              icon: Icons.upload_file_outlined,
+              compact: true,
               onPressed: onImport,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: KTokens.ink,
-                side: const BorderSide(color: KTokens.border),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(KTokens.rSm),
-                ),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              child: const Text('⎘  Importar catálogo'),
             ),
-            const SizedBox(width: 10),
-            ElevatedButton(
+            const SizedBox(width: 8),
+            KButton.primary(
+              label: 'Agregar servicio',
+              icon: Icons.add_rounded,
+              compact: true,
               onPressed: onAdd,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KTokens.ink,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(KTokens.rSm),
-                ),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              child: const Text('+ Agregar servicio'),
             ),
           ],
         ),

@@ -11,6 +11,7 @@ import '../../../../providers/agenda/tenant/agenda_week_provider.dart';
 import '../../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../register/konecta_tokens.dart';
 import '../../../../models/agenda/booking.dart';
+import '../../shared/k_button.dart';
 import 'day_view.dart';
 import 'month_view.dart';
 import 'new_turno_panel.dart';
@@ -220,13 +221,19 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _GhostButton(
-                      icon: Icons.link,
+                    KButton.secondary(
                       label: 'Copiar vínculo',
-                      onTap: _copyPublicLink,
+                      icon: Icons.link,
+                      compact: true,
+                      onPressed: _copyPublicLink,
                     ),
                     const SizedBox(width: 8),
-                    _NewTurnoButton(onTap: () => _openNewTurno()),
+                    KButton.primary(
+                      label: 'Nueva agenda',
+                      icon: Icons.add_rounded,
+                      compact: true,
+                      onPressed: () => _openNewTurno(),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 22),
@@ -342,77 +349,6 @@ class _StaffPill extends StatelessWidget {
   }
 }
 
-// ── Nueva agenda button ────────────────────────────────────────────────────────
-
-class _NewTurnoButton extends StatelessWidget {
-  const _NewTurnoButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: KTokens.ink,
-          borderRadius: BorderRadius.circular(KTokens.rPill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.add, size: 14, color: Colors.white),
-            const SizedBox(width: 5),
-            Text(
-              'Nueva agenda',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GhostButton extends StatelessWidget {
-  const _GhostButton({required this.icon, required this.label, required this.onTap});
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(KTokens.rPill),
-          border: Border.all(color: KTokens.borderStrong),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: KTokens.inkMuted),
-            const SizedBox(width: 5),
-            Text(label,
-                style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: KTokens.inkMuted)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ── Date nav row (title + arrows only) ────────────────────────────────────────
 
 class _DateNavRow extends StatelessWidget {
@@ -451,11 +387,7 @@ class _DateNavRow extends StatelessWidget {
           child: mode == _AgendaViewMode.day
               ? Text(
                   title,
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 20,
-                    fontStyle: FontStyle.italic,
-                    color: KTokens.accent,
-                  ),
+                  style: KTokens.tBrand.copyWith(color: KTokens.accent),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 )

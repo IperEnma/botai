@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../agenda/register/konecta_tokens.dart';
+import '../../agenda/shared/k_button.dart';
 import '../controllers/servicios_controller.dart';
 import '../models/business_category.dart';
 
@@ -544,51 +545,25 @@ class _ModalFooter extends StatelessWidget {
         : (!isDirty
             ? 'Sin cambios'
             : (selectedCount == 1
-                ? 'Guardar 1 categoría →'
-                : 'Guardar $selectedCount categorías →'));
+                ? 'Guardar 1 categoría'
+                : 'Guardar $selectedCount categorías'));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Row(
         children: [
-          OutlinedButton(
+          KButton.secondary(
+            label: 'Cancelar',
             onPressed: onCancel,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: KTokens.ink,
-              side: const BorderSide(color: KTokens.border),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(KTokens.rSm),
-              ),
-              textStyle: GoogleFonts.inter(fontSize: 13),
-            ),
-            child: const Text('Cancelar'),
           ),
           const Spacer(),
-          ElevatedButton(
+          KButton.primary(
+            label: label,
+            trailing: (selectedCount > 0 && isDirty)
+                ? Icons.arrow_forward_rounded
+                : null,
+            loading: saving,
             onPressed: onConfirm,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: KTokens.ink,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: KTokens.border,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(KTokens.rSm),
-              ),
-              textStyle:
-                  GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-            child: saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(label),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../models/agenda/service_scheduling_mode.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../agenda/register/konecta_tokens.dart';
+import '../../agenda/shared/k_button.dart';
 import '../controllers/servicios_controller.dart';
 import '../data/template_catalog.dart';
 import '../models/business_category.dart';
@@ -299,12 +300,7 @@ class _PanelHeader extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   title,
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 28,
-                    fontStyle: FontStyle.italic,
-                    color: KTokens.ink,
-                    height: 1.15,
-                  ),
+                  style: KTokens.tHero,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -494,16 +490,10 @@ class _PanelFooter extends StatelessWidget {
         ),
         child: Row(
           children: [
-            TextButton.icon(
+            KButton.secondary(
+              label: 'Atrás',
+              icon: Icons.arrow_back_rounded,
               onPressed: isSaving ? null : onBack,
-              icon: const Icon(Icons.arrow_back_rounded, size: 16),
-              label: const Text('Atrás'),
-              style: TextButton.styleFrom(
-                foregroundColor: KTokens.inkMuted,
-                textStyle: GoogleFonts.inter(fontSize: 13),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-              ),
             ),
           ],
         ),
@@ -513,8 +503,8 @@ class _PanelFooter extends StatelessWidget {
     final label = isSuggestedTab
         ? (selectedCount == 0
             ? 'Agregar servicios'
-            : 'Agregar $selectedCount servicio${selectedCount > 1 ? 's' : ''} →')
-        : 'Crear servicio →';
+            : 'Agregar $selectedCount servicio${selectedCount > 1 ? 's' : ''}')
+        : 'Crear servicio';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -523,38 +513,16 @@ class _PanelFooter extends StatelessWidget {
       ),
       child: Row(
         children: [
-          TextButton(
+          KButton.secondary(
+            label: 'Cancelar',
             onPressed: isSaving ? null : onCancel,
-            style: TextButton.styleFrom(
-              foregroundColor: KTokens.inkMuted,
-              textStyle: GoogleFonts.inter(fontSize: 13),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            ),
-            child: const Text('Cancelar'),
           ),
           const Spacer(),
-          ElevatedButton(
-            onPressed: (canConfirm && !isSaving) ? onConfirm : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: KTokens.accent,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: KTokens.border,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(KTokens.rSm),
-              ),
-              textStyle:
-                  GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-            child: isSaving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
-                  )
-                : Text(label),
+          KButton.accent(
+            label: label,
+            trailing: Icons.arrow_forward_rounded,
+            loading: isSaving,
+            onPressed: canConfirm ? onConfirm : null,
           ),
         ],
       ),

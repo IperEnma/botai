@@ -43,11 +43,7 @@ class KpiCard extends StatelessWidget {
               Flexible(
                 child: Text(
                   value,
-                  style: GoogleFonts.instrumentSerif(
-                    fontSize: 36,
-                    fontStyle: FontStyle.italic,
-                    color: KTokens.ink,
-                  ),
+                  style: KTokens.tDisplay,
                 ),
               ),
               const SizedBox(width: 6),

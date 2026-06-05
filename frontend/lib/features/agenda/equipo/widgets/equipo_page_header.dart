@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../register/konecta_tokens.dart';
+import '../../shared/k_button.dart';
 
 class EquipoPageHeader extends StatelessWidget {
   const EquipoPageHeader({
@@ -34,12 +35,7 @@ class EquipoPageHeader extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 'Equipo',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 36,
-                  fontStyle: FontStyle.italic,
-                  color: KTokens.ink,
-                  height: 1.1,
-                ),
+                style: KTokens.tDisplay,
               ),
               const SizedBox(height: 8),
               _DescriptionText(),
@@ -49,39 +45,18 @@ class EquipoPageHeader extends StatelessWidget {
         const SizedBox(width: 16),
         Row(
           children: [
-            OutlinedButton.icon(
+            KButton.secondary(
+              label: 'Importar lista',
+              icon: Icons.upload_outlined,
+              compact: true,
               onPressed: onImport,
-              icon: const Icon(Icons.upload_outlined, size: 16),
-              label: const Text('Importar lista'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: KTokens.ink,
-                side: const BorderSide(color: KTokens.ink, width: 1),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(KTokens.rSm),
-                ),
-                textStyle: GoogleFonts.inter(
-                    fontSize: 13, fontWeight: FontWeight.w500),
-              ),
             ),
             const SizedBox(width: 8),
-            ElevatedButton.icon(
+            KButton.primary(
+              label: 'Agregar miembro',
+              icon: Icons.add_rounded,
+              compact: true,
               onPressed: onAddMember,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Agregar miembro'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KTokens.ink,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(KTokens.rSm),
-                ),
-                textStyle: GoogleFonts.inter(
-                    fontSize: 13, fontWeight: FontWeight.w500),
-              ),
             ),
           ],
         ),

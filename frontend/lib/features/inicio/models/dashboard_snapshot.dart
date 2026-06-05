@@ -30,8 +30,9 @@ class DashboardSnapshot {
         .toList();
 
     final branchTurnosTotal = turnos.byBranch[branchId] ?? 0;
-    final branchTurnosCapacity =
-        ((branchTurnosTotal / turnos.total) * turnos.capacity).round();
+    final branchTurnosCapacity = turnos.total > 0
+        ? ((branchTurnosTotal / turnos.total) * turnos.capacity).round()
+        : 0;
     final filteredByBranchTurnos = {branchId: branchTurnosTotal};
 
     final branchOccupancy = occupancy.byBranch[branchId] ?? occupancy.averagePct;

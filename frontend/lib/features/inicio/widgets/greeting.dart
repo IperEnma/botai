@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../agenda/register/konecta_tokens.dart';
+import '../../agenda/shared/k_button.dart';
 import '../controllers/inicio_controller.dart';
 
 class Greeting extends ConsumerWidget {
@@ -47,44 +49,18 @@ class Greeting extends ConsumerWidget {
     final firstName = _firstName();
 
     final buttons = [
-      OutlinedButton(
-        onPressed: () {},
-        style: OutlinedButton.styleFrom(
-          foregroundColor: KTokens.accent,
-          side: const BorderSide(color: KTokens.accent),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        ),
-        child: Text(
-          '↑ Ver agenda completa',
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+      KButton.secondary(
+        label: 'Ver agenda completa',
+        icon: Icons.arrow_outward_rounded,
+        compact: true,
+        onPressed: () => context.go('/agenda/panel?section=agenda'),
       ),
       const SizedBox(width: 10, height: 10),
-      ElevatedButton(
-        onPressed: () {},
-        style: ElevatedButton.styleFrom(
-          backgroundColor: KTokens.ink,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        ),
-        child: Text(
-          '+ Nuevo turno',
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-          ),
-        ),
+      KButton.primary(
+        label: 'Nueva agenda',
+        icon: Icons.add_rounded,
+        compact: true,
+        onPressed: () => context.go('/agenda/panel?section=agenda'),
       ),
     ];
 
@@ -110,21 +86,11 @@ class Greeting extends ConsumerWidget {
                   children: [
                     TextSpan(
                       text: '$greeting, ',
-                      style: GoogleFonts.instrumentSerif(
-                        fontSize: 38,
-                        fontStyle: FontStyle.italic,
-                        color: KTokens.ink,
-                        height: 1.1,
-                      ),
+                      style: KTokens.tDisplay,
                     ),
                     TextSpan(
                       text: '$firstName.',
-                      style: GoogleFonts.instrumentSerif(
-                        fontSize: 38,
-                        fontStyle: FontStyle.italic,
-                        color: KTokens.accent,
-                        height: 1.1,
-                      ),
+                      style: KTokens.tDisplay.copyWith(color: KTokens.accent),
                     ),
                   ],
                 ),

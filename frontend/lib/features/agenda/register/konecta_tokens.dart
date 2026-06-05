@@ -31,6 +31,28 @@ class KTokens {
   static TextStyle get tQuestion =>
       GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.w600, height: 1.15, letterSpacing: -0.5, color: ink);
 
+  // ── Editorial titles (Instrument Serif italic) ───────────────────────────
+  // Escala única de 3 niveles para titulares "editoriales" del panel admin.
+  // Usá `.copyWith(color:, height:)` si necesitás ajustar.
+
+  /// Título de página + números display (KPI cards, greeting).
+  static TextStyle get tDisplay =>
+      GoogleFonts.instrumentSerif(
+        fontSize: 36, fontStyle: FontStyle.italic, color: ink, height: 1.1,
+      );
+
+  /// Hero de panel/sheet/ficha. Todos los heros usan ESTE tamaño.
+  static TextStyle get tHero =>
+      GoogleFonts.instrumentSerif(
+        fontSize: 24, fontStyle: FontStyle.italic, color: ink, height: 1.15,
+      );
+
+  /// Marca y subtítulos editoriales chicos.
+  static TextStyle get tBrand =>
+      GoogleFonts.instrumentSerif(
+        fontSize: 20, fontStyle: FontStyle.italic, color: ink, height: 1.2,
+      );
+
   static TextStyle get tHint =>
       GoogleFonts.inter(fontSize: 14, height: 1.45, color: inkMuted);
 

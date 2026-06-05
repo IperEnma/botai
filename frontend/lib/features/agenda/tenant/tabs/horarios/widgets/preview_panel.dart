@@ -90,11 +90,7 @@ class _PreviewPanelState extends ConsumerState<PreviewPanel> {
                 const SizedBox(height: 4),
                 Text(
                   'Como lo ve tu cliente',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 18,
-                    fontStyle: FontStyle.italic,
-                    color: KTokens.ink,
-                  ),
+                  style: KTokens.tBrand,
                 ),
               ],
             ),

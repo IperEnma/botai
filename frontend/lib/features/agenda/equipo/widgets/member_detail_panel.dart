@@ -291,11 +291,7 @@ class _StatBox extends StatelessWidget {
         children: [
           Text(
             value,
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 22,
-              fontStyle: FontStyle.italic,
-              color: KTokens.ink,
-            ),
+            style: KTokens.tHero,
           ),
           const SizedBox(height: 2),
           Text(

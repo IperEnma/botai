@@ -168,11 +168,7 @@ class _StepClienteState extends ConsumerState<StepCliente> {
         children: [
           Text(
             '¿Para quién es?',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 24,
-              fontStyle: FontStyle.italic,
-              color: KTokens.ink,
-            ),
+            style: KTokens.tHero,
           ),
           const SizedBox(height: 6),
           Text(

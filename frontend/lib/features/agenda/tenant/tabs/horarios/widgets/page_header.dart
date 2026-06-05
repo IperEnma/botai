@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../../../features/agenda/register/konecta_tokens.dart';
+import '../../../../../../../features/agenda/shared/k_button.dart';
 
 class HorariosPageHeader extends StatelessWidget {
   const HorariosPageHeader({
@@ -40,13 +41,7 @@ class HorariosPageHeader extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Horarios',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                    fontStyle: FontStyle.italic,
-                    color: KTokens.ink,
-                    height: 1.1,
-                  ),
+                  style: KTokens.tDisplay,
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -64,51 +59,19 @@ class HorariosPageHeader extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              OutlinedButton.icon(
+              KButton.secondary(
+                label: 'Revertir cambios',
+                icon: Icons.history,
+                compact: true,
                 onPressed: hasChanges && !isSaving ? onRevert : null,
-                icon: const Icon(Icons.history, size: 16),
-                label: const Text('Revertir cambios'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: KTokens.accent,
-                  side: BorderSide(
-                    color: hasChanges ? KTokens.accent : KTokens.border,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(KTokens.rMd),
-                  ),
-                  textStyle: GoogleFonts.inter(
-                    fontSize: 13, fontWeight: FontWeight.w500),
-                ),
               ),
-              const SizedBox(width: 10),
-              ElevatedButton(
+              const SizedBox(width: 8),
+              KButton.primary(
+                label: 'Guardar cambios',
+                icon: Icons.check_rounded,
+                compact: true,
+                loading: isSaving,
                 onPressed: hasChanges && !isSaving ? onSave : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: KTokens.accent,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  disabledBackgroundColor: KTokens.border,
-                  disabledForegroundColor: KTokens.inkSoft,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(KTokens.rMd),
-                  ),
-                  textStyle: GoogleFonts.inter(
-                    fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-                child: isSaving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Guardar cambios'),
               ),
             ],
           ),
