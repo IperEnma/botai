@@ -41,8 +41,8 @@ class AgendaLeftNav extends ConsumerWidget {
     final selectedHorarios = loc.contains('/section/hours');
     final selectedEstilos = loc.contains('/section/styles');
     final selectedServicios = loc.contains('/section/services');
-    final selectedPlanes = loc.contains('/section/plans');
     final selectedEquipo = loc.contains('/section/staff');
+    final selectedClientes = loc.contains('/section/clientes');
 
     return Container(
       width: kAgendaNavWidth,
@@ -86,7 +86,12 @@ class AgendaLeftNav extends ConsumerWidget {
             selected: selectedAgenda,
             onTap: () => context.go('/agenda/panel?section=agenda'),
           ),
-          const AgendaNavItem(icon: Icons.people_outline, label: 'Clientes'),
+          AgendaNavItem(
+            icon: Icons.people_outline,
+            label: 'Clientes',
+            selected: selectedClientes,
+            onTap: () => context.go('/agenda/panel/section/clientes'),
+          ),
           AgendaNavItem(
             icon: Icons.schedule_outlined,
             label: 'Horarios',
@@ -106,23 +111,26 @@ class AgendaLeftNav extends ConsumerWidget {
             onTap: () => context.go('/agenda/panel/section/services'),
           ),
           AgendaNavItem(
-            icon: Icons.card_membership_outlined,
-            label: 'Planes',
-            selected: selectedPlanes,
-            onTap: () => context.go('/agenda/panel/section/plans'),
-          ),
-          AgendaNavItem(
             icon: Icons.people_outline,
             label: 'Equipo',
             selected: selectedEquipo,
             onTap: () => context.go('/agenda/panel/section/staff'),
           ),
-          const AgendaNavItem(
-              icon: Icons.loyalty_outlined, label: 'Fidelizaciones'),
           AgendaNavItem(
             icon: Icons.settings_outlined,
             label: 'Configuración',
             onTap: () => context.push('/agenda/panel/config'),
+          ),
+          const SizedBox(height: 8),
+          const AgendaNavItem(
+            icon: Icons.card_membership_outlined,
+            label: 'Planes',
+            badge: 'PRONTO',
+          ),
+          const AgendaNavItem(
+            icon: Icons.loyalty_outlined,
+            label: 'Fidelizaciones',
+            badge: 'PRONTO',
           ),
           const Spacer(),
           // User profile card
@@ -210,12 +218,15 @@ class AgendaNavItem extends StatelessWidget {
     required this.label,
     this.selected = false,
     this.onTap,
+    this.badge,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
   final VoidCallback? onTap;
+  /// Etiqueta opcional al final (p. ej. `PRONTO`).
+  final String? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -244,15 +255,39 @@ class AgendaNavItem extends StatelessWidget {
                     color: selected ? KTokens.accent : KTokens.inkSoft,
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight:
-                          selected ? FontWeight.w600 : FontWeight.w400,
-                      color: selected ? KTokens.accent : KTokens.inkMuted,
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w400,
+                        color: selected ? KTokens.accent : KTokens.inkMuted,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (badge != null) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: KTokens.accentSoft,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        badge!,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 8.5,
+                          letterSpacing: 0.8,
+                          color: KTokens.accent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
