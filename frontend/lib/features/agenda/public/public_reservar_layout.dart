@@ -155,14 +155,8 @@ IconData publicReservarStepIcon(int step) {
     case 1:
       return Icons.spa_outlined;
     case 2:
-      return Icons.person_outline_rounded;
-    case 3:
       return Icons.calendar_month_outlined;
-    case 4:
-      return Icons.schedule_rounded;
-    case 5:
-      return Icons.fact_check_outlined;
-    case 6:
+    case 3:
       return Icons.badge_outlined;
     default:
       return Icons.event_available_outlined;

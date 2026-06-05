@@ -102,6 +102,8 @@ public class PublicBookingsController {
                 ? BookingEstado.PENDING
                 : BookingEstado.CONFIRMED;
 
+        String notas = mergeAttendeeNotes(request.notas(), request.nombreCliente(), user);
+
         Booking pending = new Booking(
                 null,
                 businessId,
@@ -112,7 +114,7 @@ public class PublicBookingsController {
                 inicio,
                 fin,
                 estado,
-                request.notas(),
+                notas,
                 null,
                 null,
                 null,
@@ -164,5 +166,28 @@ public class PublicBookingsController {
                     session.phoneNormalized());
         }
         return user;
+    }
+
+    /**
+     * Si quien asiste al turno no coincide con el nombre del perfil verificado,
+     * lo dejamos explícito en notas para el calendario del negocio.
+     */
+    private static String mergeAttendeeNotes(String existingNotas, String attendeeName, User user) {
+        if (attendeeName == null || attendeeName.isBlank()) {
+            return existingNotas;
+        }
+        String trimmed = attendeeName.trim();
+        String profileName = user.getNombre() == null ? "" : user.getNombre().trim();
+        if (trimmed.equalsIgnoreCase(profileName)) {
+            return existingNotas;
+        }
+        String prefix = "Asiste: " + trimmed;
+        if (existingNotas == null || existingNotas.isBlank()) {
+            return prefix;
+        }
+        if (existingNotas.startsWith("Asiste:")) {
+            return existingNotas;
+        }
+        return prefix + "\n" + existingNotas;
     }
 }
