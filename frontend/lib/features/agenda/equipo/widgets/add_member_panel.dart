@@ -165,12 +165,7 @@ class _AddMemberPanelState extends ConsumerState<_AddMemberPanel> {
                         const SizedBox(height: 6),
                         Text(
                           _stepTitle(),
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 26,
-                            fontStyle: FontStyle.italic,
-                            color: KTokens.ink,
-                            height: 1.2,
-                          ),
+                          style: KTokens.tHero,
                         ),
                         const SizedBox(height: 4),
                         Text(

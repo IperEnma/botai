@@ -59,11 +59,7 @@ class AgendaLeftNav extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
               'konecta',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontStyle: FontStyle.italic,
-                color: KTokens.accent,
-              ),
+              style: KTokens.tBrand.copyWith(color: KTokens.accent),
             ),
           ),
           const SizedBox(height: 28),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../register/konecta_tokens.dart';
+import '../../../../shared/k_button.dart';
 import '../cliente.dart';
 import '../widgets/cliente_row.dart';
 import 'historial_list.dart';
@@ -49,12 +50,7 @@ class FichaPanel extends StatelessWidget {
                     children: [
                       Text(
                         cliente.nombre,
-                        style: GoogleFonts.instrumentSerif(
-                          fontSize: 24,
-                          fontStyle: FontStyle.italic,
-                          color: KTokens.ink,
-                          height: 1.1,
-                        ),
+                        style: KTokens.tHero,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -79,51 +75,20 @@ class FichaPanel extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: SizedBox(
-                    height: 38,
-                    child: ElevatedButton.icon(
-                      onPressed: onAgendar,
-                      icon: const Icon(Icons.add_rounded, size: 16),
-                      label: const Text('Agendar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: KTokens.ink,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(KTokens.rSm),
-                        ),
-                        textStyle: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
+                  child: KButton.primary(
+                    label: 'Agendar',
+                    icon: Icons.add_rounded,
+                    onPressed: onAgendar,
+                    expand: true,
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: SizedBox(
-                    height: 38,
-                    child: OutlinedButton.icon(
-                      onPressed: onWhatsapp,
-                      icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                      label: const Text('WhatsApp'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: KTokens.ink,
-                        side: const BorderSide(color: KTokens.borderStrong),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(KTokens.rSm),
-                        ),
-                        textStyle: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
+                  child: KButton.secondary(
+                    label: 'WhatsApp',
+                    icon: Icons.chat_bubble_outline,
+                    onPressed: onWhatsapp,
+                    expand: true,
                   ),
                 ),
               ],

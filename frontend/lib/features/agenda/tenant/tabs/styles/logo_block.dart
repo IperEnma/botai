@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../register/konecta_tokens.dart';
+import '../../../shared/k_button.dart';
 
 class LogoBlock extends StatelessWidget {
   const LogoBlock({
@@ -35,35 +36,11 @@ class LogoBlock extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              SizedBox(
-                height: 38,
-                child: ElevatedButton.icon(
-                  onPressed: isUploading ? null : onUpload,
-                  icon: isUploading
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.arrow_upward_rounded, size: 16),
-                  label: Text(isUploading ? 'Subiendo…' : 'Subir imagen'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: KTokens.ink,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: KTokens.border,
-                    elevation: 0,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(KTokens.rSm),
-                    ),
-                    textStyle: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
+              KButton.primary(
+                label: 'Subir imagen',
+                icon: Icons.arrow_upward_rounded,
+                loading: isUploading,
+                onPressed: onUpload,
               ),
             ],
           ),

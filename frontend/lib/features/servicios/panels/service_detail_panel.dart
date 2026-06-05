@@ -175,12 +175,7 @@ class _DetailHeader extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   service.name,
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 26,
-                    fontStyle: FontStyle.italic,
-                    color: KTokens.ink,
-                    height: 1.15,
-                  ),
+                  style: KTokens.tHero,
                 ),
               ],
             ),

@@ -152,12 +152,7 @@ class _DirectoryColumn extends ConsumerWidget {
               const SizedBox(height: 6),
               Text(
                 'Clientes',
-                style: GoogleFonts.instrumentSerif(
-                  fontSize: 36,
-                  fontStyle: FontStyle.italic,
-                  color: KTokens.ink,
-                  height: 1.1,
-                ),
+                style: KTokens.tDisplay,
               ),
               const SizedBox(height: 24),
 

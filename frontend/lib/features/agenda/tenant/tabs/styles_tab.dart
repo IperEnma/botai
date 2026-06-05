@@ -11,6 +11,7 @@ import '../../../../providers/agenda/agenda_api_provider.dart';
 import '../../../../providers/agenda/tenant/business_photos_provider.dart';
 import '../../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../register/konecta_tokens.dart';
+import '../../shared/k_button.dart';
 import 'styles/brand_style.dart';
 import 'styles/color_block.dart';
 import 'styles/font_block.dart';
@@ -404,12 +405,7 @@ class _ConfigColumn extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 'Estilos',
-                style: GoogleFonts.instrumentSerif(
-                  fontSize: 36,
-                  fontStyle: FontStyle.italic,
-                  color: KTokens.ink,
-                  height: 1.1,
-                ),
+                style: KTokens.tDisplay,
               ),
               const SizedBox(height: 8),
               Text(
@@ -492,33 +488,11 @@ class _ConfigColumn extends StatelessWidget {
                 const SizedBox(height: 28),
                 Row(
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: isSaving ? null : onSave,
-                      icon: isSaving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.check_rounded, size: 18),
-                      label: Text(isSaving ? 'Guardando…' : 'Guardar cambios'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: KTokens.ink,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(KTokens.rSm),
-                        ),
-                        textStyle: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                    KButton.primary(
+                      label: 'Guardar cambios',
+                      icon: Icons.check_rounded,
+                      loading: isSaving,
+                      onPressed: onSave,
                     ),
                     const SizedBox(width: 12),
                     Text(
@@ -622,12 +596,7 @@ class _PreviewColumn extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'Tu perfil público',
-          style: GoogleFonts.instrumentSerif(
-            fontSize: 22,
-            fontStyle: FontStyle.italic,
-            color: KTokens.ink,
-            height: 1.15,
-          ),
+          style: KTokens.tHero,
         ),
         const SizedBox(height: 20),
         PublicPreview(

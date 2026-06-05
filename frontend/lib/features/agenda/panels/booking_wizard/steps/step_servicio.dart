@@ -32,11 +32,7 @@ class StepServicio extends ConsumerWidget {
         children: [
           Text(
             '¿Qué servicio?',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 24,
-              fontStyle: FontStyle.italic,
-              color: KTokens.ink,
-            ),
+            style: KTokens.tHero,
           ),
           const SizedBox(height: 6),
           Text(

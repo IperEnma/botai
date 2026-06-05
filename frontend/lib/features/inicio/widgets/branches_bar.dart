@@ -67,14 +67,16 @@ class BranchesBar extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                AllBranchesAvatar(
-                  totalTurnos: snapshot.turnos.total,
-                  isSelected: selectedId == 'all',
-                  onTap: () => ref
-                      .read(inicioControllerProvider(tenantId).notifier)
-                      .selectBranch('all'),
-                ),
-                const SizedBox(width: 20),
+                if (branches.length > 1) ...[
+                  AllBranchesAvatar(
+                    totalTurnos: snapshot.turnos.total,
+                    isSelected: selectedId == 'all',
+                    onTap: () => ref
+                        .read(inicioControllerProvider(tenantId).notifier)
+                        .selectBranch('all'),
+                  ),
+                  const SizedBox(width: 20),
+                ],
                 for (final branch in branches) ...[
                   BranchAvatar(
                     branch: branch,

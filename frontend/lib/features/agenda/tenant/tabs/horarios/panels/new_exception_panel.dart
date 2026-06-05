@@ -386,11 +386,7 @@ class _PanelHeader extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Modificar un día puntual',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 22,
-                    fontStyle: FontStyle.italic,
-                    color: KTokens.accent,
-                  ),
+                  style: KTokens.tHero.copyWith(color: KTokens.accent),
                 ),
                 const SizedBox(height: 4),
                 Text(

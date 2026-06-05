@@ -326,11 +326,7 @@ class _WizardHeader extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'Agendá un cliente',
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 22,
-                        fontStyle: FontStyle.italic,
-                        color: KTokens.accent,
-                      ),
+                      style: KTokens.tHero.copyWith(color: KTokens.accent),
                     ),
                   ],
                 ),
