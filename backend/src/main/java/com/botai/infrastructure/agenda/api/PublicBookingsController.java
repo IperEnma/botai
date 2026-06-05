@@ -17,8 +17,10 @@ import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
 import com.botai.domain.agenda.repository.UserRepository;
 import com.botai.domain.agenda.service.BookingDomainService;
+import com.botai.infrastructure.agenda.support.HttpRequestClientIp;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -64,11 +66,13 @@ public class PublicBookingsController {
             @PathVariable("businessId") UUID businessId,
             @RequestHeader(value = AgendaPublicClientSessionService.SESSION_HEADER, required = false)
             String sessionToken,
-            @Valid @RequestBody PublicCreateBookingRequest request) {
+            @Valid @RequestBody PublicCreateBookingRequest request,
+            HttpServletRequest httpRequest) {
 
         final String tenantId = businessRepository.findById(businessId)
                 .map(b -> b.getTenantId())
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
+        String clientIp = HttpRequestClientIp.resolve(httpRequest);
 
         Service service = serviceRepository.findById(request.serviceId())
                 .orElseThrow(() -> new ServiceNotFoundException(request.serviceId()));
@@ -76,7 +80,7 @@ public class PublicBookingsController {
             throw new ServiceNotFoundException(request.serviceId());
         }
 
-        User user = resolveBookingClient(tenantId, sessionToken, request);
+        User user = resolveBookingClient(tenantId, sessionToken, request, clientIp);
 
         LocalDateTime inicio = request.fechaHoraInicio();
         LocalDateTime fin = inicio.plusMinutes(service.getDuracionMin());
@@ -99,10 +103,16 @@ public class PublicBookingsController {
                 null
         );
         Booking saved = bookingRepository.save(pending);
+        if (sessionToken != null && !sessionToken.isBlank()) {
+            sessionService.recordSessionUsed(sessionToken, tenantId, clientIp, "create_booking");
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(BookingDtoMapper.toResponse(saved));
     }
 
-    private User resolveBookingClient(String tenantId, String sessionToken, PublicCreateBookingRequest request) {
+    private User resolveBookingClient(String tenantId,
+                                      String sessionToken,
+                                      PublicCreateBookingRequest request,
+                                      String clientIp) {
         if (request.clientId() != null) {
             User existing = userRepository.findById(request.clientId())
                     .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
@@ -113,7 +123,7 @@ public class PublicBookingsController {
         }
 
         AgendaPublicClientSessionService.ClientSession session =
-                sessionService.requireSessionForTenant(sessionToken, tenantId);
+                sessionService.requireSessionForTenant(sessionToken, tenantId, clientIp);
         User user = userRepository.findById(session.userId())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
 

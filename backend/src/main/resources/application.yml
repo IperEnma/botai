@@ -84,9 +84,18 @@ agenda:
       enabled: ${AGENDA_PHONE_VERIFICATION_ENABLED:true}
       code-length: ${AGENDA_PHONE_VERIFICATION_CODE_LENGTH:6}
       ttl-minutes: ${AGENDA_PHONE_VERIFICATION_TTL_MINUTES:10}
-      # Solo dev/local: si falla el envío por WhatsApp, incluir el código en el chat (nunca en prod).
-      dev-echo-in-chat: ${AGENDA_PHONE_VERIFICATION_DEV_ECHO:false}
       session-minutes: ${AGENDA_PHONE_VERIFICATION_SESSION_MINUTES:15}
+      hash-pepper: ${AGENDA_PHONE_VERIFICATION_HASH_PEPPER:dev-local-pepper-change-me}
+      prod-guard-enabled: ${AGENDA_PHONE_VERIFICATION_PROD_GUARD:true}
+      audit-retention-days: ${AGENDA_PHONE_VERIFICATION_AUDIT_RETENTION_DAYS:90}
+      cleanup-cron: ${AGENDA_PHONE_VERIFICATION_CLEANUP_CRON:0 15 * * * *}
+      rate-limit:
+        send-per-phone-per-hour: ${AGENDA_PHONE_OTP_SEND_PER_PHONE_HOUR:5}
+        send-per-ip-per-minute: ${AGENDA_PHONE_OTP_SEND_PER_IP_MIN:10}
+        verify-per-ip-per-minute: ${AGENDA_PHONE_OTP_VERIFY_PER_IP_MIN:20}
+        max-failed-attempts: ${AGENDA_PHONE_OTP_MAX_FAILED:5}
+        lockout-minutes: ${AGENDA_PHONE_OTP_LOCKOUT_MIN:15}
+        http-per-ip-per-minute: ${AGENDA_PHONE_OTP_HTTP_PER_IP_MIN:120}
 
 search:
   cache-ttl-seconds: 60

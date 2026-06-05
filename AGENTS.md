@@ -77,6 +77,22 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 
 ---
 
+## Agent conduct (mandatory)
+
+**Do not invent alternate paths for the same user flow without explicit user approval.**
+
+Forbidden unless the user asked for it:
+
+- Dev-only fallbacks that change production behavior (e.g. returning secrets in JSON when an external integration fails).
+- Feature flags or “shortcuts” that create a second way to complete the same step (OTP bypass, echo codes, optional auth paths) without a prior agreed design.
+- “Helpful” extras (extra endpoints, dual modes, silent retries with different semantics) not in the task scope.
+
+When an integration fails (WhatsApp, payment, etc.), return a **single clear error** to the user. Fix infrastructure or ask the user how to handle dev/test — do not add a parallel code path on your own.
+
+If you believe a fallback is necessary, **stop and ask first**.
+
+---
+
 ## Modules (Agenda + Chatbot)
 
 Both domains live in one backend and are **editable**. Keep **technical** separation:

@@ -6,8 +6,10 @@ import com.botai.application.agenda.dto.UpdatePublicClientProfileRequest;
 import com.botai.application.agenda.support.AgendaPublicClientSessionService;
 import com.botai.application.agenda.usecase.publicclient.ListPublicClientBookingsUseCase;
 import com.botai.application.agenda.usecase.publicclient.UpdatePublicClientProfileUseCase;
+import com.botai.infrastructure.agenda.support.HttpRequestClientIp;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,15 +41,19 @@ public class PublicClientMeController {
     @Operation(summary = "Mis reservas futuras en un negocio (sesión OTP)")
     public ResponseEntity<List<BookingResponse>> listBookings(
             @RequestHeader(AgendaPublicClientSessionService.SESSION_HEADER) String sessionToken,
-            @RequestParam("businessId") UUID businessId) {
-        return ResponseEntity.ok(listBookings.execute(sessionToken, businessId));
+            @RequestParam("businessId") UUID businessId,
+            HttpServletRequest httpRequest) {
+        return ResponseEntity.ok(listBookings.execute(
+                sessionToken, businessId, HttpRequestClientIp.resolve(httpRequest)));
     }
 
     @PatchMapping("/profile")
     @Operation(summary = "Completar nombre (primera vez)")
     public ResponseEntity<PublicClientProfileResponse> updateProfile(
             @RequestHeader(AgendaPublicClientSessionService.SESSION_HEADER) String sessionToken,
-            @Valid @RequestBody UpdatePublicClientProfileRequest request) {
-        return ResponseEntity.ok(updateProfile.execute(sessionToken, request.nombre()));
+            @Valid @RequestBody UpdatePublicClientProfileRequest request,
+            HttpServletRequest httpRequest) {
+        return ResponseEntity.ok(updateProfile.execute(
+                sessionToken, request.nombre(), HttpRequestClientIp.resolve(httpRequest)));
     }
 }

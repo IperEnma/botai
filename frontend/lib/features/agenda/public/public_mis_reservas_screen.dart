@@ -139,9 +139,6 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
         telefono: telefono,
       );
       if (!mounted) return;
-      if (result.devCodeEcho != null) {
-        _codeCtrl.text = result.devCodeEcho!;
-      }
       setState(() {
         _otpHint = result.message;
         _step = _MisReservasStep.verifyCode;

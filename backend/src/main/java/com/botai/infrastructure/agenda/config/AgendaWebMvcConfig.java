@@ -14,13 +14,16 @@ public class AgendaWebMvcConfig implements WebMvcConfigurer {
 
     private final AgendaFeatureGuard agendaFeatureGuard;
     private final AgendaRateLimitInterceptor rateLimitInterceptor;
+    private final AgendaPhoneVerificationRateLimitInterceptor phoneVerificationRateLimitInterceptor;
     private final AgendaUploadProperties uploadProperties;
 
     public AgendaWebMvcConfig(AgendaFeatureGuard agendaFeatureGuard,
                                AgendaRateLimitInterceptor rateLimitInterceptor,
+                               AgendaPhoneVerificationRateLimitInterceptor phoneVerificationRateLimitInterceptor,
                                AgendaUploadProperties uploadProperties) {
         this.agendaFeatureGuard = agendaFeatureGuard;
         this.rateLimitInterceptor = rateLimitInterceptor;
+        this.phoneVerificationRateLimitInterceptor = phoneVerificationRateLimitInterceptor;
         this.uploadProperties = uploadProperties;
     }
 
@@ -40,5 +43,10 @@ public class AgendaWebMvcConfig implements WebMvcConfigurer {
 
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/agenda/public/search");
+
+        registry.addInterceptor(phoneVerificationRateLimitInterceptor)
+                .addPathPatterns(
+                        "/api/agenda/public/businesses/*/phone-verification/**",
+                        "/api/agenda/public/me/**");
     }
 }

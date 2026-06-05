@@ -1,7 +1,6 @@
 package com.botai.application.agenda.usecase.publicclient;
 
 import com.botai.application.agenda.dto.PublicClientProfileResponse;
-import com.botai.application.agenda.support.AgendaClientResolver;
 import com.botai.application.agenda.support.AgendaPublicClientSessionService;
 import com.botai.domain.agenda.model.User;
 import com.botai.domain.agenda.repository.UserRepository;
@@ -19,8 +18,9 @@ public class UpdatePublicClientProfileUseCase {
         this.sessionService = sessionService;
     }
 
-    public PublicClientProfileResponse execute(String sessionToken, String nombre) {
-        AgendaPublicClientSessionService.ClientSession session = sessionService.requireSession(sessionToken);
+    public PublicClientProfileResponse execute(String sessionToken, String nombre, String clientIp) {
+        AgendaPublicClientSessionService.ClientSession session =
+                sessionService.requireSession(sessionToken, clientIp);
         User user = userRepository.findById(session.userId())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
         String trimmed = nombre != null ? nombre.trim() : "";
@@ -38,6 +38,7 @@ public class UpdatePublicClientProfileUseCase {
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         ));
+        sessionService.recordSessionUsed(sessionToken, session.tenantId(), clientIp, "update_profile");
         return new PublicClientProfileResponse(
                 updated.getId(),
                 updated.getNombre(),

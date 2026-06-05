@@ -24,11 +24,12 @@ public class ListPublicClientBookingsUseCase {
         this.sessionService = sessionService;
     }
 
-    public List<BookingResponse> execute(String sessionToken, UUID businessId) {
+    public List<BookingResponse> execute(String sessionToken, UUID businessId, String clientIp) {
         var business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
         AgendaPublicClientSessionService.ClientSession session =
-                sessionService.requireSessionForTenant(sessionToken, business.getTenantId());
+                sessionService.requireSessionForTenant(sessionToken, business.getTenantId(), clientIp);
+        sessionService.recordSessionUsed(sessionToken, business.getTenantId(), clientIp, "list_bookings");
         return verifyPublicClientPhoneUseCase.listUpcomingForUser(businessId, session.userId());
     }
 }

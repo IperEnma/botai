@@ -9,8 +9,10 @@ import com.botai.application.agenda.support.AgendaPublicClientSessionService;
 import com.botai.application.agenda.usecase.publicclient.VerifyPublicClientPhoneUseCase;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.repository.BusinessRepository;
+import com.botai.infrastructure.agenda.support.HttpRequestClientIp;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -46,35 +48,36 @@ public class PublicPhoneVerificationController {
     @Operation(summary = "Enviar código OTP al teléfono (WhatsApp)")
     public ResponseEntity<SendPhoneVerificationResponse> send(
             @PathVariable UUID businessId,
-            @Valid @RequestBody SendPhoneVerificationRequest request) {
+            @Valid @RequestBody SendPhoneVerificationRequest request,
+            HttpServletRequest httpRequest) {
         String tenantId = resolveTenantId(businessId);
         String phone = normalizePhone(request.telefono());
-        AgendaPublicClientSessionService.SendResult result = sessionService.sendCode(tenantId, phone);
+        String clientIp = HttpRequestClientIp.resolve(httpRequest);
+        AgendaPublicClientSessionService.SendResult result =
+                sessionService.sendCode(tenantId, phone, clientIp);
         if (!verificationEnabled) {
             return ResponseEntity.ok(new SendPhoneVerificationResponse(
-                true, "Verificación deshabilitada; ingresá cualquier código.", null));
+                true, "Verificación deshabilitada; ingresá cualquier código."));
         }
         if (result.delivered()) {
             return ResponseEntity.ok(new SendPhoneVerificationResponse(
-                true, "Te enviamos un código por WhatsApp.", null));
-        }
-        if (result.devCodeEcho() != null) {
-            return ResponseEntity.ok(new SendPhoneVerificationResponse(
-                false, "Modo prueba: usá el código mostrado.", result.devCodeEcho()));
+                true, "Te enviamos un código por WhatsApp."));
         }
         return ResponseEntity.ok(new SendPhoneVerificationResponse(
-            false, "No pudimos enviar el código. Revisá el número o probá más tarde.", null));
+            false, "No pudimos enviar el código. Revisá el número o probá más tarde."));
     }
 
     @PostMapping("/verify")
     @Operation(summary = "Validar OTP y abrir sesión de cliente (perfil + reservas)")
     public ResponseEntity<VerifyPhoneVerificationResponse> verify(
             @PathVariable UUID businessId,
-            @Valid @RequestBody VerifyPhoneVerificationRequest request) {
+            @Valid @RequestBody VerifyPhoneVerificationRequest request,
+            HttpServletRequest httpRequest) {
         String phone = normalizePhone(request.telefono());
+        String clientIp = HttpRequestClientIp.resolve(httpRequest);
         VerifyPhoneVerificationResponse body = verificationEnabled
-                ? verifyPublicClientPhoneUseCase.execute(businessId, phone, request.code())
-                : verifyPublicClientPhoneUseCase.executeWithoutOtp(businessId, phone);
+                ? verifyPublicClientPhoneUseCase.execute(businessId, phone, request.code(), clientIp)
+                : verifyPublicClientPhoneUseCase.executeWithoutOtp(businessId, phone, clientIp);
         return ResponseEntity.ok(body);
     }
 

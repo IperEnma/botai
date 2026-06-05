@@ -46,7 +46,7 @@ public class VerifyPublicClientPhoneUseCase {
         this.sessionService = sessionService;
     }
 
-    public VerifyPhoneVerificationResponse execute(UUID businessId, String telefonoRaw, String code) {
+    public VerifyPhoneVerificationResponse execute(UUID businessId, String telefonoRaw, String code, String clientIp) {
         var business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
         String tenantId = business.getTenantId();
@@ -55,18 +55,18 @@ public class VerifyPublicClientPhoneUseCase {
             throw new IllegalArgumentException("Teléfono inválido");
         }
 
-        sessionService.verifyOtpCode(tenantId, phone, code);
+        sessionService.verifyOtpCode(tenantId, phone, code, clientIp);
         AgendaClientResolver.ClientEnsureResult ensured =
                 AgendaClientResolver.ensureClientByPhone(userRepository, tenantId, phone);
         User user = ensured.user();
 
-        String sessionToken = sessionService.issueSessionToken(tenantId, user.getId(), phone);
+        String sessionToken = sessionService.issueSessionToken(tenantId, user.getId(), phone, clientIp);
         List<BookingResponse> bookings = listUpcomingForUser(businessId, user.getId());
         PublicClientProfileResponse profile = toProfile(user, ensured.needsName());
         return new VerifyPhoneVerificationResponse(sessionToken, profile, bookings);
     }
 
-    public VerifyPhoneVerificationResponse executeWithoutOtp(UUID businessId, String telefonoRaw) {
+    public VerifyPhoneVerificationResponse executeWithoutOtp(UUID businessId, String telefonoRaw, String clientIp) {
         var business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
         String tenantId = business.getTenantId();
@@ -74,7 +74,7 @@ public class VerifyPublicClientPhoneUseCase {
         AgendaClientResolver.ClientEnsureResult ensured =
                 AgendaClientResolver.ensureClientByPhone(userRepository, tenantId, phone);
         User user = ensured.user();
-        String sessionToken = sessionService.issueSessionToken(tenantId, user.getId(), phone);
+        String sessionToken = sessionService.issueSessionToken(tenantId, user.getId(), phone, clientIp);
         return new VerifyPhoneVerificationResponse(
                 sessionToken,
                 toProfile(user, ensured.needsName()),

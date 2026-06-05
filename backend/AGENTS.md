@@ -44,6 +44,10 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 
 **Isolation:** no direct imports between `agenda` and `chatbot` packages. Integrate via infrastructure (e.g. bot actions calling Agenda use cases wired in config), HTTP, or events — not domain imports.
 
+### Agent conduct
+
+Same rule as [AGENTS.md](../AGENTS.md): **no alternate flow paths or dev fallbacks** (echo codes, bypass modes, extra flags) unless the user explicitly requested them. One failure mode, one user-facing path.
+
 ### Agenda conventions
 
 - New tables: prefix `agenda_`, Flyway `db/migration/agenda/`.

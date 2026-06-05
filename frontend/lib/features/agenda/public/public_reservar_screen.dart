@@ -367,9 +367,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         telefono: telefono,
       );
       if (!mounted) return;
-      if (result.devCodeEcho != null) {
-        _codeCtrl.text = result.devCodeEcho!;
-      }
       setState(() {
         _otpHint = result.message;
         _step = _BookingStep.verifyCode;

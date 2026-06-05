@@ -1,23 +1,26 @@
 package com.botai.application.agenda.support;
 
 import com.botai.domain.agenda.service.PhoneVerificationDeliveryPort;
+import com.botai.infrastructure.agenda.persistence.entity.AgendaClientSessionEntity;
+import com.botai.infrastructure.agenda.persistence.entity.AgendaOtpChallengeEntity;
+import com.botai.infrastructure.agenda.persistence.jpa.AgendaClientSessionJpaRepository;
+import com.botai.infrastructure.agenda.persistence.jpa.AgendaOtpChallengeJpaRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Sesión de cliente en agenda pública: teléfono verificado por OTP (WhatsApp).
- * El token dura unos minutos y sirve para ver reservas y crear turnos sin repetir OTP.
+ * Persistencia en PostgreSQL (multi-instancia) con hashes, rate limit y audit log.
  */
 @Service
 public class AgendaPublicClientSessionService {
 
     public static final String SESSION_HEADER = "X-Agenda-Client-Session";
-
-    private record PendingOtp(String code, long expiresAtEpochMs) {}
 
     public record ClientSession(
             String tenantId,
@@ -28,97 +31,240 @@ public class AgendaPublicClientSessionService {
 
     private final AgendaPhoneOtpService otpService;
     private final PhoneVerificationDeliveryPort deliveryPort;
+    private final AgendaOtpChallengeJpaRepository otpRepository;
+    private final AgendaClientSessionJpaRepository sessionRepository;
+    private final AgendaSecurityHasher hasher;
+    private final AgendaSecurityAuditService audit;
+    private final AgendaPhoneVerificationRateGuard rateGuard;
+    private final Clock clock;
     private final boolean enabled;
-    private final boolean devEchoCodeInResponse;
     private final long sessionTtlMillis;
-    private final Map<String, PendingOtp> pendingByKey = new ConcurrentHashMap<>();
-    private final Map<String, ClientSession> sessionsByToken = new ConcurrentHashMap<>();
 
     public AgendaPublicClientSessionService(
             AgendaPhoneOtpService otpService,
             PhoneVerificationDeliveryPort deliveryPort,
+            AgendaOtpChallengeJpaRepository otpRepository,
+            AgendaClientSessionJpaRepository sessionRepository,
+            AgendaSecurityHasher hasher,
+            AgendaSecurityAuditService audit,
+            AgendaPhoneVerificationRateGuard rateGuard,
+            Clock clock,
             @Value("${agenda.phone.verification.enabled:true}") boolean enabled,
-            @Value("${agenda.phone.verification.dev-echo-in-chat:false}") boolean devEchoCodeInResponse,
             @Value("${agenda.phone.verification.session-minutes:15}") int sessionMinutes) {
         this.otpService = otpService;
         this.deliveryPort = deliveryPort;
+        this.otpRepository = otpRepository;
+        this.sessionRepository = sessionRepository;
+        this.hasher = hasher;
+        this.audit = audit;
+        this.rateGuard = rateGuard;
+        this.clock = clock;
         this.enabled = enabled;
-        this.devEchoCodeInResponse = devEchoCodeInResponse;
         this.sessionTtlMillis = Math.max(1, sessionMinutes) * 60L * 1000L;
     }
 
-    public SendResult sendCode(String tenantId, String phoneNormalized) {
+    @Transactional
+    public SendResult sendCode(String tenantId, String phoneNormalized, String clientIp) {
         if (!enabled) {
-            return new SendResult(true, null);
+            return new SendResult(true);
         }
+        rateGuard.assertCanSend(tenantId, phoneNormalized, clientIp);
+
         String code = otpService.generateCode();
-        long expires = otpService.expiryEpochMillis();
-        pendingByKey.put(key(tenantId, phoneNormalized), new PendingOtp(code, expires));
+        LocalDateTime expires = toLocalDateTime(otpService.expiryEpochMillis());
+        String phoneHash = hasher.phoneKey(tenantId, phoneNormalized);
+
+        otpRepository.findByTenantIdAndPhoneHash(tenantId, phoneHash).ifPresent(otpRepository::delete);
+
+        AgendaOtpChallengeEntity challenge = new AgendaOtpChallengeEntity();
+        challenge.setTenantId(tenantId);
+        challenge.setPhoneHash(phoneHash);
+        challenge.setCodeHash(hasher.hash(code));
+        challenge.setExpiresAt(expires);
+        challenge.setFailedAttempts(0);
+        challenge.setLockedUntil(null);
+        otpRepository.save(challenge);
+
         boolean delivered = deliveryPort.sendVerificationCode(tenantId, phoneNormalized, code);
-        String devCode = devEchoCodeInResponse && !delivered ? code : null;
-        return new SendResult(delivered, devCode);
+
+        audit.record(
+                AgendaSecurityAuditService.EventType.OTP_SEND,
+                delivered ? AgendaSecurityAuditService.Outcome.SUCCESS : AgendaSecurityAuditService.Outcome.FAIL,
+                tenantId,
+                clientIp,
+                phoneNormalized,
+                null,
+                delivered ? null : "WhatsApp delivery failed");
+
+        return new SendResult(delivered);
     }
 
-    public String issueSessionToken(String tenantId, UUID userId, String phoneNormalized) {
+    @Transactional
+    public String issueSessionToken(String tenantId, UUID userId, String phoneNormalized, String clientIp) {
         String token = UUID.randomUUID().toString();
-        long expires = System.currentTimeMillis() + sessionTtlMillis;
-        sessionsByToken.put(token, new ClientSession(tenantId, userId, phoneNormalized, expires));
+        LocalDateTime expires = toLocalDateTime(clock.millis() + sessionTtlMillis);
+
+        AgendaClientSessionEntity row = new AgendaClientSessionEntity();
+        row.setTokenHash(hasher.hash(token));
+        row.setTenantId(tenantId);
+        row.setUserId(userId);
+        row.setPhoneHash(hasher.phoneKey(tenantId, phoneNormalized));
+        row.setPhoneNormalized(phoneNormalized);
+        row.setExpiresAt(expires);
+        sessionRepository.save(row);
+
+        audit.record(
+                AgendaSecurityAuditService.EventType.SESSION_ISSUED,
+                AgendaSecurityAuditService.Outcome.SUCCESS,
+                tenantId,
+                clientIp,
+                phoneNormalized,
+                token,
+                null);
+
         return token;
     }
 
-    public ClientSession requireSession(String token) {
-        if (token == null || token.isBlank()) {
-            throw new IllegalArgumentException("Iniciá sesión con tu teléfono y el código de WhatsApp.");
-        }
-        ClientSession session = sessionsByToken.get(token.trim());
-        if (session == null) {
-            throw new IllegalArgumentException("Sesión inválida o expirada. Verificá tu teléfono de nuevo.");
-        }
-        if (isExpired(session.expiresAtEpochMs())) {
-            sessionsByToken.remove(token.trim());
-            throw new IllegalArgumentException("Sesión expirada. Verificá tu teléfono de nuevo.");
-        }
-        return session;
+    @Transactional(readOnly = true)
+    public ClientSession requireSession(String token, String clientIp) {
+        return loadSession(token, clientIp, null, true);
     }
 
-    public ClientSession requireSessionForTenant(String token, String tenantId) {
-        ClientSession session = requireSession(token);
-        if (!session.tenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("Sesión no válida para este negocio.");
-        }
-        return session;
+    @Transactional(readOnly = true)
+    public ClientSession requireSessionForTenant(String token, String tenantId, String clientIp) {
+        return loadSession(token, clientIp, tenantId, true);
     }
 
-    public void verifyOtpCode(String tenantId, String phoneNormalized, String userCode) {
+    @Transactional
+    public void recordSessionUsed(String token, String tenantId, String clientIp, String detail) {
+        audit.record(
+                AgendaSecurityAuditService.EventType.SESSION_USED,
+                AgendaSecurityAuditService.Outcome.SUCCESS,
+                tenantId,
+                clientIp,
+                null,
+                token,
+                detail);
+    }
+
+    @Transactional
+    public void verifyOtpCode(String tenantId, String phoneNormalized, String userCode, String clientIp) {
         if (!enabled) {
             return;
         }
-        PendingOtp pending = pendingByKey.get(key(tenantId, phoneNormalized));
-        if (pending == null) {
-            throw new IllegalArgumentException("No hay código pendiente para este teléfono. Solicitá uno nuevo.");
+        rateGuard.assertCanVerify(tenantId, phoneNormalized, clientIp);
+
+        String phoneHash = hasher.phoneKey(tenantId, phoneNormalized);
+        AgendaOtpChallengeEntity pending = otpRepository.findByTenantIdAndPhoneHash(tenantId, phoneHash)
+                .orElseThrow(() -> {
+                    audit.record(
+                            AgendaSecurityAuditService.EventType.OTP_VERIFY_FAIL,
+                            AgendaSecurityAuditService.Outcome.FAIL,
+                            tenantId, clientIp, phoneNormalized, null,
+                            "No pending challenge");
+                    return new IllegalArgumentException(
+                            "No hay código pendiente para este teléfono. Solicitá uno nuevo.");
+                });
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (pending.getLockedUntil() != null && pending.getLockedUntil().isAfter(now)) {
+            audit.record(
+                    AgendaSecurityAuditService.EventType.OTP_LOCKED,
+                    AgendaSecurityAuditService.Outcome.BLOCKED,
+                    tenantId, clientIp, phoneNormalized, null,
+                    "Challenge locked");
+            throw new IllegalArgumentException(
+                    "Demasiados intentos fallidos. Probá más tarde o solicitá un código nuevo.");
         }
-        if (otpService.isExpired(pending.expiresAtEpochMs())) {
-            pendingByKey.remove(key(tenantId, phoneNormalized));
+
+        if (pending.getExpiresAt().isBefore(now)) {
+            otpRepository.delete(pending);
+            audit.record(
+                    AgendaSecurityAuditService.EventType.OTP_VERIFY_FAIL,
+                    AgendaSecurityAuditService.Outcome.FAIL,
+                    tenantId, clientIp, phoneNormalized, null,
+                    "Code expired");
             throw new IllegalArgumentException("El código expiró. Solicitá uno nuevo.");
         }
-        if (!otpService.matches(pending.code(), userCode)) {
+
+        String parsedCode = AgendaPhoneOtpService.parseCode(userCode);
+        if (parsedCode == null || !hasher.matches(parsedCode, pending.getCodeHash())) {
+            int attempts = pending.getFailedAttempts() + 1;
+            pending.setFailedAttempts(attempts);
+            if (attempts >= rateGuard.maxFailedAttempts()) {
+                pending.setLockedUntil(now.plusMinutes(rateGuard.lockoutMinutes()));
+                audit.record(
+                        AgendaSecurityAuditService.EventType.OTP_LOCKED,
+                        AgendaSecurityAuditService.Outcome.BLOCKED,
+                        tenantId, clientIp, phoneNormalized, null,
+                        "Max failed attempts");
+            }
+            otpRepository.save(pending);
+            audit.record(
+                    AgendaSecurityAuditService.EventType.OTP_VERIFY_FAIL,
+                    AgendaSecurityAuditService.Outcome.FAIL,
+                    tenantId, clientIp, phoneNormalized, null,
+                    "Wrong code");
             throw new IllegalArgumentException("Código incorrecto.");
         }
-        pendingByKey.remove(key(tenantId, phoneNormalized));
+
+        otpRepository.delete(pending);
+        audit.record(
+                AgendaSecurityAuditService.EventType.OTP_VERIFY_SUCCESS,
+                AgendaSecurityAuditService.Outcome.SUCCESS,
+                tenantId, clientIp, phoneNormalized, null,
+                null);
     }
 
-    public ClientSession openSessionWithoutOtp(String tenantId, UUID userId, String phoneNormalized) {
-        String token = issueSessionToken(tenantId, userId, phoneNormalized);
-        return requireSession(token);
+    private ClientSession loadSession(String token, String clientIp, String expectedTenantId, boolean auditFailure) {
+        if (token == null || token.isBlank()) {
+            rejectSession(null, clientIp, expectedTenantId, "Missing token", auditFailure);
+            throw new IllegalArgumentException("Iniciá sesión con tu teléfono y el código de WhatsApp.");
+        }
+
+        var rowOpt = sessionRepository.findByTokenHash(hasher.hash(token.trim()));
+        if (rowOpt.isEmpty()) {
+            rejectSession(token, clientIp, expectedTenantId, "Unknown token", auditFailure);
+            throw new IllegalArgumentException("Sesión inválida o expirada. Verificá tu teléfono de nuevo.");
+        }
+        AgendaClientSessionEntity row = rowOpt.get();
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (row.getExpiresAt().isBefore(now)) {
+            sessionRepository.delete(row);
+            rejectSession(token, clientIp, expectedTenantId, "Expired", auditFailure);
+            throw new IllegalArgumentException("Sesión expirada. Verificá tu teléfono de nuevo.");
+        }
+
+        if (expectedTenantId != null && !expectedTenantId.equals(row.getTenantId())) {
+            rejectSession(token, clientIp, expectedTenantId, "Tenant mismatch", auditFailure);
+            throw new IllegalArgumentException("Sesión no válida para este negocio.");
+        }
+
+        return new ClientSession(
+                row.getTenantId(),
+                row.getUserId(),
+                row.getPhoneNormalized(),
+                row.getExpiresAt().atZone(clock.getZone()).toInstant().toEpochMilli());
     }
 
-    private static boolean isExpired(long expiresAtEpochMs) {
-        return System.currentTimeMillis() > expiresAtEpochMs;
+    private void rejectSession(String token, String clientIp, String tenantId, String detail, boolean auditFailure) {
+        if (!auditFailure) {
+            return;
+        }
+        audit.record(
+                AgendaSecurityAuditService.EventType.SESSION_REJECTED,
+                AgendaSecurityAuditService.Outcome.FAIL,
+                tenantId,
+                clientIp,
+                null,
+                token,
+                detail);
     }
 
-    private static String key(String tenantId, String phone) {
-        return tenantId + "|" + phone;
+    private LocalDateTime toLocalDateTime(long epochMillis) {
+        return LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(epochMillis), clock.getZone());
     }
 
-    public record SendResult(boolean delivered, String devCodeEcho) {}
+    public record SendResult(boolean delivered) {}
 }

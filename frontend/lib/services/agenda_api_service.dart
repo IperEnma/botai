@@ -553,7 +553,6 @@ class AgendaApiService {
       return SendPhoneVerificationResult(
         sent: m['sent'] == true,
         message: m['message']?.toString() ?? '',
-        devCodeEcho: m['devCodeEcho']?.toString(),
       );
     });
   }
@@ -1492,12 +1491,10 @@ class SendPhoneVerificationResult {
   const SendPhoneVerificationResult({
     required this.sent,
     required this.message,
-    this.devCodeEcho,
   });
 
   final bool sent;
   final String message;
-  final String? devCodeEcho;
 }
 
 /// Formats a [DateTime] as `"yyyy-MM-ddTHH:mm:ss"` (no sub-seconds, no timezone)
