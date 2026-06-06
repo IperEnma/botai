@@ -14,9 +14,11 @@ import com.botai.application.agenda.usecase.business.ListBusinessServicesUseCase
 import com.botai.application.agenda.usecase.staff.ListPublicStaffUseCase;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessHours;
+import com.botai.domain.agenda.model.RatingSummary;
 import com.botai.domain.agenda.repository.BusinessCategoryRepository;
 import com.botai.domain.agenda.repository.BusinessHoursRepository;
 import com.botai.domain.agenda.repository.BusinessRepository;
+import com.botai.domain.agenda.repository.ReviewRepository;
 import com.botai.domain.agenda.repository.ServiceRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,6 +55,7 @@ public class PublicBusinessBySlugController {
     private final BusinessHoursRepository hoursRepository;
     private final PublicAvailabilityService publicAvailabilityService;
     private final ServiceStaffLookup serviceStaffLookup;
+    private final ReviewRepository reviewRepository;
 
     public PublicBusinessBySlugController(BusinessRepository businessRepository,
                                           BusinessCategoryRepository businessCategoryRepository,
@@ -61,7 +64,8 @@ public class PublicBusinessBySlugController {
                                           ServiceRepository serviceRepository,
                                           BusinessHoursRepository hoursRepository,
                                           PublicAvailabilityService publicAvailabilityService,
-                                          ServiceStaffLookup serviceStaffLookup) {
+                                          ServiceStaffLookup serviceStaffLookup,
+                                          ReviewRepository reviewRepository) {
         this.businessRepository = businessRepository;
         this.businessCategoryRepository = businessCategoryRepository;
         this.listBusinessServices = listBusinessServices;
@@ -70,6 +74,7 @@ public class PublicBusinessBySlugController {
         this.hoursRepository = hoursRepository;
         this.publicAvailabilityService = publicAvailabilityService;
         this.serviceStaffLookup = serviceStaffLookup;
+        this.reviewRepository = reviewRepository;
     }
 
     private Business requireBusiness(String slug) {
@@ -82,7 +87,8 @@ public class PublicBusinessBySlugController {
     public BusinessResponse business(@PathVariable("slug") String slug) {
         Business b = requireBusiness(slug);
         var categories = businessCategoryRepository.findCategorySlugsByBusinessId(b.getId());
-        return BusinessDtoMapper.toResponse(b, categories);
+        RatingSummary summary = reviewRepository.findRatingSummaryByBusinessId(b.getId());
+        return BusinessDtoMapper.toResponse(b, categories, summary);
     }
 
     @GetMapping("/services")
@@ -100,8 +106,10 @@ public class PublicBusinessBySlugController {
     @Operation(summary = "Miembros activos del equipo de un negocio por slug")
     public List<StaffMemberResponse> staff(@PathVariable("slug") String slug) {
         Business b = requireBusiness(slug);
+        Map<UUID, RatingSummary> summaries = reviewRepository.findRatingSummariesForBusiness(b.getId());
         return listPublicStaff.execute(b.getId()).stream()
-                .map(StaffMemberDtoMapper::toResponse)
+                .map(s -> StaffMemberDtoMapper.toResponse(s,
+                        summaries.getOrDefault(s.getId(), RatingSummary.empty())))
                 .toList();
     }
 

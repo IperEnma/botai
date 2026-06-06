@@ -12,6 +12,7 @@ import '../../../../providers/agenda/tenant/business_photos_provider.dart';
 import '../../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../register/konecta_tokens.dart';
 import '../../shared/k_button.dart';
+import 'styles/banner_block.dart';
 import 'styles/brand_style.dart';
 import 'styles/color_block.dart';
 import 'styles/font_block.dart';
@@ -37,10 +38,13 @@ class _StylesTabState extends ConsumerState<StylesTab> {
   late String _background;
   late String _font;
   String? _logoUrl;
+  String? _bannerUrl;
+  final _direccionCtrl = TextEditingController();
 
   bool _changed = false;
   bool _saving = false;
   bool _uploadingLogo = false;
+  bool _uploadingBanner = false;
 
   @override
   void initState() {
@@ -49,13 +53,20 @@ class _StylesTabState extends ConsumerState<StylesTab> {
   }
 
   @override
+  void dispose() {
+    _direccionCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(StylesTab old) {
     super.didUpdateWidget(old);
     if (!_changed && widget.business != old.business) {
       _hydrate(widget.business);
     } else {
-      // Logo se persiste por separado (al subir) — sincronizar igual.
+      // Logo y banner se persisten por separado (al subir) — sincronizar igual.
       _logoUrl = widget.business.logoUrl ?? _logoUrl;
+      _bannerUrl = widget.business.bannerUrl ?? _bannerUrl;
     }
   }
 
@@ -64,6 +75,13 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     _background = (b.colorFondo ?? '#FBFAF7').toUpperCase();
     _font = b.fontFamily ?? 'Inter';
     _logoUrl = b.logoUrl;
+    _bannerUrl = b.bannerUrl;
+    _direccionCtrl.text = b.direccion ?? '';
+  }
+
+  String? get _direccionValue {
+    final v = _direccionCtrl.text.trim();
+    return v.isEmpty ? null : v;
   }
 
   void _setPrimary(String hex) {
@@ -132,6 +150,8 @@ class _StylesTabState extends ConsumerState<StylesTab> {
               facebookUrl: widget.business.facebookUrl,
               colorFondo: _background,
               fontFamily: _font,
+              direccion: _direccionValue,
+              bannerUrl: _bannerUrl,
             );
         if (mounted) {
           setState(() => _logoUrl = url);
@@ -145,6 +165,70 @@ class _StylesTabState extends ConsumerState<StylesTab> {
         }
       } finally {
         if (mounted) setState(() => _uploadingLogo = false);
+      }
+    });
+  }
+
+  // ── Banner upload ───────────────────────────────────────────────────────────
+
+  void _pickAndUploadBanner() {
+    final input = html.FileUploadInputElement()..accept = 'image/*';
+    input.click();
+    input.onChange.listen((_) async {
+      final file = input.files?.first;
+      if (file == null) return;
+      if (file.size > 5 * 1024 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Máx. 5 MB.')),
+          );
+        }
+        return;
+      }
+      setState(() => _uploadingBanner = true);
+      try {
+        final reader = html.FileReader();
+        reader.readAsDataUrl(file);
+        await reader.onLoad.first;
+        final dataUrl = reader.result as String;
+        final comma = dataUrl.indexOf(',');
+        final bytes = base64.decode(dataUrl.substring(comma + 1));
+
+        final api = ref.read(agendaApiServiceProvider);
+        final url = await api.uploadBusinessBanner(
+          businessId: widget.business.id,
+          bytes: bytes,
+          fileName: file.name,
+        );
+
+        // Persistimos el banner enseguida (igual que el logo).
+        await ref.read(businessesProvider(widget.tenantId).notifier).update(
+              businessId: widget.business.id,
+              nombre: widget.business.nombre,
+              descripcion: widget.business.descripcion,
+              searchTags: widget.business.searchTags,
+              logoUrl: _logoUrl,
+              colorPrimario: _primary,
+              instagramUrl: widget.business.instagramUrl,
+              tiktokUrl: widget.business.tiktokUrl,
+              facebookUrl: widget.business.facebookUrl,
+              colorFondo: _background,
+              fontFamily: _font,
+              direccion: _direccionValue,
+              bannerUrl: url,
+            );
+        if (mounted) {
+          setState(() => _bannerUrl = url);
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Portada actualizada')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error al subir: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _uploadingBanner = false);
       }
     });
   }
@@ -166,6 +250,8 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             facebookUrl: widget.business.facebookUrl,
             colorFondo: _background,
             fontFamily: _font,
+            direccion: _direccionValue,
+            bannerUrl: _bannerUrl,
           );
       if (mounted) {
         setState(() => _changed = false);
@@ -260,12 +346,19 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     final config = _ConfigColumn(
       brand: brand,
       logoUrl: _logoUrl,
+      bannerUrl: _bannerUrl,
+      direccionCtrl: _direccionCtrl,
       isUploadingLogo: _uploadingLogo,
+      isUploadingBanner: _uploadingBanner,
       isChanged: _changed,
       isSaving: _saving,
       isBusyPhotos: photosState.isSaving,
       photoUrls: photoUrls,
       onUploadLogo: _pickAndUploadLogo,
+      onUploadBanner: _pickAndUploadBanner,
+      onDireccionChanged: () {
+        if (!_changed) setState(() => _changed = true);
+      },
       onPrimaryChange: _setPrimary,
       onBackgroundChange: _setBackground,
       onFontChange: _setFont,
@@ -351,12 +444,17 @@ class _ConfigColumn extends StatelessWidget {
   const _ConfigColumn({
     required this.brand,
     required this.logoUrl,
+    required this.bannerUrl,
+    required this.direccionCtrl,
     required this.isUploadingLogo,
+    required this.isUploadingBanner,
     required this.isChanged,
     required this.isSaving,
     required this.isBusyPhotos,
     required this.photoUrls,
     required this.onUploadLogo,
+    required this.onUploadBanner,
+    required this.onDireccionChanged,
     required this.onPrimaryChange,
     required this.onBackgroundChange,
     required this.onFontChange,
@@ -368,12 +466,17 @@ class _ConfigColumn extends StatelessWidget {
 
   final BrandStyle brand;
   final String? logoUrl;
+  final String? bannerUrl;
+  final TextEditingController direccionCtrl;
   final bool isUploadingLogo;
+  final bool isUploadingBanner;
   final bool isChanged;
   final bool isSaving;
   final bool isBusyPhotos;
   final List<String> photoUrls;
   final VoidCallback onUploadLogo;
+  final VoidCallback onUploadBanner;
+  final VoidCallback onDireccionChanged;
   final ValueChanged<String> onPrimaryChange;
   final ValueChanged<String> onBackgroundChange;
   final ValueChanged<String> onFontChange;
@@ -427,6 +530,42 @@ class _ConfigColumn extends StatelessWidget {
                   logoUrl: logoUrl,
                   isUploading: isUploadingLogo,
                   onUpload: onUploadLogo,
+                ),
+              ),
+              const _BlockDivider(),
+
+              // 4.1b Imagen de portada (banner)
+              _Block(
+                title: 'Imagen de portada',
+                hint:
+                    'Banner que se muestra arriba de tu perfil público. PNG, JPG o WEBP — máx. 5 MB.',
+                child: BannerBlock(
+                  bannerUrl: bannerUrl,
+                  isUploading: isUploadingBanner,
+                  onUpload: onUploadBanner,
+                ),
+              ),
+              const _BlockDivider(),
+
+              // 4.1c Dirección
+              _Block(
+                title: 'Dirección',
+                hint:
+                    'Dirección del local. Se muestra en tu perfil público para que los clientes te encuentren.',
+                child: TextField(
+                  controller: direccionCtrl,
+                  onChanged: (_) => onDireccionChanged(),
+                  style: GoogleFonts.inter(fontSize: 14, color: KTokens.ink),
+                  decoration: InputDecoration(
+                    hintText: 'Av. Siempre Viva 742, Springfield',
+                    hintStyle:
+                        GoogleFonts.inter(fontSize: 14, color: KTokens.inkPlaceholder),
+                    prefixIcon: const Icon(Icons.place_outlined,
+                        size: 20, color: KTokens.inkSoft),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(KTokens.rMd),
+                    ),
+                  ),
                 ),
               ),
               const _BlockDivider(),

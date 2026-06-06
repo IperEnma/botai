@@ -36,7 +36,9 @@ public class UpdateBusinessUseCase {
                             String tiktokUrl,
                             String facebookUrl,
                             String colorFondo,
-                            String fontFamily) {
+                            String fontFamily,
+                            String bannerUrl,
+                            String direccion) {
         Business existing = businessRepository.findByIdAndTenantId(businessId, tenantId)
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
 
@@ -58,6 +60,8 @@ public class UpdateBusinessUseCase {
                 existing.getPublicSlug(),
                 existing.getCompanySlug(),
                 existing.getBotId(),
+                bannerUrl == null ? existing.getBannerUrl() : bannerUrl,
+                direccion == null ? existing.getDireccion() : direccion,
                 existing.getDeletedAt(),
                 existing.getCreatedAt(),
                 existing.getUpdatedAt()

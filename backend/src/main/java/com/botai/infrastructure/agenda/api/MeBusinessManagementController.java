@@ -126,7 +126,9 @@ public class MeBusinessManagementController {
                 request.tiktokUrl(),
                 request.facebookUrl(),
                 request.colorFondo(),
-                request.fontFamily()
+                request.fontFamily(),
+                request.bannerUrl(),
+                request.direccion()
         );
         knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return BusinessDtoMapper.toResponse(updated,

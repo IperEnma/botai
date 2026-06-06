@@ -4,6 +4,7 @@ import com.botai.application.agenda.dto.BusinessResponse;
 import com.botai.application.agenda.dto.BusinessSummaryResponse;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessSummary;
+import com.botai.domain.agenda.model.RatingSummary;
 
 import java.util.List;
 
@@ -13,13 +14,18 @@ public final class BusinessDtoMapper {
     }
 
     public static BusinessResponse toResponse(Business business) {
-        return toResponse(business, List.of());
+        return toResponse(business, List.of(), RatingSummary.empty());
     }
 
     public static BusinessResponse toResponse(Business business, List<String> categorias) {
+        return toResponse(business, categorias, RatingSummary.empty());
+    }
+
+    public static BusinessResponse toResponse(Business business, List<String> categorias, RatingSummary summary) {
         if (business == null) {
             return null;
         }
+        RatingSummary s = summary != null ? summary : RatingSummary.empty();
         return new BusinessResponse(
                 business.getId(),
                 business.getTenantId(),
@@ -37,7 +43,11 @@ public final class BusinessDtoMapper {
                 business.getFontFamily(),
                 business.getPublicSlug(),
                 business.getBotId(),
-                categorias != null ? categorias : List.of()
+                categorias != null ? categorias : List.of(),
+                business.getBannerUrl(),
+                business.getDireccion(),
+                s.getAverage(),
+                s.getCount()
         );
     }
 

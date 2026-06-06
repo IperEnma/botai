@@ -1,3 +1,5 @@
+import 'agenda_json.dart';
+
 class StaffMember {
   final String id;
   final String businessId;
@@ -12,6 +14,10 @@ class StaffMember {
   final String status; // 'ACTIVO', 'PAUSADO'
   final Map<String, dynamic>? customSchedule;
   final List<String> serviceIds;
+  /// Promedio de reseñas del profesional (null si aún no hay reseñas).
+  final double? rating;
+  /// Cantidad total de reseñas del profesional.
+  final int reviewCount;
 
   const StaffMember({
     required this.id,
@@ -27,6 +33,8 @@ class StaffMember {
     required this.status,
     this.customSchedule,
     this.serviceIds = const [],
+    this.rating,
+    this.reviewCount = 0,
   });
 
   factory StaffMember.fromJson(Map<String, dynamic> json) => StaffMember(
@@ -47,5 +55,7 @@ class StaffMember {
                 ?.map((e) => e as String)
                 .toList() ??
             const [],
+        rating: AgendaJson.parseDoubleOrNull(json['rating']),
+        reviewCount: AgendaJson.parseInt(json['reviewCount']),
       );
 }

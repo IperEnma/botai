@@ -1,6 +1,7 @@
 package com.botai.application.agenda.mapper;
 
 import com.botai.application.agenda.dto.StaffMemberResponse;
+import com.botai.domain.agenda.model.RatingSummary;
 import com.botai.domain.agenda.model.StaffMember;
 
 public final class StaffMemberDtoMapper {
@@ -9,6 +10,11 @@ public final class StaffMemberDtoMapper {
     }
 
     public static StaffMemberResponse toResponse(StaffMember s) {
+        return toResponse(s, RatingSummary.empty());
+    }
+
+    public static StaffMemberResponse toResponse(StaffMember s, RatingSummary summary) {
+        RatingSummary r = summary != null ? summary : RatingSummary.empty();
         return new StaffMemberResponse(
                 s.getId(),
                 s.getBusinessId(),
@@ -24,7 +30,9 @@ public final class StaffMemberDtoMapper {
                 s.getCustomSchedule(),
                 s.getServiceIds(),
                 s.getCreatedAt(),
-                s.getUpdatedAt()
+                s.getUpdatedAt(),
+                r.getAverage(),
+                r.getCount()
         );
     }
 }

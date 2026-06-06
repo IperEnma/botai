@@ -21,6 +21,8 @@ public record StaffMemberResponse(
         @JsonRawValue String customSchedule,
         List<UUID> serviceIds,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Double rating,
+        int reviewCount
 ) {
 }

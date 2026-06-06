@@ -77,6 +77,8 @@ class BusinessesNotifier extends StateNotifier<BusinessesState> {
     String? facebookUrl,
     String? colorFondo,
     String? fontFamily,
+    String? direccion,
+    String? bannerUrl,
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final updated = await api.updateBusiness(
@@ -91,6 +93,8 @@ class BusinessesNotifier extends StateNotifier<BusinessesState> {
       facebookUrl: facebookUrl,
       colorFondo: colorFondo,
       fontFamily: fontFamily,
+      direccion: direccion,
+      bannerUrl: bannerUrl,
     );
     state = state.copyWith(
       items: [

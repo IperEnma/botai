@@ -38,6 +38,8 @@ public final class BusinessMapper {
                 entity.getPublicSlug(),
                 entity.getCompanySlug(),
                 entity.getBotId(),
+                entity.getDireccion(),
+                entity.getBannerUrl(),
                 entity.getDeletedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -66,6 +68,8 @@ public final class BusinessMapper {
         entity.setPublicSlug(business.getPublicSlug());
         entity.setCompanySlug(business.getCompanySlug());
         entity.setBotId(business.getBotId());
+        entity.setDireccion(business.getDireccion());
+        entity.setBannerUrl(business.getBannerUrl());
         entity.setDeletedAt(business.getDeletedAt());
         entity.setCreatedAt(business.getCreatedAt());
         entity.setUpdatedAt(business.getUpdatedAt());

@@ -8,6 +8,7 @@ import '../../../models/agenda/business.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../providers/agenda/public/public_client_session_provider.dart';
+import '../../../services/agenda_api_exception.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../../../widgets/agenda_phone_field.dart';
 import 'public_reservar_layout.dart';
@@ -37,6 +38,8 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
   bool _submitting = false;
   String? _error;
   String? _otpHint;
+  String? _sessionToken;
+  final Set<String> _ratedBookingIds = <String>{};
 
   final _telCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
@@ -81,6 +84,7 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
     if (session != null) {
       _telCtrl.text = session.phone;
       if (session.nombre != null) _nombreCtrl.text = session.nombre!;
+      _sessionToken = session.token;
       await _loadBookings(business, session);
       return;
     }
@@ -181,6 +185,7 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
       ref.invalidate(publicClientSessionProvider(widget.slug));
       if (!mounted) return;
       setState(() {
+        _sessionToken = session.token;
         _bookings = result.bookings;
         _step = _MisReservasStep.bookings;
       });
@@ -199,6 +204,67 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
         backgroundColor: Colors.red.shade700,
       ),
     );
+  }
+
+  Future<void> _openRating(
+    Business business,
+    PublicReservarTheme theme,
+    Booking booking,
+  ) async {
+    final token = _sessionToken;
+    if (token == null || token.isEmpty) {
+      _showError(theme, 'Tu sesión expiró. Verificá tu teléfono de nuevo.');
+      return;
+    }
+
+    final result = await showModalBottomSheet<_RatingResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _RatingSheet(theme: theme, serviceName: booking.servicioNombre),
+    );
+    if (result == null || !mounted) return;
+
+    try {
+      final api = ref.read(agendaApiServiceProvider);
+      await api.publicCreateReview(
+        businessId: business.id,
+        bookingId: booking.id,
+        rating: result.rating,
+        comentario: result.comentario,
+        clientSessionToken: token,
+      );
+      if (!mounted) return;
+      setState(() => _ratedBookingIds.add(booking.id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '¡Gracias por tu calificación!',
+            style: theme.textStyle(color: Colors.white),
+          ),
+          backgroundColor: theme.primary,
+        ),
+      );
+    } on AgendaApiException catch (e) {
+      if (!mounted) return;
+      if (e.isConflict) {
+        // Ya existe reseña para este booking: marcar como calificado, sin reintentar.
+        setState(() => _ratedBookingIds.add(booking.id));
+        _showError(theme, 'Ya calificaste este turno.');
+      } else if (e.status == 403) {
+        _showError(theme, 'No podés calificar este turno.');
+      } else if (e.isUnprocessable) {
+        _showError(theme, e.message);
+      } else {
+        _showError(theme, 'No se pudo enviar la calificación: ${e.message}');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showError(theme, 'No se pudo enviar la calificación: $e');
+    }
   }
 
   @override
@@ -282,7 +348,12 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
           onVerify: () => _verify(business, theme),
         );
       case _MisReservasStep.bookings:
-        return _BookingsList(theme: theme, bookings: _bookings);
+        return _BookingsList(
+          theme: theme,
+          bookings: _bookings,
+          ratedBookingIds: _ratedBookingIds,
+          onRate: (booking) => _openRating(business, theme, booking),
+        );
     }
   }
 }
@@ -423,10 +494,17 @@ class _VerifyStep extends StatelessWidget {
 }
 
 class _BookingsList extends StatelessWidget {
-  const _BookingsList({required this.theme, required this.bookings});
+  const _BookingsList({
+    required this.theme,
+    required this.bookings,
+    required this.ratedBookingIds,
+    required this.onRate,
+  });
 
   final PublicReservarTheme theme;
   final List<Booking> bookings;
+  final Set<String> ratedBookingIds;
+  final ValueChanged<Booking> onRate;
 
   @override
   Widget build(BuildContext context) {
@@ -454,8 +532,8 @@ class _BookingsList extends StatelessWidget {
       children: [
         publicReservarScrollSectionTitle(
           theme: t,
-          title: 'Tus próximas reservas',
-          subtitle: 'Pendientes y confirmadas en este negocio.',
+          title: 'Tus reservas',
+          subtitle: 'Tus turnos en este negocio.',
         ),
         const SizedBox(height: 8),
         for (final b in bookings) ...[
@@ -488,6 +566,48 @@ class _BookingsList extends StatelessWidget {
                     weight: FontWeight.w600,
                   ),
                 ),
+                if (b.estado == BookingEstado.completada) ...[
+                  const SizedBox(height: 12),
+                  if (ratedBookingIds.contains(b.id))
+                    Row(
+                      children: [
+                        Icon(Icons.check_circle_rounded,
+                            size: 18, color: t.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Calificación enviada',
+                          style: t.textStyle(
+                            size: 13,
+                            weight: FontWeight.w600,
+                            color: t.primary,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: t.primary,
+                          side: BorderSide(color: t.primary),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () => onRate(b),
+                        icon: const Icon(Icons.star_rounded, size: 18),
+                        label: Text(
+                          'Calificar',
+                          style: t.textStyle(
+                            size: 13,
+                            weight: FontWeight.w600,
+                            color: t.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ],
             ),
           ),
@@ -500,5 +620,139 @@ class _BookingsList extends StatelessWidget {
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
     return '${dt.day}/${dt.month}/${dt.year} · $h:$m';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rating sheet (estrellas 1..5 + comentario opcional)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RatingResult {
+  const _RatingResult({required this.rating, this.comentario});
+  final int rating;
+  final String? comentario;
+}
+
+class _RatingSheet extends StatefulWidget {
+  const _RatingSheet({required this.theme, required this.serviceName});
+
+  final PublicReservarTheme theme;
+  final String serviceName;
+
+  @override
+  State<_RatingSheet> createState() => _RatingSheetState();
+}
+
+class _RatingSheetState extends State<_RatingSheet> {
+  int _rating = 0;
+  final _comentarioCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _comentarioCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.theme;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: t.cardBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Calificá tu turno',
+            style: t.textStyle(size: 20, weight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.serviceName,
+            style: t.textStyle(size: 14, color: t.textSub),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (i) {
+              final pos = i + 1;
+              final filled = _rating >= pos;
+              return IconButton(
+                onPressed: () => setState(() => _rating = pos),
+                iconSize: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: filled ? t.primary : t.primary.withValues(alpha: 0.35),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _comentarioCtrl,
+            maxLines: 3,
+            maxLength: 500,
+            style: t.textStyle(size: 14),
+            decoration: InputDecoration(
+              hintText: 'Contanos cómo te fue (opcional)',
+              hintStyle: t.textStyle(size: 14, color: t.textSub),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 50,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: t.primary,
+                disabledBackgroundColor: t.primary.withValues(alpha: 0.4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: _rating == 0
+                  ? null
+                  : () {
+                      final comentario = _comentarioCtrl.text.trim();
+                      Navigator.of(context).pop(
+                        _RatingResult(
+                          rating: _rating,
+                          comentario: comentario.isEmpty ? null : comentario,
+                        ),
+                      );
+                    },
+              child: Text(
+                'Enviar calificación',
+                style: t.textStyle(
+                  size: 15,
+                  weight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

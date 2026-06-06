@@ -2,6 +2,10 @@ package com.botai.infrastructure.agenda.api;
 
 import com.botai.domain.agenda.exception.AgendaBotNotFoundException;
 import com.botai.domain.agenda.exception.AgendaTenantNotResolvedException;
+import com.botai.domain.agenda.exception.AgendaUnauthorizedException;
+import com.botai.domain.agenda.exception.BookingNotCompletedException;
+import com.botai.domain.agenda.exception.ReviewAlreadyExistsException;
+import com.botai.domain.agenda.exception.ReviewNotAllowedException;
 import com.botai.domain.agenda.exception.BookingNotCancellableException;
 import com.botai.domain.agenda.exception.BookingNotFoundException;
 import com.botai.domain.agenda.exception.BookingSlotTakenException;
@@ -49,6 +53,26 @@ import java.util.Map;
 public class AgendaGlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(AgendaGlobalExceptionHandler.class);
+
+    @ExceptionHandler(AgendaUnauthorizedException.class)
+    public ResponseEntity<Map<String, Object>> handleUnauthorized(AgendaUnauthorizedException ex) {
+        return response(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(ReviewNotAllowedException.class)
+    public ResponseEntity<Map<String, Object>> handleReviewNotAllowed(ReviewNotAllowedException ex) {
+        return response(HttpStatus.FORBIDDEN, "REVIEW_NOT_ALLOWED", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(BookingNotCompletedException.class)
+    public ResponseEntity<Map<String, Object>> handleBookingNotCompleted(BookingNotCompletedException ex) {
+        return response(HttpStatus.UNPROCESSABLE_ENTITY, "BOOKING_NOT_COMPLETED", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(ReviewAlreadyExistsException.class)
+    public ResponseEntity<Map<String, Object>> handleReviewAlreadyExists(ReviewAlreadyExistsException ex) {
+        return response(HttpStatus.CONFLICT, "REVIEW_ALREADY_EXISTS", ex.getMessage(), null);
+    }
 
     @ExceptionHandler(BusinessNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleBusinessNotFound(BusinessNotFoundException ex) {

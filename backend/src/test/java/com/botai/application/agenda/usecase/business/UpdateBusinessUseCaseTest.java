@@ -63,7 +63,9 @@ class UpdateBusinessUseCaseTest {
                 null,         // tiktokUrl
                 null,         // facebookUrl
                 null,         // colorFondo
-                null          // fontFamily
+                null,         // fontFamily
+                null,         // bannerUrl
+                null          // direccion
         );
 
         ArgumentCaptor<Business> captor = ArgumentCaptor.forClass(Business.class);
@@ -91,7 +93,7 @@ class UpdateBusinessUseCaseTest {
                 "Nueva descripción",
                 List.of("nuevo"),
                 false,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
 
         ArgumentCaptor<Business> captor = ArgumentCaptor.forClass(Business.class);
         verify(businessRepository).save(captor.capture());
@@ -109,7 +111,7 @@ class UpdateBusinessUseCaseTest {
                 .thenReturn(Optional.empty());
 
         assertThrows(BusinessNotFoundException.class,
-                () -> useCase.execute(tenantId, businessId, "X", null, null, null, null, null, null, null, null, null, null));
+                () -> useCase.execute(tenantId, businessId, "X", null, null, null, null, null, null, null, null, null, null, null, null));
 
         verify(businessRepository, never()).save(any(Business.class));
     }

@@ -23,6 +23,12 @@ class Business {
   final int? botId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? direccion;
+  final String? bannerUrl;
+  /// Promedio de reseñas (null si aún no hay reseñas).
+  final double? rating;
+  /// Cantidad total de reseñas.
+  final int reviewCount;
 
   const Business({
     required this.id,
@@ -44,6 +50,10 @@ class Business {
     this.botId,
     this.createdAt,
     this.updatedAt,
+    this.direccion,
+    this.bannerUrl,
+    this.rating,
+    this.reviewCount = 0,
   });
 
   factory Business.fromJson(Map<String, dynamic> json) {
@@ -67,6 +77,10 @@ class Business {
       botId: AgendaJson.parseIntOrNull(json['botId']),
       createdAt: AgendaJson.parseDateTimeOrNull(json['createdAt']),
       updatedAt: AgendaJson.parseDateTimeOrNull(json['updatedAt']),
+      direccion: AgendaJson.parseStringOrNull(json['direccion']),
+      bannerUrl: AgendaJson.parseStringOrNull(json['bannerUrl']),
+      rating: AgendaJson.parseDoubleOrNull(json['rating']),
+      reviewCount: AgendaJson.parseInt(json['reviewCount']),
     );
   }
 
@@ -83,6 +97,8 @@ class Business {
     Object? facebookUrl = _sentinel,
     Object? colorFondo = _sentinel,
     Object? fontFamily = _sentinel,
+    Object? direccion = _sentinel,
+    Object? bannerUrl = _sentinel,
   }) {
     return Business(
       id: id,
@@ -100,9 +116,13 @@ class Business {
       facebookUrl: identical(facebookUrl, _sentinel) ? this.facebookUrl : facebookUrl as String?,
       colorFondo: identical(colorFondo, _sentinel) ? this.colorFondo : colorFondo as String?,
       fontFamily: identical(fontFamily, _sentinel) ? this.fontFamily : fontFamily as String?,
+      direccion: identical(direccion, _sentinel) ? this.direccion : direccion as String?,
+      bannerUrl: identical(bannerUrl, _sentinel) ? this.bannerUrl : bannerUrl as String?,
       botId: botId,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      rating: rating,
+      reviewCount: reviewCount,
     );
   }
 

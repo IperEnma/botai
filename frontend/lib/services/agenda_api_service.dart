@@ -7,6 +7,7 @@ import '../core/api_error_presenter.dart';
 import '../core/auth_bearer_token.dart';
 import '../core/config.dart';
 import '../models/agenda/agenda_notification.dart';
+import '../models/agenda/agenda_review.dart';
 import '../models/agenda/agenda_service.dart';
 import '../models/agenda/availability_slot.dart';
 import '../models/agenda/booking.dart';
@@ -641,6 +642,30 @@ class AgendaApiService {
     return _decode(r, (body) => Booking.fromJson(body as Map<String, dynamic>));
   }
 
+  /// `POST /public/businesses/{businessId}/reviews` — crea una reseña pública.
+  ///
+  /// Requiere sesión OTP activa ([clientSessionToken] en `X-Agenda-Client-Session`).
+  /// [rating] debe estar entre 1 y 5.
+  Future<AgendaReview> publicCreateReview({
+    required String businessId,
+    required String bookingId,
+    required int rating,
+    String? comentario,
+    required String clientSessionToken,
+  }) async {
+    final r = await _sendPublic(() => _client.post(
+          _uri('/public/businesses/$businessId/reviews'),
+          headers: _publicHeaders(clientSessionToken: clientSessionToken),
+          body: jsonEncode({
+            'bookingId': bookingId,
+            'rating': rating,
+            if (comentario != null && comentario.isNotEmpty)
+              'comentario': comentario,
+          }),
+        ));
+    return _decode(r, (body) => AgendaReview.fromJson(body as Map<String, dynamic>));
+  }
+
   // =====================================================================
   // PLATFORM — admin del catálogo global
   // =====================================================================
@@ -793,6 +818,8 @@ class AgendaApiService {
     String? facebookUrl,
     String? colorFondo,
     String? fontFamily,
+    String? direccion,
+    String? bannerUrl,
   }) async {
     final r = await _send(() => _client.put(
           _uri('/me/businesses/$businessId'),
@@ -808,6 +835,8 @@ class AgendaApiService {
             'facebookUrl': facebookUrl,
             'colorFondo': colorFondo,
             'fontFamily': fontFamily,
+            'direccion': direccion,
+            'bannerUrl': bannerUrl,
           }),
         ));
     return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
@@ -840,6 +869,26 @@ class AgendaApiService {
   }) async {
     final uri = Uri.parse(
         '$baseUrl/me/businesses/$businessId/staff/$staffId/avatar');
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Accept'] = 'application/json';
+    if (_accessToken != null) {
+      request.headers['Authorization'] = 'Bearer $_accessToken';
+    }
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+    final streamed = await request.send().timeout(_timeout);
+    final r = await http.Response.fromStream(streamed);
+    return _decode(r, (body) => (body as Map<String, dynamic>)['url'] as String);
+  }
+
+  /// `POST /me/businesses/{businessId}/banner` — sube imagen de banner del negocio.
+  ///
+  /// Retorna la URL pública del banner subido.
+  Future<String> uploadBusinessBanner({
+    required String businessId,
+    required List<int> bytes,
+    required String fileName,
+  }) async {
+    final uri = Uri.parse('$baseUrl/me/businesses/$businessId/banner');
     final request = http.MultipartRequest('POST', uri)
       ..headers['Accept'] = 'application/json';
     if (_accessToken != null) {

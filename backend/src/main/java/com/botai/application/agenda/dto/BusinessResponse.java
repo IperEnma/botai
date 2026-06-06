@@ -22,6 +22,10 @@ public record BusinessResponse(
         String publicSlug,
         /** PK del bot en {@code bot}; null si no hay vínculo. */
         Long botId,
-        List<String> categorias
+        List<String> categorias,
+        String bannerUrl,
+        String direccion,
+        Double rating,
+        int reviewCount
 ) {
 }

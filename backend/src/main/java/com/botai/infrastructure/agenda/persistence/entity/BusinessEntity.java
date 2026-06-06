@@ -16,9 +16,11 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "agenda_businesses",
+        // idx_agenda_businesses_company_slug lo crea V3 como índice PARCIAL
+        // (WHERE deleted_at IS NULL AND activo = TRUE); no se declara aquí para
+        // evitar colisión de nombre que dejaría sin efecto el parcial.
         indexes = {
-                @Index(name = "idx_agenda_businesses_bot_id", columnList = "bot_id"),
-                @Index(name = "idx_agenda_businesses_company_slug", columnList = "company_slug")
+                @Index(name = "idx_agenda_businesses_bot_id", columnList = "bot_id")
         })
 public class BusinessEntity extends BaseAuditableEntity {
 
@@ -76,6 +78,12 @@ public class BusinessEntity extends BaseAuditableEntity {
     @Column(name = "bot_id")
     private Long botId;
 
+    @Column(name = "direccion", columnDefinition = "text")
+    private String direccion;
+
+    @Column(name = "banner_url", length = 500)
+    private String bannerUrl;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -113,6 +121,10 @@ public class BusinessEntity extends BaseAuditableEntity {
     public void setCompanySlug(String companySlug) { this.companySlug = companySlug; }
     public Long getBotId() { return botId; }
     public void setBotId(Long botId) { this.botId = botId; }
+    public String getDireccion() { return direccion; }
+    public void setDireccion(String direccion) { this.direccion = direccion; }
+    public String getBannerUrl() { return bannerUrl; }
+    public void setBannerUrl(String bannerUrl) { this.bannerUrl = bannerUrl; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 }

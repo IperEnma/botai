@@ -46,6 +46,13 @@ class AgendaJson {
     return double.tryParse(value.toString()) ?? fallback;
   }
 
+  static double? parseDoubleOrNull(dynamic value) {
+    if (value == null) { return null; }
+    if (value is double) { return value; }
+    if (value is num) { return value.toDouble(); }
+    return double.tryParse(value.toString());
+  }
+
   static List<String> parseStringList(dynamic value) {
     if (value == null) { return const []; }
     if (value is List) {
