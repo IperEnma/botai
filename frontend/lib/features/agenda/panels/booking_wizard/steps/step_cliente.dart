@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/agenda_phone.dart';
 import '../../../../../features/agenda/register/konecta_tokens.dart';
+import '../../../../../features/agenda/tenant/tabs/clientes/clientes_controller.dart';
 import '../../../../../widgets/agenda_phone_field.dart';
 import '../../../../../models/agenda/public_client.dart';
 import '../../../../../providers/agenda/agenda_api_provider.dart';
@@ -134,6 +135,9 @@ class _StepClienteState extends ConsumerState<StepCliente> {
         _newTelefonoCtrl.clear();
         _saving = false;
       });
+      // Refresca la sección Clientes para que el nuevo cliente aparezca con
+      // sus stats (visitas/última visita/gasto) al volver a esa pestaña.
+      ref.invalidate(clientesProvider(widget.businessId));
       widget.controller.setCliente(newClient);
     } catch (_) {
       if (mounted) setState(() => _saving = false);

@@ -159,7 +159,7 @@ class _SectionView extends ConsumerWidget {
       content = Scaffold(
         backgroundColor: AgendaTokens.surface,
         appBar: isWide ? null : _appBar(title),
-        body: const ClientesTab(),
+        body: ClientesTab(businessId: businessId),
       );
     } else {
       final body = switch (section) {

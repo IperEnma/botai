@@ -8,13 +8,15 @@ import '../clientes_controller.dart';
 import 'cliente_row.dart';
 
 class ClienteTable extends ConsumerWidget {
-  const ClienteTable({super.key});
+  const ClienteTable({super.key, required this.businessId});
+
+  final String businessId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.watch(clientesProvider.notifier);
+    final notifier = ref.watch(clientesProvider(businessId).notifier);
     final visible = notifier.visible;
-    final selectedId = ref.watch(clientesProvider).selectedId;
+    final selectedId = ref.watch(clientesProvider(businessId)).selectedId;
 
     if (visible.isEmpty) {
       return Container(
@@ -69,13 +71,18 @@ class ClienteTable extends ConsumerWidget {
 
 /// Versión móvil (lista compacta de tarjetas).
 class ClientesMobileList extends ConsumerWidget {
-  const ClientesMobileList({super.key, required this.onOpen});
+  const ClientesMobileList({
+    super.key,
+    required this.businessId,
+    required this.onOpen,
+  });
 
+  final String businessId;
   final ValueChanged<Cliente> onOpen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.watch(clientesProvider.notifier);
+    final notifier = ref.watch(clientesProvider(businessId).notifier);
     final visible = notifier.visible;
 
     return Column(

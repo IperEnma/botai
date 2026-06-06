@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,13 +44,16 @@ public class TenantClientsController {
     }
 
     @GetMapping
-    @Operation(summary = "Busca clientes del tenant por nombre o teléfono")
+    @Operation(summary = "Busca clientes del tenant por nombre o teléfono (con stats agregadas)")
     public List<ClientResponse> search(
             @PathVariable("businessId") UUID businessId,
             @RequestParam(value = "q", defaultValue = "") String q) {
         String tenantId = resolveTenant(businessId);
-        return userRepository.searchClients(tenantId, q.trim()).stream()
-                .map(u -> new ClientResponse(u.getId(), u.getNombre(), u.getEmail(), u.getTelefono()))
+        return userRepository.searchClientsWithStats(tenantId, q.trim()).stream()
+                .map(c -> new ClientResponse(
+                        c.id(), c.nombre(), c.email(), c.telefono(),
+                        c.clienteDesde(), c.visitas(), c.inasistencias(),
+                        c.ultimaVisita(), c.gastoAcumulado()))
                 .toList();
     }
 
@@ -66,7 +70,8 @@ public class TenantClientsController {
                 request.email(),
                 request.telefono());
         return ResponseEntity.ok(new ClientResponse(
-                saved.getId(), saved.getNombre(), saved.getEmail(), saved.getTelefono()));
+                saved.getId(), saved.getNombre(), saved.getEmail(), saved.getTelefono(),
+                saved.getCreatedAt(), 0L, 0L, null, BigDecimal.ZERO));
     }
 
     private String resolveTenant(UUID businessId) {

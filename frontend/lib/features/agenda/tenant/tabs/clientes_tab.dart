@@ -13,17 +13,20 @@ const _kFichaBreak = 1100.0;
 const _kFichaWidth = 384.0;
 
 class ClientesTab extends ConsumerWidget {
-  const ClientesTab({super.key});
+  const ClientesTab({super.key, required this.businessId});
+
+  final String businessId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isWide = MediaQuery.sizeOf(context).width >= _kFichaBreak;
     // Watch para reaccionar a cambios de selección/filtro sin volver a leer todo.
-    ref.watch(clientesProvider);
-    final notifier = ref.watch(clientesProvider.notifier);
+    ref.watch(clientesProvider(businessId));
+    final notifier = ref.watch(clientesProvider(businessId).notifier);
 
     final directory = _DirectoryColumn(
       isWide: isWide,
+      businessId: businessId,
       onOpenFicha: !isWide
           ? (c) => _openFichaSheet(context, ref, c)
           : null,
@@ -64,7 +67,7 @@ class ClientesTab extends ConsumerWidget {
   }
 
   void _openFichaSheet(BuildContext context, WidgetRef ref, Cliente cliente) {
-    final notifier = ref.read(clientesProvider.notifier);
+    final notifier = ref.read(clientesProvider(businessId).notifier);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -116,15 +119,20 @@ class ClientesTab extends ConsumerWidget {
 // ─── Directory column ────────────────────────────────────────────────────────
 
 class _DirectoryColumn extends ConsumerWidget {
-  const _DirectoryColumn({required this.isWide, this.onOpenFicha});
+  const _DirectoryColumn({
+    required this.isWide,
+    required this.businessId,
+    this.onOpenFicha,
+  });
 
   final bool isWide;
+  final String businessId;
   final ValueChanged<Cliente>? onOpenFicha;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.watch(clientesProvider.notifier);
-    final state = ref.watch(clientesProvider);
+    final notifier = ref.watch(clientesProvider(businessId).notifier);
+    final state = ref.watch(clientesProvider(businessId));
 
     return Scrollbar(
       child: SingleChildScrollView(
@@ -168,9 +176,10 @@ class _DirectoryColumn extends ConsumerWidget {
               const SizedBox(height: 14),
 
               if (isWide)
-                const ClienteTable()
+                ClienteTable(businessId: businessId)
               else
                 ClientesMobileList(
+                  businessId: businessId,
                   onOpen: (c) => onOpenFicha?.call(c),
                 ),
             ],

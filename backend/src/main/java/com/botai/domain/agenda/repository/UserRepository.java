@@ -1,5 +1,6 @@
 package com.botai.domain.agenda.repository;
 
+import com.botai.domain.agenda.model.ClientWithStats;
 import com.botai.domain.agenda.model.User;
 
 import java.util.List;
@@ -18,4 +19,10 @@ public interface UserRepository {
     Optional<User> findClientByTenantIdAndTelefono(String tenantId, String telefonoNormalized);
 
     List<User> searchClients(String tenantId, String q);
+
+    /**
+     * Igual filtro que {@link #searchClients} pero proyectando estadísticas agregadas
+     * desde {@code agenda_bookings} (+ {@code agenda_services} para gasto).
+     */
+    List<ClientWithStats> searchClientsWithStats(String tenantId, String q);
 }

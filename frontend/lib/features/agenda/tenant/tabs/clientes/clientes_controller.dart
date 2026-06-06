@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../models/agenda/public_client.dart';
+import '../../../../../providers/agenda/agenda_api_provider.dart';
 import 'cliente.dart';
 
 enum ClientesFilter { todos, vip, fiel, nuevo }
@@ -9,12 +11,16 @@ class ClientesState {
   final String query;
   final ClientesFilter filter;
   final String? selectedId;
+  final bool loading;
+  final String? error;
 
   const ClientesState({
     this.all = const [],
     this.query = '',
     this.filter = ClientesFilter.todos,
     this.selectedId,
+    this.loading = false,
+    this.error,
   });
 
   ClientesState copyWith({
@@ -22,6 +28,8 @@ class ClientesState {
     String? query,
     ClientesFilter? filter,
     Object? selectedId = _sentinel,
+    bool? loading,
+    Object? error = _sentinel,
   }) {
     return ClientesState(
       all: all ?? this.all,
@@ -29,6 +37,8 @@ class ClientesState {
       filter: filter ?? this.filter,
       selectedId:
           identical(selectedId, _sentinel) ? this.selectedId : selectedId as String?,
+      loading: loading ?? this.loading,
+      error: identical(error, _sentinel) ? this.error : error as String?,
     );
   }
 
@@ -36,13 +46,43 @@ class ClientesState {
 }
 
 class ClientesNotifier extends StateNotifier<ClientesState> {
-  ClientesNotifier({DateTime? now})
-      : _now = now ?? DateTime.now(),
-        super(const ClientesState());
+  ClientesNotifier({
+    required this.ref,
+    required this.businessId,
+    DateTime? now,
+  })  : _now = now ?? DateTime.now(),
+        super(const ClientesState(loading: true));
 
+  final Ref ref;
+  final String businessId;
   final DateTime _now;
 
   DateTime get now => _now;
+
+  Future<void> load() async {
+    state = state.copyWith(loading: true, error: null);
+    try {
+      final api = ref.read(agendaApiServiceProvider);
+      final results = await api.tenantSearchClients(businessId: businessId, q: '');
+      final clientes = results.map(_fromPublic).toList();
+      if (!mounted) return;
+      state = state.copyWith(all: clientes, loading: false, error: null);
+    } catch (e) {
+      if (!mounted) return;
+      state = state.copyWith(loading: false, error: e.toString());
+    }
+  }
+
+  Cliente _fromPublic(PublicClient c) => Cliente(
+        id: c.id,
+        nombre: c.nombre,
+        telefono: c.telefono ?? '',
+        clienteDesde: c.clienteDesde ?? _now,
+        visitas: c.visitas,
+        inasistencias: c.inasistencias,
+        gastoAcumulado: c.gastoAcumulado,
+        ultimaVisita: c.ultimaVisita,
+      );
 
   // ── Mutations ───────────────────────────────────────────────────────────────
 
@@ -52,7 +92,7 @@ class ClientesNotifier extends StateNotifier<ClientesState> {
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
-  late final double _vipThreshold = _vipSpendThreshold(state.all);
+  double get _vipThreshold => _vipSpendThreshold(state.all);
 
   ClienteTag tagOf(Cliente c) =>
       deriveTag(c, vipThreshold: _vipThreshold, now: _now);
@@ -87,7 +127,8 @@ class ClientesNotifier extends StateNotifier<ClientesState> {
   }
 }
 
-// El umbral VIP por gasto (top 10% del negocio) se calcula una vez al cargar.
+// El umbral VIP por gasto (top 10% del negocio) se calcula sobre el snapshot
+// actual del provider.
 double _vipSpendThreshold(List<Cliente> all) {
   if (all.isEmpty) return double.infinity;
   final sorted = all.map((c) => c.gastoAcumulado).toList()..sort();
@@ -95,7 +136,11 @@ double _vipSpendThreshold(List<Cliente> all) {
   return sorted[idx];
 }
 
-final clientesProvider =
-    StateNotifierProvider.autoDispose<ClientesNotifier, ClientesState>(
-  (ref) => ClientesNotifier(),
+final clientesProvider = StateNotifierProvider.autoDispose
+    .family<ClientesNotifier, ClientesState, String>(
+  (ref, businessId) {
+    final notifier = ClientesNotifier(ref: ref, businessId: businessId);
+    notifier.load();
+    return notifier;
+  },
 );

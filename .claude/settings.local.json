@@ -21,7 +21,9 @@
       "Bash(mvn test-compile *)",
       "Bash(xargs grep *)",
       "Bash(xargs ls *)",
-      "Bash(grep -E \"\\\\.\\(dart\\)$\")"
+      "Bash(grep -E \"\\\\.\\(dart\\)$\")",
+      "Bash(mvn -q compile -DskipTests)",
+      "Bash(mvn -q test -Dtest='com.botai.infrastructure.agenda.persistence.CategorySeedIntegrationTest')"
     ]
   }
 }
