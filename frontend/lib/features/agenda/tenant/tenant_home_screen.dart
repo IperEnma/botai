@@ -12,6 +12,7 @@ import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../../../features/inicio/screens/inicio_screen.dart';
 import '../register/konecta_tokens.dart';
+import '../shared/k_mobile_top_bar.dart';
 import 'widgets/agenda_left_nav.dart';
 import 'widgets/business_form_dialog.dart';
 import 'widgets/category_multi_select_dialog.dart';
@@ -226,6 +227,15 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
     // ── Mobile ────────────────────────────────────────────────────────────────
     return Scaffold(
       backgroundColor: KTokens.bg,
+      drawer: Drawer(
+        width: kAgendaNavWidth,
+        child: AgendaLeftNav(
+          nombre:       nombre,
+          businessName: first?.nombre,
+          tenantId:     widget.tenantId,
+          businessId:   first?.id,
+        ),
+      ),
       body: _MainContent(
         tenantId:            widget.tenantId,
         businesses:          state.items,
@@ -279,11 +289,10 @@ class _MainContent extends StatelessWidget {
     final section = GoRouterState.of(context).uri.queryParameters['section'] ?? '';
     final showAgenda = section == 'agenda';
 
-    // Agenda: devolver directo para que el padre (Expanded/Scaffold.body) le
-    // proporcione altura acotada. CustomScrollView + SliverFillRemaining puede
-    // fallar en web cuando el viewport restante no se calcula bien.
+    Widget body;
     if (showAgenda) {
-      return Padding(
+      // Devolver directo para que el padre proporcione altura acotada.
+      body = Padding(
         padding: EdgeInsets.fromLTRB(hPad, 24, hPad, 0),
         child: AgendaSection(
           tenantId: tenantId,
@@ -294,15 +303,25 @@ class _MainContent extends StatelessWidget {
           ),
         ),
       );
+    } else {
+      body = InicioScreen(
+        businessId: dashboardBusinessId ?? '',
+        tenantId: tenantId,
+        businessName: businesses.isEmpty ? null : businesses.first.nombre,
+        ownerName: nombre,
+      );
     }
 
-    // ── Inicio (dashboard del dueño) ──────────────────────────────────────────
-    return InicioScreen(
-      businessId: dashboardBusinessId ?? '',
-      tenantId: tenantId,
-      businessName: businesses.isEmpty ? null : businesses.first.nombre,
-      ownerName: nombre,
-    );
+    if (!isWide) {
+      return Column(
+        children: [
+          const KMobileTopBar(),
+          Expanded(child: body),
+        ],
+      );
+    }
+
+    return body;
   }
 }
 

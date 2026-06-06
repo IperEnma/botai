@@ -96,7 +96,7 @@ class _EmptyHero extends StatelessWidget {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(flex: 6, child: _HeroLeft(onCreate: onCreate)),
+                Expanded(flex: 6, child: _HeroLeft(onCreate: onCreate, isNarrow: false)),
                 const SizedBox(width: 40),
                 const Expanded(flex: 5, child: MockChat()),
               ],
@@ -104,7 +104,7 @@ class _EmptyHero extends StatelessWidget {
           }
           return Column(
             children: [
-              _HeroLeft(onCreate: onCreate),
+              _HeroLeft(onCreate: onCreate, isNarrow: true),
               const SizedBox(height: 32),
               const MockChat(),
             ],
@@ -116,42 +116,56 @@ class _EmptyHero extends StatelessWidget {
 }
 
 class _HeroLeft extends StatelessWidget {
-  const _HeroLeft({required this.onCreate});
+  const _HeroLeft({required this.onCreate, required this.isNarrow});
   final VoidCallback onCreate;
+  final bool isNarrow;
 
   @override
   Widget build(BuildContext context) {
+    final titleStyle = GoogleFonts.playfairDisplay(
+      fontSize: isNarrow ? 28 : 38,
+      fontStyle: FontStyle.italic,
+      color: KTokens.ink,
+      height: 1.2,
+    );
+
+    final Widget title = isNarrow
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tu primer bot,', style: titleStyle),
+              RichText(
+                text: TextSpan(
+                  style: titleStyle,
+                  children: [
+                    const TextSpan(text: 'en '),
+                    TextSpan(
+                      text: '5 minutos.',
+                      style: titleStyle.copyWith(color: KTokens.accent),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          )
+        : RichText(
+            text: TextSpan(
+              style: titleStyle,
+              children: [
+                const TextSpan(text: 'Tu primer bot,\nen '),
+                TextSpan(
+                  text: '5 minutos.',
+                  style: titleStyle.copyWith(color: KTokens.accent),
+                ),
+              ],
+            ),
+          );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'EMPEZÁ ACÁ',
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 10,
-            letterSpacing: 1.4,
-            color: KTokens.accent,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 12),
-        RichText(
-          text: TextSpan(
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 38,
-              fontStyle: FontStyle.italic,
-              color: KTokens.ink,
-              height: 1.2,
-            ),
-            children: const [
-              TextSpan(text: 'Tu primer bot,\nen '),
-              TextSpan(
-                text: '5 minutos.',
-                style: TextStyle(color: KTokens.accent),
-              ),
-            ],
-          ),
-        ),
+        title,
         const SizedBox(height: 16),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),

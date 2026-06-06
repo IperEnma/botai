@@ -48,72 +48,78 @@ class Greeting extends ConsumerWidget {
     final greeting = _greeting();
     final firstName = _firstName();
 
-    final buttons = [
-      KButton.secondary(
-        label: 'Ver agenda completa',
-        icon: Icons.arrow_outward_rounded,
-        compact: true,
-        onPressed: () => context.go('/agenda/panel?section=agenda'),
-      ),
-      const SizedBox(width: 10, height: 10),
-      KButton.primary(
-        label: 'Nueva agenda',
-        icon: Icons.add_rounded,
-        compact: true,
-        onPressed: () => context.go('/agenda/panel?section=agenda'),
-      ),
-    ];
-
-    return Row(
+    final textColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        Text(
+          dateStr,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 11,
+            letterSpacing: 1.6,
+            color: KTokens.inkSoft,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        RichText(
+          text: TextSpan(
             children: [
-              Text(
-                dateStr,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  letterSpacing: 1.6,
-                  color: KTokens.inkSoft,
-                  fontWeight: FontWeight.w500,
-                ),
+              TextSpan(
+                text: '$greeting, ',
+                style: KTokens.tDisplay,
               ),
-              const SizedBox(height: 8),
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$greeting, ',
-                      style: KTokens.tDisplay,
-                    ),
-                    TextSpan(
-                      text: '$firstName.',
-                      style: KTokens.tDisplay.copyWith(color: KTokens.accent),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$total turnos agendados hoy · $libres espacios libres',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: KTokens.inkMuted,
-                ),
+              TextSpan(
+                text: '$firstName.',
+                style: KTokens.tDisplay.copyWith(color: KTokens.accent),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 24),
-        if (isWide)
-          Row(children: buttons)
-        else
-          Wrap(
-            direction: Axis.horizontal,
-            children: buttons,
+        const SizedBox(height: 8),
+        Text(
+          '$total turnos agendados hoy · $libres espacios libres',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: KTokens.inkMuted,
           ),
+        ),
+      ],
+    );
+
+    final btn1 = KButton.secondary(
+      label: 'Ver agenda completa',
+      icon: Icons.arrow_outward_rounded,
+      compact: true,
+      onPressed: () => context.go('/agenda/panel?section=agenda'),
+    );
+    final btn2 = KButton.primary(
+      label: 'Nueva agenda',
+      icon: Icons.add_rounded,
+      compact: true,
+      onPressed: () => context.go('/agenda/panel?section=agenda'),
+    );
+
+    if (!isWide) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          textColumn,
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [btn1, btn2],
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: textColumn),
+        const SizedBox(width: 24),
+        Row(children: [btn1, const SizedBox(width: 10), btn2]),
       ],
     );
   }

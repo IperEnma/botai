@@ -135,10 +135,14 @@ class LoginScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: buildGoogleIdentitySignInButton(),
+                              LayoutBuilder(
+                                builder: (_, constraints) => SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: buildGoogleIdentitySignInButton(
+                                    width: constraints.maxWidth,
+                                  ),
+                                ),
                               ),
                               if (authState.isLoading) ...[
                                 const SizedBox(height: 12),

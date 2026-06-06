@@ -8,6 +8,7 @@ import '../../../providers/agenda/tenant_admin_resolved_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../providers/bot_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
+import '../../agenda/shared/k_mobile_top_bar.dart';
 import '../../agenda/tenant/widgets/agenda_left_nav.dart';
 import '../empty/bots_empty_view.dart';
 import '../panels/create_bot_panel.dart';
@@ -88,30 +89,25 @@ class _BotsViewState extends ConsumerState<_BotsView> {
     final botsState = ref.watch(botsProvider);
     final hasActiveBots = botsState.bots.isNotEmpty;
 
-    Widget content;
-
     Future<void> openCreatePanel() async {
       await showCreateBotPanel(context, tenantId: widget.tenantId);
       if (mounted) ref.read(botsProvider.notifier).loadBots();
     }
 
-    if (hasActiveBots) {
-      content = Scaffold(
-        backgroundColor: const Color(0xFFFBFAF7),
-        body: BotsListView(
-          tenantId: widget.tenantId,
-          onCreate: openCreatePanel,
-          onBotTap: (bot) => context.go('/bots/${bot.id}'),
-        ),
-      );
-    } else {
-      content = Scaffold(
-        backgroundColor: const Color(0xFFFBFAF7),
-        body: BotsEmptyView(
-          onCreate: openCreatePanel,
-        ),
-      );
-    }
+    final Widget bodyContent = hasActiveBots
+        ? BotsListView(
+            tenantId: widget.tenantId,
+            onCreate: openCreatePanel,
+            onBotTap: (bot) => context.go('/bots/${bot.id}'),
+          )
+        : BotsEmptyView(onCreate: openCreatePanel);
+
+    final leftNav = AgendaLeftNav(
+      nombre: nombre,
+      businessName: businessName,
+      tenantId: widget.tenantId,
+      businessId: businessId,
+    );
 
     if (isWide) {
       return Scaffold(
@@ -119,18 +115,30 @@ class _BotsViewState extends ConsumerState<_BotsView> {
         body: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AgendaLeftNav(
-              nombre: nombre,
-              businessName: businessName,
-              tenantId: widget.tenantId,
-              businessId: businessId,
+            leftNav,
+            Expanded(
+              child: Scaffold(
+                backgroundColor: const Color(0xFFFBFAF7),
+                body: bodyContent,
+              ),
             ),
-            Expanded(child: content),
           ],
         ),
       );
     }
 
-    return content;
+    return Scaffold(
+      backgroundColor: const Color(0xFFFBFAF7),
+      drawer: Drawer(
+        width: kAgendaNavWidth,
+        child: leftNav,
+      ),
+      body: Column(
+        children: [
+          const KMobileTopBar(),
+          Expanded(child: bodyContent),
+        ],
+      ),
+    );
   }
 }

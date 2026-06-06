@@ -43,15 +43,18 @@ class BranchesBar extends ConsumerWidget {
                   style: KTokens.tEyebrow,
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  '${branches.where((b) => b.status == BranchStatus.activa).length} ACTIVAS · ${snapshot.turnos.total} TURNOS HOY',
-                  style: KTokens.tMonoHint,
+                Flexible(
+                  child: Text(
+                    '${branches.where((b) => b.status == BranchStatus.activa).length} ACTIVAS · ${snapshot.turnos.total} TURNOS HOY',
+                    style: KTokens.tMonoHint,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 const Spacer(),
                 GestureDetector(
                   onTap: () {},
                   child: Text(
-                    'Gestionar sucursales →',
+                    'Gestionar →',
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: KTokens.accent,
@@ -64,44 +67,47 @@ class BranchesBar extends ConsumerWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                if (branches.length > 1) ...[
-                  AllBranchesAvatar(
-                    totalTurnos: snapshot.turnos.total,
-                    isSelected: selectedId == 'all',
-                    onTap: () => ref
-                        .read(inicioControllerProvider(tenantId).notifier)
-                        .selectBranch('all'),
-                  ),
-                  const SizedBox(width: 20),
-                ],
-                for (final branch in branches) ...[
-                  BranchAvatar(
-                    branch: branch,
-                    turnosCount: snapshot.turnos.byBranch[branch.id] ?? 0,
-                    isSelected: selectedId == branch.id,
-                    onTap: () {
-                      if (branch.status == BranchStatus.pausada) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Sucursal en pausa — reactivá desde Sucursales',
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-                      ref
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  if (branches.length > 1) ...[
+                    AllBranchesAvatar(
+                      totalTurnos: snapshot.turnos.total,
+                      isSelected: selectedId == 'all',
+                      onTap: () => ref
                           .read(inicioControllerProvider(tenantId).notifier)
-                          .selectBranch(branch.id);
-                    },
-                  ),
-                  const SizedBox(width: 20),
+                          .selectBranch('all'),
+                    ),
+                    const SizedBox(width: 20),
+                  ],
+                  for (final branch in branches) ...[
+                    BranchAvatar(
+                      branch: branch,
+                      turnosCount: snapshot.turnos.byBranch[branch.id] ?? 0,
+                      isSelected: selectedId == branch.id,
+                      onTap: () {
+                        if (branch.status == BranchStatus.pausada) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Sucursal en pausa — reactivá desde Sucursales',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        ref
+                            .read(inicioControllerProvider(tenantId).notifier)
+                            .selectBranch(branch.id);
+                      },
+                    ),
+                    const SizedBox(width: 20),
+                  ],
+                  AddBranchAvatar(onTap: () {}),
                 ],
-                AddBranchAvatar(onTap: () {}),
-              ],
+              ),
             ),
           ),
           if (isFiltered && selectedBranch != null) ...[

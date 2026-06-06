@@ -227,40 +227,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: KTokens.bg,
-      body: Stack(
-        children: [
-          const _BackgroundCards(),
-          SafeArea(
-            child: Column(
-              children: [
-                _NavBar(
-                  onBack: () =>
-                      context.canPop() ? context.pop() : context.go('/'),
-                  onLogin: _showLoginDialog,
-                ),
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 20),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 400),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 220),
-                          transitionBuilder: (child, anim) =>
-                              FadeTransition(opacity: anim, child: child),
-                          child: _step == _Step.phone
-                              ? _buildPhone()
-                              : _buildCode(),
-                        ),
-                      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _NavBar(
+              onBack: () =>
+                  context.canPop() ? context.pop() : context.go('/'),
+              onLogin: _showLoginDialog,
+            ),
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 20),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      transitionBuilder: (child, anim) =>
+                          FadeTransition(opacity: anim, child: child),
+                      child: _step == _Step.phone
+                          ? _buildPhone()
+                          : _buildCode(),
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -568,10 +563,14 @@ class _GoogleSignupButtonState extends ConsumerState<_GoogleSignupButton> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: buildGoogleIdentitySignInButton(),
+            LayoutBuilder(
+              builder: (_, constraints) => SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: buildGoogleIdentitySignInButton(
+                  width: constraints.maxWidth,
+                ),
+              ),
             ),
             if (auth.isLoading) ...[
               const SizedBox(height: 12),
@@ -715,7 +714,7 @@ class _NameInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Tu nombre', style: KTokens.tHint),
+        Text('Tu Nombre Completo', style: KTokens.tHint),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
@@ -737,12 +736,9 @@ class _NameInput extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('nombre completo', style: KTokens.tMonoHint),
-            Text('↵ siguiente',     style: KTokens.tMonoHint),
-          ],
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text('↵ siguiente', style: KTokens.tMonoHint),
         ),
       ],
     );
@@ -995,59 +991,3 @@ class _SendButton extends StatelessWidget {
   }
 }
 
-// ── Background decoration ─────────────────────────────────────────────────────
-
-class _BackgroundCards extends StatelessWidget {
-  const _BackgroundCards();
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
-
-        return Stack(children: [
-          // Left column
-          _card(left: -w * 0.12, top: h * 0.13, width: w * 0.30, height: 72),
-          _card(left: -w * 0.06, top: h * 0.28, width: w * 0.34, height: 56),
-          _card(left: -w * 0.14, top: h * 0.44, width: w * 0.28, height: 72),
-          _card(left: -w * 0.08, top: h * 0.60, width: w * 0.32, height: 56),
-          // Right column
-          _card(right: -w * 0.10, top: h * 0.10, width: w * 0.32, height: 72),
-          _card(right: -w * 0.06, top: h * 0.26, width: w * 0.30, height: 56),
-          _card(right: -w * 0.12, top: h * 0.42, width: w * 0.34, height: 72),
-          _card(right: -w * 0.08, top: h * 0.58, width: w * 0.28, height: 56),
-          // Bottom row
-          _card(left: w * 0.06,  bottom: h * 0.06, width: w * 0.26, height: 44),
-          _card(right: w * 0.06, bottom: h * 0.03, width: w * 0.24, height: 44),
-        ]);
-      },
-    );
-  }
-
-  Widget _card({
-    double? left,
-    double? right,
-    double? top,
-    double? bottom,
-    required double width,
-    required double height,
-  }) {
-    return Positioned(
-      left: left,
-      right: right,
-      top: top,
-      bottom: bottom,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: KTokens.surface.withValues(alpha: 0.75),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: KTokens.border),
-        ),
-      ),
-    );
-  }
-}

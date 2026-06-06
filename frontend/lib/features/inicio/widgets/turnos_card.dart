@@ -82,25 +82,28 @@ class _Header extends StatelessWidget {
 
     return Row(
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'PROXIMOS TURNOS',
-              style: KTokens.tEyebrow,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'HOY · $total TOTAL · $libres LIBRES',
-              style: KTokens.tMonoHint,
-            ),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'PROXIMOS TURNOS',
+                style: KTokens.tEyebrow,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'HOY · $total TOTAL · $libres LIBRES',
+                style: KTokens.tMonoHint,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
-        const Spacer(),
+        const SizedBox(width: 8),
         GestureDetector(
           onTap: () => context.go('/agenda/panel?section=agenda'),
           child: Text(
-            'Ver agenda completa →',
+            'Ver agenda →',
             style: GoogleFonts.inter(
               fontSize: 12,
               color: KTokens.inkSoft,
@@ -152,9 +155,12 @@ class _TurnosList extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             'Sin turnos para hoy',
@@ -194,6 +200,7 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

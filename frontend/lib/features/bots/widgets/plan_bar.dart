@@ -24,59 +24,64 @@ class PlanBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final plan = ref.watch(businessPlanProvider);
-    final usagePct = plan.usagePct;
-    final usageColor = usagePct >= 1.0
-        ? KTokens.excClosed
-        : usagePct >= 0.8
-            ? KTokens.warn
-            : KTokens.inkSoft;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: KTokens.surface,
-        border: Border.all(color: KTokens.border),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    final decoration = BoxDecoration(
+      color: KTokens.surface,
+      border: Border.all(color: KTokens.border),
+      borderRadius: BorderRadius.circular(12),
+    );
+
+    final upgradeLink = GestureDetector(
+      onTap: () {},
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'TU PLAN ACTUAL',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 9,
-              color: KTokens.inkSoft,
-              letterSpacing: 1.0,
+            'Mejorar plan',
+            style: GoogleFonts.inter(
+              fontSize: 12,
               fontWeight: FontWeight.w500,
+              color: KTokens.accent,
             ),
           ),
-          const SizedBox(width: 14),
-          // Plan pill
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 6, 14, 6),
-            decoration: BoxDecoration(
-              color: KTokens.accentSoft,
-              borderRadius: BorderRadius.circular(KTokens.rPill),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: KTokens.accent,
-                    shape: BoxShape.circle,
-                  ),
+          const SizedBox(width: 4),
+          const Icon(Icons.arrow_forward, size: 14, color: KTokens.accent),
+        ],
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 520;
+
+        // Pill — compact on mobile (no capa label), full on desktop
+        final pill = Container(
+          padding: const EdgeInsets.fromLTRB(10, 5, 12, 5),
+          decoration: BoxDecoration(
+            color: KTokens.accentSoft,
+            borderRadius: BorderRadius.circular(KTokens.rPill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: const BoxDecoration(
+                  color: KTokens.accent,
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  plan.displayName,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: KTokens.accent,
-                  ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                plan.displayName,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: KTokens.accent,
                 ),
+              ),
+              if (!isNarrow) ...[
                 const SizedBox(width: 8),
                 Text(
                   _capaShortLabel(plan.capa),
@@ -87,57 +92,62 @@ class PlanBar extends ConsumerWidget {
                   ),
                 ),
               ],
-            ),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: KTokens.inkMuted,
-                ),
-                children: [
-                  TextSpan(text: '${_capaDescription(plan.capa)} '),
-                  TextSpan(
-                    text:
-                        '${plan.usedMsgsThisMonth} / ${_fmtQuota(plan.monthlyMsgQuota)} mensajes este mes.',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: usageColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        );
+
+        final label = Text(
+          'TU PLAN ACTUAL',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 9,
+            color: KTokens.inkSoft,
+            letterSpacing: 1.0,
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(width: 14),
-          GestureDetector(
-            onTap: () {},
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+        );
+
+        final description = Text(
+          _capaDescription(plan.capa),
+          style: GoogleFonts.inter(fontSize: 12, color: KTokens.inkMuted),
+        );
+
+        if (isNarrow) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: decoration,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Mejorar plan',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: KTokens.accent,
-                  ),
+                Row(
+                  children: [
+                    label,
+                    const SizedBox(width: 10),
+                    pill,
+                  ],
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_forward,
-                    size: 14, color: KTokens.accent),
+                const SizedBox(height: 8),
+                description,
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
+          );
+        }
 
-  String _fmtQuota(int n) {
-    if (n >= 1000) return '${n ~/ 1000}.000';
-    return n.toString();
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          decoration: decoration,
+          child: Row(
+            children: [
+              label,
+              const SizedBox(width: 10),
+              pill,
+              const SizedBox(width: 14),
+              Expanded(child: description),
+              const SizedBox(width: 14),
+              upgradeLink,
+            ],
+          ),
+        );
+      },
+    );
   }
 }

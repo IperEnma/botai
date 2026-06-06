@@ -46,17 +46,6 @@ class KpiCard extends StatelessWidget {
                   style: KTokens.tDisplay,
                 ),
               ),
-              const SizedBox(width: 6),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  unit,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: KTokens.inkSoft,
-                  ),
-                ),
-              ),
               const SizedBox(width: 8),
               Padding(
                 padding: const EdgeInsets.only(bottom: 5),
@@ -64,6 +53,16 @@ class KpiCard extends StatelessWidget {
               ),
             ],
           ),
+          if (unit.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              unit,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: KTokens.inkSoft,
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           Container(
             decoration: const BoxDecoration(

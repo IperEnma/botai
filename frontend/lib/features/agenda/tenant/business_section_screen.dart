@@ -8,6 +8,7 @@ import '../../../providers/agenda/tenant_admin_resolved_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../navigation/agenda_tenant_nav.dart';
+import '../shared/k_mobile_top_bar.dart';
 import '../theme/agenda_tokens.dart';
 import 'tabs/clientes_tab.dart';
 import 'tabs/hours_tab.dart';
@@ -96,102 +97,130 @@ class _SectionView extends ConsumerWidget {
   final String businessId;
   final String section;
 
-  AppBar _appBar(String title) => AppBar(
-    backgroundColor: AgendaTokens.primary,
-    foregroundColor: Colors.white,
-    elevation: 0,
-    title: Text(title, style: AgendaTokens.appBarTitle),
-  );
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isWide = MediaQuery.sizeOf(context).width >= _kSectionBreak;
-    final title = BusinessSectionScreen.titleFor(section);
 
-    // Data for the nav
     final nombre = ref.watch(agendaUserProvider).valueOrNull?.nombre;
     final businessesState = ref.watch(businessesProvider(tenantId));
     final businessName =
         businessesState.items.where((b) => b.id == businessId).firstOrNull?.nombre;
 
-    Widget content;
+    final leftNav = AgendaLeftNav(
+      nombre:       nombre,
+      businessName: businessName,
+      tenantId:     tenantId,
+      businessId:   businessId,
+    );
 
-    // StylesTab needs the full Business object
-    if (section == 'styles') {
-      if (businessesState.isLoading) {
-        content = Scaffold(
-          appBar: isWide ? null : _appBar(title),
-          body: const AgendaLoadingView(),
-        );
-      } else if (businessesState.error != null) {
-        content = Scaffold(
-          appBar: isWide ? null : _appBar(title),
-          body: AgendaErrorView(
-            message: businessesState.error!,
-            onRetry: () =>
-                ref.read(businessesProvider(tenantId).notifier).load(),
-          ),
-        );
-      } else {
-        final business =
-            businessesState.items.where((b) => b.id == businessId).firstOrNull;
-        if (business == null) {
+    // ── Wide: existing nested-scaffold layout ─────────────────────────────────
+    if (isWide) {
+      Widget content;
+      if (section == 'styles') {
+        if (businessesState.isLoading) {
+          content = const Scaffold(body: AgendaLoadingView());
+        } else if (businessesState.error != null) {
           content = Scaffold(
-            appBar: isWide ? null : _appBar(title),
-            body: const AgendaEmptyState(
-              icon: Icons.store_mall_directory_outlined,
-              title: 'Negocio no encontrado',
-              subtitle: 'Es posible que haya sido eliminado.',
+            body: AgendaErrorView(
+              message: businessesState.error!,
+              onRetry: () =>
+                  ref.read(businessesProvider(tenantId).notifier).load(),
             ),
           );
         } else {
-          content = Scaffold(
-            backgroundColor: AgendaTokens.surface,
-            appBar: isWide ? null : _appBar(title),
-            body: StylesTab(tenantId: tenantId, business: business),
-          );
+          final business = businessesState.items
+              .where((b) => b.id == businessId)
+              .firstOrNull;
+          content = business == null
+              ? const Scaffold(
+                  body: AgendaEmptyState(
+                    icon: Icons.store_mall_directory_outlined,
+                    title: 'Negocio no encontrado',
+                    subtitle: 'Es posible que haya sido eliminado.',
+                  ),
+                )
+              : Scaffold(
+                  backgroundColor: AgendaTokens.surface,
+                  body: StylesTab(tenantId: tenantId, business: business),
+                );
         }
+      } else if (section == 'hours') {
+        content = HoursTab(tenantId: tenantId, businessId: businessId);
+      } else if (section == 'clientes') {
+        content = Scaffold(
+          backgroundColor: AgendaTokens.surface,
+          body: ClientesTab(businessId: businessId),
+        );
+      } else {
+        final body = switch (section) {
+          'services' => ServicesTab(tenantId: tenantId, businessId: businessId),
+          'plans'    => PlansTab(tenantId: tenantId, businessId: businessId),
+          'staff'    => StaffTab(tenantId: tenantId, businessId: businessId),
+          _          => const Center(child: Text('Sección no encontrada')),
+        };
+        content = Scaffold(backgroundColor: AgendaTokens.surface, body: body);
       }
-    } else if (section == 'hours') {
-      // HoursTab manages its own header — no AppBar wrapper needed
-      content = HoursTab(tenantId: tenantId, businessId: businessId);
-    } else if (section == 'clientes') {
-      content = Scaffold(
-        backgroundColor: AgendaTokens.surface,
-        appBar: isWide ? null : _appBar(title),
-        body: ClientesTab(businessId: businessId),
-      );
-    } else {
-      final body = switch (section) {
-        'services' => ServicesTab(tenantId: tenantId, businessId: businessId),
-        'plans'    => PlansTab(tenantId: tenantId, businessId: businessId),
-        'staff'    => StaffTab(tenantId: tenantId, businessId: businessId),
-        _          => const Center(child: Text('Sección no encontrada')),
-      };
-      content = Scaffold(
-        backgroundColor: AgendaTokens.surface,
-        body: body,
-      );
-    }
 
-    if (isWide) {
       return Scaffold(
         backgroundColor: const Color(0xFFFBFAF7),
         body: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AgendaLeftNav(
-              nombre:       nombre,
-              businessName: businessName,
-              tenantId:     tenantId,
-              businessId:   businessId,
-            ),
+            leftNav,
             Expanded(child: content),
           ],
         ),
       );
     }
 
-    return content;
+    // ── Mobile ────────────────────────────────────────────────────────────────
+    // HoursTab manages its own Scaffold + drawer + hamburger internally.
+    if (section == 'hours') {
+      return HoursTab(tenantId: tenantId, businessId: businessId);
+    }
+
+    // All other sections: single Scaffold with drawer + AppBar hamburger.
+    Widget body;
+    if (section == 'styles') {
+      if (businessesState.isLoading) {
+        body = const AgendaLoadingView();
+      } else if (businessesState.error != null) {
+        body = AgendaErrorView(
+          message: businessesState.error!,
+          onRetry: () =>
+              ref.read(businessesProvider(tenantId).notifier).load(),
+        );
+      } else {
+        final business = businessesState.items
+            .where((b) => b.id == businessId)
+            .firstOrNull;
+        body = business == null
+            ? const AgendaEmptyState(
+                icon: Icons.store_mall_directory_outlined,
+                title: 'Negocio no encontrado',
+                subtitle: 'Es posible que haya sido eliminado.',
+              )
+            : StylesTab(tenantId: tenantId, business: business);
+      }
+    } else {
+      body = switch (section) {
+        'clientes' => ClientesTab(businessId: businessId),
+        'services' => ServicesTab(tenantId: tenantId, businessId: businessId),
+        'plans'    => PlansTab(tenantId: tenantId, businessId: businessId),
+        'staff'    => StaffTab(tenantId: tenantId, businessId: businessId),
+        _          => const Center(child: Text('Sección no encontrada')),
+      };
+    }
+
+    return Scaffold(
+      backgroundColor: AgendaTokens.surface,
+      drawer: Drawer(width: kAgendaNavWidth, child: leftNav),
+      body: Column(
+        children: [
+          const KMobileTopBar(),
+          Expanded(child: body),
+        ],
+      ),
+    );
   }
 }

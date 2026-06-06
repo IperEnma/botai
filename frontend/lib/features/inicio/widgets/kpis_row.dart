@@ -67,27 +67,43 @@ class KpisRow extends ConsumerWidget {
     ];
 
     if (isMobile) {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
+      return Column(
         children: [
-          for (final card in cards)
-            SizedBox(
-              width: (MediaQuery.sizeOf(context).width - 76) / 2,
-              child: card,
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: cards[0]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[1]),
+              ],
             ),
+          ),
+          const SizedBox(height: 12),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: cards[2]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[3]),
+              ],
+            ),
+          ),
         ],
       );
     }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (int i = 0; i < cards.length; i++) ...[
-          if (i > 0) const SizedBox(width: 12),
-          Expanded(child: cards[i]),
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (int i = 0; i < cards.length; i++) ...[
+            if (i > 0) const SizedBox(width: 12),
+            Expanded(child: cards[i]),
+          ],
         ],
-      ],
+      ),
     );
   }
 

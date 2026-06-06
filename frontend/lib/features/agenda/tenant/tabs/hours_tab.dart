@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../providers/agenda/agenda_user_provider.dart';
 import '../../../../providers/agenda/tenant/business_hours_provider.dart';
+import '../../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../../providers/agenda/tenant/horarios_controller_provider.dart';
 import '../../../../widgets/agenda/agenda_state_views.dart';
 import '../../register/konecta_tokens.dart';
+import '../../shared/k_mobile_top_bar.dart';
+import '../widgets/agenda_left_nav.dart';
 import 'horarios/widgets/exceptions_card.dart';
 import 'horarios/widgets/page_header.dart';
 import 'horarios/widgets/preview_panel.dart';
@@ -74,6 +78,20 @@ class _HorariosLayout extends ConsumerWidget {
 
     final width = MediaQuery.sizeOf(context).width;
     final showSidebar = width >= _kSidebarBreak;
+    final isMobile = !showSidebar;
+
+    // Mobile drawer data
+    final nombre = isMobile
+        ? ref.watch(agendaUserProvider).valueOrNull?.nombre
+        : null;
+    final businessName = isMobile
+        ? ref
+            .watch(businessesProvider(tenantId))
+            .items
+            .where((b) => b.id == businessId)
+            .firstOrNull
+            ?.nombre
+        : null;
 
     // Handle save result via snackbar
     ref.listen<HorariosState>(horariosControllerProvider(_key), (prev, next) {
@@ -94,36 +112,56 @@ class _HorariosLayout extends ConsumerWidget {
       }
     });
 
+    final scrollView = CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: HorariosPageHeader(
+            hasChanges: state.hasChanges,
+            isSaving: state.isSaving,
+            onSave: () => notifier.save(),
+            onRevert: notifier.revert,
+          ),
+        ),
+        SliverToBoxAdapter(child: const SizedBox(height: 24)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: showSidebar
+                ? _WideLayout(
+                    tenantId: tenantId,
+                    businessId: businessId,
+                  )
+                : _NarrowLayout(
+                    tenantId: tenantId,
+                    businessId: businessId,
+                  ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 48)),
+      ],
+    );
+
     return Scaffold(
       backgroundColor: KTokens.bg,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: HorariosPageHeader(
-              hasChanges: state.hasChanges,
-              isSaving: state.isSaving,
-              onSave: () => notifier.save(),
-              onRevert: notifier.revert,
-            ),
-          ),
-          SliverToBoxAdapter(child: const SizedBox(height: 24)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: showSidebar
-                  ? _WideLayout(
-                      tenantId: tenantId,
-                      businessId: businessId,
-                    )
-                  : _NarrowLayout(
-                      tenantId: tenantId,
-                      businessId: businessId,
-                    ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 48)),
-        ],
-      ),
+      drawer: isMobile
+          ? Drawer(
+              width: kAgendaNavWidth,
+              child: AgendaLeftNav(
+                nombre: nombre,
+                businessName: businessName,
+                tenantId: tenantId,
+                businessId: businessId,
+              ),
+            )
+          : null,
+      body: isMobile
+          ? Column(
+              children: [
+                const KMobileTopBar(),
+                Expanded(child: scrollView),
+              ],
+            )
+          : scrollView,
     );
   }
 }
