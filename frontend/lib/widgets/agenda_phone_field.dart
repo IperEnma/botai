@@ -38,6 +38,28 @@ AgendaPhoneCountry detectDefaultAgendaPhoneCountry() {
   );
 }
 
+/// Parsea un valor canónico (solo dígitos o con `+`) y separa código de país
+/// (dial code más largo que matchea como prefijo) del número local. Si no se
+/// puede determinar país, usa el detectado por locale.
+({AgendaPhoneCountry country, String local}) parseAgendaPhoneValue(String raw) {
+  final digits = raw.replaceAll(RegExp(r'\D'), '');
+  if (digits.isEmpty) {
+    return (country: detectDefaultAgendaPhoneCountry(), local: '');
+  }
+  AgendaPhoneCountry? best;
+  for (final c in kAgendaPhoneCountries) {
+    if (digits.startsWith(c.dialDigits)) {
+      if (best == null || c.dialDigits.length > best.dialDigits.length) {
+        best = c;
+      }
+    }
+  }
+  if (best != null) {
+    return (country: best, local: digits.substring(best.dialDigits.length));
+  }
+  return (country: detectDefaultAgendaPhoneCountry(), local: digits);
+}
+
 /// Campo de teléfono con prefijo por país. [controller] recibe el valor canónico (solo dígitos).
 class AgendaPhoneField extends StatefulWidget {
   const AgendaPhoneField({
@@ -47,6 +69,7 @@ class AgendaPhoneField extends StatefulWidget {
     this.label = 'Teléfono',
     this.helperText,
     this.useKonectaTokens = true,
+    this.labelStyle,
   });
 
   final TextEditingController controller;
@@ -55,6 +78,10 @@ class AgendaPhoneField extends StatefulWidget {
   final String? helperText;
   final bool useKonectaTokens;
 
+  /// Si se provee, sobreescribe el estilo por defecto del label superior
+  /// (útil para encajar con tipografías de secciones puntuales — p. ej. Equipo).
+  final TextStyle? labelStyle;
+
   @override
   State<AgendaPhoneField> createState() => _AgendaPhoneFieldState();
 }
@@ -62,11 +89,19 @@ class AgendaPhoneField extends StatefulWidget {
 class _AgendaPhoneFieldState extends State<AgendaPhoneField> {
   late AgendaPhoneCountry _country;
   final _numCtrl = TextEditingController();
+  final _selectorKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _country = detectDefaultAgendaPhoneCountry();
+    final initial = widget.controller.text.trim();
+    if (initial.isNotEmpty) {
+      final parsed = parseAgendaPhoneValue(initial);
+      _country = parsed.country;
+      _numCtrl.text = parsed.local;
+    } else {
+      _country = detectDefaultAgendaPhoneCountry();
+    }
     _numCtrl.addListener(_sync);
   }
 
@@ -90,9 +125,64 @@ class _AgendaPhoneFieldState extends State<AgendaPhoneField> {
   }
 
   Future<void> _pickCountry() async {
-    final picked = await showDialog<AgendaPhoneCountry>(
+    final box = _selectorKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+    final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final left = origin.dx;
+    final top = origin.dy + box.size.height + 4;
+    final right = overlay.size.width - origin.dx - box.size.width;
+
+    final picked = await showMenu<AgendaPhoneCountry>(
       context: context,
-      builder: (ctx) => _AgendaPhoneCountryPicker(selected: _country),
+      initialValue: _country,
+      elevation: 4,
+      color: widget.useKonectaTokens
+          ? KTokens.surface
+          : Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(
+          widget.useKonectaTokens ? KTokens.rMd : 12,
+        ),
+      ),
+      constraints: const BoxConstraints(minWidth: 220, maxWidth: 240),
+      position: RelativeRect.fromLTRB(left, top, right, 0),
+      items: kAgendaPhoneCountries.map((c) {
+        final isSel = c.iso == _country.iso;
+        return PopupMenuItem<AgendaPhoneCountry>(
+          value: c,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            children: [
+              Text(c.flag, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  c.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: widget.useKonectaTokens ? KTokens.ink : null,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                c.dialCode,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 12,
+                  color: widget.useKonectaTokens ? KTokens.inkSoft : null,
+                ),
+              ),
+              if (isSel) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.check, size: 14, color: KTokens.accent),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
     );
     if (picked != null && mounted) {
       setState(() => _country = picked);
@@ -116,6 +206,7 @@ class _AgendaPhoneFieldState extends State<AgendaPhoneField> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
+            key: _selectorKey,
             onTap: _pickCountry,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
@@ -182,11 +273,12 @@ class _AgendaPhoneFieldState extends State<AgendaPhoneField> {
       children: [
         Text(
           widget.required ? '${widget.label} *' : widget.label,
-          style: GoogleFonts.inter(
-            fontSize: widget.useKonectaTokens ? 12 : 14,
-            fontWeight: FontWeight.w500,
-            color: widget.useKonectaTokens ? KTokens.inkMuted : null,
-          ),
+          style: widget.labelStyle ??
+              GoogleFonts.inter(
+                fontSize: widget.useKonectaTokens ? 12 : 14,
+                fontWeight: FontWeight.w500,
+                color: widget.useKonectaTokens ? KTokens.inkMuted : null,
+              ),
         ),
         const SizedBox(height: 6),
         field,
@@ -205,60 +297,3 @@ class _AgendaPhoneFieldState extends State<AgendaPhoneField> {
   }
 }
 
-class _AgendaPhoneCountryPicker extends StatelessWidget {
-  const _AgendaPhoneCountryPicker({required this.selected});
-  final AgendaPhoneCountry selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KTokens.rMd)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(KTokens.rMd),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: Text(
-                'Código de país',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: KTokens.ink,
-                ),
-              ),
-            ),
-            const Divider(height: 1, color: KTokens.border),
-            ...kAgendaPhoneCountries.map((c) {
-              final isSel = c.iso == selected.iso;
-              return InkWell(
-                onTap: () => Navigator.of(context).pop(c),
-                child: Container(
-                  color: isSel ? KTokens.accentSoft : null,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Row(
-                    children: [
-                      Text(c.flag, style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          c.name,
-                          style: GoogleFonts.inter(fontSize: 14, color: KTokens.ink),
-                        ),
-                      ),
-                      Text(
-                        c.dialCode,
-                        style: GoogleFonts.jetBrainsMono(fontSize: 12, color: KTokens.inkSoft),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-}

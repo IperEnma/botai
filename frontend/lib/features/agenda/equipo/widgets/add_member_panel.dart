@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../models/agenda/agenda_service.dart';
 import '../../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../../../providers/agenda/tenant/services_provider.dart';
+import '../../../../widgets/agenda_phone_field.dart';
 import '../../register/konecta_tokens.dart';
 import '../models/member.dart';
 import '../providers/equipo_provider.dart';
@@ -16,7 +17,7 @@ Future<void> showAddMemberPanel(
       opaque: false,
       barrierColor: Colors.black.withValues(alpha: 0.35),
       barrierDismissible: true,
-      pageBuilder: (_, _, _) => _AddMemberPanel(equipoKey: key),
+      pageBuilder: (_, _, _) => AddMemberPanel(equipoKey: key),
       transitionsBuilder: (_, animation, _, child) {
         return SlideTransition(
           position: Tween<Offset>(
@@ -30,21 +31,35 @@ Future<void> showAddMemberPanel(
   );
 }
 
-class _AddMemberPanel extends ConsumerStatefulWidget {
-  const _AddMemberPanel({required this.equipoKey});
+/// Panel de creación de miembro.
+///
+/// [embedMode] = true → se omite el wrapper Align/SizedBox (para embeberlo
+/// dentro de otro panel). [onDone]/[onCancel] reemplazan Navigator.pop()
+/// cuando se proveen.
+class AddMemberPanel extends ConsumerStatefulWidget {
+  const AddMemberPanel({
+    super.key,
+    required this.equipoKey,
+    this.onDone,
+    this.onCancel,
+    this.embedMode = false,
+  });
 
   final EquipoKey equipoKey;
+  final VoidCallback? onDone;
+  final VoidCallback? onCancel;
+  final bool embedMode;
 
   @override
-  ConsumerState<_AddMemberPanel> createState() => _AddMemberPanelState();
+  ConsumerState<AddMemberPanel> createState() => _AddMemberPanelState();
 }
 
-class _AddMemberPanelState extends ConsumerState<_AddMemberPanel> {
-  int _step = 0; // 0, 1, 2
+class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
+  int _step = 0;
   bool _isCreating = false;
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  MemberType _selectedType = MemberType.profesionalConCuenta;
+  MemberType _selectedType = MemberType.profesionalSoloPerfil;
   Color _selectedColor = KTokens.proPalette[0];
   final Set<String> _selectedServices = {};
 
@@ -67,9 +82,46 @@ class _AddMemberPanelState extends ConsumerState<_AddMemberPanel> {
     if (_step > 0) setState(() => _step--);
   }
 
+  void _dismiss() {
+    if (widget.onCancel != null) {
+      widget.onCancel!();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
   Future<void> _create() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
+
+    final phone = _phoneCtrl.text.trim();
+    if (phone.isNotEmpty) {
+      final staffKey = (
+        tenantId: widget.equipoKey.tenantId,
+        businessId: widget.equipoKey.businessId,
+      );
+      final currentMembers = ref.read(businessStaffProvider(staffKey)).members;
+      final normalized = phone.replaceAll(RegExp(r'\D'), '');
+      final duplicate = currentMembers.any((m) {
+        final mt = m.telefono?.replaceAll(RegExp(r'\D'), '') ?? '';
+        return mt.isNotEmpty && mt == normalized;
+      });
+      if (duplicate) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ya existe un miembro con ese número de WhatsApp.',
+              style: GoogleFonts.inter(fontSize: 13, color: Colors.white),
+            ),
+            backgroundColor: KTokens.excClosed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(KTokens.rSm)),
+          ),
+        );
+        return;
+      }
+    }
 
     final rol = switch (_selectedType) {
       MemberType.recepcion => 'Recepcionista',
@@ -85,17 +137,45 @@ class _AddMemberPanelState extends ConsumerState<_AddMemberPanel> {
     );
     final notifier = ref.read(businessStaffProvider(staffKey).notifier);
 
-    final phone = _phoneCtrl.text.trim();
-    final colorHex = '#${(_selectedColor.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
-    final result = await notifier.addMember(name, rol, null, telefono: phone.isEmpty ? null : phone, color: colorHex);
+    final colorHex =
+        '#${(_selectedColor.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+    final created = await notifier.addMember(
+      name,
+      rol,
+      null,
+      telefono: phone.isEmpty ? null : phone,
+      color: colorHex,
+    );
 
     if (!mounted) return;
 
-    if (result != null) {
+    if (created != null) {
       if (_selectedServices.isNotEmpty) {
-        await notifier.updateMemberServices(result.id, _selectedServices.toList());
+        try {
+          await notifier.updateMemberServices(
+              created.id, _selectedServices.toList());
+        } catch (_) {}
       }
-      Navigator.of(context).pop();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Miembro creado correctamente.',
+            style: GoogleFonts.inter(fontSize: 13, color: Colors.white),
+          ),
+          backgroundColor: KTokens.accent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(KTokens.rSm)),
+        ),
+      );
+
+      if (widget.onDone != null) {
+        widget.onDone!();
+      } else {
+        Navigator.of(context).pop();
+      }
     } else {
       setState(() => _isCreating = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,6 +195,17 @@ class _AddMemberPanelState extends ConsumerState<_AddMemberPanel> {
 
   @override
   Widget build(BuildContext context) {
+    // Mantener vivo businessStaffProvider mientras este panel está montado.
+    // En el flujo Equipo, EquipoNotifier ya lo mantiene vivo vía ref.listen.
+    // En el flujo Servicio, nada lo escucha, y al ser .autoDispose el
+    // StateNotifier puede ser disposed durante el await del addMember,
+    // produciendo StateError al intentar setear state tras la respuesta —
+    // eso es lo que hacía caer la creación en el flujo Servicio.
+    ref.watch(businessStaffProvider((
+      tenantId: widget.equipoKey.tenantId,
+      businessId: widget.equipoKey.businessId,
+    )));
+
     final servicesState = ref.watch(
       servicesProvider((
         tenantId: widget.equipoKey.tenantId,
@@ -123,94 +214,94 @@ class _AddMemberPanelState extends ConsumerState<_AddMemberPanel> {
     );
     final services = servicesState.items.where((s) => s.activo).toList();
 
-    return Align(
-      alignment: Alignment.centerRight,
-      child: SizedBox(
-        width: 480,
-        child: Material(
-          color: Colors.white,
-          elevation: 0,
-          child: Container(
-            decoration: const BoxDecoration(
-              border: Border(left: BorderSide(color: KTokens.border)),
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _ProgressBar(step: _step),
-                        const SizedBox(height: 8),
-                        Text(
-                          'PASO 0${_step + 1} DE 03',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
-                            color: KTokens.inkSoft,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'NUEVO MIEMBRO',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
-                            color: KTokens.accent,
-                            letterSpacing: 1.4,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _stepTitle(),
-                          style: KTokens.tHero,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _stepSubtitle(),
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: KTokens.inkMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        _StepContent(
-                          step: _step,
-                          nameCtrl: _nameCtrl,
-                          phoneCtrl: _phoneCtrl,
-                          selectedType: _selectedType,
-                          selectedColor: _selectedColor,
-                          selectedServices: _selectedServices,
-                          services: services,
-                          onTypeChanged: (t) =>
-                              setState(() => _selectedType = t),
-                          onColorChanged: (c) =>
-                              setState(() => _selectedColor = c),
-                          onServiceToggled: (id) => setState(() {
-                            if (_selectedServices.contains(id)) {
-                              _selectedServices.remove(id);
-                            } else {
-                              _selectedServices.add(id);
-                            }
-                          }),
-                        ),
-                      ],
+    final content = Material(
+      color: Colors.white,
+      elevation: 0,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(left: BorderSide(color: KTokens.border)),
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ProgressBar(step: _step),
+                    const SizedBox(height: 8),
+                    Text(
+                      'PASO 0${_step + 1} DE 03',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        color: KTokens.inkSoft,
+                        letterSpacing: 1.2,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'NUEVO MIEMBRO',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        color: KTokens.accent,
+                        letterSpacing: 1.4,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _stepTitle(),
+                      style: KTokens.tHero,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _stepSubtitle(),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: KTokens.inkMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    _StepContent(
+                      step: _step,
+                      nameCtrl: _nameCtrl,
+                      phoneCtrl: _phoneCtrl,
+                      selectedType: _selectedType,
+                      selectedColor: _selectedColor,
+                      selectedServices: _selectedServices,
+                      services: services,
+                      onTypeChanged: (t) => setState(() => _selectedType = t),
+                      onColorChanged: (c) => setState(() => _selectedColor = c),
+                      onServiceToggled: (id) => setState(() {
+                        if (_selectedServices.contains(id)) {
+                          _selectedServices.remove(id);
+                        } else {
+                          _selectedServices.add(id);
+                        }
+                      }),
+                    ),
+                  ],
                 ),
-                _Footer(
-                  step: _step,
-                  isCreating: _isCreating,
-                  onBack: _back,
-                  onNext: _next,
-                ),
-              ],
+              ),
             ),
-          ),
+            _Footer(
+              step: _step,
+              isCreating: _isCreating,
+              onBack: _back,
+              onNext: _next,
+              onCancel: _dismiss,
+            ),
+          ],
         ),
       ),
+    );
+
+    if (widget.embedMode) return content;
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: SizedBox(width: 480, child: content),
     );
   }
 
@@ -306,10 +397,20 @@ class _Step1 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _LineInput(controller: nameCtrl, hint: 'NOMBRE COMPLETO'),
         const SizedBox(height: 24),
-        _LineInput(controller: phoneCtrl, hint: 'WHATSAPP'),
+        AgendaPhoneField(
+          controller: phoneCtrl,
+          required: false,
+          label: 'WHATSAPP',
+          labelStyle: GoogleFonts.jetBrainsMono(
+            fontSize: 10,
+            color: KTokens.inkSoft,
+            letterSpacing: 1.2,
+          ),
+        ),
       ],
     );
   }
@@ -352,8 +453,7 @@ class _LineInput extends StatelessWidget {
               borderSide: BorderSide(color: KTokens.border, width: 1.5),
             ),
             isDense: true,
-            contentPadding:
-                EdgeInsets.symmetric(vertical: 8),
+            contentPadding: EdgeInsets.symmetric(vertical: 8),
           ),
         ),
       ],
@@ -369,13 +469,8 @@ class _Step2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // (type, label, description, comingSoon)
     final types = [
-      (
-        MemberType.profesionalConCuenta,
-        'Profesional con cuenta',
-        'Puede iniciar sesión y gestionar su agenda. RECOMENDADO',
-        true,
-      ),
       (
         MemberType.profesionalSoloPerfil,
         'Profesional solo perfil',
@@ -383,84 +478,94 @@ class _Step2 extends StatelessWidget {
         false,
       ),
       (
+        MemberType.profesionalConCuenta,
+        'Profesional con cuenta',
+        'Puede iniciar sesión y gestionar su agenda.',
+        true,
+      ),
+      (
         MemberType.recepcion,
         'Recepción con cuenta',
         'Puede gestionar cualquier turno del negocio.',
-        false,
+        true,
       ),
     ];
 
     return Column(
       children: types.map((t) {
-        final (type, name, desc, recommended) = t;
+        final (type, name, desc, comingSoon) = t;
         final isActive = selected == type;
-        return GestureDetector(
-          onTap: () => onChanged(type),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: isActive ? KTokens.accentSoft : KTokens.surface,
-              border: Border.all(
-                color: isActive ? KTokens.accent : KTokens.border,
-                width: isActive ? 1.5 : 1,
+        return Opacity(
+          opacity: comingSoon ? 0.45 : 1.0,
+          child: GestureDetector(
+            onTap: comingSoon ? null : () => onChanged(type),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: const EdgeInsets.only(bottom: 10),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: isActive ? KTokens.accentSoft : KTokens.surface,
+                border: Border.all(
+                  color: isActive ? KTokens.accent : KTokens.border,
+                  width: isActive ? 1.5 : 1,
+                ),
+                borderRadius: BorderRadius.circular(KTokens.rSm),
               ),
-              borderRadius: BorderRadius.circular(KTokens.rSm),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            name,
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  isActive ? KTokens.accent : KTokens.ink,
-                            ),
-                          ),
-                          if (recommended) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: KTokens.accent,
-                                borderRadius: BorderRadius.circular(4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              name,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isActive ? KTokens.accent : KTokens.ink,
                               ),
-                              child: Text(
-                                'RECOMENDADO',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 9,
-                                  color: Colors.white,
-                                  letterSpacing: 0.6,
+                            ),
+                            if (comingSoon) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: KTokens.inkSoft,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'PRÓXIMAMENTE',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 9,
+                                    color: Colors.white,
+                                    letterSpacing: 0.6,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        desc,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: isActive ? KTokens.accent : KTokens.inkMuted,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          desc,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color:
+                                isActive ? KTokens.accent : KTokens.inkMuted,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                if (isActive)
-                  const Icon(Icons.check_circle_rounded,
-                      color: KTokens.accent, size: 20),
-              ],
+                  if (isActive)
+                    const Icon(Icons.check_circle_rounded,
+                        color: KTokens.accent, size: 20),
+                ],
+              ),
             ),
           ),
         );
@@ -490,7 +595,6 @@ class _Step3 extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Color
         Text(
           'COLOR IDENTIFICADOR',
           style: GoogleFonts.jetBrainsMono(
@@ -522,8 +626,6 @@ class _Step3 extends StatelessWidget {
           }).toList(),
         ),
         const SizedBox(height: 24),
-
-        // Services
         Text(
           'SERVICIOS QUE OFRECE',
           style: GoogleFonts.jetBrainsMono(
@@ -548,15 +650,14 @@ class _Step3 extends StatelessWidget {
                 onTap: () => onServiceToggled(s.id),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 120),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? KTokens.accentSoft
                         : const Color(0x0C000000),
                     border: Border.all(
-                      color:
-                          isSelected ? KTokens.accent : Colors.transparent,
+                      color: isSelected ? KTokens.accent : Colors.transparent,
                       width: 1,
                     ),
                     borderRadius: BorderRadius.circular(6),
@@ -575,14 +676,15 @@ class _Step3 extends StatelessWidget {
               );
             }).toList(),
           ),
-
         if (selectedServices.isNotEmpty) ...[
           const SizedBox(height: 20),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: KTokens.accentSoft,
-              border: Border.all(color: KTokens.accent.withValues(alpha: 0.3)),
+              border:
+                  Border.all(color: KTokens.accent.withValues(alpha: 0.3)),
               borderRadius: BorderRadius.circular(KTokens.rSm),
             ),
             child: Text(
@@ -608,12 +710,14 @@ class _Footer extends StatelessWidget {
     required this.isCreating,
     required this.onBack,
     required this.onNext,
+    required this.onCancel,
   });
 
   final int step;
   final bool isCreating;
   final VoidCallback onBack;
   final VoidCallback onNext;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -624,7 +728,16 @@ class _Footer extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (step > 0)
+          if (step == 0)
+            TextButton(
+              onPressed: isCreating ? null : onCancel,
+              style: TextButton.styleFrom(
+                foregroundColor: KTokens.inkMuted,
+                textStyle: GoogleFonts.inter(fontSize: 14),
+              ),
+              child: const Text('Cancelar'),
+            )
+          else
             TextButton(
               onPressed: isCreating ? null : onBack,
               style: TextButton.styleFrom(

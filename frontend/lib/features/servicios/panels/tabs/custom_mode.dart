@@ -46,6 +46,7 @@ class CustomMode extends StatefulWidget {
     required this.onChanged,
     this.servKey,
     this.onStaffListChanged,
+    this.onAddProfessional,
   });
 
   final List<StaffMember> staff;
@@ -53,6 +54,7 @@ class CustomMode extends StatefulWidget {
   final ValueChanged<CustomFormData> onChanged;
   final ServiciosKey? servKey;
   final VoidCallback? onStaffListChanged;
+  final VoidCallback? onAddProfessional;
 
   @override
   State<CustomMode> createState() => _CustomModeState();
@@ -70,7 +72,7 @@ class _CustomModeState extends State<CustomMode> {
 
   bool _flexibleDuration = false;
   bool _priceFrom = false;
-  ServiceSchedulingMode _schedulingMode = ServiceSchedulingMode.general;
+  ServiceSchedulingMode _schedulingMode = ServiceSchedulingMode.byStaff;
   final Set<String> _selectedPros = {};
 
   @override
@@ -135,17 +137,6 @@ class _CustomModeState extends State<CustomMode> {
 
   @override
   Widget build(BuildContext context) {
-    final formData = CustomFormData(
-      name: _nameCtrl.text,
-      description: _descCtrl.text,
-      durationMinutes: int.tryParse(_durCtrl.text) ?? 60,
-      flexibleDuration: _flexibleDuration,
-      priceUyu: int.tryParse(_priceCtrl.text) ?? 0,
-      priceFrom: _priceFrom,
-      schedulingMode: _schedulingMode,
-      professionalIds: _selectedPros.toList(),
-    );
-
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       child: Column(
@@ -470,19 +461,21 @@ class _CustomModeState extends State<CustomMode> {
                   );
                 }).toList(),
               ),
-              if (widget.servKey != null) ...[
+              if (widget.onAddProfessional != null || widget.servKey != null) ...[
                 const SizedBox(height: 10),
                 TextButton.icon(
                   onPressed: () async {
-                    await showAddMemberPanel(
-                      context,
-                      (
-                        tenantId: widget.servKey!.tenantId,
-                        businessId: widget.servKey!.businessId,
-                      ),
-                    );
-                    if (context.mounted) {
-                      widget.onStaffListChanged?.call();
+                    if (widget.onAddProfessional != null) {
+                      widget.onAddProfessional!();
+                    } else if (widget.servKey != null) {
+                      await showAddMemberPanel(
+                        context,
+                        (
+                          tenantId: widget.servKey!.tenantId,
+                          businessId: widget.servKey!.businessId,
+                        ),
+                      );
+                      if (context.mounted) widget.onStaffListChanged?.call();
                     }
                   },
                   icon: const Icon(Icons.person_add_outlined, size: 18),
@@ -495,10 +488,6 @@ class _CustomModeState extends State<CustomMode> {
               ],
             ],
           ],
-          const SizedBox(height: 20),
-
-          // 5. Summary box
-          _SummaryBox(formData: formData),
         ],
       ),
     );
@@ -658,21 +647,21 @@ class SchedulingModePicker extends StatelessWidget {
       children: [
         Expanded(
           child: _ModeCard(
-            title: 'Agenda general',
-            subtitle: 'El cliente reserva sin elegir profesional',
-            icon: Icons.storefront_outlined,
-            selected: value == ServiceSchedulingMode.general,
-            onTap: () => onChanged(ServiceSchedulingMode.general),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _ModeCard(
             title: 'Por profesional',
             subtitle: 'El cliente elige quién lo atiende',
             icon: Icons.people_outline_rounded,
             selected: value == ServiceSchedulingMode.byStaff,
             onTap: () => onChanged(ServiceSchedulingMode.byStaff),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ModeCard(
+            title: 'Agenda general',
+            subtitle: 'El cliente reserva sin elegir profesional',
+            icon: Icons.storefront_outlined,
+            selected: value == ServiceSchedulingMode.general,
+            onTap: () => onChanged(ServiceSchedulingMode.general),
           ),
         ),
       ],
@@ -808,57 +797,6 @@ class EmptyStaffCallout extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _SummaryBox extends StatelessWidget {
-  const _SummaryBox({required this.formData});
-
-  final CustomFormData formData;
-
-  @override
-  Widget build(BuildContext context) {
-    final lines = <String>[];
-    lines.add('AL CREAR · APARECE COMO OPCIÓN EN /TU-NEGOCIO');
-    if (formData.usesStaff) {
-      if (formData.professionalIds.isEmpty) {
-        lines.add('AGENDA POR PROFESIONAL · ASIGNÁ QUIÉN LO REALIZA');
-      } else {
-        final count = formData.professionalIds.length;
-        lines.add(
-            '$count PROFESIONAL${count > 1 ? 'ES' : ''} PODRÁ${count > 1 ? 'N' : ''} ATENDER RESERVAS');
-      }
-    } else {
-      lines.add('AGENDA GENERAL · SIN ELEGIR PROFESIONAL');
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      decoration: BoxDecoration(
-        color: KTokens.accentSoft,
-        border: Border.all(color: const Color(0x263B2F63)),
-        borderRadius: BorderRadius.circular(KTokens.rSm),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: lines
-            .map(
-              (line) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  line,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    letterSpacing: 1.4,
-                    color: KTokens.accent,
-                  ),
-                ),
-              ),
-            )
-            .toList(),
       ),
     );
   }

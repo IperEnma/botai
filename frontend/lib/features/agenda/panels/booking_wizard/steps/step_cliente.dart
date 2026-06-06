@@ -115,6 +115,19 @@ class _StepClienteState extends ConsumerState<StepCliente> {
       );
       return;
     }
+    final normalizedPhone = telefono.replaceAll(RegExp(r'\D'), '');
+    final duplicate = _allClientes.any((c) {
+      final ct = c.telefono?.replaceAll(RegExp(r'\D'), '') ?? '';
+      return ct.isNotEmpty && ct == normalizedPhone;
+    });
+    if (duplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ya existe un cliente con ese número de WhatsApp.'),
+        ),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final api = ref.read(agendaApiServiceProvider);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../../widgets/agenda_phone_field.dart';
 import '../../../register/konecta_tokens.dart';
 import '../../models/member.dart';
 import '../../providers/equipo_provider.dart';
@@ -25,7 +26,6 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
   late TextEditingController _titleCtrl;
   late TextEditingController _bioCtrl;
 
-  late FocusNode _phoneFocus;
   late FocusNode _emailFocus;
   late FocusNode _titleFocus;
   late FocusNode _bioFocus;
@@ -42,16 +42,19 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
     _titleCtrl = TextEditingController(text: m.title ?? '');
     _bioCtrl = TextEditingController(text: m.bio ?? '');
 
-    _phoneFocus = FocusNode();
     _emailFocus = FocusNode();
     _titleFocus = FocusNode();
     _bioFocus = FocusNode();
 
-    for (final node in [_phoneFocus, _emailFocus, _titleFocus, _bioFocus]) {
+    for (final node in [_emailFocus, _titleFocus, _bioFocus]) {
       node.addListener(() {
         if (mounted) setState(() {});
       });
     }
+
+    // AgendaPhoneField escribe el valor canónico en `_phoneCtrl` vía su listener
+    // interno; nosotros propagamos al notifier cuando ese valor cambia.
+    _phoneCtrl.addListener(_propagate);
   }
 
   @override
@@ -64,11 +67,11 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
   }
 
   void _disposeAll() {
+    _phoneCtrl.removeListener(_propagate);
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _titleCtrl.dispose();
     _bioCtrl.dispose();
-    _phoneFocus.dispose();
     _emailFocus.dispose();
     _titleFocus.dispose();
     _bioFocus.dispose();
@@ -100,6 +103,20 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
           // DATOS BÁSICOS
           _SectionLabel('DATOS BÁSICOS'),
           const SizedBox(height: 10),
+          AgendaPhoneField(
+            // Re-keyed por miembro para que parsee el teléfono inicial al cambiar.
+            key: ValueKey('phone-${widget.member.id}'),
+            controller: _phoneCtrl,
+            required: false,
+            label: 'WHATSAPP',
+            labelStyle: GoogleFonts.jetBrainsMono(
+              fontSize: 10,
+              color: KTokens.inkSoft,
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -111,13 +128,6 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
               _FieldBox(
                 label: 'NOMBRE',
                 value: widget.member.name,
-              ),
-              _EditableFieldBox(
-                label: 'WHATSAPP',
-                ctrl: _phoneCtrl,
-                focusNode: _phoneFocus,
-                keyboard: TextInputType.phone,
-                onChanged: _propagate,
               ),
               _EditableFieldBox(
                 label: 'EMAIL',

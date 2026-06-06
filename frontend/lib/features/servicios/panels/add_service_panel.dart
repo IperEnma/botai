@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/agenda/service_scheduling_mode.dart';
 import '../../../models/agenda/staff_member.dart';
+import '../../agenda/equipo/widgets/add_member_panel.dart';
 import '../../agenda/register/konecta_tokens.dart';
 import '../../agenda/shared/k_button.dart';
 import '../controllers/servicios_controller.dart';
@@ -51,6 +52,7 @@ class _AddServicePanelState extends ConsumerState<_AddServicePanel>
   CustomFormData? _customData;
   bool _pickingScheduling = false;
   bool _isSaving = false;
+  bool _addingMember = false;
 
   @override
   void initState() {
@@ -151,11 +153,34 @@ class _AddServicePanelState extends ConsumerState<_AddServicePanel>
     final customMode = CustomMode(
       staff: state.staff,
       servKey: widget.servKey,
-      onStaffListChanged: () => ref
-          .read(serviciosProvider(widget.servKey).notifier)
-          .reload(),
+      onStaffListChanged: () =>
+          ref.read(serviciosProvider(widget.servKey).notifier).reload(),
       onChanged: (data) => setState(() => _customData = data),
+      onAddProfessional: () => setState(() => _addingMember = true),
     );
+
+    // Mientras se crea un miembro, reemplazamos el panel entero con el
+    // formulario de miembro embebido — sin superposición de paneles.
+    if (_addingMember) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: SizedBox(
+          width: 520,
+          child: AddMemberPanel(
+            embedMode: true,
+            equipoKey: (
+              tenantId: widget.servKey.tenantId,
+              businessId: widget.servKey.businessId,
+            ),
+            onCancel: () => setState(() => _addingMember = false),
+            onDone: () {
+              setState(() => _addingMember = false);
+              ref.read(serviciosProvider(widget.servKey).notifier).reload();
+            },
+          ),
+        ),
+      );
+    }
 
     final Widget body;
     final bool showTabs;

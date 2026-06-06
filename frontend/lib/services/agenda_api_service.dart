@@ -1442,7 +1442,11 @@ class AgendaApiService {
             if (color != null && color.isNotEmpty) 'color': color,
           }),
         ));
-    return _decode(r, (body) => StaffMember.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) {
+      final data = Map<String, dynamic>.from(body as Map<String, dynamic>);
+      data.putIfAbsent('businessId', () => businessId);
+      return StaffMember.fromJson(data);
+    });
   }
 
   /// `PUT /me/businesses/{businessId}/staff/{staffId}`
@@ -1474,7 +1478,11 @@ class AgendaApiService {
             if (customSchedule != null) 'customSchedule': customSchedule,
           }),
         ));
-    return _decode(r, (body) => StaffMember.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) {
+      final data = Map<String, dynamic>.from(body as Map<String, dynamic>);
+      data.putIfAbsent('businessId', () => businessId);
+      return StaffMember.fromJson(data);
+    });
   }
 
   /// `PUT /me/businesses/{businessId}/staff/{staffId}/services`
@@ -1488,7 +1496,11 @@ class AgendaApiService {
           headers: _headers(),
           body: jsonEncode({'serviceIds': serviceIds}),
         ));
-    return _decode(r, (body) => StaffMember.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) {
+      final data = Map<String, dynamic>.from(body as Map<String, dynamic>);
+      data.putIfAbsent('businessId', () => businessId);
+      return StaffMember.fromJson(data);
+    });
   }
 
   /// `DELETE /me/businesses/{businessId}/staff/{staffId}` → 204
