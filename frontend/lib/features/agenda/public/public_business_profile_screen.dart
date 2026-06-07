@@ -926,31 +926,20 @@ class _Location extends StatelessWidget {
     return 'https://$v';
   }
 
-  static String _headline(Business b) {
-    final name = b.nombre.trim();
-    final desc = b.descripcion?.trim();
-    if (desc == null || desc.isEmpty) return name;
-    final snippet = desc.split('\n').first.trim();
-    if (snippet.isEmpty) return name;
-    final short =
-        snippet.length > 42 ? '${snippet.substring(0, 42).trim()}…' : snippet;
-    return '$name · $short';
-  }
-
-  static String _addressLine(String addr, Business b) {
+  static (String, String?) _addressLines(String addr, Business b) {
     final trimmed = addr.trim();
-    if (trimmed.isEmpty) return '';
+    if (trimmed.isEmpty) return ('', null);
     final parts = trimmed
         .split(',')
         .map((p) => p.trim())
         .where((p) => p.isNotEmpty)
         .toList();
     if (parts.length >= 2) {
-      return '${parts.first} · ${parts.sublist(1).join(' · ')}';
+      return (parts.first, parts.sublist(1).join(', '));
     }
     final loc = b.locationTags.map((t) => t.value.trim()).where((v) => v.isNotEmpty);
-    if (loc.isNotEmpty) return '$trimmed · ${loc.join(' · ')}';
-    return trimmed;
+    if (loc.isNotEmpty) return (trimmed, loc.join(', '));
+    return (trimmed, null);
   }
 
   @override
@@ -974,63 +963,92 @@ class _Location extends StatelessWidget {
 
     final addr = address.trim();
     final mapsUrl = _hasAddress ? GoogleMapsUrls.search(addr) : null;
+    final (line1, line2) = _addressLines(addr, business);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionHead(title: 'Ubicación'),
         const SizedBox(height: 14),
-        Container(
-          decoration: BoxDecoration(
-            color: _D.white,
-            borderRadius: BorderRadius.circular(_D.r),
-            boxShadow: const [
-              BoxShadow(color: _D.shadow, blurRadius: 14, offset: Offset(0, 4)),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
+        _Card(
+          pad: 12,
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _MapPreview(
-                address: addr,
-                mapsUrl: mapsUrl,
-                height: 120,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: _MapPreview(
+                  address: addr,
+                  mapsUrl: mapsUrl,
+                  width: 96,
+                  height: 96,
+                ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _headline(business),
-                      style: _D.t(13, w: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                     if (_hasAddress) ...[
-                      const SizedBox(height: 2),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.place_outlined,
+                            size: 18,
+                            color: _D.brand(context),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  line1,
+                                  style: _D.t(13, w: FontWeight.w500, h: 1.35),
+                                ),
+                                if (line2 != null && line2.isNotEmpty)
+                                  Text(
+                                    line2,
+                                    style: _D.t(13, w: FontWeight.w500, h: 1.35),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (mapsUrl != null)
+                        GestureDetector(
+                          onTap: () => openExternalUrl(mapsUrl),
+                          child: Text(
+                            'Ver en el mapa >',
+                            style: _D.t(
+                              13,
+                              w: FontWeight.w600,
+                              c: _D.brand(context),
+                            ),
+                          ),
+                        ),
+                    ] else
                       Text(
-                        _addressLine(addr, business),
-                        style: _D.t(11.5, c: _D.muted),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        'Agregá la dirección en Estilos o completá el onboarding.',
+                        style: _D.t(13, w: FontWeight.w500, h: 1.35, c: _D.muted),
                       ),
-                    ],
-                    if (_hasSocial) ...[
-                      const SizedBox(height: 12),
-                      _SocialIconRow(
-                        instagramUrl: _normalizeUrl(business.instagramUrl),
-                        tiktokUrl: _normalizeUrl(business.tiktokUrl),
-                        facebookUrl: _normalizeUrl(business.facebookUrl),
-                      ),
-                    ],
                   ],
                 ),
               ),
             ],
           ),
         ),
+        if (_hasSocial) ...[
+          const SizedBox(height: 12),
+          _SocialIconRow(
+            instagramUrl: _normalizeUrl(business.instagramUrl),
+            tiktokUrl: _normalizeUrl(business.tiktokUrl),
+            facebookUrl: _normalizeUrl(business.facebookUrl),
+          ),
+        ],
       ],
     );
   }
@@ -1137,23 +1155,24 @@ class _MapPreview extends StatelessWidget {
   const _MapPreview({
     required this.address,
     required this.mapsUrl,
-    this.height = 120,
+    this.width = 96,
+    this.height = 96,
   });
 
   final String address;
   final String? mapsUrl;
+  final double width;
   final double height;
 
   @override
   Widget build(BuildContext context) {
     final addr = address.trim();
     final hasAddress = addr.isNotEmpty;
-    final mapHeight = height;
 
-    Widget placeholder({double? width}) {
+    Widget placeholder() {
       return Container(
         width: width,
-        height: mapHeight,
+        height: height,
         color: const Color(0xFFE7E4DC),
         alignment: Alignment.center,
         child: Icon(
@@ -1164,30 +1183,20 @@ class _MapPreview extends StatelessWidget {
       );
     }
 
-    if (!hasAddress) {
-      return LayoutBuilder(
-        builder: (context, constraints) =>
-            placeholder(width: constraints.maxWidth),
-      );
-    }
+    if (!hasAddress) return placeholder();
 
     final embedUrl = GoogleMapsUrls.embed(address: addr);
     final openUrl = mapsUrl ?? GoogleMapsUrls.search(addr);
+    final map = AgendaGoogleMapEmbed(
+      embedUrl: embedUrl,
+      width: width,
+      height: height,
+      placeholder: placeholder(),
+    );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final map = AgendaGoogleMapEmbed(
-          embedUrl: embedUrl,
-          width: width,
-          height: mapHeight,
-          placeholder: placeholder(width: width),
-        );
-        return GestureDetector(
-          onTap: () => openExternalUrl(openUrl),
-          child: map,
-        );
-      },
+    return GestureDetector(
+      onTap: () => openExternalUrl(openUrl),
+      child: map,
     );
   }
 }
