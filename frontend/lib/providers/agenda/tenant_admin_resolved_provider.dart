@@ -4,7 +4,6 @@ import '../../models/agenda/tenant_admin_context.dart';
 import '../../services/agenda_api_exception.dart';
 import '../auth_provider.dart';
 import 'agenda_api_provider.dart';
-import 'agenda_user_provider.dart';
 
 final tenantAdminResolvedProvider =
     FutureProvider.autoDispose<TenantAdminContext>((ref) async {
@@ -18,16 +17,10 @@ final tenantAdminResolvedProvider =
   try {
     return await api.fetchTenantAdminContext();
   } on AgendaApiException catch (e) {
-    // When agenda.security.enabled=false (dev), the backend returns 401 because
-    // @AuthenticationPrincipal Jwt is null — it cannot resolve the tenant by email.
-    // Fall back to the tenantId stored locally after registration so the admin
-    // panel still works without a real JWT validation setup.
     if (e.status == 401) {
-      final userState = await ref.read(agendaUserProvider.future);
-      final storedId = userState.tenantId;
-      if (storedId != null && storedId.isNotEmpty) {
-        return TenantAdminContext(tenantId: storedId);
-      }
+      // Token Google inválido o vencido (p. ej. volvió del flujo público de reserva).
+      await ref.read(authStateProvider.notifier).signOut();
+      throw const TenantAdminResolveException('NOT_AUTHENTICATED');
     }
     rethrow;
   }

@@ -41,6 +41,16 @@ class AgendaPanelScreen extends ConsumerWidget {
           });
           return const Scaffold(body: AgendaLoadingView());
         }
+        final is401 = e is AgendaApiException && e.status == 401;
+        if (is401) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) context.go('/agenda/register');
+          });
+          return const Scaffold(
+            backgroundColor: Color(0xFFFBFAF7),
+            body: AgendaLoadingView(),
+          );
+        }
         final notFound = e is AgendaApiException && e.isNotFound;
         if (notFound) {
           WidgetsBinding.instance.addPostFrameCallback((_) async {

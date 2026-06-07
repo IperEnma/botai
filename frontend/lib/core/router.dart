@@ -110,8 +110,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         debugPrint('[ROUTER] → /login (not agenda, not logged in)');
         return '/login';
       }
-      if (isLoggedIn &&
-          (loc == '/' || isLoggingIn || loc == '/agenda/register')) {
+      if (isLoggedIn && (loc == '/' || isLoggingIn)) {
         return '/agenda/panel';
       }
       final meBizPrefix = '/agenda/tenants/me/businesses/';

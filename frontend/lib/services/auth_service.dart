@@ -63,9 +63,9 @@ class AuthService {
     final at = googleAuth.accessToken;
     final candidate = normalizeGoogleBearer(idToken) ??
         (isGoogleIdJwtShape(at ?? '') ? normalizeGoogleBearer(at) : null);
-    if (candidate == null || !isGoogleIdJwtShape(candidate)) {
+    if (candidate == null || !isUsableGoogleIdToken(candidate)) {
       throw StateError(
-        'Google no devolvió id_token. Revisá configuración OAuth (GOOGLE_CLIENT_ID_WEB / serverClientId).',
+        'Google no devolvió id_token válido. Revisá configuración OAuth (GOOGLE_CLIENT_ID_WEB / serverClientId).',
       );
     }
     final bearer = candidate;
@@ -114,7 +114,7 @@ class AuthService {
   Future<User?> getCurrentUser() async {
     final raw = await _storage.read(key: 'access_token');
     final accessToken = normalizeGoogleBearer(raw);
-    if (accessToken == null || !isGoogleIdJwtShape(accessToken)) {
+    if (accessToken == null || !isUsableGoogleIdToken(accessToken)) {
       if (raw != null && raw.trim().isNotEmpty) {
         await _storage.deleteAll();
       }
@@ -142,7 +142,7 @@ class AuthService {
   }
 
   Future<bool> isAuthenticated() async {
-    final token = await getAccessToken();
-    return token != null;
+    final user = await getCurrentUser();
+    return user != null;
   }
 }

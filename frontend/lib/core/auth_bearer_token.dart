@@ -21,6 +21,16 @@ String? normalizeGoogleBearer(String? raw) {
   return t.isEmpty ? null : t;
 }
 
+Map<String, dynamic>? _decodeJwtPart(String part) {
+  try {
+    final json = utf8.decode(base64Url.decode(_base64UrlPad(part)));
+    final o = jsonDecode(json);
+    return o is Map<String, dynamic> ? o : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Tres segmentos y header JWT decodificable como objeto JSON (no un string suelto).
 bool isGoogleIdJwtShape(String token) {
   final t = normalizeGoogleBearer(token);
@@ -28,14 +38,39 @@ bool isGoogleIdJwtShape(String token) {
   final parts = t.split('.');
   if (parts.length != 3) return false;
   if (parts.any((p) => p.isEmpty)) return false;
-  try {
-    final padded = _base64UrlPad(parts[0]);
-    final hdr = utf8.decode(base64Url.decode(padded));
-    final o = jsonDecode(hdr);
-    return o is Map<String, dynamic>;
-  } catch (_) {
+  return _decodeJwtPart(parts[0]) != null;
+}
+
+/// ID token de Google usable contra el backend (RS256, issuer Google, no vencido).
+bool isUsableGoogleIdToken(
+  String token, {
+  DateTime? now,
+  Duration clockSkew = const Duration(seconds: 60),
+}) {
+  final t = normalizeGoogleBearer(token);
+  if (t == null || !isGoogleIdJwtShape(t)) return false;
+
+  final parts = t.split('.');
+  final header = _decodeJwtPart(parts[0]);
+  final payload = _decodeJwtPart(parts[1]);
+  if (header == null || payload == null) return false;
+
+  if (header['alg']?.toString() != 'RS256') return false;
+
+  final iss = payload['iss']?.toString();
+  if (iss != 'https://accounts.google.com' && iss != 'accounts.google.com') {
     return false;
   }
+
+  final exp = payload['exp'];
+  if (exp is num) {
+    final expiresAt =
+        DateTime.fromMillisecondsSinceEpoch((exp * 1000).round(), isUtc: true);
+    final effectiveNow = (now ?? DateTime.now()).toUtc();
+    if (effectiveNow.isAfter(expiresAt.add(clockSkew))) return false;
+  }
+
+  return true;
 }
 
 String _base64UrlPad(String s) {
