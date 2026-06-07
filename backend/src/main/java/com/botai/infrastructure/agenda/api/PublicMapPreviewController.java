@@ -10,11 +10,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
-
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequestMapping("/api/agenda/public/map-preview")
@@ -32,11 +29,11 @@ public class PublicMapPreviewController {
     public ResponseEntity<byte[]> preview(
             @RequestParam("address") String address,
             @RequestParam(value = "size", defaultValue = "192") int size) {
-        byte[] png = mapPreviewService.fetchPreviewPng(address, size)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "No se pudo geocodificar la dirección"));
-        return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_PNG)
-                .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
-                .body(png);
+        return mapPreviewService.fetchPreviewPng(address, size)
+                .map(png -> ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_PNG)
+                        .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
+                        .body(png))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }
