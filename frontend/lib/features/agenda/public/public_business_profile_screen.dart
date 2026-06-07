@@ -8,7 +8,6 @@ import '../../../core/agenda_media_image.dart';
 import '../../../core/agenda_media_url.dart';
 import '../../../core/agenda_google_map_embed.dart';
 import '../../../core/google_maps_urls.dart';
-import '../../../core/openstreetmap_urls.dart';
 import '../../../core/open_external_url.dart';
 import '../../../core/public_business_share.dart';
 import '../../../providers/agenda/public/public_client_session_provider.dart';
@@ -1134,7 +1133,7 @@ class _SocialIconButton extends StatelessWidget {
   }
 }
 
-class _MapPreview extends StatefulWidget {
+class _MapPreview extends StatelessWidget {
   const _MapPreview({
     required this.address,
     required this.mapsUrl,
@@ -1146,64 +1145,15 @@ class _MapPreview extends StatefulWidget {
   final double height;
 
   @override
-  State<_MapPreview> createState() => _MapPreviewState();
-}
-
-class _MapPreviewState extends State<_MapPreview> {
-  ({double lat, double lon})? _coords;
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadThumb();
-  }
-
-  @override
-  void didUpdateWidget(_MapPreview oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.address != widget.address) {
-      _loadThumb();
-    }
-  }
-
-  Future<void> _loadThumb() async {
-    final addr = widget.address.trim();
-    if (addr.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _coords = null;
-          _loaded = true;
-        });
-      }
-      return;
-    }
-    final coords = await OpenStreetMapUrls.geocode(addr);
-    if (!mounted) return;
-    setState(() {
-      _coords = coords;
-      _loaded = true;
-    });
-  }
-
-  String? _mapsOpenUrl(String address) {
-    final coords = _coords;
-    if (coords != null) {
-      return GoogleMapsUrls.searchCoords(lat: coords.lat, lng: coords.lon);
-    }
-    return widget.mapsUrl;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final height = widget.height;
-    final addr = widget.address.trim();
+    final addr = address.trim();
     final hasAddress = addr.isNotEmpty;
+    final mapHeight = height;
 
     Widget placeholder({double? width}) {
       return Container(
         width: width,
-        height: height,
+        height: mapHeight,
         color: const Color(0xFFE7E4DC),
         alignment: Alignment.center,
         child: Icon(
@@ -1214,49 +1164,28 @@ class _MapPreviewState extends State<_MapPreview> {
       );
     }
 
-    Widget mapBody(double width) {
-      if (!hasAddress) return placeholder(width: width);
-
-      if (!_loaded) {
-        return Container(
-          width: width,
-          height: height,
-          color: const Color(0xFFE7E4DC),
-          alignment: Alignment.center,
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: _D.brand(context),
-            ),
-          ),
-        );
-      }
-
-      final coords = _coords;
-      final embedUrl = GoogleMapsUrls.embed(
-        address: addr,
-        lat: coords?.lat,
-        lng: coords?.lon,
-      );
-      return AgendaGoogleMapEmbed(
-        embedUrl: embedUrl,
-        width: width,
-        height: height,
-        placeholder: placeholder(width: width),
+    if (!hasAddress) {
+      return LayoutBuilder(
+        builder: (context, constraints) =>
+            placeholder(width: constraints.maxWidth),
       );
     }
+
+    final embedUrl = GoogleMapsUrls.embed(address: addr);
+    final openUrl = mapsUrl ?? GoogleMapsUrls.search(addr);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final content = mapBody(width);
-        final mapsUrl = hasAddress ? _mapsOpenUrl(addr) : null;
-        if (mapsUrl == null) return content;
+        final map = AgendaGoogleMapEmbed(
+          embedUrl: embedUrl,
+          width: width,
+          height: mapHeight,
+          placeholder: placeholder(width: width),
+        );
         return GestureDetector(
-          onTap: () => openExternalUrl(mapsUrl),
-          child: content,
+          onTap: () => openExternalUrl(openUrl),
+          child: map,
         );
       },
     );
