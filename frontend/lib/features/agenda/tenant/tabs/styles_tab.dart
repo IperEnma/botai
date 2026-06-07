@@ -52,6 +52,9 @@ class _StylesTabState extends ConsumerState<StylesTab> {
   void initState() {
     super.initState();
     _hydrate(widget.business);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cleanupCorruptMediaIfNeeded();
+    });
   }
 
   @override
@@ -111,6 +114,37 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     final slug = widget.business.publicSlug;
     if (slug != null && slug.isNotEmpty) {
       ref.invalidate(publicBusinessBySlugProvider(slug));
+    }
+  }
+
+  /// Limpia logo/banner inválidos en BD (p. ej. dirección guardada por error).
+  Future<void> _cleanupCorruptMediaIfNeeded() async {
+    if (!widget.business.hadInvalidMediaUrls || !mounted) return;
+    try {
+      await ref.read(businessesProvider(widget.tenantId).notifier).update(
+            businessId: widget.business.id,
+            nombre: widget.business.nombre,
+            descripcion: widget.business.descripcion,
+            searchTags: widget.business.searchTags,
+            logoUrl: '',
+            bannerUrl: '',
+            colorPrimario: _primary,
+            instagramUrl: widget.business.instagramUrl,
+            tiktokUrl: widget.business.tiktokUrl,
+            facebookUrl: widget.business.facebookUrl,
+            colorFondo: _background,
+            fontFamily: _font,
+            direccion: _direccionValue,
+          );
+      if (mounted) {
+        setState(() {
+          _logoUrl = null;
+          _bannerUrl = null;
+        });
+        _invalidatePublicProfile();
+      }
+    } catch (_) {
+      // Silencioso: el usuario puede limpiar con Guardar.
     }
   }
 

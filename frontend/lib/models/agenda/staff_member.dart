@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'agenda_json.dart';
 
 class StaffMember {
@@ -38,24 +40,40 @@ class StaffMember {
   });
 
   factory StaffMember.fromJson(Map<String, dynamic> json) => StaffMember(
-        id: json['id'] as String,
-        businessId: json['businessId'] as String,
-        nombre: json['nombre'] as String,
-        rol: json['rol'] as String?,
-        avatarUrl: json['avatarUrl'] as String?,
-        telefono: json['telefono'] as String?,
-        email: json['email'] as String?,
-        bio: json['bio'] as String?,
-        color: json['color'] as String?,
-        activo: json['activo'] as bool? ?? true,
-        status: json['status'] as String? ??
-            ((json['activo'] as bool?) == true ? 'ACTIVO' : 'PAUSADO'),
-        customSchedule: json['customSchedule'] as Map<String, dynamic>?,
-        serviceIds: (json['serviceIds'] as List<dynamic>?)
-                ?.map((e) => e as String)
-                .toList() ??
-            const [],
+        id: AgendaJson.parseString(json['id']),
+        businessId: AgendaJson.parseString(json['businessId']),
+        nombre: AgendaJson.parseString(json['nombre']),
+        rol: AgendaJson.parseStringOrNull(json['rol']),
+        avatarUrl: AgendaJson.parseStringOrNull(json['avatarUrl']),
+        telefono: AgendaJson.parseStringOrNull(json['telefono']),
+        email: AgendaJson.parseStringOrNull(json['email']),
+        bio: AgendaJson.parseStringOrNull(json['bio']),
+        color: AgendaJson.parseStringOrNull(json['color']),
+        activo: AgendaJson.parseBool(json['activo'], fallback: true),
+        status: AgendaJson.parseStringOrNull(json['status']) ??
+            (AgendaJson.parseBool(json['activo'], fallback: true)
+                ? 'ACTIVO'
+                : 'PAUSADO'),
+        customSchedule: _parseCustomSchedule(json['customSchedule']),
+        serviceIds: AgendaJson.parseStringList(json['serviceIds']),
         rating: AgendaJson.parseDoubleOrNull(json['rating']),
         reviewCount: AgendaJson.parseInt(json['reviewCount']),
       );
+
+  static Map<String, dynamic>? _parseCustomSchedule(dynamic value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return null;
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
 }

@@ -30,6 +30,8 @@ class Business {
   final double? rating;
   /// Cantidad total de reseñas.
   final int reviewCount;
+  /// True si el JSON traía logo/banner que no son paths de upload (p. ej. dirección).
+  final bool hadInvalidMediaUrls;
 
   const Business({
     required this.id,
@@ -55,9 +57,15 @@ class Business {
     this.bannerUrl,
     this.rating,
     this.reviewCount = 0,
+    this.hadInvalidMediaUrls = false,
   });
 
   factory Business.fromJson(Map<String, dynamic> json) {
+    final rawLogo = AgendaJson.parseStringOrNull(json['logoUrl']);
+    final rawBanner = AgendaJson.parseStringOrNull(json['bannerUrl']);
+    final hadInvalidMedia = (rawLogo != null && !isAgendaMediaUrl(rawLogo)) ||
+        (rawBanner != null && !isAgendaMediaUrl(rawBanner));
+
     return Business(
       id: AgendaJson.parseString(json['id']),
       tenantId: AgendaJson.parseString(json['tenantId']),
@@ -67,7 +75,7 @@ class Business {
       searchTags: AgendaJson.parseStringList(json['searchTags']),
       categorias: AgendaJson.parseStringList(json['categorias']),
       activo: AgendaJson.parseBool(json['activo'], fallback: true),
-      logoUrl: sanitizeAgendaMediaUrl(AgendaJson.parseStringOrNull(json['logoUrl'])),
+      logoUrl: sanitizeAgendaMediaUrl(rawLogo),
       colorPrimario: AgendaJson.parseStringOrNull(json['colorPrimario']),
       instagramUrl: AgendaJson.parseStringOrNull(json['instagramUrl']),
       tiktokUrl: AgendaJson.parseStringOrNull(json['tiktokUrl']),
@@ -79,9 +87,10 @@ class Business {
       createdAt: AgendaJson.parseDateTimeOrNull(json['createdAt']),
       updatedAt: AgendaJson.parseDateTimeOrNull(json['updatedAt']),
       direccion: AgendaJson.parseStringOrNull(json['direccion']),
-      bannerUrl: sanitizeAgendaMediaUrl(AgendaJson.parseStringOrNull(json['bannerUrl'])),
+      bannerUrl: sanitizeAgendaMediaUrl(rawBanner),
       rating: AgendaJson.parseDoubleOrNull(json['rating']),
       reviewCount: AgendaJson.parseInt(json['reviewCount']),
+      hadInvalidMediaUrls: hadInvalidMedia,
     );
   }
 
@@ -124,6 +133,7 @@ class Business {
       updatedAt: updatedAt,
       rating: rating,
       reviewCount: reviewCount,
+      hadInvalidMediaUrls: hadInvalidMediaUrls,
     );
   }
 

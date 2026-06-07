@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/agenda_address.dart';
 import '../../../core/agenda_media_image.dart';
+import '../../../core/agenda_media_url.dart';
 import '../../../core/openstreetmap_urls.dart';
 import '../../../core/open_external_url.dart';
 import '../../../core/public_business_share.dart';
@@ -184,7 +185,7 @@ class _Hero extends StatelessWidget {
     final top = MediaQuery.paddingOf(context).top;
     final bannerH = (MediaQuery.sizeOf(context).height * 0.34)
         .clamp(_D.bannerMinH, _D.bannerMaxH);
-    final hasBanner = business.bannerUrl != null && business.bannerUrl!.trim().isNotEmpty;
+    final hasBanner = isAgendaMediaUrl(business.bannerUrl);
     final cats = _categoryLabels;
     final bannerBottom = top + bannerH;
 
