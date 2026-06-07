@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -236,6 +237,19 @@ class AgendaApiService {
     return AgendaJson.parseString(body['url']);
   }
 
+  Business _businessFromBody(dynamic body) {
+    if (body is! Map) {
+      throw AgendaApiException(
+        message: 'Respuesta de negocio inválida',
+        status: 0,
+      );
+    }
+    return Business.fromJson(Map<String, dynamic>.from(body));
+  }
+
+  Uint8List _asUploadBytes(List<int> bytes) =>
+      bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+
   // =====================================================================
   // PUBLIC — registro
   // =====================================================================
@@ -366,7 +380,7 @@ class AgendaApiService {
           _uri('/public/businesses/by-slug/$slug'),
           headers: _publicHeaders(),
         ));
-    return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) => _businessFromBody(body));
   }
 
   /// `GET /public/businesses/by-slug/{slug}/services`
@@ -474,7 +488,7 @@ class AgendaApiService {
           _uri('/public/businesses/$id'),
           headers: _publicHeaders(),
         ));
-    return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) => _businessFromBody(body));
   }
 
   /// `GET /public/businesses/{id}/staff`
@@ -816,7 +830,7 @@ class AgendaApiService {
               'ownerUserId': ownerUserId,
           }),
         ));
-    return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) => _businessFromBody(body));
   }
 
   /// `PUT /me/businesses/{businessId}`
@@ -853,7 +867,7 @@ class AgendaApiService {
             if (bannerUrl != null) 'bannerUrl': bannerUrl,
           }),
         ));
-    return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));
+    return _decode(r, (body) => _businessFromBody(body));
   }
 
   /// `POST /me/businesses/{businessId}/avatar`
@@ -868,7 +882,11 @@ class AgendaApiService {
     if (_accessToken != null) {
       request.headers['Authorization'] = 'Bearer $_accessToken';
     }
-    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      _asUploadBytes(bytes),
+      filename: fileName,
+    ));
     final streamed = await request.send().timeout(_uploadTimeout);
     final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
     return _decode(r, _parseUploadUrl);
@@ -888,7 +906,11 @@ class AgendaApiService {
     if (_accessToken != null) {
       request.headers['Authorization'] = 'Bearer $_accessToken';
     }
-    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      _asUploadBytes(bytes),
+      filename: fileName,
+    ));
     final streamed = await request.send().timeout(_uploadTimeout);
     final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
     return _decode(r, _parseUploadUrl);
@@ -908,7 +930,11 @@ class AgendaApiService {
     if (_accessToken != null) {
       request.headers['Authorization'] = 'Bearer $_accessToken';
     }
-    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      _asUploadBytes(bytes),
+      filename: fileName,
+    ));
     final streamed = await request.send().timeout(_uploadTimeout);
     final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
     return _decode(r, _parseUploadUrl);

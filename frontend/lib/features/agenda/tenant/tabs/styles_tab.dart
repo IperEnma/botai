@@ -178,25 +178,15 @@ class _StylesTabState extends ConsumerState<StylesTab> {
           fileName: prepared.fileName,
         );
 
-        // Persistimos el logo enseguida (igual que el flow actual).
-        await ref.read(businessesProvider(widget.tenantId).notifier).update(
-              businessId: widget.business.id,
-              nombre: widget.business.nombre,
-              descripcion: widget.business.descripcion,
-              searchTags: widget.business.searchTags,
-              logoUrl: url,
-              colorPrimario: _primary,
-              instagramUrl: widget.business.instagramUrl,
-              tiktokUrl: widget.business.tiktokUrl,
-              facebookUrl: widget.business.facebookUrl,
-              colorFondo: _background,
-              fontFamily: _font,
-              direccion: _direccionValue,
-              bannerUrl: _bannerUrl ?? '',
-            );
+        if (!mounted) return;
+        setState(() => _logoUrl = sanitizeAgendaMediaUrl(url) ?? url);
+        try {
+          await ref.read(businessesProvider(widget.tenantId).notifier).load();
+        } catch (_) {
+          // Upload OK; refresh de lista es best-effort.
+        }
+        _invalidatePublicProfile();
         if (mounted) {
-          setState(() => _logoUrl = sanitizeAgendaMediaUrl(url) ?? url);
-          _invalidatePublicProfile();
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Logo actualizado')));
         }
@@ -238,25 +228,15 @@ class _StylesTabState extends ConsumerState<StylesTab> {
           fileName: prepared.fileName,
         );
 
-        // Persistimos el banner enseguida (igual que el logo).
-        await ref.read(businessesProvider(widget.tenantId).notifier).update(
-              businessId: widget.business.id,
-              nombre: widget.business.nombre,
-              descripcion: widget.business.descripcion,
-              searchTags: widget.business.searchTags,
-              logoUrl: _logoUrl ?? '',
-              colorPrimario: _primary,
-              instagramUrl: widget.business.instagramUrl,
-              tiktokUrl: widget.business.tiktokUrl,
-              facebookUrl: widget.business.facebookUrl,
-              colorFondo: _background,
-              fontFamily: _font,
-              direccion: _direccionValue,
-              bannerUrl: url,
-            );
+        if (!mounted) return;
+        setState(() => _bannerUrl = sanitizeAgendaMediaUrl(url) ?? url);
+        try {
+          await ref.read(businessesProvider(widget.tenantId).notifier).load();
+        } catch (_) {
+          // Upload OK; refresh de lista es best-effort.
+        }
+        _invalidatePublicProfile();
         if (mounted) {
-          setState(() => _bannerUrl = sanitizeAgendaMediaUrl(url) ?? url);
-          _invalidatePublicProfile();
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Portada actualizada')));
         }

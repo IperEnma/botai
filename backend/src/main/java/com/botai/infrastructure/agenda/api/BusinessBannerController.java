@@ -1,6 +1,7 @@
 package com.botai.infrastructure.agenda.api;
 
 import com.botai.application.agenda.support.AgendaMediaUploadSupport;
+import com.botai.application.agenda.usecase.business.UpdateBusinessUseCase;
 import com.botai.domain.agenda.service.AgendaMediaStoragePort;
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,11 +26,14 @@ public class BusinessBannerController {
 
     private final AgendaMediaStoragePort mediaStorage;
     private final AgendaCurrentTenantService currentTenant;
+    private final UpdateBusinessUseCase updateBusiness;
 
     public BusinessBannerController(AgendaMediaStoragePort mediaStorage,
-                                    AgendaCurrentTenantService currentTenant) {
+                                    AgendaCurrentTenantService currentTenant,
+                                    UpdateBusinessUseCase updateBusiness) {
         this.mediaStorage = mediaStorage;
         this.currentTenant = currentTenant;
+        this.updateBusiness = updateBusiness;
     }
 
     @PostMapping(value = "/banner", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -39,6 +43,7 @@ public class BusinessBannerController {
             @RequestParam("file") MultipartFile file) throws IOException {
 
         currentTenant.requireBusinessOwnedByCurrentTenant(businessId);
+        String tenantId = currentTenant.requireTenantId();
 
         String ext = AgendaMediaUploadSupport.fileExtension(file.getOriginalFilename());
         String fileName = UUID.randomUUID() + "." + ext;
@@ -46,6 +51,15 @@ public class BusinessBannerController {
         String contentType = AgendaMediaUploadSupport.resolveContentType(file, storageKey);
 
         String url = mediaStorage.store(storageKey, file.getBytes(), contentType);
+        updateBusiness.execute(
+                tenantId,
+                businessId,
+                null, null, null, null,
+                null,
+                null, null, null, null, null, null,
+                url,
+                null
+        );
         return ResponseEntity.ok(Map.of("url", url));
     }
 }

@@ -64,7 +64,21 @@ Future<Uint8List> _readFileBytes(html.File file) async {
   final reader = html.FileReader();
   reader.readAsArrayBuffer(file);
   await reader.onLoad.first;
-  return Uint8List.view(reader.result as ByteBuffer);
+  final result = reader.result;
+  if (result == null) {
+    throw StateError('No se pudo leer el archivo');
+  }
+  if (result is Uint8List) {
+    return result;
+  }
+  if (result is ByteBuffer) {
+    return Uint8List.view(result);
+  }
+  if (result is List<int>) {
+    return Uint8List.fromList(result);
+  }
+  // Web: a veces devuelve un typed array distinto de ByteBuffer.
+  return Uint8List.fromList(List<int>.from(result as Iterable<int>));
 }
 
 Future<Uint8List> _compressWithCanvas(
