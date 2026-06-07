@@ -92,8 +92,10 @@ class _BusinessFormDialogState extends State<BusinessFormDialog> {
               TextFormField(
                 controller: _tagsCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Tags de búsqueda (separados por coma)',
-                  hintText: 'manicure, yoga, masajes',
+                  labelText: 'Rubro / etiquetas del perfil (separadas por coma)',
+                  hintText: 'Servicios eléctricos, instalaciones',
+                  helperText:
+                      'Aparecen como pills en tu perfil público. Podés escribir texto libre.',
                 ),
               ),
             ],

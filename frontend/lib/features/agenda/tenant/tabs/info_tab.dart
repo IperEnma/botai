@@ -62,9 +62,9 @@ class _InfoTabState extends ConsumerState<InfoTab> {
           if (business.descripcion != null)
             _InfoRow(label: 'Descripción', value: business.descripcion!),
           _InfoRow(
-            label: 'Tags de búsqueda',
+            label: 'Rubro / etiquetas del perfil',
             value: business.searchTags.isEmpty
-                ? 'Sin tags'
+                ? 'Sin etiquetas'
                 : business.searchTags.join(', '),
           ),
           _InfoRow(label: 'Activo', value: business.activo ? 'Sí' : 'No'),

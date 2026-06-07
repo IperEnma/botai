@@ -20,6 +20,7 @@ import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import 'public_phone_verify_sheet.dart';
+import 'public_reservar_layout.dart';
 import 'public_service_booking_modal.dart';
 
 /// Perfil público del negocio — diseño mockup Felito Barber.
@@ -51,11 +52,34 @@ class PublicBusinessProfileScreen extends ConsumerWidget {
   }
 }
 
-// ─── Design tokens (mockup Felito Barber — fijos) ─────────────────────────────
+// ─── Tema del negocio (colorPrimario / colorFondo del dueño) ─────────────────
+
+class _PublicProfileScope extends InheritedWidget {
+  const _PublicProfileScope({required this.theme, required super.child});
+
+  final PublicReservarTheme theme;
+
+  static PublicReservarTheme of(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<_PublicProfileScope>()!
+        .theme;
+  }
+
+  @override
+  bool updateShouldNotify(_PublicProfileScope oldWidget) =>
+      theme.primary != oldWidget.theme.primary ||
+      theme.background != oldWidget.theme.background;
+}
+
+// ─── Design tokens (layout fijo; acento = tema del negocio) ───────────────────
 
 abstract final class _D {
-  static const purple = Color(0xFF7C5CFF);
-  static const bg = Color(0xFFF3F4F6);
+  static Color brand(BuildContext context) =>
+      _PublicProfileScope.of(context).primary;
+
+  static Color pageBg(BuildContext context) =>
+      _PublicProfileScope.of(context).background;
+
   static const ink = Color(0xFF111827);
   static const muted = Color(0xFF6B7280);
   static const faint = Color(0xFF9CA3AF);
@@ -112,9 +136,17 @@ class _FelitoBarberPage extends ConsumerWidget {
     final services = servicesAsync.valueOrNull ?? const [];
     final canBook = services.isNotEmpty;
     final addr = resolveBusinessAddress(business) ?? '';
+    final theme = PublicReservarTheme.fromHex(
+      colorPrimario: business.colorPrimario,
+      colorFondo: business.colorFondo,
+      fontFamily: business.fontFamily,
+      logoUrl: business.logoUrl,
+    );
 
-    return Scaffold(
-      backgroundColor: _D.bg,
+    return _PublicProfileScope(
+      theme: theme,
+      child: Scaffold(
+      backgroundColor: theme.background,
       body: Stack(
         children: [
           CustomScrollView(
@@ -156,6 +188,7 @@ class _FelitoBarberPage extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -203,22 +236,38 @@ class _Hero extends ConsumerWidget {
       }
     }
 
-    final geoKeys = <String>{};
-    for (final part in (business.direccion ?? '').split(',')) {
-      final p = part.trim().toLowerCase();
-      if (p.isNotEmpty) geoKeys.add(p);
-    }
-
     for (final tag in business.searchTags) {
       if (pills.length >= 3) break;
-      final lower = tag.trim().toLowerCase();
-      if (lower.isEmpty || seen.contains(lower) || geoKeys.contains(lower)) {
-        continue;
-      }
+      if (!_isRubroTag(tag)) continue;
       add(tag);
     }
 
     return pills.take(3).toList();
+  }
+
+  bool _isRubroTag(String tag) {
+    final t = tag.trim();
+    if (t.isEmpty) return false;
+    final lower = t.toLowerCase();
+
+    final dir = business.direccion?.trim().toLowerCase() ?? '';
+    if (dir.isNotEmpty) {
+      if (dir == lower || dir.contains(lower) || lower.contains(dir)) {
+        return false;
+      }
+      for (final segment in dir.split(RegExp(r'[,;]'))) {
+        final seg = segment.trim();
+        if (seg.isEmpty) continue;
+        if (seg == lower || seg.contains(lower) || lower.contains(seg)) {
+          return false;
+        }
+      }
+    }
+
+    // Calle/número u otros fragmentos de dirección
+    if (RegExp(r'\d').hasMatch(t)) return false;
+
+    return true;
   }
 
   String get _ratingLabel {
@@ -575,7 +624,8 @@ class _Stars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filled = onDark ? _D.purple : _D.purple;
+    final brand = _D.brand(context);
+    final filled = brand;
     final empty = onDark
         ? _D.white.withValues(alpha: 0.35)
         : _D.faint;
@@ -600,10 +650,11 @@ class _Pill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brand = _D.brand(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: _D.purple.withValues(alpha: 0.92),
+        color: brand.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _D.white.withValues(alpha: 0.15)),
       ),
@@ -629,7 +680,7 @@ class _SectionHead extends StatelessWidget {
         if (link != null && onLink != null)
           GestureDetector(
             onTap: onLink,
-            child: Text('$link >', style: _D.t(13, w: FontWeight.w600, c: _D.purple)),
+            child: Text('$link >', style: _D.t(13, w: FontWeight.w600, c: _D.brand(context))),
           ),
       ],
     );
@@ -688,7 +739,7 @@ class _Services extends StatelessWidget {
         servicesAsync.when(
           loading: () => const SizedBox(
             height: 132,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _D.purple)),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context))),
           ),
           error: (_, _) => Text('Error al cargar servicios.', style: _D.t(14, c: _D.muted)),
           data: (list) {
@@ -759,7 +810,7 @@ class _ServiceCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: _D.purple,
+                    color: _D.brand(context),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: _D.white, size: 20),
@@ -780,7 +831,7 @@ class _ServiceCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(_price, style: _D.t(15, w: FontWeight.w700, c: _D.purple)),
+                Text(_price, style: _D.t(15, w: FontWeight.w700, c: _D.brand(context))),
               ],
             ),
           ),
@@ -809,7 +860,7 @@ class _Hours extends StatelessWidget {
         hoursAsync.when(
           loading: () => const SizedBox(
             height: 68,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _D.purple)),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context))),
           ),
           error: (_, _) => Text('Error al cargar horarios.', style: _D.t(14, c: _D.muted)),
           data: (rows) {
@@ -912,7 +963,7 @@ class _Location extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.place_outlined, size: 18, color: _D.purple),
+                          const Icon(Icons.place_outlined, size: 18, color: _D.brand(context)),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -928,7 +979,7 @@ class _Location extends StatelessWidget {
                           onTap: () => openExternalUrl(mapsUrl),
                           child: Text(
                             'Ver en el mapa >',
-                            style: _D.t(13, w: FontWeight.w600, c: _D.purple),
+                            style: _D.t(13, w: FontWeight.w600, c: _D.brand(context)),
                           ),
                         ),
                     ] else
@@ -1016,7 +1067,7 @@ class _MapThumbnailState extends State<_MapThumbnail> {
         child: const SizedBox(
           width: 20,
           height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2, color: _D.purple),
+          child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context)),
         ),
       );
     } else if (_thumbUrl != null) {
@@ -1053,7 +1104,7 @@ class _MapThumbnailState extends State<_MapThumbnail> {
         children: [
           CustomPaint(painter: _MapGridPainter()),
           const Center(
-            child: Icon(Icons.location_on, color: _D.purple, size: 32),
+            child: Icon(Icons.location_on, color: _D.brand(context), size: 32),
           ),
         ],
       ),
@@ -1098,7 +1149,7 @@ class _Team extends StatelessWidget {
           loading: () => const SizedBox(
             height: 72,
             child: Center(
-              child: CircularProgressIndicator(strokeWidth: 2, color: _D.purple),
+              child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context)),
             ),
           ),
           error: (_, _) => Text(
@@ -1174,7 +1225,7 @@ class _StaffCard extends StatelessWidget {
                   Icon(
                     _rated ? Icons.star_rounded : Icons.star_outline_rounded,
                     size: 14,
-                    color: _D.purple,
+                    color: _D.brand(context),
                   ),
                   const SizedBox(width: 3),
                   Text(
@@ -1252,7 +1303,7 @@ class _BottomCta extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [_D.bg.withValues(alpha: 0), _D.bg],
+          colors: [_D.pageBg(context).withValues(alpha: 0), _D.pageBg(context)],
         ),
       ),
       child: SafeArea(
@@ -1265,8 +1316,8 @@ class _BottomCta extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onTap,
               style: FilledButton.styleFrom(
-                backgroundColor: _D.purple,
-                disabledBackgroundColor: _D.purple.withValues(alpha: 0.4),
+                backgroundColor: _D.brand(context),
+                disabledBackgroundColor: _D.brand(context).withValues(alpha: 0.4),
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),

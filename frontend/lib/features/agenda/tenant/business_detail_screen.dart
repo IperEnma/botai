@@ -11,6 +11,8 @@ import '../../../providers/agenda/tenant_admin_resolved_provider.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
+import 'tabs/categories_tab.dart';
+import 'tabs/info_tab.dart';
 
 class BusinessDetailScreen extends ConsumerWidget {
   const BusinessDetailScreen({
@@ -226,6 +228,21 @@ class _BusinessConfigViewState extends ConsumerState<_BusinessConfigView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+
+              // ── Información del negocio (tags, categorías, redes) ────────
+              _SectionLabel('INFORMACIÓN DEL NEGOCIO'),
+              const SizedBox(height: 4),
+              InfoTab(
+                tenantId: widget.tenantId,
+                business: widget.business,
+                scrollable: false,
+              ),
+              CategoriesTab(
+                tenantId: widget.tenantId,
+                business: widget.business,
+              ),
+
+              const SizedBox(height: 36),
 
               // ── Configuración del perfil ─────────────────────────────────
               _SectionLabel('CONFIGURACIÓN DEL PERFIL'),
