@@ -53,7 +53,9 @@ abstract final class _D {
 
   static const pad = 16.0;
   static const r = 16.0;
-  static const bannerH = 252.0;
+  /// Altura mínima/máxima del banner (el valor real es % de pantalla en el hero).
+  static const bannerMinH = 220.0;
+  static const bannerMaxH = 320.0;
   static const logo = 88.0;
   static const logoBorder = 3.5;
   static const logoLift = 44.0;
@@ -119,7 +121,7 @@ class _FelitoBarberPage extends ConsumerWidget {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(_D.pad, 4, _D.pad, 100),
+                padding: EdgeInsets.fromLTRB(_D.pad, _D.logoLift + 8, _D.pad, 100),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _Services(
@@ -173,10 +175,12 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
+    final bannerH = (MediaQuery.sizeOf(context).height * 0.34)
+        .clamp(_D.bannerMinH, _D.bannerMaxH);
     final bannerUrl = resolveAgendaMediaUrl(business.bannerUrl);
     final logoUrl = resolveAgendaMediaUrl(business.logoUrl);
     final cats = _categoryLabels;
-    final bannerBottom = top + _D.bannerH;
+    final bannerBottom = top + bannerH;
 
     return SizedBox(
       height: bannerBottom + _D.logoLift,
@@ -189,12 +193,16 @@ class _Hero extends StatelessWidget {
             right: 0,
             height: bannerBottom,
             child: Stack(
+              clipBehavior: Clip.none,
               fit: StackFit.expand,
               children: [
                 if (bannerUrl != null)
                   Image.network(
                     bannerUrl,
                     fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                    width: double.infinity,
+                    height: double.infinity,
                     errorBuilder: (_, _, _) => const _BannerFallback(),
                   )
                 else
@@ -202,17 +210,17 @@ class _Hero extends StatelessWidget {
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
-                    height: _D.bannerH * 0.68,
+                    height: bannerH * 0.75,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withValues(alpha: 0.45),
-                          Colors.black.withValues(alpha: 0.82),
+                          Colors.black.withValues(alpha: 0.35),
+                          Colors.black.withValues(alpha: 0.78),
                         ],
-                        stops: const [0, 0.35, 1],
+                        stops: const [0, 0.45, 1],
                       ),
                     ),
                   ),
@@ -237,58 +245,67 @@ class _Hero extends StatelessWidget {
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          Positioned(
-            left: _D.pad,
-            right: _D.pad,
-            bottom: 0,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _LogoCircle(name: business.nombre, url: logoUrl),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          business.nombre,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: _D.t(20, w: FontWeight.w700, c: _D.white, h: 1.15),
-                        ),
-                        const SizedBox(height: 5),
-                        Row(
+                Positioned(
+                  left: _D.pad,
+                  right: _D.pad,
+                  bottom: 14,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Transform.translate(
+                        offset: const Offset(0, _D.logoLift),
+                        child: _LogoCircle(name: business.nombre, url: logoUrl),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _Stars(rating: business.rating ?? 0),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                _ratingLabel,
-                                style: _D.t(13, w: FontWeight.w500, c: _D.white),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            Text(
+                              business.nombre,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: _D.t(
+                                20,
+                                w: FontWeight.w700,
+                                c: _D.white,
+                                h: 1.15,
                               ),
                             ),
+                            const SizedBox(height: 5),
+                            Row(
+                              children: [
+                                _Stars(rating: business.rating ?? 0),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    _ratingLabel,
+                                    style: _D.t(
+                                      13,
+                                      w: FontWeight.w500,
+                                      c: _D.white,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (cats.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: [
+                                  for (final c in cats) _Pill(_prettyCat(c)),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
-                        if (cats.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            children: [
-                              for (final c in cats) _Pill(_prettyCat(c)),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
