@@ -75,6 +75,15 @@ String? _mediaUrl(String? raw) {
   return '${AppConfig.serverBaseUrl}/$u';
 }
 
+/// Ignora URLs guardadas por error en el campo dirección.
+String _displayAddress(String? raw) {
+  final t = raw?.trim() ?? '';
+  if (t.isEmpty) return '';
+  if (RegExp(r'^https?://', caseSensitive: false).hasMatch(t)) return '';
+  if (t.contains('/uploads/')) return '';
+  return t;
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 class _FelitoBarberPage extends ConsumerWidget {
@@ -103,7 +112,7 @@ class _FelitoBarberPage extends ConsumerWidget {
     final hours = ref.watch(publicHoursBySlugProvider(slug));
     final services = servicesAsync.valueOrNull ?? const [];
     final canBook = services.isNotEmpty;
-    final addr = business.direccion?.trim() ?? '';
+    final addr = _displayAddress(business.direccion);
 
     return Scaffold(
       backgroundColor: _D.bg,
@@ -160,15 +169,7 @@ class _Hero extends StatelessWidget {
   final Business business;
   final VoidCallback onBack;
 
-  List<String> get _categoryLabels {
-    if (business.categorias.isNotEmpty) {
-      return business.categorias.take(3).toList();
-    }
-    if (business.searchTags.isNotEmpty) {
-      return business.searchTags.take(3).toList();
-    }
-    return const [];
-  }
+  List<String> get _categoryLabels => business.categorias.take(3).toList();
 
   String get _ratingLabel {
     if (business.reviewCount > 0 && business.rating != null) {
@@ -183,69 +184,84 @@ class _Hero extends StatelessWidget {
     final bannerUrl = _mediaUrl(business.bannerUrl);
     final logoUrl = _mediaUrl(business.logoUrl);
     final cats = _categoryLabels;
+    final bannerBottom = top + _D.bannerH;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            SizedBox(
-              height: _D.bannerH + top,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (bannerUrl != null)
-                    Image.network(
-                      bannerUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const _BannerFallback(),
-                    )
-                  else
-                    const _BannerFallback(),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      height: _D.bannerH * 0.72,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.55),
-                            Colors.black.withValues(alpha: 0.88),
-                          ],
-                          stops: const [0, 0.4, 1],
-                        ),
+    return SizedBox(
+      height: bannerBottom + _D.logoLift,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: bannerBottom,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (bannerUrl != null)
+                  Image.network(
+                    bannerUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const _BannerFallback(),
+                  )
+                else
+                  const _BannerFallback(),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    height: _D.bannerH * 0.68,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.45),
+                          Colors.black.withValues(alpha: 0.82),
+                        ],
+                        stops: const [0, 0.35, 1],
                       ),
                     ),
                   ),
-                  Positioned(
-                    top: top + 8,
-                    left: _D.pad,
-                    child: _RoundBtn(
-                      icon: Icons.arrow_back_ios_new,
-                      size: 16,
-                      onTap: onBack,
-                    ),
+                ),
+                Positioned(
+                  top: top + 8,
+                  left: _D.pad,
+                  child: _RoundBtn(
+                    icon: Icons.arrow_back_ios_new,
+                    size: 16,
+                    onTap: onBack,
                   ),
-                  Positioned(
-                    top: top + 8,
-                    right: _D.pad,
-                    child: Row(
-                      children: [
-                        _RoundBtn(icon: Icons.ios_share, onTap: () {}),
-                        const SizedBox(width: 8),
-                        const _HeartBtn(),
-                      ],
-                    ),
+                ),
+                Positioned(
+                  top: top + 8,
+                  right: _D.pad,
+                  child: Row(
+                    children: [
+                      _RoundBtn(icon: Icons.ios_share, onTap: () {}),
+                      const SizedBox(width: 8),
+                      const _HeartBtn(),
+                    ],
                   ),
-                  Positioned(
-                    left: _D.pad + _D.logo + 12,
-                    right: _D.pad,
-                    bottom: _D.logoLift + 10,
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: _D.pad,
+            right: _D.pad,
+            bottom: 0,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _LogoCircle(name: business.nombre, url: logoUrl),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -282,18 +298,12 @@ class _Hero extends StatelessWidget {
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Positioned(
-              left: _D.pad,
-              top: top + _D.bannerH - _D.logoLift,
-              child: _LogoCircle(name: business.nombre, url: logoUrl),
-            ),
-          ],
-        ),
-        SizedBox(height: _D.logoLift + 6),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
