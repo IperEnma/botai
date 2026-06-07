@@ -79,7 +79,12 @@ class _PublicServiceBookingModalState
   String? _confirmedDateLabel;
   BookingEstado? _confirmedEstado;
 
-  PublicReservarTheme get _theme => PublicReservarTheme.felito();
+  PublicReservarTheme get _theme => PublicReservarTheme.fromHex(
+        colorPrimario: widget.business.colorPrimario,
+        colorFondo: widget.business.colorFondo,
+        fontFamily: widget.business.fontFamily,
+        logoUrl: widget.business.logoUrl,
+      );
 
   bool get _skipsServiceStep => widget.initialService != null;
 

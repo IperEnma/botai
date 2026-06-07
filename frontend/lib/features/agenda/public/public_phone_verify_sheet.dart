@@ -51,7 +51,12 @@ class _PublicPhoneVerifySheetState extends ConsumerState<PublicPhoneVerifySheet>
   String? _otpError;
   String? _otpHint;
 
-  PublicReservarTheme get _theme => PublicReservarTheme.felito();
+  PublicReservarTheme get _theme => PublicReservarTheme.fromHex(
+        colorPrimario: widget.business.colorPrimario,
+        colorFondo: widget.business.colorFondo,
+        fontFamily: widget.business.fontFamily,
+        logoUrl: widget.business.logoUrl,
+      );
 
   @override
   void dispose() {

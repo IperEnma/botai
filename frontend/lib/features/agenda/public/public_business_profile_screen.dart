@@ -737,7 +737,7 @@ class _Services extends StatelessWidget {
         _SectionHead(title: 'Servicios', link: 'Ver todos', onLink: onAll),
         const SizedBox(height: 14),
         servicesAsync.when(
-          loading: () => const SizedBox(
+          loading: () => SizedBox(
             height: 132,
             child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context))),
           ),
@@ -858,7 +858,7 @@ class _Hours extends StatelessWidget {
         const _SectionHead(title: 'Horarios de atención'),
         const SizedBox(height: 14),
         hoursAsync.when(
-          loading: () => const SizedBox(
+          loading: () => SizedBox(
             height: 68,
             child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context))),
           ),
@@ -963,7 +963,7 @@ class _Location extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.place_outlined, size: 18, color: _D.brand(context)),
+                          Icon(Icons.place_outlined, size: 18, color: _D.brand(context)),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -1064,7 +1064,7 @@ class _MapThumbnailState extends State<_MapThumbnail> {
       image = Container(
         color: const Color(0xFFE5E7EB),
         alignment: Alignment.center,
-        child: const SizedBox(
+        child: SizedBox(
           width: 20,
           height: 20,
           child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context)),
@@ -1103,7 +1103,7 @@ class _MapThumbnailState extends State<_MapThumbnail> {
         fit: StackFit.expand,
         children: [
           CustomPaint(painter: _MapGridPainter()),
-          const Center(
+          Center(
             child: Icon(Icons.location_on, color: _D.brand(context), size: 32),
           ),
         ],
@@ -1146,7 +1146,7 @@ class _Team extends StatelessWidget {
         const _SectionHead(title: 'Equipo'),
         const SizedBox(height: 14),
         staffAsync.when(
-          loading: () => const SizedBox(
+          loading: () => SizedBox(
             height: 72,
             child: Center(
               child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context)),

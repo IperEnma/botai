@@ -545,7 +545,12 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         ),
       ),
       data: (business) {
-        final theme = PublicReservarTheme.felito();
+        final theme = PublicReservarTheme.fromHex(
+          colorPrimario: business.colorPrimario,
+          colorFondo: business.colorFondo,
+          fontFamily: business.fontFamily,
+          logoUrl: business.logoUrl,
+        );
 
         final isConfirmed = _step == _BookingStep.confirmed;
 

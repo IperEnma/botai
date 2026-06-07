@@ -290,7 +290,12 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
         ),
       ),
       data: (business) {
-        final theme = PublicReservarTheme.felito();
+        final theme = PublicReservarTheme.fromHex(
+          colorPrimario: business.colorPrimario,
+          colorFondo: business.colorFondo,
+          fontFamily: business.fontFamily,
+          logoUrl: business.logoUrl,
+        );
 
         if (_loading) {
           return PublicFelitoBookingShell(
