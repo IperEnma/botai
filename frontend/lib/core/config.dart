@@ -3,15 +3,26 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class AppConfig {
   static const String appName = 'BotAI Admin';
 
-  static String get apiBaseUrl => dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api';
+  static String get apiBaseUrl =>
+      (dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api').trim();
 
   /// Raíz del backend (sin sufijo /api).
   static String get serverBaseUrl {
-    final api = apiBaseUrl;
+    var api = apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
     if (api.endsWith('/api')) {
-      return api.substring(0, api.length - 4);
+      api = api.substring(0, api.length - 4);
     }
-    return api;
+    return api.replaceAll(RegExp(r'/+$'), '');
+  }
+
+  /// Host público para `/uploads/**` (logo, banner, avatares).
+  /// Prioriza `PUBLIC_BACKEND_URL`; si no, [serverBaseUrl].
+  static String get mediaBaseUrl {
+    final override = dotenv.env['PUBLIC_BACKEND_URL']?.trim();
+    if (override != null && override.isNotEmpty) {
+      return override.replaceAll(RegExp(r'/+$'), '');
+    }
+    return serverBaseUrl;
   }
 
   static String get googleClientIdWeb =>

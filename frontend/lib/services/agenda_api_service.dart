@@ -828,15 +828,15 @@ class AgendaApiService {
             'nombre': nombre,
             if (descripcion != null) 'descripcion': descripcion,
             'searchTags': searchTags,
-            'logoUrl': logoUrl,
+            if (logoUrl != null) 'logoUrl': logoUrl,
             'colorPrimario': colorPrimario,
             'instagramUrl': instagramUrl,
             'tiktokUrl': tiktokUrl,
             'facebookUrl': facebookUrl,
             'colorFondo': colorFondo,
             'fontFamily': fontFamily,
-            'direccion': direccion,
-            'bannerUrl': bannerUrl,
+            if (direccion != null) 'direccion': direccion,
+            if (bannerUrl != null) 'bannerUrl': bannerUrl,
           }),
         ));
     return _decode(r, (body) => Business.fromJson(body as Map<String, dynamic>));

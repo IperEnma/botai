@@ -29,10 +29,15 @@ public class AgendaWebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String uploadDir = uploadProperties.getDir();
-        String uploadPath = uploadDir.endsWith("/") ? uploadDir : uploadDir + "/";
+        java.nio.file.Path absolute = java.nio.file.Paths.get(uploadProperties.getDir())
+                .toAbsolutePath()
+                .normalize();
+        String location = absolute.toUri().toString();
+        if (!location.endsWith("/")) {
+            location = location + "/";
+        }
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + uploadPath);
+                .addResourceLocations(location);
     }
 
     @Override

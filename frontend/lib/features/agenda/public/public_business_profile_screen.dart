@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/agenda_address.dart';
+import '../../../core/agenda_media_image.dart';
 import '../../../core/agenda_media_url.dart';
 import '../../../core/google_maps_urls.dart';
 import '../../../core/open_external_url.dart';
@@ -207,13 +208,13 @@ class _Hero extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 if (bannerUrl != null)
-                  Image.network(
-                    bannerUrl,
+                  AgendaMediaImage(
+                    url: business.bannerUrl,
                     fit: BoxFit.cover,
                     alignment: Alignment.center,
                     width: double.infinity,
                     height: double.infinity,
-                    errorBuilder: (_, _, _) => const _BannerFallback(),
+                    errorWidget: const _BannerFallback(),
                   )
                 else
                   const _BannerFallback(),
@@ -489,7 +490,11 @@ class _LogoCircle extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: ok
-          ? Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, _, _) => _fb())
+          ? AgendaMediaImage(
+              url: url,
+              fit: BoxFit.cover,
+              errorWidget: _fb(),
+            )
           : _fb(),
     );
   }
@@ -1087,10 +1092,10 @@ class _StaffAvatar extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: resolved != null
-          ? Image.network(
-              resolved,
+          ? AgendaMediaImage(
+              url: url,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _initials(sz),
+              errorWidget: _initials(sz),
             )
           : _initials(sz),
     );
