@@ -803,35 +803,49 @@ class _Team extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return staffAsync.maybeWhen(
-      orElse: () => const SizedBox.shrink(),
-      data: (all) {
-        final list = all.where((s) => s.activo).toList();
-        if (list.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _SectionHead(title: 'Equipo'),
-            const SizedBox(height: 14),
-            SizedBox(
-              height: 64,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionHead(title: 'Equipo'),
+        const SizedBox(height: 14),
+        staffAsync.when(
+          loading: () => const SizedBox(
+            height: 72,
+            child: Center(
+              child: CircularProgressIndicator(strokeWidth: 2, color: _D.purple),
+            ),
+          ),
+          error: (_, _) => Text(
+            'No se pudo cargar el equipo.',
+            style: _D.t(14, c: _D.muted),
+          ),
+          data: (all) {
+            final list = all.where((s) => s.activo).toList();
+            if (list.isEmpty) {
+              return Text(
+                'Este negocio aún no publicó profesionales.',
+                style: _D.t(14, c: _D.muted),
+              );
+            }
+            return SizedBox(
+              height: 76,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 clipBehavior: Clip.none,
                 itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 24),
-                itemBuilder: (_, i) => _StaffRow(m: list[i]),
+                separatorBuilder: (_, _) => const SizedBox(width: 28),
+                itemBuilder: (_, i) => _StaffCard(m: list[i]),
               ),
-            ),
-          ],
-        );
-      },
+            );
+          },
+        ),
+      ],
     );
   }
 }
 
-class _StaffRow extends StatelessWidget {
-  const _StaffRow({required this.m});
+class _StaffCard extends StatelessWidget {
+  const _StaffCard({required this.m});
 
   final StaffMember m;
 
@@ -841,64 +855,97 @@ class _StaffRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _Avatar(name: m.nombre, url: m.avatarUrl),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(m.nombre, style: _D.t(15, w: FontWeight.w700)),
-            Text(
-              (m.rol != null && m.rol!.trim().isNotEmpty) ? m.rol!.trim() : 'Profesional',
-              style: _D.t(13, c: _D.muted),
-            ),
-            if (_rated)
+        _StaffAvatar(name: m.nombre, url: m.avatarUrl),
+        const SizedBox(width: 12),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 140),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                m.nombre,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _D.t(15, w: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                (m.rol != null && m.rol!.trim().isNotEmpty)
+                    ? m.rol!.trim()
+                    : 'Profesional',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _D.t(13, c: _D.muted),
+              ),
+              const SizedBox(height: 3),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.star_rounded, size: 13, color: _D.purple),
-                  const SizedBox(width: 2),
-                  Text(m.rating!.toStringAsFixed(1), style: _D.t(12, w: FontWeight.w600)),
+                  Icon(
+                    _rated ? Icons.star_rounded : Icons.star_outline_rounded,
+                    size: 14,
+                    color: _D.purple,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    _rated ? m.rating!.toStringAsFixed(1) : '—',
+                    style: _D.t(12, w: FontWeight.w600, c: _D.muted),
+                  ),
                 ],
               ),
-          ],
+            ],
+          ),
         ),
       ],
     );
   }
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name, required this.url});
+class _StaffAvatar extends StatelessWidget {
+  const _StaffAvatar({required this.name, required this.url});
 
   final String name;
   final String? url;
 
   @override
   Widget build(BuildContext context) {
-    const sz = 52.0;
+    const sz = 56.0;
     final resolved = _mediaUrl(url);
-    final ok = resolved != null;
-    return ClipOval(
-      child: SizedBox(
-        width: sz,
-        height: sz,
-        child: ok
-            ? Image.network(resolved, fit: BoxFit.cover, errorBuilder: (_, _, _) => _ini(sz))
-            : _ini(sz),
+    return Container(
+      width: sz,
+      height: sz,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: _D.white, width: 2),
+        boxShadow: const [
+          BoxShadow(color: _D.shadow, blurRadius: 8, offset: Offset(0, 2)),
+        ],
       ),
+      clipBehavior: Clip.antiAlias,
+      child: resolved != null
+          ? Image.network(
+              resolved,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _initials(sz),
+            )
+          : _initials(sz),
     );
   }
 
-  Widget _ini(double sz) {
+  Widget _initials(double sz) {
     final w = name.trim().split(RegExp(r'\s+'));
     final l = w.length >= 2
         ? '${w[0][0]}${w[1][0]}'.toUpperCase()
         : name.substring(0, name.length.clamp(1, 2)).toUpperCase();
     return ColoredBox(
       color: const Color(0xFFD1D5DB),
-      child: Center(child: Text(l, style: _D.t(16, w: FontWeight.w600, c: _D.muted))),
+      child: Center(
+        child: Text(l, style: _D.t(17, w: FontWeight.w600, c: _D.muted)),
+      ),
     );
   }
 }
