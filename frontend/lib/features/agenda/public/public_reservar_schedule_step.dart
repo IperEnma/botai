@@ -52,6 +52,7 @@ class _PublicReservarScheduleStepState
   bool _loadingMonth = false;
   Future<List<AvailabilitySlot>>? _slotsFuture;
   String? _availabilityKey;
+  final GlobalKey _slotsSectionKey = GlobalKey();
 
   bool get _usesStaff => widget.service.requiresStaffSelection;
 
@@ -86,6 +87,24 @@ class _PublicReservarScheduleStepState
   String _dateKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  void _scheduleScrollToSlotsSection() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Segundo frame: el FutureBuilder ya midió loading o chips de hora.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final target = _slotsSectionKey.currentContext;
+        if (target == null) return;
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+          alignment: 0.08,
+        );
+      });
+    });
+  }
+
   void _reloadSlotsForSelectedDate() {
     final date = widget.selectedDate;
     if (date == null) {
@@ -108,6 +127,10 @@ class _PublicReservarScheduleStepState
       _availabilityKey =
           '${key.slug}|${key.serviceId}|${key.staffMemberId}|${key.date}';
       _slotsFuture = ref.read(availabilityBySlugProvider(key).future);
+    });
+    _scheduleScrollToSlotsSection();
+    _slotsFuture!.whenComplete(() {
+      if (mounted) _scheduleScrollToSlotsSection();
     });
   }
 
@@ -204,12 +227,15 @@ class _PublicReservarScheduleStepState
         ),
         if (widget.selectedDate != null) ...[
           const SizedBox(height: 24),
-          _DaySlotsSection(
-            theme: t,
-            date: widget.selectedDate!,
-            slotsFuture: _slotsFuture,
-            selected: widget.selectedSlot,
-            onSelect: widget.onSlotChanged,
+          KeyedSubtree(
+            key: _slotsSectionKey,
+            child: _DaySlotsSection(
+              theme: t,
+              date: widget.selectedDate!,
+              slotsFuture: _slotsFuture,
+              selected: widget.selectedSlot,
+              onSelect: widget.onSlotChanged,
+            ),
           ),
         ],
       ],
