@@ -946,18 +946,6 @@ class _Location extends StatelessWidget {
 
   bool get _hasAddress => address.trim().isNotEmpty;
 
-  bool get _hasSocial =>
-      _normalizeUrl(business.instagramUrl) != null ||
-      _normalizeUrl(business.tiktokUrl) != null ||
-      _normalizeUrl(business.facebookUrl) != null;
-
-  static String? _normalizeUrl(String? raw) {
-    final v = raw?.trim();
-    if (v == null || v.isEmpty) return null;
-    if (RegExp(r'^https?://', caseSensitive: false).hasMatch(v)) return v;
-    return 'https://$v';
-  }
-
   static (String, String?) _addressLines(String addr, Business b) {
     final trimmed = addr.trim();
     if (trimmed.isEmpty) return ('', null);
@@ -1007,7 +995,7 @@ class _Location extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!_hasAddress && !_hasSocial) {
+    if (!_hasAddress) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1016,7 +1004,7 @@ class _Location extends StatelessWidget {
           _Card(
             pad: 16,
             child: Text(
-              'Agregá la dirección y redes en Configuración.',
+              'Agregá la dirección en Configuración.',
               style: _D.t(13, w: FontWeight.w500, h: 1.35, c: _D.muted),
             ),
           ),
@@ -1035,202 +1023,86 @@ class _Location extends StatelessWidget {
         const SizedBox(height: 14),
         _Card(
           pad: 12,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: _MapPreview(
-                      geocodeQuery: _geocodeQuery(addr, business),
-                      mapsUrl: mapsUrl,
-                      width: 96,
-                      height: 96,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: _MapPreview(
+                  geocodeQuery: _geocodeQuery(addr, business),
+                  mapsUrl: mapsUrl,
+                  width: 96,
+                  height: 96,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (_hasAddress) ...[
-                          Row(
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.place_outlined,
+                            size: 18,
+                            color: _D.brand(context),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Icon(
-                                  Icons.place_outlined,
-                                  size: 18,
-                                  color: _D.brand(context),
-                                ),
+                              Text(
+                                line1,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: _D.t(13, w: FontWeight.w500, h: 1.35),
                               ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      line1,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: _D.t(13, w: FontWeight.w500, h: 1.35),
-                                    ),
-                                    if (line2 != null && line2.isNotEmpty)
-                                      Text(
-                                        line2,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: _D.t(
-                                          13,
-                                          w: FontWeight.w400,
-                                          c: _D.muted,
-                                          h: 1.35,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          if (mapsUrl != null)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 24),
-                              child: GestureDetector(
-                                onTap: () => openExternalUrl(mapsUrl),
-                                child: Text(
-                                  'Ver en el mapa >',
+                              if (line2 != null && line2.isNotEmpty)
+                                Text(
+                                  line2,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: _D.t(
                                     13,
-                                    w: FontWeight.w600,
-                                    c: _D.brand(context),
+                                    w: FontWeight.w400,
+                                    c: _D.muted,
+                                    h: 1.35,
                                   ),
                                 ),
-                              ),
-                            ),
-                        ] else
-                          Text(
-                            'Agregá la dirección en Estilos o completá el onboarding.',
-                            style: _D.t(13, w: FontWeight.w500, h: 1.35, c: _D.muted),
+                            ],
                           ),
+                        ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              if (_hasSocial) ...[
-                const SizedBox(height: 12),
-                _SocialIconRow(
-                  instagramUrl: _normalizeUrl(business.instagramUrl),
-                  tiktokUrl: _normalizeUrl(business.tiktokUrl),
-                  facebookUrl: _normalizeUrl(business.facebookUrl),
+                    const SizedBox(height: 6),
+                    if (mapsUrl != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 24),
+                        child: GestureDetector(
+                          onTap: () => openExternalUrl(mapsUrl),
+                          child: Text(
+                            'Ver en el mapa >',
+                            style: _D.t(
+                              13,
+                              w: FontWeight.w600,
+                              c: _D.brand(context),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
+              ),
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SocialIconRow extends StatelessWidget {
-  const _SocialIconRow({
-    this.instagramUrl,
-    this.tiktokUrl,
-    this.facebookUrl,
-  });
-
-  final String? instagramUrl;
-  final String? tiktokUrl;
-  final String? facebookUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final icons = <Widget>[];
-    void add(String? url, _SocialIcon icon) {
-      if (url == null) return;
-      if (icons.isNotEmpty) icons.add(const SizedBox(width: 8));
-      icons.add(_SocialIconButton(url: url, icon: icon));
-    }
-
-    add(
-      instagramUrl,
-      const _SocialIcon(
-        gradient: LinearGradient(
-          colors: [Color(0xFF833AB4), Color(0xFFE1306C), Color(0xFFF77737)],
-        ),
-        icon: Icons.camera_alt_rounded,
-      ),
-    );
-    add(
-      tiktokUrl,
-      const _SocialIcon(
-        color: Color(0xFF0F0F10),
-        iconText: '♪',
-      ),
-    );
-    add(
-      facebookUrl,
-      const _SocialIcon(
-        color: Color(0xFF1877F2),
-        iconText: 'f',
-      ),
-    );
-
-    if (icons.isEmpty) return const SizedBox.shrink();
-    return Row(children: icons);
-  }
-}
-
-class _SocialIcon {
-  const _SocialIcon({this.color, this.gradient, this.icon, this.iconText});
-
-  final Color? color;
-  final LinearGradient? gradient;
-  final IconData? icon;
-  final String? iconText;
-}
-
-class _SocialIconButton extends StatelessWidget {
-  const _SocialIconButton({required this.url, required this.icon});
-
-  final String url;
-  final _SocialIcon icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => openExternalUrl(url),
-        borderRadius: BorderRadius.circular(10),
-        child: Ink(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: icon.color,
-            gradient: icon.gradient,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Center(
-            child: icon.icon != null
-                ? Icon(icon.icon, size: 16, color: Colors.white)
-                : Text(
-                    icon.iconText ?? '',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-          ),
-        ),
-      ),
     );
   }
 }
