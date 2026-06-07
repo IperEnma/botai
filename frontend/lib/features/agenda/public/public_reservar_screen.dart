@@ -21,7 +21,7 @@ enum _BookingStep { service, schedule, identity, confirmed }
 
 const int _kBookingTotalSteps = 3;
 
-/// Reserva pÃºblica unificada: /reservar/:slug (mismo look que el sheet del detalle).
+/// Wizard de reserva pública: /reservar/:slug/reservar
 class PublicReservarScreen extends ConsumerStatefulWidget {
   const PublicReservarScreen({
     super.key,
@@ -77,6 +77,15 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     return _anyStaff ? null : _selectedStaff?.id;
   }
 
+  String _profilePath() {
+    final base = '/reservar/${widget.slug}';
+    final company = widget.companySlug;
+    if (company != null && company.isNotEmpty) {
+      return '$base?company=$company';
+    }
+    return base;
+  }
+
   void _goBack(PublicReservarTheme theme, Business business) {
     switch (_step) {
       case _BookingStep.service:
@@ -85,7 +94,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         } else if (context.canPop()) {
           context.pop();
         } else {
-          context.go('/');
+          context.go(_profilePath());
         }
       case _BookingStep.schedule:
         setState(() {

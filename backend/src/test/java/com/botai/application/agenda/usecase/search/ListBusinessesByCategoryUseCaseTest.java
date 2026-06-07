@@ -28,7 +28,7 @@ class ListBusinessesByCategoryUseCaseTest {
     @Test
     void delegaAlRepoConSlugLimitYOffsetDentroDeRango() {
         List<BusinessSummary> expected = List.of(new BusinessSummary(
-                UUID.randomUUID(), "t1", "Yoga Studio", null, List.of("yoga"), null));
+                UUID.randomUUID(), "t1", "Yoga Studio", null, List.of("yoga"), null, "yoga-studio"));
         when(searchRepository.findByCategorySlug("yoga", 10, 0)).thenReturn(expected);
 
         List<BusinessSummary> result = useCase.execute("yoga", 10, 0);

@@ -508,7 +508,12 @@ class _BusinessGrid extends ConsumerWidget {
         final b = state.results[i];
         return _BusinessCard(
           business: b,
-          onTap: () => context.go('/agenda/public/business/${b.id}'),
+          onTap: () {
+            final path = b.profilePath;
+            if (path != null) {
+              context.go(path);
+            }
+          },
         );
       },
     );

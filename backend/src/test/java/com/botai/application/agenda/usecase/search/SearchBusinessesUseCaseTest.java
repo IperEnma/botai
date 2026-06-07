@@ -113,7 +113,7 @@ class SearchBusinessesUseCaseTest {
     void devuelveLosResultadosDelAdapter() {
         BusinessSummary summary = new BusinessSummary(
                 UUID.randomUUID(), "tenant-1", "Uñas Felices", "Manicura",
-                List.of("manicure"), null
+                List.of("manicure"), null, "unas-felices"
         );
         when(searchRepo.searchByTerm(anyString(), anyString(), anyInt(), anyInt()))
                 .thenReturn(List.of(summary));

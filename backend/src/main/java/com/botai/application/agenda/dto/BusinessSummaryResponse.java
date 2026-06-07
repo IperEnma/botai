@@ -9,6 +9,7 @@ public record BusinessSummaryResponse(
         String nombre,
         String descripcion,
         List<String> categorySlugs,
-        String logoUrl
+        String logoUrl,
+        String publicSlug
 ) {
 }

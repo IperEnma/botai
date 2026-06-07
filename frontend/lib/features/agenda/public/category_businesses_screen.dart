@@ -65,7 +65,10 @@ class CategoryBusinessesScreen extends ConsumerWidget {
                     final b = list[index];
                     return BusinessSummaryCard(
                       business: b,
-                      onTap: () => context.go('/agenda/public/business/${b.id}'),
+                      onTap: () {
+                        final path = b.profilePath;
+                        if (path != null) context.go(path);
+                      },
                     );
                   },
                 );

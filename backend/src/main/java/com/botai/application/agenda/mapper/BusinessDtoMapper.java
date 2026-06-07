@@ -61,7 +61,8 @@ public final class BusinessDtoMapper {
                 summary.getNombre(),
                 summary.getDescripcion(),
                 summary.getCategorySlugs(),
-                summary.getLogoUrl()
+                summary.getLogoUrl(),
+                summary.getPublicSlug()
         );
     }
 }

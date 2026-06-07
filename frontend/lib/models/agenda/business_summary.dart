@@ -13,6 +13,7 @@ class BusinessSummary {
   final String? localidad;
   final String? departamento;
   final String? pais;
+  final String? publicSlug;
 
   const BusinessSummary({
     required this.id,
@@ -25,7 +26,15 @@ class BusinessSummary {
     this.localidad,
     this.departamento,
     this.pais,
+    this.publicSlug,
   });
+
+  /// Ruta pública única del perfil: `/reservar/{publicSlug}`.
+  String? get profilePath {
+    final s = publicSlug;
+    if (s == null || s.isEmpty) return null;
+    return '/reservar/$s';
+  }
 
   String? get direccionCorta {
     final parts = [localidad, departamento].whereType<String>().toList();
@@ -44,6 +53,7 @@ class BusinessSummary {
       localidad: AgendaJson.parseStringOrNull(json['localidad']),
       departamento: AgendaJson.parseStringOrNull(json['departamento']),
       pais: AgendaJson.parseStringOrNull(json['pais']),
+      publicSlug: AgendaJson.parseStringOrNull(json['publicSlug']),
     );
   }
 

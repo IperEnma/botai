@@ -15,15 +15,17 @@ public final class BusinessSummary {
     private final String descripcion;
     private final List<String> categorySlugs;
     private final String logoUrl;
+    private final String publicSlug;
 
     public BusinessSummary(UUID id, String tenantId, String nombre, String descripcion,
-                           List<String> categorySlugs, String logoUrl) {
+                           List<String> categorySlugs, String logoUrl, String publicSlug) {
         this.id = id;
         this.tenantId = tenantId;
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.categorySlugs = categorySlugs == null ? List.of() : List.copyOf(categorySlugs);
         this.logoUrl = logoUrl;
+        this.publicSlug = publicSlug;
     }
 
     public UUID getId() { return id; }
@@ -32,4 +34,5 @@ public final class BusinessSummary {
     public String getDescripcion() { return descripcion; }
     public List<String> getCategorySlugs() { return categorySlugs; }
     public String getLogoUrl() { return logoUrl; }
+    public String getPublicSlug() { return publicSlug; }
 }

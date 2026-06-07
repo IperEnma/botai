@@ -6,41 +6,16 @@ import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/business_hours.dart';
 import '../../../models/agenda/staff_member.dart';
-import '../../../providers/agenda/public/public_business_detail_provider.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import 'public_reservar_layout.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Screen entry points (firmas usadas por el router — no tocar)
+// Perfil público del negocio — única pantalla de detalle (/reservar/:slug)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class PublicBusinessDetailScreen extends ConsumerWidget {
-  const PublicBusinessDetailScreen({super.key, required this.businessId});
-
-  final String businessId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final businessAsync = ref.watch(publicBusinessProvider(businessId));
-    final servicesAsync = ref.watch(publicBusinessServicesProvider(businessId));
-
-    return businessAsync.when(
-      loading: () => const Scaffold(body: AgendaLoadingView()),
-      error: (e, _) => Scaffold(
-        body: AgendaErrorView(
-          message: 'No se pudo cargar el negocio: $e',
-          onRetry: () => ref.refresh(publicBusinessProvider(businessId)),
-        ),
-      ),
-      data: (b) => _DetailView(business: b, servicesAsync: servicesAsync),
-    );
-  }
-}
-
-/// Variante que carga todo por `slug` (URL amigable) sin redireccionar a una URL con UUID.
-class PublicBusinessDetailBySlugScreen extends ConsumerWidget {
-  const PublicBusinessDetailBySlugScreen({super.key, required this.slug});
+class PublicBusinessProfileScreen extends ConsumerWidget {
+  const PublicBusinessProfileScreen({super.key, required this.slug});
 
   final String slug;
 
@@ -71,19 +46,12 @@ class _DetailView extends ConsumerWidget {
   const _DetailView({
     required this.business,
     required this.servicesAsync,
-    this.slug,
+    required this.slug,
   });
 
   final Business business;
   final AsyncValue<List<AgendaService>> servicesAsync;
-  final String? slug;
-
-  /// Slug efectivo: el de la ruta o el público del negocio. Necesario para reservar.
-  String? get _effectiveSlug {
-    if (slug != null && slug!.isNotEmpty) return slug;
-    final s = business.publicSlug;
-    return (s != null && s.isNotEmpty) ? s : null;
-  }
+  final String slug;
 
   void _goBack(BuildContext context) {
     if (context.canPop()) {
@@ -94,14 +62,12 @@ class _DetailView extends ConsumerWidget {
   }
 
   void _openBooking(BuildContext context) {
-    final target = _effectiveSlug;
-    if (target != null) {
-      context.go('/reservar/$target');
-      return;
+    final company = GoRouterState.of(context).uri.queryParameters['company'];
+    var path = '/reservar/$slug/reservar';
+    if (company != null && company.isNotEmpty) {
+      path = '$path?company=$company';
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reservá desde el enlace público del negocio.')),
-    );
+    context.go(path);
   }
 
   void _comingSoon(BuildContext context, PublicReservarTheme t) {
@@ -119,19 +85,11 @@ class _DetailView extends ConsumerWidget {
       logoUrl: business.logoUrl,
     );
 
-    final hasSlug = _effectiveSlug != null;
-    final slugForData = _effectiveSlug;
-
-    // Staff y horarios: por slug si está disponible, si no por businessId.
-    final staffAsync = hasSlug
-        ? ref.watch(publicStaffBySlugProvider(slugForData!))
-        : ref.watch(publicStaffProvider(business.id));
-    final hoursAsync = hasSlug
-        ? ref.watch(publicHoursBySlugProvider(slugForData!))
-        : ref.watch(publicHoursProvider(business.id));
+    final staffAsync = ref.watch(publicStaffBySlugProvider(slug));
+    final hoursAsync = ref.watch(publicHoursBySlugProvider(slug));
 
     final services = servicesAsync.valueOrNull ?? const <AgendaService>[];
-    final canBook = hasSlug && services.isNotEmpty;
+    final canBook = services.isNotEmpty;
 
     return Scaffold(
       backgroundColor: t.background,
@@ -156,7 +114,7 @@ class _DetailView extends ConsumerWidget {
                   _ServicesSection(
                     theme: t,
                     servicesAsync: servicesAsync,
-                    showSeeAll: hasSlug,
+                    showSeeAll: true,
                     onSeeAll: () => _openBooking(context),
                     onTapService: () => _openBooking(context),
                   ),

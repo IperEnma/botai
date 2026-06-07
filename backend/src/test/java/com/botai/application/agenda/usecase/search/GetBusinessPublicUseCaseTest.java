@@ -30,7 +30,7 @@ class GetBusinessPublicUseCaseTest {
         UUID id = UUID.randomUUID();
         BusinessSummary expected = new BusinessSummary(
                 id, "tenant-1", "Barbería Don Paco", "La mejor del barrio",
-                List.of("barberia"), null);
+                List.of("barberia"), null, "barberia-don-paco");
         when(searchRepository.findPublicById(id)).thenReturn(expected);
 
         BusinessSummary result = useCase.execute(id);

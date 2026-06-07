@@ -32,7 +32,7 @@ public class SynonymSearchAdapter implements BusinessSearchRepository {
         boolean hasTenant = tenantId != null && !tenantId.isBlank();
         String sql = "SELECT b.id, b.tenant_id, b.nombre, b.descripcion,"
                 + " ARRAY_AGG(DISTINCT c.slug) FILTER (WHERE c.slug IS NOT NULL) AS categories,"
-                + " b.logo_url"
+                + " b.logo_url, b.public_slug"
                 + " FROM agenda_businesses b"
                 + " LEFT JOIN agenda_business_categories bc ON bc.business_id = b.id"
                 + " LEFT JOIN agenda_categories c ON c.id = bc.category_id"
@@ -45,7 +45,7 @@ public class SynonymSearchAdapter implements BusinessSearchRepository {
                 + " AND b.activo = TRUE"
                 + " AND b.deleted_at IS NULL"
                 + (hasTenant ? " AND b.tenant_id = :tenantId" : "")
-                + " GROUP BY b.id, b.tenant_id, b.nombre, b.descripcion, b.logo_url"
+                + " GROUP BY b.id, b.tenant_id, b.nombre, b.descripcion, b.logo_url, b.public_slug"
                 + " ORDER BY b.nombre ASC"
                 + " LIMIT :lim OFFSET :off";
 
@@ -68,7 +68,7 @@ public class SynonymSearchAdapter implements BusinessSearchRepository {
         }
         String sql = "SELECT b.id, b.tenant_id, b.nombre, b.descripcion,"
                 + " ARRAY_AGG(DISTINCT c2.slug) FILTER (WHERE c2.slug IS NOT NULL) AS categories,"
-                + " b.logo_url"
+                + " b.logo_url, b.public_slug"
                 + " FROM agenda_businesses b"
                 + " JOIN agenda_business_categories bc ON bc.business_id = b.id"
                 + " JOIN agenda_categories c ON c.id = bc.category_id"
@@ -77,7 +77,7 @@ public class SynonymSearchAdapter implements BusinessSearchRepository {
                 + " WHERE c.slug = :slug"
                 + " AND b.activo = TRUE"
                 + " AND b.deleted_at IS NULL"
-                + " GROUP BY b.id, b.tenant_id, b.nombre, b.descripcion, b.logo_url"
+                + " GROUP BY b.id, b.tenant_id, b.nombre, b.descripcion, b.logo_url, b.public_slug"
                 + " ORDER BY b.nombre ASC"
                 + " LIMIT :lim OFFSET :off";
 
@@ -99,14 +99,14 @@ public class SynonymSearchAdapter implements BusinessSearchRepository {
         }
         String sql = "SELECT b.id, b.tenant_id, b.nombre, b.descripcion,"
                 + " ARRAY_AGG(DISTINCT c.slug) FILTER (WHERE c.slug IS NOT NULL) AS categories,"
-                + " b.logo_url"
+                + " b.logo_url, b.public_slug"
                 + " FROM agenda_businesses b"
                 + " LEFT JOIN agenda_business_categories bc ON bc.business_id = b.id"
                 + " LEFT JOIN agenda_categories c ON c.id = bc.category_id"
                 + " WHERE b.id = :id"
                 + " AND b.activo = TRUE"
                 + " AND b.deleted_at IS NULL"
-                + " GROUP BY b.id, b.tenant_id, b.nombre, b.descripcion, b.logo_url";
+                + " GROUP BY b.id, b.tenant_id, b.nombre, b.descripcion, b.logo_url, b.public_slug";
 
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("id", businessId);
@@ -121,14 +121,14 @@ public class SynonymSearchAdapter implements BusinessSearchRepository {
         boolean hasTenant = tenantId != null && !tenantId.isBlank();
         String sql = "SELECT b.id, b.tenant_id, b.nombre, b.descripcion,"
                 + " ARRAY_AGG(DISTINCT c.slug) FILTER (WHERE c.slug IS NOT NULL) AS categories,"
-                + " b.logo_url"
+                + " b.logo_url, b.public_slug"
                 + " FROM agenda_businesses b"
                 + " LEFT JOIN agenda_business_categories bc ON bc.business_id = b.id"
                 + " LEFT JOIN agenda_categories c ON c.id = bc.category_id"
                 + " WHERE b.activo = TRUE"
                 + " AND b.deleted_at IS NULL"
                 + (hasTenant ? " AND b.tenant_id = :tenantId" : "")
-                + " GROUP BY b.id, b.tenant_id, b.nombre, b.descripcion, b.logo_url"
+                + " GROUP BY b.id, b.tenant_id, b.nombre, b.descripcion, b.logo_url, b.public_slug"
                 + " ORDER BY b.nombre ASC"
                 + " LIMIT :lim OFFSET :off";
 
@@ -151,7 +151,8 @@ public class SynonymSearchAdapter implements BusinessSearchRepository {
             String descripcion = (String) row[3];
             List<String> slugs = toSlugList(row[4]);
             String logoUrl = row.length > 5 ? (String) row[5] : null;
-            result.add(new BusinessSummary(id, tenantId, nombre, descripcion, slugs, logoUrl));
+            String publicSlug = row.length > 6 ? (String) row[6] : null;
+            result.add(new BusinessSummary(id, tenantId, nombre, descripcion, slugs, logoUrl, publicSlug));
         }
         return result;
     }

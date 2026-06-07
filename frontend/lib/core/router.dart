@@ -238,13 +238,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/reservar/:slug',
         builder: (context, state) {
           final slug = state.pathParameters['slug']!;
-          final company = state.uri.queryParameters['company'];
-          return PublicReservarScreen(
-            slug: slug,
-            companySlug: company,
-          );
+          return PublicBusinessProfileScreen(slug: slug);
         },
         routes: [
+          GoRoute(
+            path: 'reservar',
+            builder: (context, state) {
+              final slug = state.pathParameters['slug']!;
+              final company = state.uri.queryParameters['company'];
+              return PublicReservarScreen(
+                slug: slug,
+                companySlug: company,
+              );
+            },
+          ),
           GoRoute(
             path: 'mis-reservas',
             builder: (context, state) {
@@ -295,13 +302,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           final slug = state.pathParameters['slug']!;
           final tenantId = state.uri.queryParameters['tenantId'] ?? '';
           return CategoryBusinessesScreen(slug: slug, tenantId: tenantId);
-        },
-      ),
-      GoRoute(
-        path: '/agenda/public/business/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return PublicBusinessDetailScreen(businessId: id);
         },
       ),
       GoRoute(
