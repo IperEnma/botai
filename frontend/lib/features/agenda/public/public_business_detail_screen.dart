@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/business.dart';
@@ -8,12 +9,9 @@ import '../../../models/agenda/business_hours.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
-import 'public_reservar_layout.dart';
+import '../tenant/tabs/styles/brand_style.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Perfil público del negocio — única pantalla de detalle (/reservar/:slug)
-// ─────────────────────────────────────────────────────────────────────────────
-
+/// Perfil público — `/reservar/:slug` (mockup Felito Barber).
 class PublicBusinessProfileScreen extends ConsumerWidget {
   const PublicBusinessProfileScreen({super.key, required this.slug});
 
@@ -32,18 +30,57 @@ class PublicBusinessProfileScreen extends ConsumerWidget {
           onRetry: () => ref.refresh(publicBusinessBySlugProvider(slug)),
         ),
       ),
-      data: (b) =>
-          _DetailView(business: b, servicesAsync: servicesAsync, slug: slug),
+      data: (b) => _FelitoProfilePage(
+        business: b,
+        servicesAsync: servicesAsync,
+        slug: slug,
+      ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Full page
-// ─────────────────────────────────────────────────────────────────────────────
+/// Tokens fijos del mockup Felito Barber (+ color primario del negocio).
+abstract final class _FelitoSpec {
+  static const primaryFallback = Color(0xFF7C5CFF);
+  static const pageBg = Color(0xFFF5F6F8);
+  static const ink = Color(0xFF111827);
+  static const inkSub = Color(0xFF6B7280);
+  static const inkMuted = Color(0xFF9CA3AF);
+  static const mapBg = Color(0xFFE8E4DC);
+  static const mapPin = Color(0xFF4285F4);
+  static const cardShadow = Color(0x14000000);
 
-class _DetailView extends ConsumerWidget {
-  const _DetailView({
+  static const hPad = 20.0;
+  static const sectionGap = 28.0;
+  static const cardRadius = 16.0;
+  static const chipRadius = 20.0;
+  static const ctaRadius = 14.0;
+
+  static const bannerHeight = 236.0;
+  static const logoSize = 92.0;
+  static const logoBorder = 4.0;
+  static const logoOverhang = 46.0;
+
+  static const serviceCardW = 162.0;
+  static const serviceCardH = 138.0;
+  static const serviceIcon = 44.0;
+
+  static TextStyle inter(
+    double size, {
+    FontWeight weight = FontWeight.w400,
+    Color color = ink,
+    double? height,
+  }) =>
+      GoogleFonts.inter(
+        fontSize: size,
+        fontWeight: weight,
+        color: color,
+        height: height,
+      );
+}
+
+class _FelitoProfilePage extends ConsumerWidget {
+  const _FelitoProfilePage({
     required this.business,
     required this.servicesAsync,
     required this.slug,
@@ -52,6 +89,14 @@ class _DetailView extends ConsumerWidget {
   final Business business;
   final AsyncValue<List<AgendaService>> servicesAsync;
   final String slug;
+
+  Color get _primary {
+    final hex = business.colorPrimario;
+    if (hex != null && hex.isNotEmpty) {
+      return parseHex(hex, fallback: _FelitoSpec.primaryFallback);
+    }
+    return _FelitoSpec.primaryFallback;
+  }
 
   void _goBack(BuildContext context) {
     if (context.canPop()) {
@@ -70,152 +115,68 @@ class _DetailView extends ConsumerWidget {
     context.go(path);
   }
 
-  void _comingSoon(BuildContext context, PublicReservarTheme t) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Próximamente', style: t.textStyle(color: Colors.white))),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final t = PublicReservarTheme.fromHex(
-      colorPrimario: business.colorPrimario,
-      colorFondo: business.colorFondo,
-      fontFamily: business.fontFamily,
-      logoUrl: business.logoUrl,
-    );
-
+    final primary = _primary;
     final staffAsync = ref.watch(publicStaffBySlugProvider(slug));
     final hoursAsync = ref.watch(publicHoursBySlugProvider(slug));
-
     final services = servicesAsync.valueOrNull ?? const <AgendaService>[];
     final canBook = services.isNotEmpty;
+    final direccion = business.direccion?.trim();
 
     return Scaffold(
-      backgroundColor: t.background,
-      body: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _ProfileHeader(
-                    theme: t,
-                    business: business,
-                    onBack: () => _goBack(context),
-                    onShare: () => _comingSoon(context, t),
-                  ),
-                  const SizedBox(height: 12),
-                  _IdentityBlock(theme: t, business: business),
-                  const SizedBox(height: 24),
-                  _ServicesSection(
-                    theme: t,
-                    servicesAsync: servicesAsync,
-                    showSeeAll: true,
-                    onSeeAll: () => _openBooking(context),
-                    onTapService: () => _openBooking(context),
-                  ),
-                  const SizedBox(height: 28),
-                  _HoursSection(theme: t, hoursAsync: hoursAsync),
-                  if (business.direccion != null &&
-                      business.direccion!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 28),
-                    _LocationSection(theme: t, direccion: business.direccion!.trim()),
-                  ],
-                  const SizedBox(height: 28),
-                  _TeamSection(theme: t, staffAsync: staffAsync),
-                  const SizedBox(height: 28),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: _BookingCta(
-        theme: t,
-        enabled: canBook,
-        onPressed: canBook ? () => _openBooking(context) : null,
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Header (banner + acciones + logo superpuesto)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({
-    required this.theme,
-    required this.business,
-    required this.onBack,
-    required this.onShare,
-  });
-
-  final PublicReservarTheme theme;
-  final Business business;
-  final VoidCallback onBack;
-  final VoidCallback onShare;
-
-  static const double _bannerHeight = 200;
-  static const double _logoSize = 92;
-
-  bool get _hasBanner =>
-      business.bannerUrl != null &&
-      business.bannerUrl!.startsWith('http');
-
-  @override
-  Widget build(BuildContext context) {
-    final t = theme;
-    const overhang = _logoSize / 2;
-
-    return SizedBox(
-      height: _bannerHeight + overhang,
-      child: Stack(
-        clipBehavior: Clip.none,
+      backgroundColor: _FelitoSpec.pageBg,
+      body: Stack(
         children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: _bannerHeight,
-            child: _Banner(theme: t, hasBanner: _hasBanner, url: business.bannerUrl),
-          ),
-          // Acciones sobre el banner.
-          Positioned(
-            top: 12,
-            left: 12,
-            child: _CircleAction(icon: Icons.arrow_back_ios_new, onTap: onBack),
-          ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: Row(
-              children: [
-                _CircleAction(icon: Icons.ios_share, onTap: onShare),
-                const SizedBox(width: 10),
-                const _FavoriteAction(),
-              ],
-            ),
-          ),
-          // Logo superpuesto al borde inferior del banner.
-          Positioned(
-            top: _bannerHeight - overhang,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: PublicReservarAvatar(
-                nombre: business.nombre,
-                logoUrl: business.logoUrl,
-                color: t.primary,
-                borderColor: t.background,
-                initialsColor: t.primary,
-                size: _logoSize,
-                elevated: true,
+          CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: _HeroBlock(
+                  primary: primary,
+                  business: business,
+                  onBack: () => _goBack(context),
+                ),
               ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  _FelitoSpec.hPad,
+                  8,
+                  _FelitoSpec.hPad,
+                  96,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _ServicesBlock(
+                      primary: primary,
+                      servicesAsync: servicesAsync,
+                      onSeeAll: () => _openBooking(context),
+                      onServiceTap: (_) => _openBooking(context),
+                    ),
+                    const SizedBox(height: _FelitoSpec.sectionGap),
+                    _HoursBlock(primary: primary, hoursAsync: hoursAsync),
+                    const SizedBox(height: _FelitoSpec.sectionGap),
+                    _LocationBlock(
+                      primary: primary,
+                      direccion: direccion?.isNotEmpty == true
+                          ? direccion!
+                          : 'Dirección no disponible',
+                      hasAddress: direccion?.isNotEmpty == true,
+                    ),
+                    const SizedBox(height: _FelitoSpec.sectionGap),
+                    _TeamBlock(primary: primary, staffAsync: staffAsync),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _StickyCta(
+              primary: primary,
+              enabled: canBook,
+              onPressed: canBook ? () => _openBooking(context) : null,
             ),
           ),
         ],
@@ -224,287 +185,395 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-class _Banner extends StatelessWidget {
-  const _Banner({required this.theme, required this.hasBanner, required this.url});
+// ─── Hero: banner + logo que invade el contenido ─────────────────────────────
 
-  final PublicReservarTheme theme;
-  final bool hasBanner;
-  final String? url;
+class _HeroBlock extends StatelessWidget {
+  const _HeroBlock({
+    required this.primary,
+    required this.business,
+    required this.onBack,
+  });
+
+  final Color primary;
+  final Business business;
+  final VoidCallback onBack;
+
+  bool get _hasBanner =>
+      business.bannerUrl != null && business.bannerUrl!.startsWith('http');
+
+  bool get _hasRating =>
+      business.reviewCount > 0 && business.rating != null;
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
-    final gradient = Container(
+    final top = MediaQuery.paddingOf(context).top;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: _FelitoSpec.bannerHeight + top,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (_hasBanner)
+                    Image.network(
+                      business.bannerUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _bannerGradient(primary),
+                    )
+                  else
+                    _bannerGradient(primary),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.08),
+                          Colors.black.withValues(alpha: 0.62),
+                        ],
+                        stops: const [0.45, 1.0],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: top + 10,
+                    left: _FelitoSpec.hPad,
+                    child: _CircleBtn(
+                      icon: Icons.arrow_back_ios_new,
+                      size: 16,
+                      onTap: onBack,
+                    ),
+                  ),
+                  Positioned(
+                    top: top + 10,
+                    right: _FelitoSpec.hPad,
+                    child: Row(
+                      children: [
+                        _CircleBtn(icon: Icons.ios_share, onTap: () {}),
+                        const SizedBox(width: 8),
+                        const _HeartBtn(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: _FelitoSpec.logoOverhang + 8),
+          ],
+        ),
+        Positioned(
+          left: _FelitoSpec.hPad,
+          top: top + _FelitoSpec.bannerHeight - _FelitoSpec.logoOverhang,
+          right: _FelitoSpec.hPad,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _LogoAvatar(
+                nombre: business.nombre,
+                url: business.logoUrl,
+                size: _FelitoSpec.logoSize,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        business.nombre,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: _FelitoSpec.inter(
+                          21,
+                          weight: FontWeight.w700,
+                          color: Colors.white,
+                          height: 1.15,
+                        ),
+                      ),
+                      if (_hasRating) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            _PurpleStars(
+                              rating: business.rating!,
+                              color: primary,
+                              size: 17,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                '${business.rating!.toStringAsFixed(1)} (${business.reviewCount} reseñas)',
+                                style: _FelitoSpec.inter(
+                                  13,
+                                  weight: FontWeight.w500,
+                                  color: Colors.white.withValues(alpha: 0.95),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (business.categorias.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            for (final c in business.categorias.take(3))
+                              _TagChip(primary: primary, label: _label(c)),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _label(String slug) {
+    if (slug.isEmpty) return slug;
+    return slug
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+  }
+
+  Widget _bannerGradient(Color primary) {
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: t.primaryGradient,
+          colors: [
+            primary,
+            Color.lerp(primary, const Color(0xFF5B21B6), 0.35)!,
+          ],
         ),
       ),
-    );
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (hasBanner)
-          Image.network(
-            url!,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => gradient,
-          )
-        else
-          gradient,
-        // Overlay oscuro sutil para legibilidad de los botones.
-        Container(color: Colors.black.withValues(alpha: 0.22)),
-      ],
     );
   }
 }
 
-class _CircleAction extends StatelessWidget {
-  const _CircleAction({required this.icon, required this.onTap});
+class _CircleBtn extends StatelessWidget {
+  const _CircleBtn({
+    required this.icon,
+    this.size = 18,
+    required this.onTap,
+  });
 
   final IconData icon;
+  final double size;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withValues(alpha: 0.32),
+      color: Colors.white,
+      elevation: 0,
+      shadowColor: _FelitoSpec.cardShadow,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(icon, size: 18, color: Colors.white),
+        child: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(icon, size: size, color: _FelitoSpec.ink),
         ),
       ),
     );
   }
 }
 
-/// Botón favorito visual (sin backend): alterna el ícono de corazón localmente.
-class _FavoriteAction extends StatefulWidget {
-  const _FavoriteAction();
+class _HeartBtn extends StatefulWidget {
+  const _HeartBtn();
 
   @override
-  State<_FavoriteAction> createState() => _FavoriteActionState();
+  State<_HeartBtn> createState() => _HeartBtnState();
 }
 
-class _FavoriteActionState extends State<_FavoriteAction> {
-  bool _fav = false;
+class _HeartBtnState extends State<_HeartBtn> {
+  bool _on = false;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.32),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () => setState(() => _fav = !_fav),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(
-            _fav ? Icons.favorite : Icons.favorite_border,
-            size: 18,
-            color: Colors.white,
-          ),
-        ),
-      ),
+    return _CircleBtn(
+      icon: _on ? Icons.favorite : Icons.favorite_border,
+      onTap: () => setState(() => _on = !_on),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Nombre + rating + categorías
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _IdentityBlock extends StatelessWidget {
-  const _IdentityBlock({required this.theme, required this.business});
-
-  final PublicReservarTheme theme;
-  final Business business;
-
-  bool get _showRating =>
-      business.reviewCount > 0 && business.rating != null;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = theme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          Text(
-            business.nombre,
-            textAlign: TextAlign.center,
-            style: t.textStyle(size: 24, weight: FontWeight.w700),
-          ),
-          if (_showRating) ...[
-            const SizedBox(height: 8),
-            _RatingRow(
-              theme: t,
-              rating: business.rating!,
-              reviewCount: business.reviewCount,
-            ),
-          ],
-          if (business.descripcion != null &&
-              business.descripcion!.trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              business.descripcion!.trim(),
-              textAlign: TextAlign.center,
-              style: t.textStyle(size: 14, color: t.textSub),
-            ),
-          ],
-          if (business.categorias.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final cat in business.categorias.take(6))
-                  _CategoryPill(theme: t, label: cat),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _RatingRow extends StatelessWidget {
-  const _RatingRow({
-    required this.theme,
-    required this.rating,
-    required this.reviewCount,
+class _LogoAvatar extends StatelessWidget {
+  const _LogoAvatar({
+    required this.nombre,
+    required this.url,
+    required this.size,
   });
 
-  final PublicReservarTheme theme;
-  final double rating;
-  final int reviewCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = theme;
-    final label =
-        '${rating.toStringAsFixed(1)} ($reviewCount ${reviewCount == 1 ? 'reseña' : 'reseñas'})';
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _Stars(theme: t, rating: rating, size: 18),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: t.textStyle(size: 14, weight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-}
-
-class _Stars extends StatelessWidget {
-  const _Stars({required this.theme, required this.rating, this.size = 16});
-
-  final PublicReservarTheme theme;
-  final double rating;
+  final String nombre;
+  final String? url;
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
-    final empty = t.primary.withValues(alpha: 0.25);
+    final hasUrl = url != null && url!.startsWith('http');
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white,
+          width: _FelitoSpec.logoBorder,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: hasUrl
+          ? Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, _, _) => _fb())
+          : _fb(),
+    );
+  }
+
+  Widget _fb() {
+    final w = nombre.trim().split(RegExp(r'\s+'));
+    final ini = w.length >= 2
+        ? '${w[0][0]}${w[1][0]}'.toUpperCase()
+        : nombre.substring(0, nombre.length.clamp(1, 2)).toUpperCase();
+    return ColoredBox(
+      color: const Color(0xFF141414),
+      child: Center(
+        child: Text(
+          ini,
+          style: _FelitoSpec.inter(size * 0.26, weight: FontWeight.w700, color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  const _TagChip({required this.primary, required this.label});
+
+  final Color primary;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(_FelitoSpec.chipRadius),
+      ),
+      child: Text(
+        label,
+        style: _FelitoSpec.inter(12, weight: FontWeight.w600, color: Colors.white),
+      ),
+    );
+  }
+}
+
+class _PurpleStars extends StatelessWidget {
+  const _PurpleStars({
+    required this.rating,
+    required this.color,
+    this.size = 16,
+  });
+
+  final double rating;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
-        final pos = i + 1;
-        if (rating >= pos) {
-          return Icon(Icons.star_rounded, size: size, color: t.primary);
+        final n = i + 1;
+        IconData icon;
+        if (rating >= n) {
+          icon = Icons.star_rounded;
+        } else if (rating >= n - 0.5) {
+          icon = Icons.star_half_rounded;
+        } else {
+          icon = Icons.star_rounded;
         }
-        if (rating >= pos - 0.5) {
-          return Icon(Icons.star_half_rounded, size: size, color: t.primary);
-        }
-        return Icon(Icons.star_rounded, size: size, color: empty);
+        final filled = rating >= n - 0.25;
+        return Icon(
+          icon,
+          size: size,
+          color: filled ? color : color.withValues(alpha: 0.28),
+        );
       }),
     );
   }
 }
 
-class _CategoryPill extends StatelessWidget {
-  const _CategoryPill({required this.theme, required this.label});
-
-  final PublicReservarTheme theme;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = theme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: t.primarySoft,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: t.primary.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        label,
-        style: t.textStyle(size: 12, weight: FontWeight.w600, color: t.primary),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Section header reutilizable (título + link opcional)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.theme,
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({
     required this.title,
-    this.actionLabel,
+    this.action,
     this.onAction,
+    this.actionColor = _FelitoSpec.primaryFallback,
   });
 
-  final PublicReservarTheme theme;
   final String title;
-  final String? actionLabel;
+  final String? action;
   final VoidCallback? onAction;
+  final Color actionColor;
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
     return Row(
       children: [
         Expanded(
           child: Text(
             title,
-            style: t.textStyle(size: 18, weight: FontWeight.w700),
+            style: _FelitoSpec.inter(17, weight: FontWeight.w700),
           ),
         ),
-        if (actionLabel != null && onAction != null)
-          InkWell(
+        if (action != null && onAction != null)
+          GestureDetector(
             onTap: onAction,
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    actionLabel!,
-                    style: t.textStyle(
-                      size: 13,
-                      weight: FontWeight.w600,
-                      color: t.primary,
-                    ),
-                  ),
-                  Icon(Icons.chevron_right, size: 18, color: t.primary),
-                ],
+            child: Text(
+              '$action >',
+              style: _FelitoSpec.inter(
+                13,
+                weight: FontWeight.w600,
+                color: actionColor,
               ),
             ),
           ),
@@ -513,74 +582,93 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Servicios
-// ─────────────────────────────────────────────────────────────────────────────
+class _WhiteCard extends StatelessWidget {
+  const _WhiteCard({required this.child, this.padding});
 
-class _ServicesSection extends StatelessWidget {
-  const _ServicesSection({
-    required this.theme,
-    required this.servicesAsync,
-    required this.showSeeAll,
-    required this.onSeeAll,
-    required this.onTapService,
-  });
-
-  final PublicReservarTheme theme;
-  final AsyncValue<List<AgendaService>> servicesAsync;
-  final bool showSeeAll;
-  final VoidCallback onSeeAll;
-  final VoidCallback onTapService;
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
+    return Container(
+      padding: padding ?? const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(_FelitoSpec.cardRadius),
+        boxShadow: const [
+          BoxShadow(
+            color: _FelitoSpec.cardShadow,
+            blurRadius: 16,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+// ─── Servicios ───────────────────────────────────────────────────────────────
+
+class _ServicesBlock extends StatelessWidget {
+  const _ServicesBlock({
+    required this.primary,
+    required this.servicesAsync,
+    required this.onSeeAll,
+    required this.onServiceTap,
+  });
+
+  final Color primary;
+  final AsyncValue<List<AgendaService>> servicesAsync;
+  final VoidCallback onSeeAll;
+  final ValueChanged<AgendaService> onServiceTap;
+
+  static const _icons = [
+    Icons.content_cut_rounded,
+    Icons.content_cut_outlined,
+    Icons.brush_outlined,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _SectionHeader(
-            theme: t,
-            title: 'Servicios',
-            actionLabel: showSeeAll ? 'Ver todos' : null,
-            onAction: showSeeAll ? onSeeAll : null,
-          ),
+        _SectionTitle(
+          title: 'Servicios',
+          action: 'Ver todos',
+          onAction: onSeeAll,
+          actionColor: primary,
         ),
         const SizedBox(height: 14),
         servicesAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
+          loading: () => const SizedBox(
+            height: _FelitoSpec.serviceCardH,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
-          error: (_, _) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'No se pudieron cargar los servicios.',
-              style: t.textStyle(size: 14, color: t.textSub),
-            ),
+          error: (_, _) => Text(
+            'No se pudieron cargar los servicios.',
+            style: _FelitoSpec.inter(14, color: _FelitoSpec.inkSub),
           ),
           data: (list) {
             if (list.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'Este negocio todavía no publicó servicios.',
-                  style: t.textStyle(size: 14, color: t.textSub),
-                ),
+              return Text(
+                'Sin servicios publicados.',
+                style: _FelitoSpec.inter(14, color: _FelitoSpec.inkSub),
               );
             }
             return SizedBox(
-              height: 150,
+              height: _FelitoSpec.serviceCardH,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                clipBehavior: Clip.none,
                 itemCount: list.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (_, i) => _ServiceCard(
-                  theme: t,
+                itemBuilder: (_, i) => _ServiceTile(
+                  primary: primary,
                   service: list[i],
-                  onTap: onTapService,
+                  icon: _icons[i % _icons.length],
+                  onTap: () => onServiceTap(list[i]),
                 ),
               ),
             );
@@ -591,79 +679,88 @@ class _ServicesSection extends StatelessWidget {
   }
 }
 
-class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({
-    required this.theme,
+class _ServiceTile extends StatelessWidget {
+  const _ServiceTile({
+    required this.primary,
     required this.service,
+    required this.icon,
     required this.onTap,
   });
 
-  final PublicReservarTheme theme;
+  final Color primary;
   final AgendaService service;
+  final IconData icon;
   final VoidCallback onTap;
+
+  String get _price {
+    final n = service.precio.round();
+    final s = n.toString();
+    final b = StringBuffer('\$');
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
+      b.write(s[i]);
+    }
+    return b.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
     return SizedBox(
-      width: 200,
+      width: _FelitoSpec.serviceCardW,
       child: Material(
-        color: t.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(_FelitoSpec.cardRadius),
+        elevation: 0,
+        shadowColor: _FelitoSpec.cardShadow,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(16),
+          borderRadius: BorderRadius.circular(_FelitoSpec.cardRadius),
+          child: Ink(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: t.cardBorder),
-              boxShadow: [
+              borderRadius: BorderRadius.circular(_FelitoSpec.cardRadius),
+              boxShadow: const [
                 BoxShadow(
-                  color: t.primary.withValues(alpha: 0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: _FelitoSpec.cardShadow,
+                  blurRadius: 14,
+                  offset: Offset(0, 4),
                 ),
               ],
             ),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: _FelitoSpec.serviceIcon,
+                  height: _FelitoSpec.serviceIcon,
                   decoration: BoxDecoration(
-                    color: t.primarySoft,
+                    color: primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.spa_outlined, color: t.primary, size: 22),
+                  child: Icon(icon, color: primary, size: 22),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Text(
                   service.nombre,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: t.textStyle(size: 15, weight: FontWeight.w600),
+                  style: _FelitoSpec.inter(14, weight: FontWeight.w700, height: 1.2),
                 ),
                 const Spacer(),
                 Row(
                   children: [
-                    Icon(Icons.schedule, size: 14, color: t.textSub),
+                    Icon(Icons.schedule, size: 13, color: _FelitoSpec.inkMuted),
                     const SizedBox(width: 4),
                     Text(
                       '${service.duracionMin} min',
-                      style: t.textStyle(size: 12, color: t.textSub),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '\$${service.precio.toStringAsFixed(0)}',
-                      style: t.textStyle(
-                        size: 16,
-                        weight: FontWeight.w700,
-                        color: t.primary,
-                      ),
+                      style: _FelitoSpec.inter(12, color: _FelitoSpec.inkSub),
                     ),
                   ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _price,
+                  style: _FelitoSpec.inter(16, weight: FontWeight.w700, color: primary),
                 ),
               ],
             ),
@@ -674,265 +771,237 @@ class _ServiceCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Horarios de atención
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Horarios ────────────────────────────────────────────────────────────────
 
-class _HoursSection extends StatelessWidget {
-  const _HoursSection({required this.theme, required this.hoursAsync});
+class _HoursBlock extends StatelessWidget {
+  const _HoursBlock({required this.primary, required this.hoursAsync});
 
-  final PublicReservarTheme theme;
+  final Color primary;
   final AsyncValue<List<BusinessHours>> hoursAsync;
 
-  static const _shortDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
-  String _label(BusinessHours? row) {
-    if (row == null || row.cerrado) return 'Cerrado';
-    final ranges = <String>[];
-    bool has(String? a, String? c) =>
-        a != null && a.isNotEmpty && c != null && c.isNotEmpty;
-    if (has(row.apertura, row.cierre)) {
-      ranges.add('${row.apertura} – ${row.cierre}');
-    }
-    if (has(row.apertura2, row.cierre2)) {
-      ranges.add('${row.apertura2} – ${row.cierre2}');
-    }
-    return ranges.isEmpty ? 'Cerrado' : ranges.join('\n');
-  }
+  static const _days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionHeader(theme: t, title: 'Horarios de atención'),
-          const SizedBox(height: 14),
-          hoursAsync.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (_, _) => Text(
-              'No se pudieron cargar los horarios.',
-              style: t.textStyle(size: 14, color: t.textSub),
-            ),
-            data: (hours) {
-              if (hours.isEmpty) {
-                return Text(
-                  'Este negocio todavía no publicó sus horarios.',
-                  style: t.textStyle(size: 14, color: t.textSub),
-                );
-              }
-              final todayDow = DateTime.now().weekday - 1;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-                decoration: BoxDecoration(
-                  color: t.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: t.cardBorder),
-                ),
-                child: Column(
-                  children: [
-                    for (var dow = 0; dow < 7; dow++)
-                      _HoursRow(
-                        theme: t,
-                        day: _shortDays[dow],
-                        value: _label(_rowFor(hours, dow)),
-                        highlight: dow == todayDow,
-                        showDivider: dow < 6,
-                      ),
-                  ],
-                ),
-              );
-            },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle(title: 'Horarios de atención'),
+        const SizedBox(height: 14),
+        hoursAsync.when(
+          loading: () => const SizedBox(
+            height: 72,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
-        ],
-      ),
+          error: (_, _) => Text(
+            'No se pudieron cargar los horarios.',
+            style: _FelitoSpec.inter(14, color: _FelitoSpec.inkSub),
+          ),
+          data: (hours) {
+            if (hours.isEmpty) {
+              return Text(
+                'Horarios no publicados.',
+                style: _FelitoSpec.inter(14, color: _FelitoSpec.inkSub),
+              );
+            }
+            return _WhiteCard(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var d = 0; d < 7; d++)
+                    Expanded(
+                      child: _DayCell(
+                        day: _days[d],
+                        lines: _lines(_find(hours, d)),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 
-  BusinessHours? _rowFor(List<BusinessHours> hours, int dow) {
-    for (final h in hours) {
+  BusinessHours? _find(List<BusinessHours> all, int dow) {
+    for (final h in all) {
       if (h.diaSemana == dow) return h;
     }
     return null;
   }
+
+  List<String> _lines(BusinessHours? row) {
+    if (row == null || row.cerrado) return const ['Cerrado'];
+    bool ok(String? a, String? c) =>
+        a != null && a.isNotEmpty && c != null && c.isNotEmpty;
+    final out = <String>[];
+    if (ok(row.apertura, row.cierre)) {
+      out.add('${row.apertura} - ${row.cierre}');
+    }
+    if (ok(row.apertura2, row.cierre2)) {
+      out.add('${row.apertura2} - ${row.cierre2}');
+    }
+    return out.isEmpty ? const ['Cerrado'] : out;
+  }
 }
 
-class _HoursRow extends StatelessWidget {
-  const _HoursRow({
-    required this.theme,
-    required this.day,
-    required this.value,
-    required this.highlight,
-    required this.showDivider,
-  });
+class _DayCell extends StatelessWidget {
+  const _DayCell({required this.day, required this.lines});
 
-  final PublicReservarTheme theme;
   final String day;
-  final String value;
-  final bool highlight;
-  final bool showDivider;
+  final List<String> lines;
+
+  bool get _closed => lines.length == 1 && lines.first == 'Cerrado';
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
-    final weight = highlight ? FontWeight.w700 : FontWeight.w500;
-    final color = highlight ? t.primary : t.text;
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  day,
-                  style: t.textStyle(size: 14, weight: weight, color: color),
-                ),
-              ),
-              Text(
-                value,
-                textAlign: TextAlign.right,
-                style: t.textStyle(
-                  size: 14,
-                  weight: highlight ? FontWeight.w600 : FontWeight.w500,
-                  color: highlight ? t.primary : t.textSub,
-                ),
-              ),
-            ],
+        Text(
+          day,
+          style: _FelitoSpec.inter(
+            11,
+            weight: FontWeight.w600,
+            color: _FelitoSpec.inkSub,
           ),
         ),
-        if (showDivider) Divider(height: 1, color: t.cardBorder),
+        const SizedBox(height: 10),
+        for (var i = 0; i < lines.length; i++) ...[
+          if (i > 0) const SizedBox(height: 2),
+          Text(
+            lines[i],
+            textAlign: TextAlign.center,
+            style: _FelitoSpec.inter(
+              9.5,
+              weight: FontWeight.w500,
+              color: _closed ? _FelitoSpec.inkMuted : _FelitoSpec.ink,
+              height: 1.25,
+            ),
+          ),
+        ],
       ],
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Ubicación (sin mapa interactivo; url_launcher no disponible → solo dirección)
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Ubicación ───────────────────────────────────────────────────────────────
 
-class _LocationSection extends StatelessWidget {
-  const _LocationSection({required this.theme, required this.direccion});
+class _LocationBlock extends StatelessWidget {
+  const _LocationBlock({
+    required this.primary,
+    required this.direccion,
+    required this.hasAddress,
+  });
 
-  final PublicReservarTheme theme;
+  final Color primary;
   final String direccion;
+  final bool hasAddress;
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionHeader(theme: t, title: 'Ubicación'),
-          const SizedBox(height: 14),
-          Container(
-            decoration: BoxDecoration(
-              color: t.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: t.cardBorder),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                // Thumbnail tipo mapa (placeholder estático).
-                Container(
-                  height: 120,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        t.primary.withValues(alpha: 0.18),
-                        t.primary.withValues(alpha: 0.06),
-                      ],
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle(title: 'Ubicación'),
+        const SizedBox(height: 14),
+        _WhiteCard(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  color: _FelitoSpec.mapBg,
+                  child: const Icon(
+                    Icons.location_on_rounded,
+                    color: _FelitoSpec.mapPin,
+                    size: 34,
                   ),
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: t.surface,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.place_outlined, size: 18, color: primary),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              direccion,
+                              style: _FelitoSpec.inter(
+                                13.5,
+                                weight: FontWeight.w500,
+                                height: 1.35,
+                                color: hasAddress
+                                    ? _FelitoSpec.ink
+                                    : _FelitoSpec.inkSub,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      child: Icon(Icons.location_on, color: t.primary, size: 28),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.place_outlined, size: 20, color: t.primary),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          direccion,
-                          style: t.textStyle(size: 14, weight: FontWeight.w500),
+                      if (hasAddress) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          'Ver en el mapa >',
+                          style: _FelitoSpec.inter(
+                            13,
+                            weight: FontWeight.w600,
+                            color: primary,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Equipo
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Equipo ──────────────────────────────────────────────────────────────────
 
-class _TeamSection extends StatelessWidget {
-  const _TeamSection({required this.theme, required this.staffAsync});
+class _TeamBlock extends StatelessWidget {
+  const _TeamBlock({required this.primary, required this.staffAsync});
 
-  final PublicReservarTheme theme;
+  final Color primary;
   final AsyncValue<List<StaffMember>> staffAsync;
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
     return staffAsync.maybeWhen(
       orElse: () => const SizedBox.shrink(),
-      data: (staff) {
-        final activos = staff.where((s) => s.activo).toList(growable: false);
-        if (activos.isEmpty) return const SizedBox.shrink();
+      data: (all) {
+        final staff = all.where((s) => s.activo).toList();
+        if (staff.isEmpty) return const SizedBox.shrink();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _SectionHeader(theme: t, title: 'Equipo'),
-            ),
+            const _SectionTitle(title: 'Equipo'),
             const SizedBox(height: 14),
             SizedBox(
-              height: 168,
+              height: 88,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: activos.length,
+                clipBehavior: Clip.none,
+                itemCount: staff.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (_, i) =>
-                    _StaffCard(theme: t, staff: activos[i]),
+                itemBuilder: (_, i) => _StaffCard(primary: primary, member: staff[i]),
               ),
             ),
           ],
@@ -943,121 +1012,146 @@ class _TeamSection extends StatelessWidget {
 }
 
 class _StaffCard extends StatelessWidget {
-  const _StaffCard({required this.theme, required this.staff});
+  const _StaffCard({required this.primary, required this.member});
 
-  final PublicReservarTheme theme;
-  final StaffMember staff;
+  final Color primary;
+  final StaffMember member;
 
-  bool get _showRating => staff.reviewCount > 0 && staff.rating != null;
+  bool get _rated => member.reviewCount > 0 && member.rating != null;
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
-    return SizedBox(
-      width: 140,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: t.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: t.cardBorder),
-        ),
-        child: Column(
-          children: [
-            PublicReservarAvatar(
-              nombre: staff.nombre,
-              logoUrl: staff.avatarUrl,
-              color: t.primary,
-              initialsColor: t.primary,
-              size: 56,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              staff.nombre,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: t.textStyle(size: 14, weight: FontWeight.w600),
-            ),
-            if (staff.rol != null && staff.rol!.trim().isNotEmpty) ...[
-              const SizedBox(height: 2),
+    return _WhiteCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _StaffPhoto(nombre: member.nombre, url: member.avatarUrl),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
               Text(
-                staff.rol!.trim(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: t.textStyle(size: 12, color: t.textSub),
+                member.nombre,
+                style: _FelitoSpec.inter(15, weight: FontWeight.w700),
               ),
-            ],
-            if (_showRating) ...[
-              const SizedBox(height: 8),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.star_rounded, size: 15, color: t.primary),
-                  const SizedBox(width: 3),
-                  Text(
-                    staff.rating!.toStringAsFixed(1),
-                    style: t.textStyle(size: 12, weight: FontWeight.w600),
-                  ),
-                ],
+              Text(
+                (member.rol != null && member.rol!.trim().isNotEmpty)
+                    ? member.rol!.trim()
+                    : 'Profesional',
+                style: _FelitoSpec.inter(13, color: _FelitoSpec.inkSub),
               ),
+              if (_rated)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star_rounded, size: 14, color: primary),
+                    const SizedBox(width: 3),
+                    Text(
+                      member.rating!.toStringAsFixed(1),
+                      style: _FelitoSpec.inter(12, weight: FontWeight.w600),
+                    ),
+                  ],
+                ),
             ],
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StaffPhoto extends StatelessWidget {
+  const _StaffPhoto({required this.nombre, required this.url});
+
+  final String nombre;
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 56.0;
+    final ok = url != null && url!.startsWith('http');
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: const BoxDecoration(shape: BoxShape.circle),
+      child: ok
+          ? Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, _, _) => _ini(size))
+          : _ini(size),
+    );
+  }
+
+  Widget _ini(double size) {
+    final w = nombre.trim().split(RegExp(r'\s+'));
+    final l = w.length >= 2
+        ? '${w[0][0]}${w[1][0]}'.toUpperCase()
+        : nombre.substring(0, nombre.length.clamp(1, 2)).toUpperCase();
+    return ColoredBox(
+      color: const Color(0xFFE5E7EB),
+      child: Center(
+        child: Text(
+          l,
+          style: _FelitoSpec.inter(18, weight: FontWeight.w600, color: _FelitoSpec.inkSub),
         ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CTA fijo
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── CTA ─────────────────────────────────────────────────────────────────────
 
-class _BookingCta extends StatelessWidget {
-  const _BookingCta({
-    required this.theme,
+class _StickyCta extends StatelessWidget {
+  const _StickyCta({
+    required this.primary,
     required this.enabled,
     required this.onPressed,
   });
 
-  final PublicReservarTheme theme;
+  final Color primary;
   final bool enabled;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final t = theme;
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: t.surface,
-        border: Border(top: BorderSide(color: t.cardBorder)),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            _FelitoSpec.pageBg.withValues(alpha: 0),
+            _FelitoSpec.pageBg,
+          ],
+        ),
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          padding: const EdgeInsets.fromLTRB(
+            _FelitoSpec.hPad,
+            8,
+            _FelitoSpec.hPad,
+            12,
+          ),
           child: SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 54,
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
-                backgroundColor: t.primary,
-                disabledBackgroundColor: t.primary.withValues(alpha: 0.4),
+                backgroundColor: primary,
+                disabledBackgroundColor: primary.withValues(alpha: 0.4),
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(_FelitoSpec.ctaRadius),
                 ),
               ),
               onPressed: onPressed,
-              icon: const Icon(Icons.calendar_month, color: Colors.white, size: 20),
+              icon: const Icon(Icons.calendar_month_outlined, color: Colors.white, size: 20),
               label: Text(
-                enabled ? 'Reservar turno' : 'Reservá desde el enlace del negocio',
-                style: t.textStyle(
-                  size: 15,
-                  weight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+                'Reservar turno',
+                style: _FelitoSpec.inter(15, weight: FontWeight.w600, color: Colors.white),
               ),
             ),
           ),
