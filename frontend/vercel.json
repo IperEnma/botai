@@ -4,6 +4,9 @@
   "buildCommand": "bash scripts/vercel-build.sh",
   "outputDirectory": "build/web",
   "framework": null,
+  "rewrites": [
+    { "source": "/((?!assets/|canvaskit/|icons/|favicon.png|manifest.json|flutter.js|flutter_bootstrap.js|main.dart.js|main.dart.js.map).*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",

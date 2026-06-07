@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
@@ -51,6 +51,16 @@ String? _legacyHomeRouteRedirect(GoRouterState state) {
   return null;
 }
 
+/// Page sin transición a nivel de `go_router`. El cross-fade lo aplica
+/// `AgendaHomeShell` con un `AnimatedSwitcher`, así que todas las secciones
+/// del shell se animan igual sin depender del tipo de navegación interna.
+NoTransitionPage<T> _shellPage<T>({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return NoTransitionPage<T>(key: key, child: child);
+}
+
 String? _normalizeTrailingSlash(GoRouterState state) {
   final path = state.uri.path;
   if (path.length <= 1 || !path.endsWith('/')) return null;
@@ -68,13 +78,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final slash = _normalizeTrailingSlash(state);
       if (slash != null) {
-        debugPrint('[ROUTER] → $slash (trailing slash)');
         return slash;
       }
 
       final legacy = _legacyHomeRouteRedirect(state);
       if (legacy != null) {
-        debugPrint('[ROUTER] → $legacy (legacy /home/**)');
         return legacy;
       }
 
@@ -92,22 +100,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAgendaRoute =
           loc == '/' || loc.startsWith('/agenda') || isPublicBookingRoute;
 
-      debugPrint('[ROUTER] redirect — loc=$loc isLoggedIn=$isLoggedIn');
-
       if (isLoggedIn && loc == '/dashboard') {
-        debugPrint('[ROUTER] → /bots (dashboard)');
         return '/bots';
       }
       if (!isLoggedIn && legacyTenantsMe) {
-        debugPrint('[ROUTER] → /login (legacyTenantsMe, not logged in)');
         return '/login';
       }
       if (!isLoggedIn && homeTenantArea) {
-        debugPrint('[ROUTER] → /login (homeTenantArea, not logged in)');
         return '/login';
       }
       if (!isLoggedIn && !isLoggingIn && !isAgendaRoute) {
-        debugPrint('[ROUTER] → /login (not agenda, not logged in)');
         return '/login';
       }
       if (isLoggedIn && (loc == '/' || isLoggingIn)) {
@@ -130,10 +132,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (isLoggedIn && loc == '/agenda/tenants/me') {
-        debugPrint('[ROUTER] → /agenda/panel (legacyTenantsMe, logged in)');
         return '/agenda/panel';
       }
-      debugPrint('[ROUTER] → null (sin redirect)');
       return null;
     },
     routes: [
@@ -142,71 +142,102 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
       ShellRoute(
-        builder: (context, state, child) => AgendaHomeShell(child: child),
+        builder: (context, state, child) => AgendaHomeShell(
+          locationKey: state.uri.toString(),
+          child: child,
+        ),
         routes: [
           GoRoute(
             path: '/agenda/panel',
-            builder: (context, state) => const AgendaPanelScreen(),
+            pageBuilder: (context, state) {
+              final section = state.uri.queryParameters['section'] ?? '';
+              return _shellPage(
+                key: ValueKey('/agenda/panel?section=$section'),
+                child: const AgendaPanelScreen(),
+              );
+            },
           ),
           GoRoute(
             path: '/agenda/panel/config',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final tab =
                   int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
-              return AgendaPanelConfigScreen(initialTabIndex: tab);
+              return _shellPage(
+                key: const ValueKey('/agenda/panel/config'),
+                child: AgendaPanelConfigScreen(initialTabIndex: tab),
+              );
             },
           ),
           GoRoute(
             path: '/agenda/panel/section/:section',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final section = state.pathParameters['section']!;
-              return AgendaPanelSectionScreen(section: section);
+              return _shellPage(
+                key: ValueKey('/agenda/panel/section/$section'),
+                child: AgendaPanelSectionScreen(section: section),
+              );
             },
           ),
           GoRoute(
             path: '/agenda/businesses/:businessId',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final businessId = state.pathParameters['businessId']!;
-              return AgendaLegacyBusinessRedirect(
-                businessId: businessId,
-                targetPath: '/agenda/panel',
+              return _shellPage(
+                key: ValueKey('/agenda/businesses/$businessId'),
+                child: AgendaLegacyBusinessRedirect(
+                  businessId: businessId,
+                  targetPath: '/agenda/panel',
+                ),
               );
             },
           ),
           GoRoute(
             path: '/agenda/businesses/:businessId/config',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final businessId = state.pathParameters['businessId']!;
               final tab = state.uri.queryParameters['tab'];
               final target = tab != null && tab.isNotEmpty
                   ? '/agenda/panel/config?tab=$tab'
                   : '/agenda/panel/config';
-              return AgendaLegacyBusinessRedirect(
-                businessId: businessId,
-                targetPath: target,
+              return _shellPage(
+                key: ValueKey('/agenda/businesses/$businessId/config'),
+                child: AgendaLegacyBusinessRedirect(
+                  businessId: businessId,
+                  targetPath: target,
+                ),
               );
             },
           ),
           GoRoute(
             path: '/agenda/businesses/:businessId/section/:section',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final businessId = state.pathParameters['businessId']!;
               final section = state.pathParameters['section']!;
-              return AgendaLegacyBusinessRedirect(
-                businessId: businessId,
-                targetPath: '/agenda/panel/section/$section',
+              return _shellPage(
+                key: ValueKey(
+                    '/agenda/businesses/$businessId/section/$section'),
+                child: AgendaLegacyBusinessRedirect(
+                  businessId: businessId,
+                  targetPath: '/agenda/panel/section/$section',
+                ),
               );
             },
           ),
           GoRoute(
             path: '/bots',
-            builder: (context, state) => const BotsScreen(),
+            pageBuilder: (context, state) => _shellPage(
+              key: const ValueKey('/bots'),
+              child: const BotsScreen(),
+            ),
           ),
           GoRoute(
             path: '/bots/:botId',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final botId = state.pathParameters['botId']!;
-              return BotDetailScreen(botId: botId);
+              return _shellPage(
+                key: ValueKey('/bots/$botId'),
+                child: BotDetailScreen(botId: botId),
+              );
             },
           ),
         ],

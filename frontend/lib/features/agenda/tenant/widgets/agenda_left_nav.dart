@@ -22,6 +22,13 @@ class AgendaLeftNav extends ConsumerWidget {
   final String? tenantId;
   final String? businessId;
 
+  void _go(BuildContext context, String location) {
+    if (Scaffold.maybeOf(context)?.isDrawerOpen == true) {
+      Navigator.of(context).pop();
+    }
+    context.go(location);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final topPad = MediaQuery.of(context).padding.top;
@@ -43,6 +50,7 @@ class AgendaLeftNav extends ConsumerWidget {
     final selectedServicios = loc.contains('/section/services');
     final selectedEquipo = loc.contains('/section/staff');
     final selectedClientes = loc.contains('/section/clientes');
+    final selectedConfig = loc.contains('/config');
 
     return Container(
       width: kAgendaNavWidth,
@@ -68,54 +76,55 @@ class AgendaLeftNav extends ConsumerWidget {
             icon: Icons.home_outlined,
             label: 'Inicio',
             selected: selectedInicio,
-            onTap: () => context.go('/agenda/panel'),
+            onTap: () => _go(context, '/agenda/panel'),
           ),
           AgendaNavItem(
             icon: Icons.smart_toy_outlined,
             label: 'Mis bots',
             selected: selectedBots,
-            onTap: () => context.go('/bots'),
+            onTap: () => _go(context, '/bots'),
           ),
           AgendaNavItem(
             icon: Icons.calendar_today_outlined,
             label: 'Agenda',
             selected: selectedAgenda,
-            onTap: () => context.go('/agenda/panel?section=agenda'),
+            onTap: () => _go(context, '/agenda/panel?section=agenda'),
           ),
           AgendaNavItem(
             icon: Icons.people_outline,
             label: 'Clientes',
             selected: selectedClientes,
-            onTap: () => context.go('/agenda/panel/section/clientes'),
+            onTap: () => _go(context, '/agenda/panel/section/clientes'),
           ),
           AgendaNavItem(
             icon: Icons.schedule_outlined,
             label: 'Horarios',
             selected: selectedHorarios,
-            onTap: () => context.go('/agenda/panel/section/hours'),
+            onTap: () => _go(context, '/agenda/panel/section/hours'),
           ),
           AgendaNavItem(
             icon: Icons.palette_outlined,
             label: 'Estilos',
             selected: selectedEstilos,
-            onTap: () => context.go('/agenda/panel/section/styles'),
+            onTap: () => _go(context, '/agenda/panel/section/styles'),
           ),
           AgendaNavItem(
             icon: Icons.room_service_outlined,
             label: 'Servicios',
             selected: selectedServicios,
-            onTap: () => context.go('/agenda/panel/section/services'),
+            onTap: () => _go(context, '/agenda/panel/section/services'),
           ),
           AgendaNavItem(
             icon: Icons.people_outline,
             label: 'Equipo',
             selected: selectedEquipo,
-            onTap: () => context.go('/agenda/panel/section/staff'),
+            onTap: () => _go(context, '/agenda/panel/section/staff'),
           ),
           AgendaNavItem(
             icon: Icons.settings_outlined,
             label: 'Configuración',
-            onTap: () => context.push('/agenda/panel/config'),
+            selected: selectedConfig,
+            onTap: () => _go(context, '/agenda/panel/config'),
           ),
           const SizedBox(height: 8),
           const AgendaNavItem(
@@ -195,7 +204,7 @@ class AgendaLeftNav extends ConsumerWidget {
             child: TextButton.icon(
               onPressed: () {
                 ref.read(authStateProvider.notifier).signOut();
-                context.go('/');
+                _go(context, '/');
               },
               icon: const Icon(Icons.logout, size: 18),
               label: const Text('Salir'),

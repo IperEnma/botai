@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../providers/agenda/selected_agenda_business_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
-import 'business_me_config_screen.dart';
+import '../../configuracion/configuracion_page.dart';
 
 /// Config del negocio sin UUID en la URL (`/agenda/panel/config`).
 class AgendaPanelConfigScreen extends ConsumerWidget {
@@ -21,9 +21,6 @@ class AgendaPanelConfigScreen extends ConsumerWidget {
       });
       return const Scaffold(body: AgendaLoadingView());
     }
-    return BusinessMeConfigScreen(
-      businessId: businessId,
-      initialTabIndex: initialTabIndex,
-    );
+    return ConfiguracionPage(businessId: businessId);
   }
 }
