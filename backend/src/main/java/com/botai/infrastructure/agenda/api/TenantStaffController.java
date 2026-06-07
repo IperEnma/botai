@@ -8,7 +8,8 @@ import com.botai.application.agenda.mapper.StaffMemberDtoMapper;
 import com.botai.application.agenda.usecase.staff.ManageStaffUseCase;
 import com.botai.domain.agenda.exception.StaffMemberNotFoundException;
 import com.botai.domain.agenda.repository.StaffMemberRepository;
-import com.botai.infrastructure.agenda.config.AgendaUploadProperties;
+import com.botai.application.agenda.support.AgendaMediaUploadSupport;
+import com.botai.domain.agenda.service.AgendaMediaStoragePort;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,10 +31,6 @@ import com.botai.application.agenda.usecase.business.ListBusinessesByTenantUseCa
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -45,18 +42,18 @@ public class TenantStaffController {
 
     private final ManageStaffUseCase manageStaff;
     private final StaffMemberRepository staffRepository;
-    private final AgendaUploadProperties uploadProps;
+    private final AgendaMediaStoragePort mediaStorage;
     private final AgendaCurrentTenantService currentTenant;
     private final ListBusinessesByTenantUseCase listBusinesses;
 
     public TenantStaffController(ManageStaffUseCase manageStaff,
                                   StaffMemberRepository staffRepository,
-                                  AgendaUploadProperties uploadProps,
+                                  AgendaMediaStoragePort mediaStorage,
                                   AgendaCurrentTenantService currentTenant,
                                   ListBusinessesByTenantUseCase listBusinesses) {
         this.manageStaff = manageStaff;
         this.staffRepository = staffRepository;
-        this.uploadProps = uploadProps;
+        this.mediaStorage = mediaStorage;
         this.currentTenant = currentTenant;
         this.listBusinesses = listBusinesses;
     }
@@ -127,17 +124,12 @@ public class TenantStaffController {
             throw new StaffMemberNotFoundException(staffId);
         }
 
-        String originalName = file.getOriginalFilename();
-        String ext = (originalName != null && originalName.contains("."))
-                ? originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase()
-                : "jpg";
-
+        String ext = AgendaMediaUploadSupport.fileExtension(file.getOriginalFilename());
         String fileName = UUID.randomUUID() + "." + ext;
-        Path dir = Paths.get(uploadProps.getDir(), "staff", staffId.toString());
-        Files.createDirectories(dir);
-        Files.copy(file.getInputStream(), dir.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
+        String storageKey = "staff/" + staffId + "/" + fileName;
+        String contentType = AgendaMediaUploadSupport.resolveContentType(file, storageKey);
 
-        String url = "/uploads/staff/" + staffId + "/" + fileName;
+        String url = mediaStorage.store(storageKey, file.getBytes(), contentType);
         return ResponseEntity.ok(Map.of("url", url));
     }
 }

@@ -77,6 +77,9 @@ uploads:
   dir: ${UPLOADS_DIR:${AGENDA_UPLOADS_DIR:uploads}}
 
 agenda:
+  media:
+    # database = Postgres (prod/Neon). filesystem = disco local (dev).
+    storage: ${AGENDA_MEDIA_STORAGE:database}
   phone:
     # Código de país por defecto (solo dígitos) al normalizar teléfonos locales (099… → 598…).
     default-country-code: ${AGENDA_PHONE_DEFAULT_COUNTRY_CODE:598}

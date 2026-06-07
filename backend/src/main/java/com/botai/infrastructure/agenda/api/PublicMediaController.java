@@ -1,9 +1,11 @@
 package com.botai.infrastructure.agenda.api;
 
-import com.botai.infrastructure.agenda.config.AgendaUploadProperties;
+import com.botai.domain.agenda.service.AgendaMediaStorageKeys;
+import com.botai.domain.agenda.service.AgendaMediaStoragePort;
+import com.botai.domain.agenda.service.AgendaStoredMedia;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
@@ -15,11 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.Locale;
 import java.util.Set;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -35,17 +33,17 @@ public class PublicMediaController {
 
     private static final Set<String> ALLOWED_PREFIXES = Set.of("businesses/", "staff/");
 
-    private final AgendaUploadProperties uploadProperties;
+    private final AgendaMediaStoragePort mediaStorage;
 
-    public PublicMediaController(AgendaUploadProperties uploadProperties) {
-        this.uploadProperties = uploadProperties;
+    public PublicMediaController(AgendaMediaStoragePort mediaStorage) {
+        this.mediaStorage = mediaStorage;
     }
 
     @GetMapping("/{*relativePath}")
     @Operation(summary = "Imagen pública por path relativo bajo uploads/")
     public ResponseEntity<Resource> getMedia(@PathVariable("relativePath") String relativePath) {
-        String normalized = relativePath.replace('\\', '/');
-        if (normalized.contains("..") || normalized.startsWith("/")) {
+        String normalized = AgendaMediaStorageKeys.normalize(relativePath);
+        if (normalized.contains("..")) {
             throw new ResponseStatusException(NOT_FOUND);
         }
         boolean allowed = ALLOWED_PREFIXES.stream().anyMatch(normalized::startsWith);
@@ -53,32 +51,15 @@ public class PublicMediaController {
             throw new ResponseStatusException(NOT_FOUND);
         }
 
-        Path file = Paths.get(uploadProperties.getDir(), normalized).normalize();
-        Path uploadsRoot = Paths.get(uploadProperties.getDir()).normalize();
-        if (!file.startsWith(uploadsRoot) || !Files.isRegularFile(file)) {
-            throw new ResponseStatusException(NOT_FOUND);
-        }
+        AgendaStoredMedia stored = mediaStorage.find(normalized)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND));
 
-        String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
-        MediaType mediaType = guessMediaType(fileName);
+        MediaType mediaType = MediaType.parseMediaType(stored.contentType());
+        Resource resource = new ByteArrayResource(stored.data());
 
-        Resource resource = new FileSystemResource(file);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
                 .header(HttpHeaders.CONTENT_TYPE, mediaType.toString())
                 .body(resource);
-    }
-
-    private static MediaType guessMediaType(String fileName) {
-        if (fileName.endsWith(".png")) {
-            return MediaType.IMAGE_PNG;
-        }
-        if (fileName.endsWith(".webp")) {
-            return MediaType.parseMediaType("image/webp");
-        }
-        if (fileName.endsWith(".gif")) {
-            return MediaType.IMAGE_GIF;
-        }
-        return MediaType.IMAGE_JPEG;
     }
 }

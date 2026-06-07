@@ -1,6 +1,8 @@
 package com.botai.infrastructure.agenda.api;
 
-import com.botai.infrastructure.agenda.config.AgendaUploadProperties;
+import com.botai.application.agenda.support.AgendaMediaUploadSupport;
+import com.botai.domain.agenda.service.AgendaMediaStoragePort;
+import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
@@ -12,13 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
-
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,34 +23,29 @@ import java.util.UUID;
 @Tag(name = "Agenda Tenant", description = "Administración de negocios por tenant")
 public class BusinessAvatarController {
 
-    private final AgendaUploadProperties uploadProps;
+    private final AgendaMediaStoragePort mediaStorage;
     private final AgendaCurrentTenantService currentTenant;
 
-    public BusinessAvatarController(AgendaUploadProperties uploadProps,
+    public BusinessAvatarController(AgendaMediaStoragePort mediaStorage,
                                     AgendaCurrentTenantService currentTenant) {
-        this.uploadProps = uploadProps;
+        this.mediaStorage = mediaStorage;
         this.currentTenant = currentTenant;
     }
 
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Sube la imagen de avatar del negocio al filesystem")
+    @Operation(summary = "Sube la imagen de avatar del negocio")
     public ResponseEntity<Map<String, String>> uploadAvatar(
             @PathVariable UUID businessId,
             @RequestParam("file") MultipartFile file) throws IOException {
 
         currentTenant.requireBusinessOwnedByCurrentTenant(businessId);
 
-        String originalName = file.getOriginalFilename();
-        String ext = (originalName != null && originalName.contains("."))
-                ? originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase()
-                : "jpg";
-
+        String ext = AgendaMediaUploadSupport.fileExtension(file.getOriginalFilename());
         String fileName = UUID.randomUUID() + "." + ext;
-        Path dir = Paths.get(uploadProps.getDir(), "businesses", businessId.toString());
-        Files.createDirectories(dir);
-        Files.copy(file.getInputStream(), dir.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
+        String storageKey = "businesses/" + businessId + "/" + fileName;
+        String contentType = AgendaMediaUploadSupport.resolveContentType(file, storageKey);
 
-        String url = "/uploads/businesses/" + businessId + "/" + fileName;
+        String url = mediaStorage.store(storageKey, file.getBytes(), contentType);
         return ResponseEntity.ok(Map.of("url", url));
     }
 }
