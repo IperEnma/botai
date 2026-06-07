@@ -37,6 +37,7 @@ class DayRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final fullName = _kDayFull[day.diaSemana];
     final abbr = _kDayAbbr[day.diaSemana];
+    final isMobile = MediaQuery.sizeOf(context).width < 700;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -45,31 +46,40 @@ class DayRow extends StatelessWidget {
           // Custom pill toggle
           _DayToggle(value: day.open, onChanged: (_) => onToggle()),
           const SizedBox(width: 12),
-          // Full name + abbreviation
+          // Day name
           SizedBox(
-            width: 76,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  fullName,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: day.open ? KTokens.ink : KTokens.inkSoft,
+            width: isMobile ? 36 : 76,
+            child: isMobile
+                ? Text(
+                    abbr,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: day.open ? KTokens.ink : KTokens.inkSoft,
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        fullName,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: day.open ? KTokens.ink : KTokens.inkSoft,
+                        ),
+                      ),
+                      Text(
+                        abbr.toUpperCase(),
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 9,
+                          letterSpacing: 0.8,
+                          color: KTokens.inkSoft,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Text(
-                  abbr.toUpperCase(),
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
-                    letterSpacing: 0.8,
-                    color: KTokens.inkSoft,
-                  ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(width: 12),
           // Time chips or CERRADO
@@ -96,15 +106,16 @@ class DayRow extends StatelessWidget {
                     ),
                   ),
           ),
-          // Copy icon
-          IconButton(
-            onPressed: onCopy,
-            icon: const Icon(Icons.drag_handle, size: 16),
-            color: KTokens.inkSoft,
-            tooltip: 'Copiar ${_kDayFull[day.diaSemana]}',
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            padding: EdgeInsets.zero,
-          ),
+          // Copy icon (desktop only)
+          if (!isMobile)
+            IconButton(
+              onPressed: onCopy,
+              icon: const Icon(Icons.drag_handle, size: 16),
+              color: KTokens.inkSoft,
+              tooltip: 'Copiar ${_kDayFull[day.diaSemana]}',
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
+            ),
         ],
       ),
     );

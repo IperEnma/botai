@@ -37,12 +37,24 @@ class LogoBlock extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              KButton.primary(
-                label: 'Subir imagen',
-                icon: Icons.arrow_upward_rounded,
-                loading: isUploading,
-                onPressed: onUpload,
-              ),
+              if (MediaQuery.sizeOf(context).width >= 700)
+                FractionallySizedBox(
+                  widthFactor: 0.5,
+                  child: KButton.primary(
+                    label: 'Subir imagen',
+                    icon: Icons.arrow_upward_rounded,
+                    expand: true,
+                    loading: isUploading,
+                    onPressed: onUpload,
+                  ),
+                )
+              else
+                KButton.primary(
+                  label: 'Subir imagen',
+                  icon: Icons.arrow_upward_rounded,
+                  loading: isUploading,
+                  onPressed: onUpload,
+                ),
             ],
           ),
         ),

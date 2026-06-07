@@ -64,28 +64,27 @@ class InicioScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Greeting(
-            ownerName: ownerName,
-            tenantId: tenantId,
-          ),
+          Greeting(ownerName: ownerName, tenantId: tenantId, businessId: businessId),
           const SizedBox(height: 24),
           BranchesBar(tenantId: tenantId),
           const SizedBox(height: 24),
-          KpisRow(tenantId: tenantId),
-          const SizedBox(height: 24),
-          if (isWide)
+          if (isWide) ...[
+            KpisRow(tenantId: tenantId),
+            const SizedBox(height: 24),
             IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(flex: 14, child: TurnosCard(tenantId: tenantId)),
+                  Expanded(flex: 14, child: TurnosCard(tenantId: tenantId, businessId: businessId)),
                   const SizedBox(width: 14),
                   Expanded(flex: 10, child: ActivityCard(tenantId: tenantId)),
                 ],
               ),
-            )
-          else ...[
-            TurnosCard(tenantId: tenantId),
+            ),
+          ] else ...[
+            TurnosCard(tenantId: tenantId, businessId: businessId),
+            const SizedBox(height: 24),
+            KpisRow(tenantId: tenantId),
             const SizedBox(height: 14),
             ActivityCard(tenantId: tenantId),
           ],

@@ -21,6 +21,44 @@ class CategoryBar extends StatelessWidget {
         : 'CATEGORÍA DEL NEGOCIO';
     final list = categories.isEmpty ? const [BusinessCategory.otra] : categories;
 
+    final isNarrow = MediaQuery.sizeOf(context).width < 700;
+
+    final cambiarBtn = GestureDetector(
+      onTap: onChangeCategory,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            categories.length > 1 ? 'Cambiar categorías' : 'Cambiar categoría',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: KTokens.accent,
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.arrow_forward, size: 14, color: KTokens.accent),
+        ],
+      ),
+    );
+
+    final pills = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final c in list) _CategoryPill(name: c.displayName),
+        if (!isNarrow)
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text(
+              'Define las sugerencias disponibles',
+              style: GoogleFonts.inter(fontSize: 12, color: KTokens.inkMuted),
+            ),
+          ),
+      ],
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: KTokens.surface,
@@ -28,58 +66,47 @@ class CategoryBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              letterSpacing: 1.4,
-              color: KTokens.inkSoft,
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
+      child: isNarrow
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final c in list) _CategoryPill(name: c.displayName),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    'Define las sugerencias disponibles',
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: KTokens.inkMuted),
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        label,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 10,
+                          letterSpacing: 1.4,
+                          color: KTokens.inkSoft,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    cambiarBtn,
+                  ],
                 ),
+                const SizedBox(height: 10),
+                pills,
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          GestureDetector(
-            onTap: onChangeCategory,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            )
+          : Row(
               children: [
                 Text(
-                  categories.length > 1 ? 'Cambiar categorías' : 'Cambiar categoría',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: KTokens.accent,
+                  label,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10,
+                    letterSpacing: 1.4,
+                    color: KTokens.inkSoft,
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_forward, size: 14, color: KTokens.accent),
+                const SizedBox(width: 12),
+                Expanded(child: pills),
+                const SizedBox(width: 12),
+                cambiarBtn,
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

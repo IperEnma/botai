@@ -564,11 +564,13 @@ class _GoogleSignupButtonState extends ConsumerState<_GoogleSignupButton> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             LayoutBuilder(
-              builder: (_, constraints) => SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: buildGoogleIdentitySignInButton(
-                  width: constraints.maxWidth,
+              builder: (_, constraints) => ClipRect(
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: buildGoogleIdentitySignInButton(
+                    width: math.min(constraints.maxWidth, 320),
+                  ),
                 ),
               ),
             ),
@@ -593,28 +595,28 @@ class _GoogleSignupButtonState extends ConsumerState<_GoogleSignupButton> {
         style: OutlinedButton.styleFrom(
           backgroundColor: KTokens.surface,
           side: const BorderSide(color: KTokens.borderStrong),
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(KTokens.rMd)),
         ),
         onPressed: _loading ? null : _onPressed,
         child: _loading
             ? const SizedBox(
-                width: 22,
-                height: 22,
+                width: 18,
+                height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const _GoogleG(),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Text(
                     'Continuar con Google',
                     style: KTokens.tCta.copyWith(
                         color: KTokens.ink,
                         fontWeight: FontWeight.w500,
-                        fontSize: 15),
+                        fontSize: 13),
                   ),
                 ],
               ),

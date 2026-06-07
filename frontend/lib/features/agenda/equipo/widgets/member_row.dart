@@ -91,6 +91,7 @@ class _MemberRowState extends State<MemberRow> {
   @override
   Widget build(BuildContext context) {
     final member = widget.member;
+    final isMobile = MediaQuery.sizeOf(context).width < 700;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
@@ -107,95 +108,159 @@ class _MemberRowState extends State<MemberRow> {
                 ? const Color(0x04000000)
                 : Colors.transparent,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                // MIEMBRO — flex 2
-                Expanded(
-                  flex: 2,
-                  child: Row(
+            child: isMobile
+                ? _MobileMemberRow(
+                    member: member,
+                    onStatusChange: widget.onStatusChange,
+                    onEdit: widget.onTap,
+                  )
+                : Row(
                     children: [
-                      _Avatar(member: member),
-                      const SizedBox(width: 12),
+                      // MIEMBRO — flex 2
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        flex: 2,
+                        child: Row(
                           children: [
-                            Text(
-                              member.name,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: KTokens.ink,
+                            _Avatar(member: member),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    member.name,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: KTokens.ink,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    member.typeLabel,
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 10,
+                                      color: KTokens.inkSoft,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              member.typeLabel,
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                color: KTokens.inkSoft,
-                              ),
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
+
+                      // SERVICIOS — flex 3
+                      Expanded(
+                        flex: 3,
+                        child: _ServiceChips(member: member, services: widget.services),
+                      ),
+
+                      // HORARIO — flex 2
+                      Expanded(
+                        flex: 2,
+                        child: _ScheduleCell(
+                          member: member,
+                          scheduleLabel: _buildScheduleLabel(),
+                        ),
+                      ),
+
+                      // ESTADO — flex 2
+                      Expanded(
+                        flex: 2,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: MemberStatusBadge(status: member.status),
+                        ),
+                      ),
+
+                      // TURNOS — flex 1
+                      Expanded(
+                        flex: 1,
+                        child: Text(
+                          member.turnosHoy == 0 ? '—' : '${member.turnosHoy} hoy',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            color: member.turnosHoy == 0
+                                ? KTokens.inkPlaceholder
+                                : KTokens.ink,
+                          ),
+                        ),
+                      ),
+
+                      // Menu — ancho fijo para coincidir con SizedBox(40) del header
+                      SizedBox(
+                        width: 40,
+                        child: _MoreMenu(
+                          member: member,
+                          onStatusChange: widget.onStatusChange,
+                          onEdit: widget.onTap,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-
-                // SERVICIOS — flex 3
-                Expanded(
-                  flex: 3,
-                  child: _ServiceChips(member: member, services: widget.services),
-                ),
-
-                // HORARIO — flex 2
-                Expanded(
-                  flex: 2,
-                  child: _ScheduleCell(
-                    member: member,
-                    scheduleLabel: _buildScheduleLabel(),
-                  ),
-                ),
-
-                // ESTADO — flex 2
-                Expanded(
-                  flex: 2,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: MemberStatusBadge(status: member.status),
-                  ),
-                ),
-
-                // TURNOS — flex 1
-                Expanded(
-                  flex: 1,
-                  child: Text(
-                    member.turnosHoy == 0 ? '—' : '${member.turnosHoy} hoy',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
-                      color: member.turnosHoy == 0
-                          ? KTokens.inkPlaceholder
-                          : KTokens.ink,
-                    ),
-                  ),
-                ),
-
-                // Menu — ancho fijo para coincidir con SizedBox(40) del header
-                SizedBox(
-                  width: 40,
-                  child: _MoreMenu(
-                    member: member,
-                    onStatusChange: widget.onStatusChange,
-                    onEdit: widget.onTap,
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Mobile member row ────────────────────────────────────────────────────────
+
+class _MobileMemberRow extends StatelessWidget {
+  const _MobileMemberRow({
+    required this.member,
+    required this.onStatusChange,
+    required this.onEdit,
+  });
+
+  final Member member;
+  final void Function(MemberStatus) onStatusChange;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _Avatar(member: member),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                member.name,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: KTokens.ink,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (member.title != null && member.title!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  member.title!,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10,
+                    color: KTokens.inkSoft,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        MemberStatusBadge(status: member.status),
+        _MoreMenu(
+          member: member,
+          onStatusChange: onStatusChange,
+          onEdit: onEdit,
+        ),
+      ],
     );
   }
 }

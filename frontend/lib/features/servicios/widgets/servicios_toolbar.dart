@@ -34,85 +34,97 @@ class _ServiciosToolbarState extends State<ServiciosToolbar> {
     final totalActivos = state.countActive;
     final totalTurnos = state.totalBookingsThisMonth;
 
+    final isNarrow = MediaQuery.sizeOf(context).width < 700;
+
+    final searchPill = Container(
+      height: 38,
+      decoration: BoxDecoration(
+        color: KTokens.surface,
+        border: Border.all(color: KTokens.border),
+        borderRadius: BorderRadius.circular(KTokens.rSm),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 12),
+          const Icon(Icons.search_rounded, size: 16, color: KTokens.inkSoft),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _searchCtrl,
+              style: GoogleFonts.inter(fontSize: 13, color: KTokens.ink),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                hintText: 'Buscar por nombre o servicio...',
+                hintStyle: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: KTokens.inkPlaceholder,
+                ),
+                isDense: true,
+                filled: true,
+                fillColor: Colors.transparent,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: notifier.setQuery,
+            ),
+          ),
+          const SizedBox(width: 12),
+        ],
+      ),
+    );
+
+    final filterTabs = Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F0EC),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _FilterTab(
+            label: 'Todos',
+            count: state.items.length,
+            isActive: state.filter == ServicioFilter.all,
+            onTap: () => notifier.setFilter(ServicioFilter.all),
+          ),
+          _FilterTab(
+            label: 'Activos',
+            count: state.countActive,
+            isActive: state.filter == ServicioFilter.active,
+            onTap: () => notifier.setFilter(ServicioFilter.active),
+          ),
+          _FilterTab(
+            label: 'Inactivos',
+            count: state.countInactive,
+            isActive: state.filter == ServicioFilter.inactive,
+            onTap: () => notifier.setFilter(ServicioFilter.inactive),
+          ),
+        ],
+      ),
+    );
+
+    if (isNarrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          searchPill,
+          const SizedBox(height: 10),
+          filterTabs,
+        ],
+      );
+    }
+
     return Row(
       children: [
-        // Search pill
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 320),
-          child: Container(
-            height: 38,
-            decoration: BoxDecoration(
-              color: KTokens.surface,
-              border: Border.all(color: KTokens.border),
-              borderRadius: BorderRadius.circular(KTokens.rSm),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 12),
-                const Icon(Icons.search_rounded,
-                    size: 16, color: KTokens.inkSoft),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    style: GoogleFonts.inter(fontSize: 13, color: KTokens.ink),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      hintText: 'Buscar por nombre o servicio...',
-                      hintStyle: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: KTokens.inkPlaceholder,
-                      ),
-                      isDense: true,
-                      filled: true,
-                      fillColor: Colors.transparent,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: notifier.setQuery,
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
-            ),
-          ),
+          child: searchPill,
         ),
         const SizedBox(width: 20),
-
-        // Filter tabs
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF2F0EC),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          padding: const EdgeInsets.all(3),
-          child: Row(
-            children: [
-              _FilterTab(
-                label: 'Todos',
-                count: state.items.length,
-                isActive: state.filter == ServicioFilter.all,
-                onTap: () => notifier.setFilter(ServicioFilter.all),
-              ),
-              _FilterTab(
-                label: 'Activos',
-                count: state.countActive,
-                isActive: state.filter == ServicioFilter.active,
-                onTap: () => notifier.setFilter(ServicioFilter.active),
-              ),
-              _FilterTab(
-                label: 'Inactivos',
-                count: state.countInactive,
-                isActive: state.filter == ServicioFilter.inactive,
-                onTap: () => notifier.setFilter(ServicioFilter.inactive),
-              ),
-            ],
-          ),
-        ),
+        filterTabs,
         const Spacer(),
-
-        // Counter
         Text(
           '$totalActivos ACTIVOS · $totalTurnos TURNOS ESTE MES',
           style: GoogleFonts.jetBrainsMono(

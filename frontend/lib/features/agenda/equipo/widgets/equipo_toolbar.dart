@@ -19,6 +19,19 @@ class EquipoToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.sizeOf(context).width < 700;
+
+    if (isNarrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SearchPill(onSearch: onSearch),
+          const SizedBox(height: 10),
+          _FilterTabs(state: state, onFilter: onFilter),
+        ],
+      );
+    }
+
     return Row(
       children: [
         ConstrainedBox(

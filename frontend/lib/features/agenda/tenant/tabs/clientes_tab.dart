@@ -68,36 +68,14 @@ class ClientesTab extends ConsumerWidget {
 
   void _openFichaSheet(BuildContext context, WidgetRef ref, Cliente cliente) {
     final notifier = ref.read(clientesProvider(businessId).notifier);
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: KTokens.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.92,
-        maxChildSize: 0.96,
-        builder: (_, controller) {
-          return SingleChildScrollView(
-            controller: controller,
-            padding: EdgeInsets.zero,
-            child: FichaPanel(
-              cliente: cliente,
-              now: notifier.now,
-              compact: true,
-              onAgendar: () {
-                Navigator.of(ctx).pop();
-                _onAgendar(context, cliente);
-              },
-              onWhatsapp: () {
-                Navigator.of(ctx).pop();
-                _onWhatsapp(context, cliente);
-              },
-            ),
-          );
-        },
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _FichaScreen(
+          cliente: cliente,
+          now: notifier.now,
+          onAgendar: () => _onAgendar(context, cliente),
+          onWhatsapp: () => _onWhatsapp(context, cliente),
+        ),
       ),
     );
   }
@@ -296,17 +274,19 @@ class _SearchFieldState extends State<_SearchField> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 42,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 320),
+      child: Container(
+      height: 38,
       decoration: BoxDecoration(
         color: KTokens.surface,
         border: Border.all(color: KTokens.border),
-        borderRadius: BorderRadius.circular(KTokens.rMd),
+        borderRadius: BorderRadius.circular(KTokens.rSm),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, size: 18, color: KTokens.inkSoft),
+          const SizedBox(width: 12),
+          const Icon(Icons.search_rounded, size: 16, color: KTokens.inkSoft),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
@@ -319,11 +299,15 @@ class _SearchFieldState extends State<_SearchField> {
                   color: KTokens.inkPlaceholder,
                 ),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                filled: true,
+                fillColor: Colors.transparent,
+                contentPadding: EdgeInsets.zero,
               ),
               style: GoogleFonts.inter(
-                fontSize: 13.5,
+                fontSize: 13,
                 color: KTokens.ink,
               ),
             ),
@@ -342,6 +326,7 @@ class _SearchFieldState extends State<_SearchField> {
             ),
         ],
       ),
+    ),
     );
   }
 }
@@ -364,6 +349,7 @@ class _FilterChips extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
+      alignment: WrapAlignment.center,
       children: [
         for (final item in _items)
           _Chip(
@@ -413,6 +399,67 @@ class _Chip extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Full-screen ficha (mobile) ───────────────────────────────────────────────
+
+class _FichaScreen extends StatelessWidget {
+  const _FichaScreen({
+    required this.cliente,
+    required this.now,
+    required this.onAgendar,
+    required this.onWhatsapp,
+  });
+
+  final Cliente cliente;
+  final DateTime now;
+  final VoidCallback onAgendar;
+  final VoidCallback onWhatsapp;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: KTokens.surface,
+      appBar: AppBar(
+        backgroundColor: KTokens.surface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        automaticallyImplyLeading: false,
+        titleSpacing: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, color: KTokens.ink, size: 22),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Cerrar',
+        ),
+        title: Text(
+          cliente.nombre,
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: KTokens.ink,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: KTokens.border),
+        ),
+      ),
+      body: FichaPanel(
+        cliente: cliente,
+        now: now,
+        compact: true,
+        onAgendar: () {
+          Navigator.of(context).pop();
+          onAgendar();
+        },
+        onWhatsapp: () {
+          Navigator.of(context).pop();
+          onWhatsapp();
+        },
       ),
     );
   }

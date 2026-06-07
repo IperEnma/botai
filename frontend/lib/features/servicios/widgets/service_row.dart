@@ -38,6 +38,8 @@ class _ServiceRowState extends State<ServiceRow> {
     final s = widget.service;
     const stats = ServiceStats.zero;
 
+    final isMobile = MediaQuery.sizeOf(context).width < 700;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
@@ -48,169 +50,217 @@ class _ServiceRowState extends State<ServiceRow> {
           opacity: s.active ? 1.0 : 0.5,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 100),
-            color: _hovering
-                ? const Color(0x04000000)
-                : Colors.transparent,
+            color: _hovering ? const Color(0x04000000) : Colors.transparent,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                // Toggle + Nombre (40%)
-                Expanded(
-                  flex: 20,
-                  child: Row(
+            child: isMobile
+                ? _MobileRow(
+                    service: s,
+                    assignedStaff: widget.assignedStaff,
+                    onToggle: widget.onToggleActive,
+                    onTap: widget.onTap,
+                    onDuplicate: widget.onDuplicate,
+                    onDelete: widget.onDelete,
+                  )
+                : Row(
                     children: [
-                      _ServicioToggle(
-                        value: s.active,
-                        onChanged: (_) => widget.onToggleActive(),
-                      ),
-                      const SizedBox(width: 12),
+                      // Toggle + Nombre (40%)
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        flex: 20,
+                        child: Row(
                           children: [
-                            Text(
-                              s.name,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: KTokens.ink,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            _ServicioToggle(
+                              value: s.active,
+                              onChanged: (_) => widget.onToggleActive(),
                             ),
-                            if (s.description != null &&
-                                s.description!.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                s.description!,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: KTokens.inkSoft,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    s.name,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: KTokens.ink,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (s.description != null &&
+                                      s.description!.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      s.description!,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        color: KTokens.inkSoft,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
                               ),
-                            ],
+                            ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-
-                // Duración (14%)
-                Expanded(
-                  flex: 6,
-                  child: s.flexibleDuration
-                      ? RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '~ ',
+                      // Duración
+                      Expanded(
+                        flex: 6,
+                        child: s.flexibleDuration
+                            ? RichText(
+                                text: TextSpan(children: [
+                                  TextSpan(
+                                    text: '~ ',
+                                    style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 12, color: KTokens.warn),
+                                  ),
+                                  TextSpan(
+                                    text: '${s.durationMinutes}m',
+                                    style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 12, color: KTokens.warn),
+                                  ),
+                                ]),
+                              )
+                            : Text('${s.durationMinutes}m',
                                 style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 12,
-                                  color: KTokens.warn,
-                                ),
-                              ),
-                              TextSpan(
-                                text: '${s.durationMinutes}m',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 12,
-                                  color: KTokens.warn,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : Text(
-                          '${s.durationMinutes}m',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 12,
-                            color: KTokens.inkSoft,
-                          ),
-                        ),
-                ),
-
-                // Profesionales (14%)
-                Expanded(
-                  flex: 6,
-                  child: ProAvatarStack(staff: widget.assignedStaff),
-                ),
-
-                // Precio (14%)
-                Expanded(
-                  flex: 6,
-                  child: s.priceFrom
-                      ? RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: 'DESDE ',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
-                                  color: KTokens.inkSoft,
-                                ),
-                              ),
-                              TextSpan(
-                                text: '\$${s.priceUyu}',
+                                    fontSize: 12, color: KTokens.inkSoft)),
+                      ),
+                      // Profesionales
+                      Expanded(
+                        flex: 6,
+                        child: ProAvatarStack(staff: widget.assignedStaff),
+                      ),
+                      // Precio
+                      Expanded(
+                        flex: 6,
+                        child: s.priceFrom
+                            ? RichText(
+                                text: TextSpan(children: [
+                                  TextSpan(
+                                    text: 'DESDE ',
+                                    style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 10, color: KTokens.inkSoft),
+                                  ),
+                                  TextSpan(
+                                    text: '\$${s.priceUyu}',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: KTokens.ink),
+                                  ),
+                                ]),
+                              )
+                            : Text('\$${s.priceUyu}',
                                 style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: KTokens.ink,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : Text(
-                          '\$${s.priceUyu}',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: KTokens.ink,
-                          ),
-                        ),
-                ),
-
-                // Turnos + trend (14%)
-                Expanded(
-                  flex: 6,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        stats.bookingsThisMonth > 0
-                            ? '${stats.bookingsThisMonth}'
-                            : '—',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
-                          color: KTokens.inkMuted,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: KTokens.ink)),
+                      ),
+                      // Turnos
+                      Expanded(
+                        flex: 6,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              stats.bookingsThisMonth > 0
+                                  ? '${stats.bookingsThisMonth}'
+                                  : '—',
+                              style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 11, color: KTokens.inkMuted),
+                            ),
+                            const SizedBox(width: 4),
+                            TrendIndicator(trend: stats.trendVsLastMonth),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      TrendIndicator(trend: stats.trendVsLastMonth),
+                      // Menu
+                      Expanded(
+                        flex: 6,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _ServiceMenu(
+                            service: s,
+                            onEdit: widget.onTap,
+                            onDuplicate: widget.onDuplicate,
+                            onToggle: widget.onToggleActive,
+                            onDelete: widget.onDelete,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ),
-
-                // Menu (14%)
-                Expanded(
-                  flex: 6,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: _ServiceMenu(
-                      service: s,
-                      onEdit: widget.onTap,
-                      onDuplicate: widget.onDuplicate,
-                      onToggle: widget.onToggleActive,
-                      onDelete: widget.onDelete,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Mobile row ──────────────────────────────────────────────────────────────
+
+class _MobileRow extends StatelessWidget {
+  const _MobileRow({
+    required this.service,
+    required this.assignedStaff,
+    required this.onToggle,
+    required this.onTap,
+    required this.onDuplicate,
+    required this.onDelete,
+  });
+
+  final ServicioItem service;
+  final List<StaffMember> assignedStaff;
+  final VoidCallback onToggle;
+  final VoidCallback onTap;
+  final VoidCallback onDuplicate;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = service;
+    final duration = s.flexibleDuration ? '~${s.durationMinutes}m' : '${s.durationMinutes}m';
+    final price = s.priceFrom ? 'Desde \$${s.priceUyu}' : '\$${s.priceUyu}';
+
+    return Row(
+      children: [
+        _ServicioToggle(value: s.active, onChanged: (_) => onToggle()),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                s.name,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: KTokens.ink,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '$duration · $price',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 11,
+                  color: KTokens.inkSoft,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _ServiceMenu(
+          service: s,
+          onEdit: onTap,
+          onDuplicate: onDuplicate,
+          onToggle: onToggle,
+          onDelete: onDelete,
+        ),
+      ],
     );
   }
 }

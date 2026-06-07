@@ -20,63 +20,52 @@ class HorariosPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.sizeOf(context).width < 700;
+
+    final textBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Horarios', style: KTokens.tDisplay),
+        const SizedBox(height: 8),
+        Text(
+          'Definí cuándo tu negocio acepta turnos. Lo que configures acá aplica a todo el negocio.',
+          style: GoogleFonts.inter(fontSize: 13, color: KTokens.inkMuted, height: 1.5),
+        ),
+      ],
+    );
+
+    final buttons = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KButton.secondary(
+          label: 'Revertir cambios',
+          icon: Icons.history,
+          compact: true,
+          onPressed: hasChanges && !isSaving ? onRevert : null,
+        ),
+        const SizedBox(width: 8),
+        KButton.primary(
+          label: 'Guardar cambios',
+          icon: Icons.check_rounded,
+          compact: true,
+          loading: isSaving,
+          onPressed: hasChanges && !isSaving ? onSave : null,
+        ),
+      ],
+    );
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
+      padding: EdgeInsets.fromLTRB(isNarrow ? 20 : 32, 28, isNarrow ? 20 : 32, 0),
+      child: isNarrow
+          ? textBlock
+          : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'CONFIGURACIÓN',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
-                    letterSpacing: 1.6,
-                    color: KTokens.accent,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Horarios',
-                  style: KTokens.tDisplay,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Definí cuándo tu negocio acepta turnos. Lo que configures acá aplica a todo el negocio.',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: KTokens.inkMuted,
-                    height: 1.5,
-                  ),
-                ),
+                Expanded(child: textBlock),
+                const SizedBox(width: 24),
+                buttons,
               ],
             ),
-          ),
-          const SizedBox(width: 24),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              KButton.secondary(
-                label: 'Revertir cambios',
-                icon: Icons.history,
-                compact: true,
-                onPressed: hasChanges && !isSaving ? onRevert : null,
-              ),
-              const SizedBox(width: 8),
-              KButton.primary(
-                label: 'Guardar cambios',
-                icon: Icons.check_rounded,
-                compact: true,
-                loading: isSaving,
-                onPressed: hasChanges && !isSaving ? onSave : null,
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

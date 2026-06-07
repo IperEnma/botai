@@ -49,10 +49,12 @@ class ServiciosScreen extends ConsumerWidget {
 
     final items = notifier.visibleItems;
 
+    final isNarrow = MediaQuery.sizeOf(context).width < 700;
+
     return Container(
       color: KTokens.bg,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+        padding: EdgeInsets.fromLTRB(isNarrow ? 20 : 32, 28, isNarrow ? 20 : 32, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

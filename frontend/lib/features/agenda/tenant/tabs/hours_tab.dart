@@ -8,6 +8,7 @@ import '../../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../../providers/agenda/tenant/horarios_controller_provider.dart';
 import '../../../../widgets/agenda/agenda_state_views.dart';
 import '../../register/konecta_tokens.dart';
+import '../../shared/k_button.dart';
 import '../../shared/k_mobile_top_bar.dart';
 import '../widgets/agenda_left_nav.dart';
 import 'horarios/widgets/exceptions_card.dart';
@@ -125,7 +126,7 @@ class _HorariosLayout extends ConsumerWidget {
         SliverToBoxAdapter(child: const SizedBox(height: 24)),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 32),
             child: showSidebar
                 ? _WideLayout(
                     tenantId: tenantId,
@@ -152,6 +153,14 @@ class _HorariosLayout extends ConsumerWidget {
                 tenantId: tenantId,
                 businessId: businessId,
               ),
+            )
+          : null,
+      bottomNavigationBar: isMobile
+          ? _StickyActionBar(
+              hasChanges: state.hasChanges,
+              isSaving: state.isSaving,
+              onSave: () => notifier.save(),
+              onRevert: notifier.revert,
             )
           : null,
       body: isMobile
@@ -245,6 +254,58 @@ class _NarrowLayout extends StatelessWidget {
           businessId: businessId,
         ),
       ],
+    );
+  }
+}
+
+// ─── Sticky bottom action bar (mobile only) ──────────────────────────────────
+
+class _StickyActionBar extends StatelessWidget {
+  const _StickyActionBar({
+    required this.hasChanges,
+    required this.isSaving,
+    required this.onSave,
+    required this.onRevert,
+  });
+
+  final bool hasChanges;
+  final bool isSaving;
+  final VoidCallback onSave;
+  final VoidCallback onRevert;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + bottom),
+      decoration: const BoxDecoration(
+        color: KTokens.surface,
+        border: Border(top: BorderSide(color: KTokens.border)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: KButton.secondary(
+              label: 'Revertir',
+              icon: Icons.history,
+              compact: true,
+              expand: true,
+              onPressed: hasChanges && !isSaving ? onRevert : null,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: KButton.primary(
+              label: 'Guardar cambios',
+              icon: Icons.check_rounded,
+              compact: true,
+              expand: true,
+              loading: isSaving,
+              onPressed: hasChanges && !isSaving ? onSave : null,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

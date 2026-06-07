@@ -6,6 +6,7 @@ import '../../../../register/konecta_tokens.dart';
 import '../cliente.dart';
 import '../clientes_controller.dart';
 import 'cliente_row.dart';
+import 'tag_chip.dart';
 
 class ClienteTable extends ConsumerWidget {
   const ClienteTable({super.key, required this.businessId});
@@ -85,13 +86,29 @@ class ClientesMobileList extends ConsumerWidget {
     final notifier = ref.watch(clientesProvider(businessId).notifier);
     final visible = notifier.visible;
 
+    if (visible.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.people_outline, size: 36, color: KTokens.inkPlaceholder),
+            const SizedBox(height: 8),
+            Text(
+              'Sin clientes que coincidan',
+              style: GoogleFonts.inter(fontSize: 14, color: KTokens.inkMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
         for (final c in visible)
-          ClienteRow(
+          _MobileCard(
             cliente: c,
             tag: notifier.tagOf(c),
-            selected: false,
             onTap: () {
               notifier.select(c.id);
               onOpen(c);
@@ -100,4 +117,98 @@ class ClientesMobileList extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _MobileCard extends StatelessWidget {
+  const _MobileCard({
+    required this.cliente,
+    required this.tag,
+    required this.onTap,
+  });
+
+  final Cliente cliente;
+  final ClienteTag tag;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final servicio = cliente.servicioTop?.servicio ?? '—';
+    final gasto = '\$ ${_money(cliente.gastoAcumulado)}';
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: KTokens.surface,
+          borderRadius: BorderRadius.circular(KTokens.rMd),
+          border: Border.all(color: KTokens.border),
+        ),
+        child: Row(
+          children: [
+            ClienteAvatar(cliente: cliente, size: 40),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          cliente.nombre,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: KTokens.ink,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TagChip(tag: tag),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    cliente.telefono,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11.5,
+                      color: KTokens.inkSoft,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${cliente.visitas} visitas · $servicio · $gasto',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: KTokens.inkMuted,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded, size: 18, color: KTokens.inkPlaceholder),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _money(double v) {
+  final whole = v.round().toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < whole.length; i++) {
+    final pos = whole.length - i;
+    buf.write(whole[i]);
+    if (pos > 1 && (pos - 1) % 3 == 0) buf.write('.');
+  }
+  return buf.toString();
 }

@@ -47,23 +47,7 @@ class _ServiceDetailPanelState extends ConsumerState<_ServiceDetailPanel> {
   CustomFormData? _formData;
   bool _isSaving = false;
 
-  Future<void> _archive() async {
-    setState(() => _isSaving = true);
-    try {
-      await ref
-          .read(serviciosProvider(widget.servKey).notifier)
-          .remove(widget.service.id);
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      setState(() => _isSaving = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-  }
-
-  Future<void> _save() async {
+Future<void> _save() async {
     final data = _formData;
     if (data == null || !data.isValid) return;
     setState(() => _isSaving = true);
@@ -131,7 +115,6 @@ class _ServiceDetailPanelState extends ConsumerState<_ServiceDetailPanel> {
                 _DetailFooter(
                   isSaving: _isSaving,
                   hasChanges: _formData != null,
-                  onArchive: _isSaving ? null : _archive,
                   onCancel: () => Navigator.of(context).pop(),
                   onSave: (_formData?.isValid ?? false) && !_isSaving
                       ? _save
@@ -196,14 +179,12 @@ class _DetailFooter extends StatelessWidget {
   const _DetailFooter({
     required this.isSaving,
     required this.hasChanges,
-    required this.onArchive,
     required this.onCancel,
     required this.onSave,
   });
 
   final bool isSaving;
   final bool hasChanges;
-  final VoidCallback? onArchive;
   final VoidCallback onCancel;
   final VoidCallback? onSave;
 
@@ -216,15 +197,6 @@ class _DetailFooter extends StatelessWidget {
       ),
       child: Row(
         children: [
-          TextButton(
-            onPressed: onArchive,
-            style: TextButton.styleFrom(
-              foregroundColor: KTokens.excClosed,
-              textStyle: GoogleFonts.inter(fontSize: 13),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            ),
-            child: const Text('Archivar servicio'),
-          ),
           const Spacer(),
           OutlinedButton(
             onPressed: isSaving ? null : onCancel,
