@@ -1,4 +1,5 @@
--- Datos iniciales (tablas creadas por Hibernate antes de Flyway; ver AgendaFlywayConfig).
+-- Responsabilidad (V2): seed categorías. Tablas = Hibernate antes de Flyway.
+-- Ver backend/docs/AGENDA_FLYWAY_MIGRATIONS.md
 
 INSERT INTO agenda_categories (id, nombre, slug, icono, synonyms, activo, created_at, updated_at) VALUES
     (gen_random_uuid(), 'Peluquería',  'peluqueria',  'scissors',

@@ -13,81 +13,66 @@ metadata:
 
 # new-agenda-migration
 
-Crea una migración Flyway aislada para el módulo AGENDA.
+Crea una migración Flyway **suplementaria** para el módulo AGENDA (greenfield).
+
+**Leer primero:** [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](../../backend/docs/AGENDA_FLYWAY_MIGRATIONS.md)
 
 ## Cuándo usar
 
-- "Agregá un índice a agenda_bookings"
-- "Necesitamos una columna notes en agenda_businesses" → **no** migración `ALTER`; actualizar `BusinessEntity` y recrear BD.
-- "Seed de categorías iniciales"
+- Índice GIN / parcial / expresión que Hibernate no genera → ampliar **V7** o, si la secuencia ya está congelada en prod recreado, siguiente V8 **solo** de ese tipo.
+- CHECK, UNIQUE parcial, EXCLUDE GiST → V3 / V4 / V5 según tipo.
+- Tabla **sin** `@Entity` JPA → V6.
+- Seed de datos → V2 (patrón existente).
 
-No usar si:
-- Es parte de una feature completa (usá `new-agenda-feature`, que ya incluye la migración).
-- Tocarías tablas del bot (`bot`, `appointment`, `conversation`, etc.) → **NO procedas**, escalá al usuario.
+## Cuándo NO usar (greenfield)
+
+| Pedido | Hacer en su lugar |
+|--------|-------------------|
+| Nueva tabla con `@Entity` | Entidad JPA + recrear BD — **sin** Flyway `CREATE TABLE` |
+| Nueva columna en tabla existente | `@Column` en entidad + recrear BD — **sin** `ALTER TABLE` |
+| `agenda_uploaded_files` / imágenes | `UploadedFileEntity` ya existe — Hibernate |
+| Schema local viejo | `docker-compose down -v`, no `V9` parche |
 
 ## Pasos
 
 ### 1. Validar alcance
 Confirmar que:
 - La migración toca **solo** tablas con prefijo `agenda_`.
-- Si hay DROP o ALTER de una tabla que no existe aún, no es una migración correctiva; es un error → preguntar.
+- **No** es `CREATE TABLE` para algo que tendrá `@Entity`.
+- Si hay DROP o ALTER de columna nueva, **detener** — greenfield no aplica parches.
 
-### 2. Calcular próxima versión
-Solo si el cambio **no** es una columna nueva en una tabla ya modelada por JPA: en greenfield el schema va en `@Entity` + recrear BD (ver `CLAUDE.md` → *Política greenfield*). Flyway en este repo es para índices, constraints, seeds y tablas sin entidad — **no** `ALTER TABLE ... ADD COLUMN`.
+### 2. Calcular versión
+Secuencia actual **V1–V7** (ver doc). Próxima versión solo si el suplemento no cabe en el archivo de responsabilidad existente (p. ej. otro índice GIN → preferir editar V7 y recrear BD).
 
 ```bash
 ls backend/src/main/resources/db/migration/agenda/ 2>/dev/null | grep -oP '^V\d+' | sort -V | tail -1
 ```
-Si no existe la carpeta, `V1`. Si la última es `V7`, la próxima es `V8`.
 
 ### 3. Elegir nombre
 Formato: `V<N>__agenda_<snake_case_descripcion>.sql`
 
-Ejemplos:
-- `V3__agenda_add_notes_to_businesses.sql`
-- `V5__agenda_seed_default_categories.sql`
-- `V9__agenda_index_bookings_by_business_date.sql`
-
 ### 4. Escribir la migración
-Buenas prácticas:
-- **Greenfield:** columnas nuevas → `@Column` en la entidad JPA; BD vieja → recrear Postgres, no `ALTER`.
-- **Idempotente cuando sea posible:** `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`.
-- **Sin destrucción de datos sin pedir:** un `DROP COLUMN` requiere confirmación explícita del usuario.
-- **No mezclar DDL de AGENDA con DDL del bot.**
-
-Template (solo índices / tablas sin entidad):
-```sql
--- <motivo en una línea>
-
-CREATE INDEX IF NOT EXISTS idx_agenda_<tabla>_<col> ON agenda_<tabla> (<col>);
-```
+- Idempotente: `CREATE INDEX IF NOT EXISTS`, `CREATE TABLE IF NOT EXISTS` (solo tablas **sin** entidad).
+- Comentario inicial: `-- Responsabilidad (VN): …` + referencia a `AGENDA_FLYWAY_MIGRATIONS.md`.
+- **Sin** destrucción de datos sin confirmación del usuario.
+- **No** mezclar DDL de AGENDA con DDL del bot.
 
 ### 5. Validaciones antes de cerrar
-Ejecutar:
 ```bash
-# 1. El archivo es el próximo en la secuencia
 ls backend/src/main/resources/db/migration/agenda/
-
-# 2. No menciona tablas del bot
-grep -niE "\s(bot|appointment|conversation|faq|knowledge_chunk|lead|menu|menu_option|message|business_hours|service|feature_config|menu_trigger)\b" backend/src/main/resources/db/migration/agenda/V*.sql
-
-# 3. Todas las tablas mencionadas tienen prefijo agenda_
-grep -oP "\b(agenda_\w+|\w+)\b" backend/src/main/resources/db/migration/agenda/V<N>__*.sql | grep -v '^agenda_' | grep -E '^(businesses|bookings|services|plans|users|categories)$' && echo "ALERTA: hay tablas sin prefijo"
+grep -niE "\s(bot|appointment|conversation|faq)\b" backend/src/main/resources/db/migration/agenda/V*.sql
 ```
 
 ### 6. Ajustar JPA entities
-Si la migración cambia columnas, actualizar la entity correspondiente bajo `com.botai.agenda.infrastructure.persistence.entity`.
+Si el cambio es columna nueva → **entidad**, no Flyway.
 
 ### 7. Probar
 ```bash
 cd backend && mvn compile
-# Si hay test de integración que corra Flyway:
-cd backend && mvn test -Dtest='*IT' -Dspring.profiles.active=test
 ```
 
 ## Reglas
 
-- **Nunca** tocar tablas del bot en una migración bajo `db/migration/agenda/`.
-- Si Flyway está configurado también para el bot, usar carpeta **separada** (`db/migration/bot/` o `db/migration/agenda/`) con `flyway.locations` distintos.
-- Mensajes y comentarios en español si son para el usuario final.
-- Nunca incluir datos sensibles hardcodeados.
+- **Nunca** tocar tablas del bot en `db/migration/agenda/`.
+- **Nunca** `V8+` solo porque “falta una tabla” que ya tiene `@Entity`.
+- Mensajes en español si son para el usuario final.

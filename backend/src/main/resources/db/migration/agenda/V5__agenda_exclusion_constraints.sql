@@ -1,5 +1,5 @@
--- Responsabilidad: concurrencia / anti doble-reserva vía EXCLUDE GiST, que
--- Hibernate no modela. Requiere btree_gist (habilitado en V1). Idempotente.
+-- Responsabilidad (V5): EXCLUDE GiST anti doble-reserva. Requiere btree_gist (V1).
+-- Ver backend/docs/AGENDA_FLYWAY_MIGRATIONS.md
 
 -- Anti doble reserva por negocio+servicio.
 DO $$

@@ -80,11 +80,19 @@ Both domains live in one backend and are **editable**. Keep **technical** separa
 | Rule | Detail |
 |------|--------|
 | No cross-imports | `com.botai.*.agenda` must not import `com.botai.*.chatbot` and vice versa |
-| Agenda schema | New tables: `agenda_*`, Flyway under `db/migration/agenda/` |
+| Agenda schema | New tables: `agenda_*`; Hibernate for `@Entity`; Flyway V1–V7 supplement only — [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](backend/docs/AGENDA_FLYWAY_MIGRATIONS.md) |
 | Chatbot schema | Bot tables (`bot`, `conversation`, `faq`, …) — change only when the task requires it |
 | Integration | REST, actions, shared infra — not domain-to-domain imports |
 
 Details: [CLAUDE.md](CLAUDE.md). Pre-commit for Agenda: `agenda-boundary-check`.
+
+### Política greenfield (schema)
+
+- **Asunción:** BD vacía o recreada; no migraciones incrementales en prod.
+- **Agenda:** Hibernate crea tablas/columnas desde `@Entity`; Flyway aplica **V1–V7** (extensiones PG, seeds, CHECK, UNIQUE parciales, EXCLUDE GiST, tablas sin entidad, índices GIN). **No** `ALTER TABLE ADD COLUMN` en Flyway; **no** `CREATE TABLE` si ya hay entidad JPA (ej. `agenda_uploaded_files` → `UploadedFileEntity`, sin V8).
+- **Local desactualizado:** `docker-compose down -v` y volver a levantar.
+- **Prod (Render/Neon):** recrear la base si el schema no coincide — ver [deploy/RENDER.md](deploy/RENDER.md).
+- **Referencia agentes:** [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](backend/docs/AGENDA_FLYWAY_MIGRATIONS.md).
 
 ---
 

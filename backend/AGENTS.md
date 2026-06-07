@@ -51,6 +51,8 @@ Same rule as [AGENTS.md](../AGENTS.md): **no alternate flow paths or dev fallbac
 ### Agenda conventions
 
 - New tables: prefix `agenda_`, Flyway `db/migration/agenda/`.
+- **Greenfield (obligatorio):** tablas/columnas con `@Entity` → Hibernate (`ddl-auto: update`); **no** migración Flyway de `CREATE TABLE` / `ADD COLUMN`. Flyway Agenda = **solo V1–V7** (extensiones, seeds, CHECK, UNIQUE parciales, EXCLUDE, tablas sin entidad, índices GIN). Detalle: [docs/AGENDA_FLYWAY_MIGRATIONS.md](docs/AGENDA_FLYWAY_MIGRATIONS.md).
+- Schema desactualizado → recrear Postgres (`docker-compose down -v`), no acumular `V8+` ni parches en prod.
 - Hibernate `ddl-auto: validate` for Agenda entities.
 - REST under `/api/agenda/...` (see table below).
 
@@ -105,6 +107,6 @@ cd backend && mvn flyway:migrate -Dflyway.configFiles=flyway-agenda.conf
 
 - [ ] `mvn compile` passes
 - [ ] Agenda tests added/updated
-- [ ] Flyway migration if schema changed
+- [ ] Schema change: `@Entity` (Hibernate) or suplemento Flyway V1–V7 per [AGENDA_FLYWAY_MIGRATIONS.md](docs/AGENDA_FLYWAY_MIGRATIONS.md) — **never** `V8+` for JPA tables
 - [ ] OpenAPI on new endpoints
 - [ ] `agenda-boundary-check` clean

@@ -1,5 +1,5 @@
--- Responsabilidad: tablas que NO tienen entidad JPA (Hibernate no las crea).
--- Flyway las crea explícitamente. Idempotente.
+-- Responsabilidad (V6): tablas sin entidad JPA (Hibernate no las crea).
+-- Ver backend/docs/AGENDA_FLYWAY_MIGRATIONS.md
 
 -- Idempotencia HTTP (AgendaIdempotencyFilter).
 CREATE TABLE IF NOT EXISTS agenda_idempotency_keys (

@@ -1,5 +1,5 @@
--- Responsabilidad: unicidad de claves naturales que Hibernate no puede crear
--- (UNIQUE parcial sobre columnas nullable). Idempotente.
+-- Responsabilidad (V4): UNIQUE parciales que Hibernate no modela. Idempotente.
+-- Ver backend/docs/AGENDA_FLYWAY_MIGRATIONS.md
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_agenda_tenant_accounts_email
     ON agenda_tenant_accounts (email)

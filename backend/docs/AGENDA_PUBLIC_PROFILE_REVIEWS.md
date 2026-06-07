@@ -14,7 +14,8 @@
 >   `V5__agenda_exclusion_constraints.sql` (EXCLUDE GiST anti-solapamiento),
 >   `V6__agenda_tables_without_entities.sql` (tablas sin entidad JPA, p. ej. idempotencia HTTP),
 >   `V7__agenda_indexes.sql` (índices GIN/parciales, incl. `idx_agenda_reviews_staff`).
->   El índice compuesto simple `(business_id, created_at)` queda en `@Table(indexes=...)` de `ReviewEntity` (lo crea el ORM).
+>   **`agenda_uploaded_files`** (bytes logo/banner/avatares): `@Entity` `UploadedFileEntity` — Hibernate, **sin** migración Flyway (V8 fue error y está eliminada).
+>   Catálogo completo V1–V7: [AGENDA_FLYWAY_MIGRATIONS.md](./AGENDA_FLYWAY_MIGRATIONS.md).
 > - **Convención del repo:** NO se crean FKs a nivel DB (V3 tampoco agrega ninguna); la integridad referencial
 >   se valida en los use cases. Las secciones de DDL `CREATE TABLE`/`ALTER TABLE` de abajo son **referencia del esquema**, no scripts a aplicar.
 

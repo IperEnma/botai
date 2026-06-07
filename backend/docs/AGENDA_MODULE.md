@@ -72,7 +72,7 @@ cd backend
 mvn spring-boot:run
 ```
 
-Spring Boot arranca en el puerto **8080**. Al iniciar, Flyway ejecuta automáticamente las migraciones de `db/migration/agenda/` y crea todas las tablas `agenda_*`.
+Spring Boot arranca en el puerto **8080**. Hibernate crea/actualiza tablas `agenda_*` desde `@Entity`; Flyway aplica V1–V7 al estar lista la app (ver [AGENDA_FLYWAY_MIGRATIONS.md](./AGENDA_FLYWAY_MIGRATIONS.md)).
 
 ### Verificar que levantó
 
@@ -176,20 +176,23 @@ mvn test
 
 ## 5. Migraciones Flyway
 
-Las migraciones de AGENDA viven en `backend/src/main/resources/db/migration/agenda/` y se ejecutan automáticamente al arrancar el backend.
+**Greenfield híbrido:** Hibernate crea tablas/columnas desde `@Entity`; Flyway aplica **V1–V7** como suplemento (extensiones, seeds, CHECK, índices GIN, tablas sin entidad).
 
-| Archivo | Descripción |
-|---|---|
-| `V1__agenda_core_tables.sql` | Tablas base: businesses, users, categories, services, settings, tenant_config. Instala extensión `unaccent`. |
-| `V2__agenda_seed_categories.sql` | Semilla de catálogo global: Peluquería, Manicure, Spa, Yoga, Gimnasio, Tatuajes, Pilates, Barbería, Nutrición, Estética y sus sinónimos en JSONB. |
-| `V3__agenda_plans_and_subscriptions.sql` | Tablas: plans, user_subscriptions, credit_transactions. |
-| `V4__agenda_bookings.sql` | Tabla bookings con índices de calendario. |
-| `V5__agenda_plans_soft_delete.sql` | Agrega columna `deleted_at` a plans para soft delete. |
-| `V6__agenda_bookings_slot_exclusion.sql` | Exclusión de solapamiento de slots por negocio/servicio. |
-| `V7__agenda_loyalty_suggestions.sql` | Tabla loyalty_suggestions para el motor de fidelización. |
-| `V8__agenda_notifications.sql` | Tablas notifications y notification_templates. |
-| `V9__agenda_idempotency.sql` | Tabla idempotency_keys para evitar reservas duplicadas por reintento. |
-| `V10__agenda_outbox.sql` | Tabla outbox_events para el patrón Outbox (publicación confiable de eventos). |
+**Referencia canónica para agentes y desarrolladores:** [AGENDA_FLYWAY_MIGRATIONS.md](./AGENDA_FLYWAY_MIGRATIONS.md) — responsabilidad de cada versión, qué **no** va en Flyway, y por qué no existe V8 para `agenda_uploaded_files`.
+
+Carpeta: `backend/src/main/resources/db/migration/agenda/`
+
+| Versión | Responsabilidad (resumen) |
+|---------|---------------------------|
+| V1 | Extensiones PG (`vector`, `btree_gist`, …) |
+| V2 | Seed `agenda_categories` |
+| V3 | CHECK constraints |
+| V4 | UNIQUE parciales |
+| V5 | EXCLUDE GiST (anti doble-reserva) |
+| V6 | Tablas sin `@Entity` (idempotency) |
+| V7 | Índices GIN / parciales |
+
+Schema desactualizado → recrear Postgres, no parches Flyway.
 
 ---
 

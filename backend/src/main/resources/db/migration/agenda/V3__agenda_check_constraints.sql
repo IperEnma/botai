@@ -1,6 +1,5 @@
--- Responsabilidad: integridad de datos vía CHECK que Hibernate no genera
--- (columnas sin @Check en la entidad). Tablas = entidades Hibernate (creadas
--- antes de que Flyway corra; ver AgendaFlywayConfig). Idempotente.
+-- Responsabilidad (V3): CHECK que Hibernate no genera. Tablas = Hibernate.
+-- Ver backend/docs/AGENDA_FLYWAY_MIGRATIONS.md
 
 -- Rango de rating de reseñas
 DO $$

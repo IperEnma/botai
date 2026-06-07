@@ -1,4 +1,5 @@
--- Extensiones PG (RAG pgvector, EXCLUDE btree_gist). Flyway V1; tablas = Hibernate.
+-- Responsabilidad (V1): extensiones PostgreSQL. Tablas agenda_* = Hibernate (ddl-auto).
+-- Ver backend/docs/AGENDA_FLYWAY_MIGRATIONS.md
 
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

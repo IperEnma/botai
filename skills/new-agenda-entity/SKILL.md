@@ -1,6 +1,6 @@
 ---
 name: new-agenda-entity
-description: Crea una entidad nueva del módulo AGENDA y sus piezas mínimas — domain POJO + JPA entity con prefijo agenda_ + Spring Data repo + port + adapter + migración Flyway. No crea casos de uso ni controllers. Úsese cuando se necesita persistir un concepto nuevo pero la lógica de negocio la vas a implementar después.
+description: Crea una entidad nueva del módulo AGENDA y sus piezas mínimas — domain POJO + JPA entity con prefijo agenda_ + Spring Data repo + port + adapter. Sin migración Flyway de CREATE TABLE (greenfield = Hibernate). No crea casos de uso ni controllers.
 metadata:
   author: botai
   version: "1.0"
@@ -13,7 +13,9 @@ metadata:
 
 # new-agenda-entity
 
-Crea la entidad más sus repositorios (port + adapter + Spring Data) y la migración Flyway. Sin caso de uso ni controller — eso queda para después.
+Crea la entidad más sus repositorios (port + adapter + Spring Data). **Sin** migración Flyway de tabla — Hibernate crea el DDL (greenfield).
+
+**Leer:** [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](../../backend/docs/AGENDA_FLYWAY_MIGRATIONS.md)
 
 ## Cuándo usar
 
@@ -23,6 +25,7 @@ Crea la entidad más sus repositorios (port + adapter + Spring Data) y la migrac
 No usar si:
 - La feature ya involucra controllers o lógica de negocio (usá `new-agenda-feature`).
 - Solo querés modificar una entidad existente (usá Edit directamente).
+- La tabla **no** tendrá `@Entity` (caso raro → V6 + `new-agenda-migration`, no este skill).
 
 ## Pasos
 
@@ -33,25 +36,13 @@ Preguntar al usuario (si no está claro):
 - Soft delete sí/no.
 - Si reemplaza o extiende algo ya existente.
 
-### 2. Migración Flyway
-Crear `backend/src/main/resources/db/migration/agenda/V<N>__agenda_<nombre_plural>.sql`.
+### 2. JPA Entity (schema = greenfield)
+`com.botai.infrastructure.agenda.persistence.entity.FooEntity`
 
-Template:
-```sql
-CREATE TABLE agenda_<nombre_plural> (
-    id          UUID PRIMARY KEY,
-    tenant_id   VARCHAR(64) NOT NULL,       -- omitir si es catálogo global
-    -- campos de negocio
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at  TIMESTAMP NULL               -- omitir si no hay soft delete
-);
-
-CREATE INDEX idx_agenda_<nombre_plural>_tenant ON agenda_<nombre_plural> (tenant_id);
-```
-
-### 3. JPA Entity
-`com.botai.agenda.infrastructure.persistence.entity.FooEntity`
+- `@Table(name = "agenda_foos")` — Hibernate crea/actualiza la tabla al arrancar.
+- Índices **simples** → `@Table(indexes = @Index(...))`.
+- Índices GIN/parciales complejos → suplemento en V7 (`new-agenda-migration`), no en la entidad sola.
+- **No** crear `V8__agenda_foos.sql` con `CREATE TABLE`.
 
 ```java
 @Entity
@@ -68,41 +59,35 @@ public class FooEntity {
     @LastModifiedDate
     private Instant updatedAt;
     private Instant deletedAt;   // si aplica
-    // getters / setters
 }
 ```
 
-### 4. Spring Data repo
-`com.botai.agenda.infrastructure.persistence.jpa.FooJpaRepository`
+### 3. Spring Data repo
+`com.botai.infrastructure.agenda.persistence.jpa.FooJpaRepository`
 
-```java
-public interface FooJpaRepository extends JpaRepository<FooEntity, UUID> {
-    Optional<FooEntity> findByIdAndTenantIdAndDeletedAtIsNull(UUID id, String tenantId);
-}
-```
+### 4. Domain POJO
+`com.botai.domain.agenda.model.Foo`
 
-### 5. Domain POJO
-`com.botai.agenda.domain.model.Foo` — record o clase inmutable. Sin anotaciones JPA ni Spring.
+### 5. Port
+`com.botai.domain.agenda.repository.FooRepository`
 
-### 6. Port
-`com.botai.agenda.domain.repository.FooRepository` — interface en términos del dominio.
+### 6. Adapter
+`com.botai.infrastructure.agenda.persistence.jpa.JpaFooRepository` — `@Component`
 
-### 7. Adapter
-`com.botai.agenda.infrastructure.persistence.jpa.JpaFooRepository` — `@Component`, implementa el port, convierte entity↔domain.
+### 7. Test mínimo (opcional)
+Unit/integration según convención del módulo.
 
-### 8. Test mínimo
-`com.botai.agenda.infrastructure.persistence.jpa.JpaFooRepositoryIT` — `@SpringBootTest` + Testcontainers, valida save + find.
-
-### 9. Verificación
+### 8. Verificación
 ```bash
 cd backend && mvn compile
 cd backend && mvn test -Dtest='*Foo*'
 ```
 
+Schema local viejo → `docker-compose down -v`, no Flyway parche.
+
 ## Reglas
 
 - Nombre de tabla **siempre** con prefijo `agenda_`.
-- IDs `UUID` siempre.
-- Auditoría `@CreatedDate` y `@LastModifiedDate` obligatorias.
-- `tenant_id` obligatorio salvo catálogo global (como `agenda_categories`).
+- IDs `UUID` salvo clave natural documentada (ej. `UploadedFileEntity.storageKey`).
 - Sin imports desde `com.botai.*.chatbot` en paquetes agenda.
+- Flyway **solo** si hace falta CHECK/UNIQUE parcial/índice GIN — no para la tabla base.

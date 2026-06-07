@@ -26,7 +26,11 @@ Si antes tenías `text-embedding-3-small`, al cambiar a Nemotron free el sync re
 
 ### Base de datos: solo greenfield
 
-Este proyecto **no usa `ALTER TABLE` ni parches sobre BDs ya desplegadas**. El schema vigente está en el repo (`@Entity` del bot + migraciones Flyway de Agenda). Si una instancia Postgres (Neon/Render) quedó con un schema viejo, **recreá la base desde cero** — no ejecutes SQL manual en prod para “arreglar” columnas. Ver `CLAUDE.md` → *Política greenfield*.
+Este proyecto **no usa `ALTER TABLE` ni parches sobre BDs ya desplegadas**. El schema vigente está en el repo (`@Entity` + Flyway V1–V7 de suplemento). Si una instancia Postgres (Neon/Render) quedó con un schema viejo, **recreá la base desde cero** — no ejecutes SQL manual en prod para “arreglar” columnas.
+
+**Migraciones:** [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](../backend/docs/AGENDA_FLYWAY_MIGRATIONS.md) — secuencia V1–V7; tablas con entidad JPA (p. ej. `agenda_uploaded_files`) **no** tienen migración Flyway.
+
+Si aplicaste por error `V8__agenda_uploaded_files` en Render/Neon: la tabla es válida (duplicada con Hibernate); al eliminar V8 del repo, **recreá la BD** o borrá la fila `version = '8'` de `agenda_flyway_schema_history` antes del próximo deploy.
 
 ---
 

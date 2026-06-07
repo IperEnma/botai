@@ -1,6 +1,6 @@
--- Responsabilidad: rendimiento. Índices GIN / parciales / de expresión que
--- Hibernate no genera. Los índices simples se declaran en @Table(indexes=...).
--- Idempotente.
+-- Responsabilidad (V7): rendimiento — índices GIN / parciales / expresión que
+-- Hibernate no genera. Índices simples → @Table(indexes=...). Idempotente.
+-- Secuencia Flyway Agenda termina en V7 (greenfield). Ver AGENDA_FLYWAY_MIGRATIONS.md
 
 CREATE INDEX IF NOT EXISTS idx_agenda_categories_synonyms_gin
     ON agenda_categories USING GIN (synonyms jsonb_path_ops);

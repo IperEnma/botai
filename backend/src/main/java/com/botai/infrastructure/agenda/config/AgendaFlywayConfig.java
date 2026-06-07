@@ -12,8 +12,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Hibernate ({@code ddl-auto=update}) crea las tablas {@code agenda_*}; Flyway aplica V1–V3
- * cuando la app está lista ({@link ApplicationReadyEvent}), no en el arranque automático de Spring.
+ * Hibernate ({@code ddl-auto=update}) crea las tablas {@code agenda_*} desde {@code @Entity};
+ * Flyway aplica V1–V7 (suplementos: extensiones, seeds, CHECK, índices GIN, tablas sin entidad)
+ * cuando la app está lista ({@link ApplicationReadyEvent}). Ver {@code backend/docs/AGENDA_FLYWAY_MIGRATIONS.md}.
  */
 @Configuration
 @ConditionalOnClass(Flyway.class)
