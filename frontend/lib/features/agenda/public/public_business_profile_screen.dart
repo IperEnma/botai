@@ -65,10 +65,10 @@ abstract final class _D {
   /// Altura mínima/máxima del banner (el valor real es % de pantalla en el hero).
   static const bannerMinH = 220.0;
   static const bannerMaxH = 320.0;
-  static const logo = 92.0;
+  static const logo = 96.0;
   static const logoBorder = 4.0;
-  /// Fracción del diámetro del logo que queda sobre la foto del banner (mockup ~62%).
-  static const logoOnBannerFraction = 0.62;
+  /// ~2/3 del logo sobre el banner (mockup Felito Barber).
+  static const logoOnBannerFraction = 0.66;
 
   static TextStyle t(
     double s, {
@@ -191,7 +191,6 @@ class _Hero extends StatelessWidget {
     final bannerBottom = top + bannerH;
     final logoOnBanner = _D.logo * _D.logoOnBannerFraction;
     final logoBelow = _D.logo - logoOnBanner;
-    final logoTop = bannerBottom - logoOnBanner;
     final heroH = bannerBottom + logoBelow;
 
     return SizedBox(
@@ -199,7 +198,7 @@ class _Hero extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // ── Banner a sangre (solo hasta bannerBottom) ──
+          // ── Banner a sangre ──
           Positioned(
             top: 0,
             left: 0,
@@ -243,16 +242,76 @@ class _Hero extends StatelessWidget {
             ),
           ),
 
-          // ── Fondo blanco bajo el banner (mitad inferior del logo) ──
+          // ── Fondo blanco bajo el banner (parte inferior del logo) ──
           Positioned(
             left: 0,
             right: 0,
             top: bannerBottom,
-            height: logoBelow + 1,
+            bottom: 0,
             child: const ColoredBox(color: _D.white),
           ),
 
-          // ── Botones superiores ──
+          // ── Logo superpuesto (~2/3 sobre banner, 1/3 sobre blanco) ──
+          Positioned(
+            left: _D.pad,
+            bottom: 0,
+            child: _LogoCircle(name: business.nombre, url: business.logoUrl),
+          ),
+
+          // ── Nombre / rating / categorías: anclados al borde del banner, crecen hacia arriba ──
+          Positioned(
+            left: _D.pad + _D.logo + 12,
+            right: _D.pad,
+            bottom: logoBelow,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  business.nombre,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: _D.t(
+                    21,
+                    w: FontWeight.w700,
+                    c: _D.white,
+                    h: 1.12,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    _Stars(rating: business.rating ?? 0, onDark: true),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        _ratingLabel,
+                        style: _D.t(
+                          12.5,
+                          w: FontWeight.w500,
+                          c: _D.white.withValues(alpha: 0.95),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                if (cats.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      for (final c in cats) _Pill(_prettyCat(c)),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // ── Botones superiores (z-index encima del hero) ──
           Positioned(
             top: top + 8,
             left: _D.pad,
@@ -282,70 +341,6 @@ class _Hero extends StatelessWidget {
                 const SizedBox(width: 8),
                 _HeartBtn(slug: slug, business: business),
               ],
-            ),
-          ),
-
-          // ── Logo superpuesto: borde inferior del círculo ≈ bannerBottom + logoBelow ──
-          Positioned(
-            left: _D.pad,
-            top: logoTop,
-            child: _LogoCircle(name: business.nombre, url: business.logoUrl),
-          ),
-
-          // ── Nombre / rating / categorías sobre el banner, a la derecha del logo ──
-          Positioned(
-            left: _D.pad + _D.logo + 12,
-            right: _D.pad,
-            top: logoTop + 2,
-            bottom: logoBelow,
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    business.nombre,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: _D.t(
-                      21,
-                      w: FontWeight.w700,
-                      c: _D.white,
-                      h: 1.12,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      _Stars(rating: business.rating ?? 0, onDark: true),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          _ratingLabel,
-                          style: _D.t(
-                            12.5,
-                            w: FontWeight.w500,
-                            c: _D.white.withValues(alpha: 0.95),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (cats.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        for (final c in cats) _Pill(_prettyCat(c)),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
             ),
           ),
         ],
