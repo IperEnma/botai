@@ -196,6 +196,11 @@ class _BusinessRegisterScreenState
       _reg.locality = map['locality'] as String?;
       _reg.streetAddress = map['streetAddress'] as String?;
       _reg.description = map['description'] as String?;
+      final custom = map['customCategoryLabels'];
+      if (custom is List) {
+        _reg.customCategoryLabels =
+            custom.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+      }
       if (_reg.locality?.isNotEmpty == true) {
         _step = 2;
       } else if (_reg.department != null) {
@@ -246,6 +251,7 @@ class _BusinessRegisterScreenState
   }
 
   void _tryNext() {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!_canContinue) {
       setState(() => _showValidationError = true);
       return;
@@ -281,6 +287,7 @@ class _BusinessRegisterScreenState
         if (_reg.department != null) _reg.department!,
         if (_reg.locality?.isNotEmpty == true) _reg.locality!,
         ..._reg.categories.map((c) => c.nombre),
+        ..._reg.customCategoryLabels,
       ];
 
       final locationParts = [
@@ -427,7 +434,10 @@ class _BusinessRegisterScreenState
         return StepCategory(
           key: const ValueKey(3),
           value: _reg.categories,
+          customLabels: _reg.customCategoryLabels,
           onChanged: (v) => setState(() => _reg.categories = v),
+          onCustomChanged: (v) =>
+              setState(() => _reg.customCategoryLabels = v),
           summaryName: _reg.name,
           summaryDepartment: _reg.department,
           summaryLocality: _reg.locality,
@@ -440,9 +450,13 @@ class _BusinessRegisterScreenState
           summaryName: _reg.name,
           summaryDepartment: _reg.department,
           summaryLocality: _reg.locality,
-          summaryCategory: _reg.categories.isEmpty
-              ? null
-              : _reg.categories.map((c) => c.nombre).join(', '),
+          summaryCategory: () {
+            final labels = [
+              ..._reg.categories.map((c) => c.nombre),
+              ..._reg.customCategoryLabels,
+            ];
+            return labels.isEmpty ? null : labels.join(', ');
+          }(),
         );
       default:
         return const SizedBox.shrink();

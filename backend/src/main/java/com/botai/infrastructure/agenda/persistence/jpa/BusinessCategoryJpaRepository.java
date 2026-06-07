@@ -26,4 +26,12 @@ public interface BusinessCategoryJpaRepository extends JpaRepository<BusinessCat
             WHERE bc.business_id = :businessId
             """, nativeQuery = true)
     List<String> findSlugsByBusinessId(@Param("businessId") UUID businessId);
+
+    @Query(value = """
+            SELECT c.nombre FROM agenda_categories c
+            INNER JOIN agenda_business_categories bc ON bc.category_id = c.id
+            WHERE bc.business_id = :businessId
+            ORDER BY c.nombre
+            """, nativeQuery = true)
+    List<String> findNombresByBusinessId(@Param("businessId") UUID businessId);
 }

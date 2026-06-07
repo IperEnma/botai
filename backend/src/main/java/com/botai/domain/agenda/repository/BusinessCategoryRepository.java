@@ -13,5 +13,7 @@ public interface BusinessCategoryRepository {
 
     List<String> findCategorySlugsByBusinessId(UUID businessId);
 
+    List<String> findCategoryNombresByBusinessId(UUID businessId);
+
     List<UUID> findBusinessIdsByCategoryId(UUID categoryId);
 }

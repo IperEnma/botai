@@ -51,6 +51,11 @@ public class JpaBusinessCategoryRepository implements BusinessCategoryRepository
     }
 
     @Override
+    public List<String> findCategoryNombresByBusinessId(UUID businessId) {
+        return jpa.findNombresByBusinessId(businessId);
+    }
+
+    @Override
     public List<UUID> findBusinessIdsByCategoryId(UUID categoryId) {
         return jpa.findAllByIdCategoryId(categoryId).stream()
                 .map(bc -> bc.getId().getBusinessId())

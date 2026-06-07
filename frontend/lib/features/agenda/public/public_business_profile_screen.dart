@@ -14,8 +14,10 @@ import '../../../providers/agenda/public/public_favorites_provider.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/business_hours.dart';
+import '../../../models/agenda/category.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
+import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import 'public_phone_verify_sheet.dart';
 import 'public_service_booking_modal.dart';
@@ -67,8 +69,8 @@ abstract final class _D {
   static const bannerMaxH = 320.0;
   static const logo = 96.0;
   static const logoBorder = 4.0;
-  /// ~2/3 del logo sobre el banner (mockup Felito Barber).
-  static const logoOnBannerFraction = 0.66;
+  /// Margen inferior del bloque logo + texto dentro del banner.
+  static const bannerIdentityBottom = 20.0;
 
   static TextStyle t(
     double s, {
@@ -161,7 +163,7 @@ class _FelitoBarberPage extends ConsumerWidget {
 
 // ─── Hero ────────────────────────────────────────────────────────────────────
 
-class _Hero extends StatelessWidget {
+class _Hero extends ConsumerWidget {
   const _Hero({
     required this.business,
     required this.slug,
@@ -172,7 +174,52 @@ class _Hero extends StatelessWidget {
   final String slug;
   final VoidCallback onBack;
 
-  List<String> get _categoryLabels => business.categorias.take(3).toList();
+  List<String> _heroPills(List<Category>? catalog) {
+    final pills = <String>[];
+    final seen = <String>{};
+
+    void add(String label) {
+      final t = label.trim();
+      if (t.isEmpty) return;
+      final key = t.toLowerCase();
+      if (seen.contains(key)) return;
+      seen.add(key);
+      pills.add(t);
+    }
+
+    for (final value in business.categorias.take(3)) {
+      if (catalog != null) {
+        var matched = false;
+        for (final c in catalog) {
+          if (c.slug == value || c.nombre == value) {
+            add(c.nombre);
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) add(_prettyCat(value));
+      } else {
+        add(_prettyCat(value));
+      }
+    }
+
+    final geoKeys = <String>{};
+    for (final part in (business.direccion ?? '').split(',')) {
+      final p = part.trim().toLowerCase();
+      if (p.isNotEmpty) geoKeys.add(p);
+    }
+
+    for (final tag in business.searchTags) {
+      if (pills.length >= 3) break;
+      final lower = tag.trim().toLowerCase();
+      if (lower.isEmpty || seen.contains(lower) || geoKeys.contains(lower)) {
+        continue;
+      }
+      add(tag);
+    }
+
+    return pills.take(3).toList();
+  }
 
   String get _ratingLabel {
     if (business.reviewCount > 0 && business.rating != null) {
@@ -182,28 +229,22 @@ class _Hero extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(publicCategoriesProvider).valueOrNull;
     final top = MediaQuery.paddingOf(context).top;
     final bannerH = (MediaQuery.sizeOf(context).height * 0.36)
         .clamp(_D.bannerMinH, _D.bannerMaxH);
     final hasBanner = isAgendaMediaUrl(business.bannerUrl);
-    final cats = _categoryLabels;
+    final cats = _heroPills(catalog);
     final bannerBottom = top + bannerH;
-    final logoOnBanner = _D.logo * _D.logoOnBannerFraction;
-    final logoBelow = _D.logo - logoOnBanner;
-    final heroH = bannerBottom + logoBelow;
 
     return SizedBox(
-      height: heroH,
+      height: bannerBottom,
       child: Stack(
-        clipBehavior: Clip.none,
+        clipBehavior: Clip.hardEdge,
         children: [
-          // ── Banner a sangre ──
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: bannerBottom,
+          // ── Banner a sangre (logo + texto van encima, sin franja blanca) ──
+          Positioned.fill(
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -242,76 +283,69 @@ class _Hero extends StatelessWidget {
             ),
           ),
 
-          // ── Fondo blanco bajo el banner (parte inferior del logo) ──
-          Positioned(
-            left: 0,
-            right: 0,
-            top: bannerBottom,
-            bottom: 0,
-            child: const ColoredBox(color: _D.white),
-          ),
-
-          // ── Logo superpuesto (~2/3 sobre banner, 1/3 sobre blanco) ──
+          // ── Logo + texto sobre el banner (referencia Felito Barber) ──
           Positioned(
             left: _D.pad,
-            bottom: 0,
-            child: _LogoCircle(name: business.nombre, url: business.logoUrl),
-          ),
-
-          // ── Nombre / rating / categorías: anclados al borde del banner, crecen hacia arriba ──
-          Positioned(
-            left: _D.pad + _D.logo + 12,
             right: _D.pad,
-            bottom: logoBelow,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            bottom: _D.bannerIdentityBottom,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  business.nombre,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: _D.t(
-                    21,
-                    w: FontWeight.w700,
-                    c: _D.white,
-                    h: 1.12,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    _Stars(rating: business.rating ?? 0, onDark: true),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        _ratingLabel,
-                        style: _D.t(
-                          12.5,
-                          w: FontWeight.w500,
-                          c: _D.white.withValues(alpha: 0.95),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                if (cats.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
+                _LogoCircle(name: business.nombre, url: business.logoUrl),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (final c in cats) _Pill(_prettyCat(c)),
+                      Text(
+                        business.nombre,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: _D.t(
+                          21,
+                          w: FontWeight.w700,
+                          c: _D.white,
+                          h: 1.12,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          _Stars(rating: business.rating ?? 0, onDark: true),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              _ratingLabel,
+                              style: _D.t(
+                                12.5,
+                                w: FontWeight.w500,
+                                c: _D.white.withValues(alpha: 0.95),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (cats.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            for (final c in cats) _Pill(c),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
-                ],
+                ),
               ],
             ),
           ),
 
-          // ── Botones superiores (z-index encima del hero) ──
+          // ── Botones superiores ──
           Positioned(
             top: top + 8,
             left: _D.pad,

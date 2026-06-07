@@ -86,7 +86,7 @@ public class PublicBusinessBySlugController {
     @Operation(summary = "Ficha pública completa de un negocio por slug")
     public BusinessResponse business(@PathVariable("slug") String slug) {
         Business b = requireBusiness(slug);
-        var categories = businessCategoryRepository.findCategorySlugsByBusinessId(b.getId());
+        var categories = businessCategoryRepository.findCategoryNombresByBusinessId(b.getId());
         RatingSummary summary = reviewRepository.findRatingSummaryByBusinessId(b.getId());
         return BusinessDtoMapper.toResponse(b, categories, summary);
     }

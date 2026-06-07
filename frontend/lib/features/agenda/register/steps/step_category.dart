@@ -12,14 +12,18 @@ class StepCategory extends ConsumerStatefulWidget {
   const StepCategory({
     super.key,
     required this.value,
+    required this.customLabels,
     required this.onChanged,
+    required this.onCustomChanged,
     required this.summaryName,
     required this.summaryDepartment,
     required this.summaryLocality,
   });
 
   final List<Category> value;
+  final List<String> customLabels;
   final ValueChanged<List<Category>> onChanged;
+  final ValueChanged<List<String>> onCustomChanged;
   final String? summaryName;
   final String? summaryDepartment;
   final String? summaryLocality;
@@ -32,25 +36,90 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
   late final TextEditingController _ctrl;
   late final FocusNode _focus;
   List<Category> _selected = [];
+  List<String> _customLabels = [];
   String _query = '';
 
   @override
   void initState() {
     super.initState();
     _selected = List.from(widget.value);
-    _ctrl = TextEditingController(text: _selectedText);
+    _customLabels = List.from(widget.customLabels);
+    _ctrl = TextEditingController(text: _labelsText);
     _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
-    _focus = FocusNode();
+    _focus = FocusNode()..addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(covariant StepCategory oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) _selected = List.from(widget.value);
+    if (oldWidget.customLabels != widget.customLabels) {
+      _customLabels = List.from(widget.customLabels);
+    }
   }
 
   @override
   void dispose() {
+    _focus.removeListener(_onFocusChange);
     _ctrl.dispose();
     _focus.dispose();
     super.dispose();
   }
 
-  String get _selectedText => _selected.map((c) => c.nombre).join(', ');
+  String get _labelsText =>
+      [..._selected.map((c) => c.nombre), ..._customLabels].join(', ');
+
+  void _onFocusChange() {
+    if (!_focus.hasFocus) {
+      final all = ref.read(publicCategoriesProvider).valueOrNull;
+      if (all != null) _syncFromText(all);
+    }
+  }
+
+  void _emit() {
+    widget.onChanged(List.from(_selected));
+    widget.onCustomChanged(List.from(_customLabels));
+  }
+
+  void _syncFromText(List<Category> all) {
+    final parts = _ctrl.text
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final newSelected = <Category>[];
+    final newCustom = <String>[];
+
+    for (final part in parts) {
+      Category? match;
+      for (final c in all) {
+        if (c.nombre.toLowerCase() == part.toLowerCase() ||
+            c.slug.toLowerCase() == part.toLowerCase()) {
+          match = c;
+          break;
+        }
+      }
+      if (match != null) {
+        if (!newSelected.any((c) => c.id == match!.id)) {
+          newSelected.add(match);
+        }
+      } else if (!newCustom.any((c) => c.toLowerCase() == part.toLowerCase())) {
+        newCustom.add(part);
+      }
+    }
+
+    final total = newSelected.length + newCustom.length;
+    if (total > 3) return;
+
+    setState(() {
+      _selected = newSelected;
+      _customLabels = newCustom;
+      _query = '';
+    });
+    _ctrl.text = _labelsText;
+    _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
+    _emit();
+  }
 
   List<Category> _suggestions(List<Category> all) {
     final available = all.where((c) => !_selected.any((s) => s.id == c.id));
@@ -67,7 +136,7 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
     final List<Category> newSelected;
     if (isSelected) {
       newSelected = _selected.where((c) => c.id != cat.id).toList();
-    } else if (_selected.length >= 3) {
+    } else if (_selected.length + _customLabels.length >= 3) {
       return;
     } else {
       newSelected = [..._selected, cat];
@@ -78,16 +147,54 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
       _query = '';
     });
 
-    _ctrl.text = newSelected.map((c) => c.nombre).join(', ');
+    _ctrl.text = _labelsText;
     _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
 
-    widget.onChanged(newSelected);
+    _emit();
+  }
+
+  void _removeCustom(String label) {
+    setState(() {
+      _customLabels = _customLabels
+          .where((c) => c.toLowerCase() != label.toLowerCase())
+          .toList();
+    });
+    _ctrl.text = _labelsText;
+    _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
+    _emit();
   }
 
   void _onInputChanged(String text, List<Category> all) {
     final parts = text.split(',');
     final q = parts.last.trim();
     setState(() => _query = q);
+    if (text.contains(',')) {
+      _syncFromText(all);
+      return;
+    }
+    _tryAutoSelectExactMatch(q, all);
+  }
+
+  void _tryAutoSelectExactMatch(String q, List<Category> all) {
+    if (q.isEmpty || _selected.length >= 3) return;
+    final lower = q.toLowerCase();
+    Category? match;
+    for (final c in all) {
+      if (c.nombre.toLowerCase() == lower || c.slug.toLowerCase() == lower) {
+        match = c;
+        break;
+      }
+    }
+    if (match == null || _selected.any((c) => c.id == match!.id)) return;
+    if (_selected.length + _customLabels.length >= 3) return;
+    final newSelected = [..._selected, match];
+    setState(() {
+      _selected = newSelected;
+      _query = '';
+    });
+    _ctrl.text = _labelsText;
+    _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
+    _emit();
   }
 
   @override
@@ -97,7 +204,7 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
     return StepScaffold(
       eyebrow: 'PASO 04 — CATEGORÍA',
       question: '¿A qué se dedica\ntu negocio?',
-      hint: 'Opcional. Hasta 3 categorías.',
+      hint: 'Opcional. Elegí del listado o escribí la tuya (hasta 3).',
       input: categoriesAsync.when(
         loading: () => const Center(
           child: Padding(
@@ -118,9 +225,9 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
                 controller: _ctrl,
                 focusNode: _focus,
                 hintText: 'Ej: Peluquería, Medicina…',
-                metaLeft: _selected.isEmpty
+                metaLeft: _selected.isEmpty && _customLabels.isEmpty
                     ? 'categoría'
-                    : 'categoría · ${_selected.length}/3',
+                    : 'categoría · ${_selected.length + _customLabels.length}/3',
                 autofocus: false,
                 onChanged: (v) => _onInputChanged(v, categories),
               ),
@@ -136,7 +243,14 @@ class _StepCategoryState extends ConsumerState<StepCategory> {
                       onTap: () => _selectCategory(cat, categories),
                     ),
                   ),
-                  if (_selected.length < 3)
+                  ..._customLabels.map(
+                    (label) => _CategoryChip(
+                      label: label,
+                      selected: true,
+                      onTap: () => _removeCustom(label),
+                    ),
+                  ),
+                  if (_selected.length + _customLabels.length < 3)
                     ...suggestions.map(
                       (cat) => _CategoryChip(
                         label: cat.nombre,
