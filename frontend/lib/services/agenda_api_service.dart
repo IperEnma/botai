@@ -228,9 +228,12 @@ class AgendaApiService {
 
   String _parseUploadUrl(dynamic body) {
     if (body is! Map) {
-      throw AgendaApiException(message: 'Respuesta de upload inválida');
+      throw AgendaApiException(
+        message: 'Respuesta de upload inválida',
+        status: 0,
+      );
     }
-    return AgendaJson.parseString((body as Map)['url']);
+    return AgendaJson.parseString(body['url']);
   }
 
   // =====================================================================
