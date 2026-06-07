@@ -11,7 +11,6 @@ import '../../../models/agenda/register_tenant.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../providers/agenda/selected_agenda_business_provider.dart';
-import '../navigation/agenda_tenant_nav.dart';
 import 'business_registration_model.dart';
 import 'konecta_tokens.dart';
 import 'steps/step_category.dart';
@@ -345,6 +344,7 @@ class _BusinessRegisterScreenState
         nombre: _reg.name!.trim(),
         descripcion: descripcion.isEmpty ? null : descripcion,
         searchTags: tags,
+        direccion: locationParts.isEmpty ? null : locationParts,
       );
 
       // Step 3: associate all selected categories

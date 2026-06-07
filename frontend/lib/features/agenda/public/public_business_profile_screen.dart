@@ -3,13 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/agenda_address.dart';
 import '../../../core/agenda_media_url.dart';
+import '../../../core/google_maps_urls.dart';
+import '../../../core/open_external_url.dart';
+import '../../../core/public_business_share.dart';
+import '../../../providers/agenda/public/public_client_session_provider.dart';
+import '../../../providers/agenda/public/public_favorites_provider.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/business_hours.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
+import 'public_phone_verify_sheet.dart';
+import 'public_service_booking_modal.dart';
 
 /// Perfil público del negocio — diseño mockup Felito Barber.
 /// Ruta: `/reservar/:slug`
@@ -69,15 +77,6 @@ abstract final class _D {
       GoogleFonts.inter(fontSize: s, fontWeight: w, color: c, height: h);
 }
 
-/// Ignora URLs guardadas por error en el campo dirección.
-String _displayAddress(String? raw) {
-  final t = raw?.trim() ?? '';
-  if (t.isEmpty) return '';
-  if (RegExp(r'^https?://', caseSensitive: false).hasMatch(t)) return '';
-  if (t.contains('/uploads/')) return '';
-  return t;
-}
-
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 class _FelitoBarberPage extends ConsumerWidget {
@@ -106,7 +105,7 @@ class _FelitoBarberPage extends ConsumerWidget {
     final hours = ref.watch(publicHoursBySlugProvider(slug));
     final services = servicesAsync.valueOrNull ?? const [];
     final canBook = services.isNotEmpty;
-    final addr = _displayAddress(business.direccion);
+    final addr = resolveBusinessAddress(business) ?? '';
 
     return Scaffold(
       backgroundColor: _D.bg,
@@ -117,6 +116,7 @@ class _FelitoBarberPage extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: _Hero(
                   business: business,
+                  slug: slug,
                   onBack: () => _back(context),
                 ),
               ),
@@ -127,7 +127,12 @@ class _FelitoBarberPage extends ConsumerWidget {
                     _Services(
                       servicesAsync: servicesAsync,
                       onAll: () => _book(context),
-                      onPick: (_) => _book(context),
+                      onPick: (svc) => showPublicServiceBookingModal(
+                        context: context,
+                        slug: slug,
+                        business: business,
+                        service: svc,
+                      ),
                     ),
                     const SizedBox(height: 26),
                     _Hours(hoursAsync: hours),
@@ -158,9 +163,14 @@ class _FelitoBarberPage extends ConsumerWidget {
 // ─── Hero ────────────────────────────────────────────────────────────────────
 
 class _Hero extends StatelessWidget {
-  const _Hero({required this.business, required this.onBack});
+  const _Hero({
+    required this.business,
+    required this.slug,
+    required this.onBack,
+  });
 
   final Business business;
+  final String slug;
   final VoidCallback onBack;
 
   List<String> get _categoryLabels => business.categorias.take(3).toList();
@@ -239,9 +249,16 @@ class _Hero extends StatelessWidget {
                   right: _D.pad,
                   child: Row(
                     children: [
-                      _RoundBtn(icon: Icons.ios_share, onTap: () {}),
+                      _RoundBtn(
+                        icon: Icons.ios_share,
+                        onTap: () => sharePublicBusinessProfile(
+                          context: context,
+                          slug: slug,
+                          businessName: business.nombre,
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      const _HeartBtn(),
+                      _HeartBtn(slug: slug, business: business),
                     ],
                   ),
                 ),
@@ -366,21 +383,87 @@ class _RoundBtn extends StatelessWidget {
   }
 }
 
-class _HeartBtn extends StatefulWidget {
-  const _HeartBtn();
+class _HeartBtn extends ConsumerStatefulWidget {
+  const _HeartBtn({required this.slug, required this.business});
+
+  final String slug;
+  final Business business;
 
   @override
-  State<_HeartBtn> createState() => _HeartBtnState();
+  ConsumerState<_HeartBtn> createState() => _HeartBtnState();
 }
 
-class _HeartBtnState extends State<_HeartBtn> {
+class _HeartBtnState extends ConsumerState<_HeartBtn> {
   bool _on = false;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshFavorite();
+  }
+
+  Future<void> _refreshFavorite() async {
+    final session = await ref.read(publicClientSessionProvider(widget.slug).future);
+    if (session == null || session.isExpired) {
+      if (mounted) {
+        setState(() {
+          _on = false;
+          _loaded = true;
+        });
+      }
+      return;
+    }
+    final fav = await ref.read(publicFavoritesStorageProvider).isFavorite(
+          phone: session.phone,
+          slug: widget.slug,
+        );
+    if (mounted) {
+      setState(() {
+        _on = fav;
+        _loaded = true;
+      });
+    }
+  }
+
+  Future<void> _toggle() async {
+    var session = await ref.read(publicClientSessionProvider(widget.slug).future);
+    if (session == null || session.isExpired) {
+      if (!mounted) return;
+      final ok = await showPublicPhoneVerifySheet(
+        context: context,
+        business: widget.business,
+        slug: widget.slug,
+      );
+      if (ok != true || !mounted) return;
+      session = await ref.read(publicClientSessionProvider(widget.slug).future);
+    }
+    if (session == null || session.isExpired) return;
+
+    final nowFavorite = await ref.read(publicFavoritesStorageProvider).toggle(
+          phone: session.phone,
+          slug: widget.slug,
+        );
+    if (!mounted) return;
+    setState(() => _on = nowFavorite);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(nowFavorite ? 'Agregado a favoritos' : 'Quitado de favoritos'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(publicClientSessionProvider(widget.slug), (previous, next) {
+      _refreshFavorite();
+    });
+
     return _RoundBtn(
       icon: _on ? Icons.favorite : Icons.favorite_border,
-      onTap: () => setState(() => _on = !_on),
+      onTap: _loaded ? _toggle : () {},
     );
   }
 }
@@ -741,7 +824,9 @@ class _Location extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = _hasAddress ? address.trim() : 'Agregá la dirección desde el panel del negocio';
+    final addr = address.trim();
+    final mapsUrl = _hasAddress ? GoogleMapsUrls.search(addr) : null;
+    final mapThumb = _hasAddress ? GoogleMapsUrls.staticMapThumbnail(addr) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -753,45 +838,40 @@ class _Location extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  color: const Color(0xFFE5E7EB),
-                  child: const Icon(Icons.location_on, color: _D.purple, size: 32),
-                ),
-              ),
+              _MapThumbnail(url: mapThumb, mapsUrl: mapsUrl),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.place_outlined, size: 18, color: _D.purple),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            text,
-                            style: _D.t(
-                              13,
-                              w: FontWeight.w500,
-                              h: 1.35,
-                              c: _hasAddress ? _D.ink : _D.muted,
+                    if (_hasAddress) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.place_outlined, size: 18, color: _D.purple),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              addr,
+                              style: _D.t(13, w: FontWeight.w500, h: 1.35),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    if (_hasAddress) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Ver en el mapa >',
-                        style: _D.t(13, w: FontWeight.w600, c: _D.purple),
+                        ],
                       ),
-                    ],
+                      const SizedBox(height: 8),
+                      if (mapsUrl != null)
+                        GestureDetector(
+                          onTap: () => openExternalUrl(mapsUrl),
+                          child: Text(
+                            'Ver en el mapa >',
+                            style: _D.t(13, w: FontWeight.w600, c: _D.purple),
+                          ),
+                        ),
+                    ] else
+                      Text(
+                        'Agregá la dirección en Estilos o completá el onboarding.',
+                        style: _D.t(13, w: FontWeight.w500, h: 1.35, c: _D.muted),
+                      ),
                   ],
                 ),
               ),
@@ -801,6 +881,77 @@ class _Location extends StatelessWidget {
       ],
     );
   }
+}
+
+class _MapThumbnail extends StatelessWidget {
+  const _MapThumbnail({required this.url, required this.mapsUrl});
+
+  final String? url;
+  final String? mapsUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 96.0;
+
+    Widget image;
+    if (url != null) {
+      image = Image.network(
+        url!,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _placeholder(size),
+      );
+    } else {
+      image = _placeholder(size);
+    }
+
+    final clipped = ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(width: size, height: size, child: image),
+    );
+
+    if (mapsUrl == null) return clipped;
+
+    return GestureDetector(
+      onTap: () => openExternalUrl(mapsUrl!),
+      child: clipped,
+    );
+  }
+
+  Widget _placeholder(double size) {
+    return Container(
+      color: const Color(0xFFE5E7EB),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(painter: _MapGridPainter()),
+          const Center(
+            child: Icon(Icons.location_on, color: _D.purple, size: 32),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFD1D5DB)
+      ..strokeWidth = 0.5;
+    const step = 16.0;
+    for (var x = 0.0; x <= size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var y = 0.0; y <= size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ─── Equipo ──────────────────────────────────────────────────────────────────
