@@ -65,10 +65,10 @@ abstract final class _D {
   /// Altura mínima/máxima del banner (el valor real es % de pantalla en el hero).
   static const bannerMinH = 220.0;
   static const bannerMaxH = 320.0;
-  static const logo = 88.0;
-  static const logoBorder = 3.5;
-  /// Mitad del logo que cuelga bajo el borde del banner (superposición Felito).
-  static const logoOverlap = logo / 2;
+  static const logo = 92.0;
+  static const logoBorder = 4.0;
+  /// Fracción del diámetro del logo que queda sobre la foto del banner (mockup ~62%).
+  static const logoOnBannerFraction = 0.62;
 
   static TextStyle t(
     double s, {
@@ -125,7 +125,7 @@ class _FelitoBarberPage extends ConsumerWidget {
                 ),
               ),
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(_D.pad, 12, _D.pad, 100),
+                padding: EdgeInsets.fromLTRB(_D.pad, 14, _D.pad, 100),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _Services(
@@ -184,19 +184,22 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
-    final bannerH = (MediaQuery.sizeOf(context).height * 0.34)
+    final bannerH = (MediaQuery.sizeOf(context).height * 0.36)
         .clamp(_D.bannerMinH, _D.bannerMaxH);
     final hasBanner = isAgendaMediaUrl(business.bannerUrl);
     final cats = _categoryLabels;
     final bannerBottom = top + bannerH;
-    final heroH = bannerBottom + _D.logoOverlap;
+    final logoOnBanner = _D.logo * _D.logoOnBannerFraction;
+    final logoBelow = _D.logo - logoOnBanner;
+    final logoTop = bannerBottom - logoOnBanner;
+    final heroH = bannerBottom + logoBelow;
 
     return SizedBox(
       height: heroH,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Banner + gradiente
+          // ── Banner a sangre (solo hasta bannerBottom) ──
           Positioned(
             top: 0,
             left: 0,
@@ -220,17 +223,18 @@ class _Hero extends StatelessWidget {
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
-                    height: bannerH * 0.82,
+                    height: bannerH * 0.88,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withValues(alpha: 0.25),
-                          Colors.black.withValues(alpha: 0.72),
+                          Colors.black.withValues(alpha: 0.15),
+                          Colors.black.withValues(alpha: 0.55),
+                          Colors.black.withValues(alpha: 0.82),
                         ],
-                        stops: const [0, 0.35, 1],
+                        stops: const [0, 0.4, 0.72, 1],
                       ),
                     ),
                   ),
@@ -239,7 +243,16 @@ class _Hero extends StatelessWidget {
             ),
           ),
 
-          // Botones superiores
+          // ── Fondo blanco bajo el banner (mitad inferior del logo) ──
+          Positioned(
+            left: 0,
+            right: 0,
+            top: bannerBottom,
+            height: logoBelow + 1,
+            child: const ColoredBox(color: _D.white),
+          ),
+
+          // ── Botones superiores ──
           Positioned(
             top: top + 8,
             left: _D.pad,
@@ -272,84 +285,67 @@ class _Hero extends StatelessWidget {
             ),
           ),
 
-          // Franja blanca bajo el banner (mitad inferior del logo)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: bannerBottom - 1,
-            height: _D.logoOverlap + 20,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: _D.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Logo: centro en el borde inferior del banner (mitad arriba, mitad abajo)
+          // ── Logo superpuesto: borde inferior del círculo ≈ bannerBottom + logoBelow ──
           Positioned(
             left: _D.pad,
-            bottom: 0,
+            top: logoTop,
             child: _LogoCircle(name: business.nombre, url: business.logoUrl),
           ),
 
-          // Nombre, rating y categorías sobre el banner (a la derecha del logo)
+          // ── Nombre / rating / categorías sobre el banner, a la derecha del logo ──
           Positioned(
-            left: _D.pad + _D.logo + 14,
+            left: _D.pad + _D.logo + 12,
             right: _D.pad,
-            bottom: _D.logoOverlap + 10,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  business.nombre,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: _D.t(
-                    22,
-                    w: FontWeight.w700,
-                    c: _D.white,
-                    h: 1.15,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    _Stars(rating: business.rating ?? 0, onDark: true),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        _ratingLabel,
-                        style: _D.t(
-                          13,
-                          w: FontWeight.w500,
-                          c: _D.white.withValues(alpha: 0.92),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+            top: logoTop + 2,
+            bottom: logoBelow,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    business.nombre,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: _D.t(
+                      21,
+                      w: FontWeight.w700,
+                      c: _D.white,
+                      h: 1.12,
                     ),
-                  ],
-                ),
-                if (cats.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
                     children: [
-                      for (final c in cats) _Pill(_prettyCat(c)),
+                      _Stars(rating: business.rating ?? 0, onDark: true),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _ratingLabel,
+                          style: _D.t(
+                            12.5,
+                            w: FontWeight.w500,
+                            c: _D.white.withValues(alpha: 0.95),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
+                  if (cats.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        for (final c in cats) _Pill(_prettyCat(c)),
+                      ],
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ],
@@ -505,9 +501,14 @@ class _LogoCircle extends StatelessWidget {
       height: _D.logo,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
+        color: _D.white,
         border: Border.all(color: _D.white, width: _D.logoBorder),
         boxShadow: const [
-          BoxShadow(color: _D.shadow, blurRadius: 14, offset: Offset(0, 5)),
+          BoxShadow(
+            color: Color(0x40000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
