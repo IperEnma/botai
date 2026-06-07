@@ -186,7 +186,6 @@ class _Hero extends StatelessWidget {
     final bannerH = (MediaQuery.sizeOf(context).height * 0.34)
         .clamp(_D.bannerMinH, _D.bannerMaxH);
     final bannerUrl = resolveAgendaMediaUrl(business.bannerUrl);
-    final logoUrl = resolveAgendaMediaUrl(business.logoUrl);
     final cats = _categoryLabels;
     final bannerBottom = top + bannerH;
 
@@ -269,7 +268,7 @@ class _Hero extends StatelessWidget {
                     children: [
                       Transform.translate(
                         offset: const Offset(0, _D.logoLift),
-                        child: _LogoCircle(name: business.nombre, url: logoUrl),
+                        child: _LogoCircle(name: business.nombre, url: business.logoUrl),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -474,7 +473,7 @@ class _LogoCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ok = url != null;
+    final resolved = resolveAgendaMediaUrl(url);
     return Container(
       width: _D.logo,
       height: _D.logo,
@@ -486,7 +485,7 @@ class _LogoCircle extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: ok
+      child: resolved != null
           ? AgendaMediaImage(
               url: url,
               fit: BoxFit.cover,

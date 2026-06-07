@@ -27,6 +27,12 @@ public class AgendaCorsConfig implements WebMvcConfigurer {
                 .allowedHeaders("*")
                 .exposedHeaders("Content-Type", "Authorization", "Idempotency-Key")
                 .maxAge(3600);
+
+        registry.addMapping("/uploads/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "OPTIONS")
+                .allowedHeaders("*")
+                .maxAge(3600);
     }
 
     @Bean
@@ -44,7 +50,7 @@ public class AgendaCorsConfig implements WebMvcConfigurer {
         FilterRegistrationBean<CorsFilter> bean =
                 new FilterRegistrationBean<>(new CorsFilter(source));
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
-        bean.addUrlPatterns("/uploads/*");
+        bean.addUrlPatterns("/uploads/*", "/uploads/businesses/*", "/uploads/staff/*");
         return bean;
     }
 }
