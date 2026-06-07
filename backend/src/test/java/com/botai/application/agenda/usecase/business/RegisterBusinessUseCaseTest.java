@@ -3,6 +3,7 @@ package com.botai.application.agenda.usecase.business;
 import com.botai.application.agenda.support.AgendaPublicSlug;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessSettings;
+import com.botai.domain.agenda.model.SearchTag;
 import com.botai.domain.agenda.repository.BotWorkspaceRegistry;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.BusinessSettingsRepository;
@@ -54,7 +55,7 @@ class RegisterBusinessUseCaseTest {
                 "Peluquería Centro",
                 "Corte y color",
                 ownerId,
-                List.of("centro", "corte")
+                List.of(SearchTag.profile("centro"), SearchTag.profile("corte"))
         );
 
         // Captura del Business que se pasó a save.

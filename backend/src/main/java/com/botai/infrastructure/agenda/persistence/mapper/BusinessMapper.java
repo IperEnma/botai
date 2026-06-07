@@ -1,32 +1,32 @@
 package com.botai.infrastructure.agenda.persistence.mapper;
 
 import com.botai.domain.agenda.model.Business;
+import com.botai.domain.agenda.model.SearchTag;
 import com.botai.infrastructure.agenda.persistence.entity.BusinessEntity;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Mapper estático Business ↔ BusinessEntity.
- * <p>Separado del adapter JPA para facilitar el test unitario del mapeo.</p>
+ * <p>Las etiquetas tipadas viven en {@code agenda_business_tags}, no en la fila del negocio.</p>
  */
 public final class BusinessMapper {
 
     private BusinessMapper() {
     }
 
-    public static Business toDomain(BusinessEntity entity) {
+    public static Business toDomain(BusinessEntity entity, List<SearchTag> tags) {
         if (entity == null) {
             return null;
         }
-        List<String> tags = entity.getSearchTags() == null ? List.of() : List.copyOf(entity.getSearchTags());
+        List<SearchTag> searchTags = tags == null ? List.of() : List.copyOf(tags);
         return new Business(
                 entity.getId(),
                 entity.getTenantId(),
                 entity.getNombre(),
                 entity.getDescripcion(),
                 entity.getOwnerUserId(),
-                tags,
+                searchTags,
                 entity.isActivo(),
                 entity.getLogoUrl(),
                 entity.getColorPrimario(),
@@ -56,7 +56,6 @@ public final class BusinessMapper {
         entity.setNombre(business.getNombre());
         entity.setDescripcion(business.getDescripcion());
         entity.setOwnerUserId(business.getOwnerUserId());
-        entity.setSearchTags(business.getSearchTags() == null ? new ArrayList<>() : new ArrayList<>(business.getSearchTags()));
         entity.setActivo(business.isActivo());
         entity.setLogoUrl(business.getLogoUrl());
         entity.setColorPrimario(business.getColorPrimario());

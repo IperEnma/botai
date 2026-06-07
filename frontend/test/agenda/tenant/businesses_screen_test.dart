@@ -1,4 +1,5 @@
 import 'package:botai_admin/features/agenda/tenant/businesses_screen.dart';
+import 'package:botai_admin/models/agenda/agenda_search_tag.dart';
 import 'package:botai_admin/models/agenda/business.dart';
 import 'package:botai_admin/providers/agenda/agenda_api_provider.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,7 @@ void main() {
           id: 'b1',
           tenantId: 't1',
           nombre: 'Salón Bella',
-          searchTags: ['belleza'],
+          searchTags: [AgendaSearchTag.profile('belleza')],
           activo: true,
         ),
         Business(

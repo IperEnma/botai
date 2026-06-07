@@ -2,6 +2,7 @@ package com.botai.application.agenda.mapper;
 
 import com.botai.application.agenda.dto.BusinessResponse;
 import com.botai.application.agenda.dto.BusinessSummaryResponse;
+import com.botai.application.agenda.dto.SearchTagDto;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessSummary;
 import com.botai.domain.agenda.model.RatingSummary;
@@ -32,7 +33,7 @@ public final class BusinessDtoMapper {
                 business.getNombre(),
                 business.getDescripcion(),
                 business.getOwnerUserId(),
-                business.getSearchTags(),
+                business.getSearchTags().stream().map(SearchTagDto::fromDomain).toList(),
                 business.isActivo(),
                 business.getLogoUrl(),
                 business.getColorPrimario(),

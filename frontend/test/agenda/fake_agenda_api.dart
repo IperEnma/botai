@@ -4,6 +4,7 @@ import 'package:botai_admin/models/agenda/availability_slot.dart';
 import 'package:botai_admin/models/agenda/business_hours.dart';
 import 'package:botai_admin/models/agenda/business_photo.dart';
 import 'package:botai_admin/models/agenda/booking.dart';
+import 'package:botai_admin/models/agenda/agenda_search_tag.dart';
 import 'package:botai_admin/models/agenda/business.dart';
 import 'package:botai_admin/models/agenda/business_settings.dart';
 import 'package:botai_admin/models/agenda/business_summary.dart';
@@ -451,7 +452,7 @@ class FakeAgendaApiService implements AgendaApiService {
   Future<Business> createBusiness({
     required String nombre,
     String? descripcion,
-    List<String> searchTags = const [],
+    List<AgendaSearchTag> searchTags = const [],
     String? ownerUserId,
   }) async {
     _maybeThrow();
@@ -472,7 +473,7 @@ class FakeAgendaApiService implements AgendaApiService {
     required String businessId,
     required String nombre,
     String? descripcion,
-    List<String> searchTags = const [],
+    List<AgendaSearchTag> searchTags = const [],
     String? logoUrl,
     String? colorPrimario,
     String? instagramUrl,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
+import '../../../models/agenda/agenda_search_tag.dart';
 import '../../../models/agenda/business.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
 import '../../../providers/auth_provider.dart';
@@ -116,7 +117,7 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
       await ref.read(businessesProvider(widget.tenantId).notifier).create(
         nombre:      result.nombre,
         descripcion: result.descripcion,
-        searchTags:  result.searchTags,
+        searchTags:  result.profileLabels.map(AgendaSearchTag.profile).toList(),
       );
     } catch (e) {
       if (context.mounted) {
@@ -137,7 +138,10 @@ class _TenantHomeScreenState extends ConsumerState<TenantHomeScreen> {
         businessId:   b.id,
         nombre:       result.nombre,
         descripcion:  result.descripcion,
-        searchTags:   result.searchTags,
+        searchTags: mergeAgendaSearchTags(
+          existing: b.searchTags,
+          profileLabels: result.profileLabels,
+        ),
         logoUrl:      b.logoUrl,
         colorPrimario: b.colorPrimario,
         instagramUrl: b.instagramUrl,
@@ -383,7 +387,7 @@ class _InfoCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
           ],
-          if (business.searchTags.isEmpty)
+          if (business.profileTagLabels.isEmpty)
             Text(
               'Sin tags',
               style: GoogleFonts.inter(fontSize: 12, color: KTokens.inkMuted),
@@ -393,7 +397,7 @@ class _InfoCard extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (final tag in business.searchTags) _Tag(label: tag),
+                for (final tag in business.profileTagLabels) _Tag(label: tag),
               ],
             ),
         ],
@@ -642,7 +646,7 @@ class _BusinessTile extends StatelessWidget {
   Color get _color => _palette[business.nombre.hashCode.abs() % _palette.length];
 
   String get _locationText {
-    final geo = business.searchTags.take(2).toList();
+    final geo = business.locationTags.map((t) => t.value).take(2).toList();
     return geo.isEmpty ? '' : geo.join(', ');
   }
 

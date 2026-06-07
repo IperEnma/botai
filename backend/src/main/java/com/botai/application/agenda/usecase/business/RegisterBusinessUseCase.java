@@ -5,6 +5,7 @@ import com.botai.application.agenda.support.CompanySlugSupport;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessHours;
 import com.botai.domain.agenda.model.BusinessSettings;
+import com.botai.domain.agenda.model.SearchTag;
 import com.botai.domain.agenda.repository.BotWorkspaceRegistry;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.domain.agenda.repository.BusinessSettingsRepository;
@@ -46,7 +47,7 @@ public class RegisterBusinessUseCase {
                             String nombre,
                             String descripcion,
                             UUID ownerUserId,
-                            List<String> searchTags) {
+                            List<SearchTag> searchTags) {
         UUID newId = UUID.randomUUID();
         Long botId = botWorkspaceRegistry.findBotIdByWorkspaceTenantId(tenantId).orElse(null);
         String publicSlug = AgendaPublicSlug.forNewBusiness(newId, nombre);

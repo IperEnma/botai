@@ -5,12 +5,13 @@ import '../../../../models/agenda/business.dart';
 class BusinessFormResult {
   final String nombre;
   final String? descripcion;
-  final List<String> searchTags;
+  /// Etiquetas de perfil (type=profile); el caller fusiona con location.
+  final List<String> profileLabels;
 
   const BusinessFormResult({
     required this.nombre,
     this.descripcion,
-    required this.searchTags,
+    required this.profileLabels,
   });
 }
 
@@ -36,7 +37,7 @@ class _BusinessFormDialogState extends State<BusinessFormDialog> {
     _descripcionCtrl =
         TextEditingController(text: widget.initial?.descripcion ?? '');
     _tagsCtrl = TextEditingController(
-      text: widget.initial?.searchTags.join(', ') ?? '',
+      text: widget.initial?.profileTagLabels.join(', ') ?? '',
     );
   }
 
@@ -60,7 +61,7 @@ class _BusinessFormDialogState extends State<BusinessFormDialog> {
       descripcion: _descripcionCtrl.text.trim().isEmpty
           ? null
           : _descripcionCtrl.text.trim(),
-      searchTags: tags,
+      profileLabels: tags,
     ));
   }
 

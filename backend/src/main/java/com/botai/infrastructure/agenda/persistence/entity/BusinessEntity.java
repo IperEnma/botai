@@ -5,12 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -39,10 +35,6 @@ public class BusinessEntity extends BaseAuditableEntity {
 
     @Column(name = "owner_user_id")
     private UUID ownerUserId;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "search_tags", nullable = false, columnDefinition = "jsonb")
-    private List<String> searchTags = new ArrayList<>();
 
     @Column(name = "activo", nullable = false)
     private boolean activo = true;
@@ -97,8 +89,6 @@ public class BusinessEntity extends BaseAuditableEntity {
     public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
     public UUID getOwnerUserId() { return ownerUserId; }
     public void setOwnerUserId(UUID ownerUserId) { this.ownerUserId = ownerUserId; }
-    public List<String> getSearchTags() { return searchTags; }
-    public void setSearchTags(List<String> searchTags) { this.searchTags = searchTags; }
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
     public String getLogoUrl() { return logoUrl; }

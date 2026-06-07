@@ -1,5 +1,6 @@
 package com.botai.application.agenda.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
@@ -9,6 +10,7 @@ public record CreateBusinessRequest(
         @NotBlank String nombre,
         String descripcion,
         UUID ownerUserId,
-        List<String> searchTags
+        @JsonDeserialize(contentUsing = SearchTagDtoDeserializer.class)
+        List<SearchTagDto> searchTags
 ) {
 }

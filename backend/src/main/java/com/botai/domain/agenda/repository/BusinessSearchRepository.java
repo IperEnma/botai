@@ -7,7 +7,7 @@ import java.util.UUID;
 
 /**
  * Puerto del buscador público. El adapter resuelve la query contra
- * {@code agenda_categories.synonyms}, {@code agenda_businesses.search_tags} y
+ * {@code agenda_categories.synonyms}, {@code agenda_business_tags} y
  * el nombre del negocio.
  */
 public interface BusinessSearchRepository {
@@ -16,7 +16,7 @@ public interface BusinessSearchRepository {
      * Busca negocios por término libre (ej. "uñas"). Aplica:
      * <ol>
      *   <li>Match contra sinónimos del catálogo global.</li>
-     *   <li>Match contra search_tags del negocio.</li>
+     *   <li>Match contra etiquetas tipadas del negocio ({@code agenda_business_tags}).</li>
      *   <li>Match por nombre con unaccent + ILIKE.</li>
      * </ol>
      * Filtra activos y no borrados. Opcionalmente acota por tenantId.

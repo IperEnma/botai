@@ -2,6 +2,7 @@ package com.botai.application.agenda.usecase.business;
 
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.Business;
+import com.botai.domain.agenda.model.SearchTag;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +29,7 @@ public class UpdateBusinessUseCase {
                             UUID businessId,
                             String nombre,
                             String descripcion,
-                            List<String> searchTags,
+                            List<SearchTag> searchTags,
                             Boolean activo,
                             String logoUrl,
                             String colorPrimario,

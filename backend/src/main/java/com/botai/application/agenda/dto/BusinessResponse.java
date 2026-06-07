@@ -9,7 +9,7 @@ public record BusinessResponse(
         String nombre,
         String descripcion,
         UUID ownerUserId,
-        List<String> searchTags,
+        List<SearchTagDto> searchTags,
         boolean activo,
         String logoUrl,
         String colorPrimario,

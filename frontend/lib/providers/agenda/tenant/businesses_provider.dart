@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../models/agenda/agenda_search_tag.dart';
 import '../../../models/agenda/business.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../agenda_api_provider.dart';
@@ -53,7 +54,7 @@ class BusinessesNotifier extends StateNotifier<BusinessesState> {
   Future<Business> create({
     required String nombre,
     String? descripcion,
-    List<String> searchTags = const [],
+    List<AgendaSearchTag> searchTags = const [],
   }) async {
     final api = _ref.read(agendaApiServiceProvider);
     final created = await api.createBusiness(
@@ -69,7 +70,7 @@ class BusinessesNotifier extends StateNotifier<BusinessesState> {
     required String businessId,
     required String nombre,
     String? descripcion,
-    List<String> searchTags = const [],
+    List<AgendaSearchTag> searchTags = const [],
     String? logoUrl,
     String? colorPrimario,
     String? instagramUrl,

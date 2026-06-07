@@ -1,5 +1,6 @@
 package com.botai.application.agenda.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
@@ -7,7 +8,9 @@ import java.util.List;
 public record UpdateBusinessRequest(
         @Size(min = 1, max = 255) String nombre,
         @Size(max = 2000) String descripcion,
-        @Size(max = 50) List<String> searchTags,
+        @Size(max = 50)
+        @JsonDeserialize(contentUsing = SearchTagDtoDeserializer.class)
+        List<SearchTagDto> searchTags,
         Boolean activo,
         @Size(max = 500) String logoUrl,
         @Size(max = 9) String colorPrimario,

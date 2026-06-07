@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../models/agenda/agenda_search_tag.dart';
 import '../../../models/agenda/register_tenant.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
@@ -283,11 +284,12 @@ class _BusinessRegisterScreenState
 
       final api = ref.read(agendaApiServiceProvider);
 
-      final tags = <String>[
-        if (_reg.department != null) _reg.department!,
-        if (_reg.locality?.isNotEmpty == true) _reg.locality!,
-        ..._reg.categories.map((c) => c.nombre),
-        ..._reg.customCategoryLabels,
+      final tags = <AgendaSearchTag>[
+        if (_reg.department != null)
+          AgendaSearchTag.location(_reg.department!),
+        if (_reg.locality?.isNotEmpty == true)
+          AgendaSearchTag.location(_reg.locality!),
+        ..._reg.customCategoryLabels.map(AgendaSearchTag.profile),
       ];
 
       final locationParts = [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../models/agenda/agenda_search_tag.dart';
 import '../../../../models/agenda/business.dart';
 import '../../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../../providers/agenda/tenant/businesses_provider.dart';
@@ -63,9 +64,9 @@ class _InfoTabState extends ConsumerState<InfoTab> {
             _InfoRow(label: 'Descripción', value: business.descripcion!),
           _InfoRow(
             label: 'Rubro / etiquetas del perfil',
-            value: business.searchTags.isEmpty
+            value: business.profileTagLabels.isEmpty
                 ? 'Sin etiquetas'
-                : business.searchTags.join(', '),
+                : business.profileTagLabels.join(', '),
           ),
           _InfoRow(label: 'Activo', value: business.activo ? 'Sí' : 'No'),
           const SizedBox(height: 16),
@@ -85,7 +86,10 @@ class _InfoTabState extends ConsumerState<InfoTab> {
                       businessId: business.id,
                       nombre: result.nombre,
                       descripcion: result.descripcion,
-                      searchTags: result.searchTags,
+                      searchTags: mergeAgendaSearchTags(
+                        existing: business.searchTags,
+                        profileLabels: result.profileLabels,
+                      ),
                     );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

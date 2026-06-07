@@ -236,38 +236,12 @@ class _Hero extends ConsumerWidget {
       }
     }
 
-    for (final tag in business.searchTags) {
+    for (final tag in business.profileTagLabels) {
       if (pills.length >= 3) break;
-      if (!_isRubroTag(tag)) continue;
       add(tag);
     }
 
     return pills.take(3).toList();
-  }
-
-  bool _isRubroTag(String tag) {
-    final t = tag.trim();
-    if (t.isEmpty) return false;
-    final lower = t.toLowerCase();
-
-    final dir = business.direccion?.trim().toLowerCase() ?? '';
-    if (dir.isNotEmpty) {
-      if (dir == lower || dir.contains(lower) || lower.contains(dir)) {
-        return false;
-      }
-      for (final segment in dir.split(RegExp(r'[,;]'))) {
-        final seg = segment.trim();
-        if (seg.isEmpty) continue;
-        if (seg == lower || seg.contains(lower) || lower.contains(seg)) {
-          return false;
-        }
-      }
-    }
-
-    // Calle/número u otros fragmentos de dirección
-    if (RegExp(r'\d').hasMatch(t)) return false;
-
-    return true;
   }
 
   String get _ratingLabel {

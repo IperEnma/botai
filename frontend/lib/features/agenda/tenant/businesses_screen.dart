@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../features/agenda/navigation/agenda_tenant_nav.dart';
+import '../../../models/agenda/agenda_search_tag.dart';
 import '../../../models/agenda/business.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
@@ -51,7 +52,9 @@ class BusinessesScreen extends ConsumerWidget {
             await ref.read(businessesProvider(tenantId).notifier).create(
                   nombre: result.nombre,
                   descripcion: result.descripcion,
-                  searchTags: result.searchTags,
+                  searchTags: result.profileLabels
+                      .map(AgendaSearchTag.profile)
+                      .toList(),
                 );
           } catch (e) {
             if (context.mounted) {

@@ -58,7 +58,10 @@ class BusinessRegistrationIntegrationTest extends AbstractAgendaIntegrationTest 
                 {
                   "nombre": "Peluquería Centro",
                   "descripcion": "Corte y color",
-                  "searchTags": ["centro","corte"]
+                  "searchTags": [
+                    {"value": "centro", "type": "profile"},
+                    {"value": "corte", "type": "profile"}
+                  ]
                 }
                 """;
 

@@ -3,6 +3,8 @@
 /// Replica el patrón usado en `Bot.fromJson` del bot: tolerar nulls,
 /// formatos numéricos, strings con padding y listas que vienen como
 /// `List<dynamic>` desde JSON.
+import 'agenda_search_tag.dart';
+
 class AgendaJson {
   AgendaJson._();
 
@@ -59,6 +61,18 @@ class AgendaJson {
       return value.map((e) => e.toString()).toList(growable: false);
     }
     return const [];
+  }
+
+  static List<AgendaSearchTag> parseSearchTagList(dynamic value) {
+    if (value == null) { return const []; }
+    if (value is! List) { return const []; }
+    final tags = <AgendaSearchTag>[];
+    for (final entry in value) {
+      if (entry is Map) {
+        tags.add(AgendaSearchTag.fromJson(Map<String, dynamic>.from(entry)));
+      }
+    }
+    return tags;
   }
 
   static DateTime parseDateTime(dynamic value) {

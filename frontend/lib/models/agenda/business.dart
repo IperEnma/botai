@@ -1,4 +1,5 @@
 import 'agenda_json.dart';
+import 'agenda_search_tag.dart';
 import '../../core/agenda_media_url.dart';
 
 /// Negocio completo (vista admin de tenant). Espejo de `BusinessResponse`.
@@ -8,7 +9,7 @@ class Business {
   final String nombre;
   final String? descripcion;
   final String? ownerUserId;
-  final List<String> searchTags;
+  final List<AgendaSearchTag> searchTags;
   final List<String> categorias;
   final bool activo;
   final String? logoUrl;
@@ -81,7 +82,7 @@ class Business {
       nombre: AgendaJson.parseString(json['nombre']),
       descripcion: AgendaJson.parseStringOrNull(json['descripcion']),
       ownerUserId: AgendaJson.parseStringOrNull(json['ownerUserId']),
-      searchTags: AgendaJson.parseStringList(json['searchTags']),
+      searchTags: AgendaJson.parseSearchTagList(json['searchTags']),
       categorias: AgendaJson.parseStringList(json['categorias']),
       activo: AgendaJson.parseBool(json['activo'], fallback: true),
       logoUrl: sanitizeAgendaMediaUrl(rawLogo),
@@ -107,7 +108,7 @@ class Business {
   Business copyWith({
     String? nombre,
     String? descripcion,
-    List<String>? searchTags,
+    List<AgendaSearchTag>? searchTags,
     List<String>? categorias,
     bool? activo,
     Object? logoUrl = _sentinel,
@@ -149,6 +150,12 @@ class Business {
   }
 
   static const _sentinel = Object();
+
+  List<String> get profileTagLabels =>
+      searchTags.where((t) => t.isProfile).map((t) => t.value).toList();
+
+  List<AgendaSearchTag> get locationTags =>
+      searchTags.where((t) => t.isLocation).toList(growable: false);
 
   @override
   bool operator ==(Object other) =>

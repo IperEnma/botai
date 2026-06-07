@@ -14,9 +14,6 @@ CREATE INDEX IF NOT EXISTS idx_agenda_businesses_tenant_activo
 CREATE INDEX IF NOT EXISTS idx_agenda_businesses_nombre_lower
     ON agenda_businesses (LOWER(nombre));
 
-CREATE INDEX IF NOT EXISTS idx_agenda_businesses_search_tags_gin
-    ON agenda_businesses USING GIN (search_tags jsonb_path_ops);
-
 CREATE INDEX IF NOT EXISTS idx_agenda_businesses_company_slug
     ON agenda_businesses (company_slug)
     WHERE deleted_at IS NULL AND activo = TRUE;

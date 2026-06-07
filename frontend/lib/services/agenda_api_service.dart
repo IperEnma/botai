@@ -13,6 +13,7 @@ import '../models/agenda/agenda_review.dart';
 import '../models/agenda/agenda_service.dart';
 import '../models/agenda/availability_slot.dart';
 import '../models/agenda/booking.dart';
+import '../models/agenda/agenda_search_tag.dart';
 import '../models/agenda/business.dart';
 import '../models/agenda/business_hours.dart';
 import '../models/agenda/business_photo.dart';
@@ -816,7 +817,7 @@ class AgendaApiService {
   Future<Business> createBusiness({
     required String nombre,
     String? descripcion,
-    List<String> searchTags = const [],
+    List<AgendaSearchTag> searchTags = const [],
     String? ownerUserId,
   }) async {
     final r = await _send(() => _client.post(
@@ -825,7 +826,7 @@ class AgendaApiService {
           body: jsonEncode({
             'nombre': nombre,
             if (descripcion != null) 'descripcion': descripcion,
-            'searchTags': searchTags,
+            'searchTags': searchTags.map((t) => t.toJson()).toList(),
             if (ownerUserId != null && ownerUserId.isNotEmpty)
               'ownerUserId': ownerUserId,
           }),
@@ -838,7 +839,7 @@ class AgendaApiService {
     required String businessId,
     required String nombre,
     String? descripcion,
-    List<String> searchTags = const [],
+    List<AgendaSearchTag> searchTags = const [],
     String? logoUrl,
     String? colorPrimario,
     String? instagramUrl,
@@ -855,7 +856,7 @@ class AgendaApiService {
           body: jsonEncode({
             'nombre': nombre,
             if (descripcion != null) 'descripcion': descripcion,
-            'searchTags': searchTags,
+            'searchTags': searchTags.map((t) => t.toJson()).toList(),
             if (logoUrl != null) 'logoUrl': logoUrl,
             'colorPrimario': colorPrimario,
             'instagramUrl': instagramUrl,

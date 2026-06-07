@@ -2,6 +2,7 @@ package com.botai.application.agenda.usecase.business;
 
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.Business;
+import com.botai.domain.agenda.model.SearchTag;
 import com.botai.domain.agenda.repository.BusinessRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,7 @@ class UpdateBusinessUseCaseTest {
     private Business existing() {
         return new Business(
                 businessId, tenantId, "Barbería Original", "Desc original",
-                ownerId, List.of("barber", "cortes"), true, null, null, null, null, null, null, null, null, created, updated);
+                ownerId, List.of(SearchTag.profile("barber"), SearchTag.profile("cortes")), true, null, null, null, null, null, null, null, null, created, updated);
     }
 
     @Test
@@ -74,7 +75,7 @@ class UpdateBusinessUseCaseTest {
 
         assertEquals("Nuevo Nombre", saved.getNombre());
         assertEquals("Desc original", saved.getDescripcion());
-        assertEquals(List.of("barber", "cortes"), saved.getSearchTags());
+        assertEquals(List.of(SearchTag.profile("barber"), SearchTag.profile("cortes")), saved.getSearchTags());
         assertTrue(saved.isActivo());
         assertEquals(businessId, result.getId());
         assertEquals(tenantId, saved.getTenantId());
@@ -91,7 +92,7 @@ class UpdateBusinessUseCaseTest {
         useCase.execute(tenantId, businessId,
                 null,
                 "Nueva descripción",
-                List.of("nuevo"),
+                List.of(SearchTag.profile("nuevo")),
                 false,
                 null, null, null, null, null, null, null, null, null);
 
@@ -101,7 +102,7 @@ class UpdateBusinessUseCaseTest {
 
         assertEquals("Barbería Original", saved.getNombre());
         assertEquals("Nueva descripción", saved.getDescripcion());
-        assertEquals(List.of("nuevo"), saved.getSearchTags());
+        assertEquals(List.of(SearchTag.profile("nuevo")), saved.getSearchTags());
         assertFalse(saved.isActivo());
     }
 

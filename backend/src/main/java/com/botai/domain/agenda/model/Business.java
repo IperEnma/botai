@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public final class Business {
 
@@ -12,7 +13,7 @@ public final class Business {
     private final String nombre;
     private final String descripcion;
     private final UUID ownerUserId;
-    private final List<String> searchTags;
+    private final List<SearchTag> searchTags;
     private final boolean activo;
     private final String logoUrl;
     private final String colorPrimario;
@@ -33,7 +34,7 @@ public final class Business {
     private final LocalDateTime updatedAt;
 
     public Business(UUID id, String tenantId, String nombre, String descripcion,
-                    UUID ownerUserId, List<String> searchTags, boolean activo,
+                    UUID ownerUserId, List<SearchTag> searchTags, boolean activo,
                     String logoUrl, String colorPrimario,
                     String instagramUrl, String tiktokUrl, String facebookUrl,
                     String colorFondo, String fontFamily,
@@ -71,7 +72,7 @@ public final class Business {
      * Constructor sin {@code publicSlug} ni {@code botId} (tests y código legado).
      */
     public Business(UUID id, String tenantId, String nombre, String descripcion,
-                    UUID ownerUserId, List<String> searchTags, boolean activo,
+                    UUID ownerUserId, List<SearchTag> searchTags, boolean activo,
                     String logoUrl, String colorPrimario,
                     String instagramUrl, String tiktokUrl, String facebookUrl,
                     String colorFondo, String fontFamily,
@@ -84,7 +85,7 @@ public final class Business {
 
     /** Constructor con {@code publicSlug} sin {@code botId}. */
     public Business(UUID id, String tenantId, String nombre, String descripcion,
-                    UUID ownerUserId, List<String> searchTags, boolean activo,
+                    UUID ownerUserId, List<SearchTag> searchTags, boolean activo,
                     String logoUrl, String colorPrimario,
                     String instagramUrl, String tiktokUrl, String facebookUrl,
                     String colorFondo, String fontFamily,
@@ -101,7 +102,7 @@ public final class Business {
      * Delegado de compatibilidad para código legado.
      */
     public Business(UUID id, String tenantId, String nombre, String descripcion,
-                    UUID ownerUserId, List<String> searchTags, boolean activo,
+                    UUID ownerUserId, List<SearchTag> searchTags, boolean activo,
                     String logoUrl, String colorPrimario,
                     String instagramUrl, String tiktokUrl, String facebookUrl,
                     String colorFondo, String fontFamily,
@@ -120,7 +121,14 @@ public final class Business {
     public String getNombre() { return nombre; }
     public String getDescripcion() { return descripcion; }
     public UUID getOwnerUserId() { return ownerUserId; }
-    public List<String> getSearchTags() { return searchTags; }
+    public List<SearchTag> getSearchTags() { return searchTags; }
+
+    public List<String> getProfileTagValues() {
+        return searchTags.stream()
+                .filter(SearchTag::isProfile)
+                .map(SearchTag::value)
+                .collect(Collectors.toUnmodifiableList());
+    }
     public boolean isActivo() { return activo; }
     public String getLogoUrl() { return logoUrl; }
     public String getColorPrimario() { return colorPrimario; }

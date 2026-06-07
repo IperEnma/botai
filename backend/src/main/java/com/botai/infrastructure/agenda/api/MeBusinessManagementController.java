@@ -5,6 +5,7 @@ import com.botai.application.agenda.dto.BusinessResponse;
 import com.botai.application.agenda.dto.BusinessSettingsRequest;
 import com.botai.application.agenda.dto.BusinessSettingsResponse;
 import com.botai.application.agenda.dto.CreateBusinessRequest;
+import com.botai.application.agenda.dto.SearchTagDtoMapper;
 import com.botai.application.agenda.dto.UpdateBusinessRequest;
 import com.botai.domain.agenda.model.BusinessSettings;
 import com.botai.domain.agenda.repository.BusinessSettingsRepository;
@@ -101,7 +102,7 @@ public class MeBusinessManagementController {
                 request.nombre(),
                 request.descripcion(),
                 request.ownerUserId(),
-                request.searchTags()
+                request.searchTags() == null ? List.of() : SearchTagDtoMapper.toDomain(request.searchTags())
         );
         knowledgeChunkRefresher.refreshAfterCatalogChange(tenantId);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -118,7 +119,7 @@ public class MeBusinessManagementController {
                 businessId,
                 request.nombre(),
                 request.descripcion(),
-                request.searchTags(),
+                SearchTagDtoMapper.toDomain(request.searchTags()),
                 request.activo(),
                 request.logoUrl(),
                 request.colorPrimario(),
