@@ -31,7 +31,9 @@ public final class InboundTextHeuristics {
         Pattern.compile("(?i)\\b(qued[oó]|esta|est[aá])\\s+(la\\s+)?(cita|turno|reserva|agenda)\\b"),
         Pattern.compile("(?i)\\b(estado|estatus)\\s+(de\\s+)?(mi\\s+)?(cita|turno|reserva|agenda)\\b"),
         Pattern.compile("(?i)\\bmi\\s+(cita|turno|reserva|agenda)\\s+(est[aá]|qued[oó])\\s+confirmad"),
-        Pattern.compile("(?i)\\b(tengo|hay)\\s+(alguna\\s+)?(cita|turno|reserva|agenda)\\s+(confirmad|pendiente|programad)")
+        Pattern.compile("(?i)\\b(tengo|hay)\\s+(alguna\\s+)?(cita|turno|reserva|agenda)\\s+(confirmad|pendiente|programad)"),
+        Pattern.compile("(?i)\\b(se\\s+)?confirm\\w*\\b[^.]{0,40}\\bmi\\s+(cita|turno|reserva|agenda)\\b"),
+        Pattern.compile("(?i)\\bcu[aá]les?\\s+(son\\s+)?(mis\\s+)?(las?\\s+)?(citas?|turnos?|reservas?)\\s+pendientes?\\b")
     );
 
     private static final Set<String> GREETING_ONLY_TOKENS = Set.of(
@@ -113,14 +115,25 @@ public final class InboundTextHeuristics {
         return false;
     }
 
+    /**
+     * Corrige typos frecuentes en consultas de estado de cita (p. ej. «confinó» → confirmó).
+     */
+    private static String normalizeBookingStatusQuery(String text) {
+        String n = normalizeForMatch(text);
+        n = n.replaceAll("\\bconfin[oó]?\\b", "confirmo");
+        n = n.replaceAll("\\bconfinad[oa]s?\\b", "confirmado");
+        return n;
+    }
+
     /** Usuario quiere ver o consultar citas ya existentes. */
     public static boolean looksLikeViewAgendaBookings(String text) {
         if (text == null || text.isBlank()) {
             return false;
         }
-        String n = text.strip();
+        String raw = text.strip();
+        String normalized = normalizeBookingStatusQuery(raw);
         for (Pattern p : VIEW_BOOKINGS_PATTERNS) {
-            if (p.matcher(n).find()) {
+            if (p.matcher(raw).find() || p.matcher(normalized).find()) {
                 return true;
             }
         }

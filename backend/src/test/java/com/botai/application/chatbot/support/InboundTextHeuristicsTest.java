@@ -43,6 +43,8 @@ class InboundTextHeuristicsTest {
         assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("Quedo confirmado?")).isTrue();
         assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("¿Quedó confirmada mi cita?")).isTrue();
         assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("Estado de mi reserva")).isTrue();
+        assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("Se confinó mi cita?")).isTrue();
+        assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("Cuáles son los citas pendiente?")).isTrue();
     }
 
     @Test

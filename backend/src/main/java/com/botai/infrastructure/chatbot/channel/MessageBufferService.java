@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -34,6 +35,8 @@ public class MessageBufferService {
 
     private final Map<String, BufferedConversation> buffers = new ConcurrentHashMap<>();
     private final Map<String, Object> conversationLocks = new ConcurrentHashMap<>();
+    /** Evita dos hilos procesando el mismo conversationId (p. ej. cancel(false) no detiene tarea en curso). */
+    private final Map<String, AtomicBoolean> processingInFlight = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
     public MessageBufferService(ProcessInboundMessageUseCase processInboundMessageUseCase,
@@ -88,29 +91,43 @@ public class MessageBufferService {
         }
 
         void processBufferedMessages() {
-            Object lock = conversationLocks.computeIfAbsent(conversationId, ignored -> new Object());
-            synchronized (lock) {
-                while (true) {
-                    List<InboundMessage> toProcess;
-                    synchronized (this) {
-                        if (messages.isEmpty()) {
-                            buffers.remove(conversationId);
-                            return;
-                        }
-                        toProcess = new ArrayList<>(messages);
-                        messages.clear();
-                    }
-
-                    if (processBatch(toProcess)) {
+            AtomicBoolean inFlight = processingInFlight.computeIfAbsent(conversationId, ignored -> new AtomicBoolean(false));
+            if (!inFlight.compareAndSet(false, true)) {
+                log.debug("[BUFFER] Procesamiento en curso para {}, omitiendo tarea duplicada", conversationId);
+                return;
+            }
+            try {
+                Object lock = conversationLocks.computeIfAbsent(conversationId, ignored -> new Object());
+                synchronized (lock) {
+                    while (true) {
+                        List<InboundMessage> toProcess;
                         synchronized (this) {
                             if (messages.isEmpty()) {
                                 buffers.remove(conversationId);
                                 return;
                             }
+                            toProcess = new ArrayList<>(messages);
+                            messages.clear();
                         }
-                    } else {
-                        buffers.remove(conversationId);
-                        return;
+
+                        if (processBatch(toProcess)) {
+                            synchronized (this) {
+                                if (messages.isEmpty()) {
+                                    buffers.remove(conversationId);
+                                    return;
+                                }
+                            }
+                        } else {
+                            buffers.remove(conversationId);
+                            return;
+                        }
+                    }
+                }
+            } finally {
+                inFlight.set(false);
+                synchronized (this) {
+                    if (!messages.isEmpty()) {
+                        scheduleProcessing();
                     }
                 }
             }

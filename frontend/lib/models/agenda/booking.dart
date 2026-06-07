@@ -6,19 +6,16 @@ enum BookingEstado {
   cancelada,
   completada;
 
+  /// Valores del API (`BookingEstado` en Java): PENDING, CONFIRMED, CANCELLED, COMPLETED, NO_SHOW.
   static BookingEstado fromString(String v) {
     switch (v.toUpperCase()) {
       case 'PENDING':
-      case 'PENDIENTE':
         return BookingEstado.pendiente;
       case 'CONFIRMED':
-      case 'CONFIRMADA':
         return BookingEstado.confirmada;
       case 'CANCELLED':
-      case 'CANCELADA':
         return BookingEstado.cancelada;
       case 'COMPLETED':
-      case 'COMPLETADA':
         return BookingEstado.completada;
       case 'NO_SHOW':
         return BookingEstado.cancelada;
@@ -126,7 +123,7 @@ class Booking {
       fechaHoraInicio: AgendaJson.parseDateTime(json['fechaHoraInicio']),
       fechaHoraFin: AgendaJson.parseDateTime(json['fechaHoraFin']),
       estado: BookingEstado.fromString(
-          AgendaJson.parseString(json['estado'], fallback: 'PENDIENTE')),
+          AgendaJson.parseString(json['estado'], fallback: 'PENDING')),
       tipoReserva: BookingTipo.fromString(
           AgendaJson.parseString(json['tipoReserva'], fallback: 'PAGO_POR_TURNO')),
       notas: AgendaJson.parseStringOrNull(json['notas']),
