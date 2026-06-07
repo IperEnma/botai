@@ -38,6 +38,9 @@ public class ConfirmBookingUseCase {
         if (!businessId.equals(booking.getBusinessId())) {
             throw new BookingNotFoundException(bookingId);
         }
+        if (booking.getEstado() == BookingEstado.CONFIRMED) {
+            return booking;
+        }
         if (booking.getEstado() != BookingEstado.PENDING) {
             throw new IllegalStateException("Solo se pueden confirmar reservas pendientes.");
         }

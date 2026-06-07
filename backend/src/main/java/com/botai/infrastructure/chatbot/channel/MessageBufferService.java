@@ -33,6 +33,7 @@ public class MessageBufferService {
     private final long debounceMs;
 
     private final Map<String, BufferedConversation> buffers = new ConcurrentHashMap<>();
+    private final Map<String, Object> conversationLocks = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
     public MessageBufferService(ProcessInboundMessageUseCase processInboundMessageUseCase,
@@ -87,15 +88,37 @@ public class MessageBufferService {
         }
 
         void processBufferedMessages() {
-            List<InboundMessage> toProcess;
-            synchronized (this) {
-                toProcess = new ArrayList<>(messages);
-                messages.clear();
-            }
-            buffers.remove(conversationId);
+            Object lock = conversationLocks.computeIfAbsent(conversationId, ignored -> new Object());
+            synchronized (lock) {
+                while (true) {
+                    List<InboundMessage> toProcess;
+                    synchronized (this) {
+                        if (messages.isEmpty()) {
+                            buffers.remove(conversationId);
+                            return;
+                        }
+                        toProcess = new ArrayList<>(messages);
+                        messages.clear();
+                    }
 
+                    if (processBatch(toProcess)) {
+                        synchronized (this) {
+                            if (messages.isEmpty()) {
+                                buffers.remove(conversationId);
+                                return;
+                            }
+                        }
+                    } else {
+                        buffers.remove(conversationId);
+                        return;
+                    }
+                }
+            }
+        }
+
+        private boolean processBatch(List<InboundMessage> toProcess) {
             if (toProcess.isEmpty()) {
-                return;
+                return true;
             }
 
             log.info("Processing {} buffered messages for {}", toProcess.size(), conversationId);
@@ -106,7 +129,7 @@ public class MessageBufferService {
                 .collect(Collectors.joining("\n"));
 
             if (combinedText.isBlank()) {
-                return;
+                return true;
             }
 
             InboundMessage first = toProcess.get(0);
@@ -130,6 +153,7 @@ public class MessageBufferService {
                         log.warn("Response not sent (tenantId ausente): usuario no recibe respuesta. Configura el bot con WhatsApp Phone number ID en el panel.");
                     }
                 }
+                return true;
             } catch (Exception e) {
                 log.error("[BUFFER] Error processing messages for {}: {} — {}", conversationId, e.getMessage(), e.getClass().getSimpleName(), e);
                 String tenantId = InboundMetadata.tenantId(first);
@@ -139,6 +163,7 @@ public class MessageBufferService {
                     .tenantId(tenantId)
                     .build();
                 onResponse.accept(errorOut);
+                return false;
             }
         }
     }

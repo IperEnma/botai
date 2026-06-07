@@ -130,7 +130,7 @@ public class AgendaRagSourceSync {
     private List<BusinessRow> loadActiveBusinesses(String tenantId) {
         return jdbcTemplate.query(
             """
-                SELECT id, nombre, descripcion, logo_url, color_primario, public_slug, company_slug
+                SELECT id, nombre, descripcion, logo_url, color_primario, public_slug, company_slug, direccion
                 FROM agenda_businesses
                 WHERE tenant_id = ? AND deleted_at IS NULL AND activo = TRUE
                 ORDER BY created_at ASC
@@ -147,7 +147,8 @@ public class AgendaRagSourceSync {
             rs.getString("logo_url"),
             rs.getString("color_primario"),
             rs.getString("public_slug"),
-            rs.getString("company_slug")
+            rs.getString("company_slug"),
+            rs.getString("direccion")
         );
     }
 
@@ -163,8 +164,9 @@ public class AgendaRagSourceSync {
     /**
      * Contenido indexable para RAG: nombre comercial y enlace de reserva desde Agenda / {@code bot}.
      */
-    static String buildNegocioKnowledgeContent(String displayName, String descripcion, String publicSlug,
-                                               String publicBookingUrl, String logoUrl, String colorPrimario) {
+    static String buildNegocioKnowledgeContent(String displayName, String descripcion, String direccion,
+                                               String publicSlug, String publicBookingUrl, String logoUrl,
+                                               String colorPrimario) {
         List<String> lines = new ArrayList<>();
         String name = displayName != null ? displayName.strip() : "";
         if (!name.isEmpty()) {
@@ -175,6 +177,10 @@ public class AgendaRagSourceSync {
         }
         if (descripcion != null && !descripcion.isBlank()) {
             lines.add("Descripción: " + descripcion.strip());
+        }
+        if (direccion != null && !direccion.isBlank()) {
+            lines.add("Dirección / ubicación del consultorio: " + direccion.strip());
+            lines.add("Para indicar dónde queda el local, usa esta dirección.");
         }
         if (publicSlug != null && !publicSlug.isBlank()) {
             lines.add("Identificador público (slug): " + publicSlug.strip());
@@ -198,7 +204,7 @@ public class AgendaRagSourceSync {
             .buildPublicUrlForBranch(b.publicSlug(), tenantCompanySlug, displayName, branchCount)
             .orElse(null);
         return buildNegocioKnowledgeContent(
-            displayName, b.descripcion(), b.publicSlug(), bookingUrl, b.logoUrl(), b.colorPrimario());
+            displayName, b.descripcion(), b.direccion(), b.publicSlug(), bookingUrl, b.logoUrl(), b.colorPrimario());
     }
 
     private String resolveBusinessDisplayName(String tenantId, String agendaNombre) {
@@ -353,5 +359,5 @@ public class AgendaRagSourceSync {
     }
 
     private record BusinessRow(UUID id, String nombre, String descripcion, String logoUrl, String colorPrimario,
-                               String publicSlug, String companySlug) {}
+                               String publicSlug, String companySlug, String direccion) {}
 }

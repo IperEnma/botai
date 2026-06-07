@@ -50,6 +50,7 @@ public class OutboxEventEntity {
     }
 
     public UUID getId()                  { return id; }
+    public void setId(UUID id)           { this.id = id; }
     public String getEventType()         { return eventType; }
     public String getPayload()           { return payload; }
     public String getStatus()            { return status; }
@@ -68,6 +69,9 @@ public class OutboxEventEntity {
                 e.getEventType(), e.getPayload(), e.getStatus(),
                 e.getCreatedAt() != null ? e.getCreatedAt() : LocalDateTime.now(),
                 e.getProcessedAt());
+        if (e.getId() != null) {
+            entity.setId(e.getId());
+        }
         return entity;
     }
 }

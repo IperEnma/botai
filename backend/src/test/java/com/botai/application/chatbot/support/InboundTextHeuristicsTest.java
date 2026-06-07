@@ -9,6 +9,7 @@ class InboundTextHeuristicsTest {
     @Test
     void looksLikeNewBookingRequest_agendarTypo() {
         assertThat(InboundTextHeuristics.looksLikeNewBookingRequest("Quiero agendar una ciga")).isTrue();
+        assertThat(InboundTextHeuristics.looksLikeNewBookingRequest("Quiero agendsr")).isTrue();
     }
 
     @Test
@@ -35,6 +36,13 @@ class InboundTextHeuristicsTest {
     @Test
     void looksLikeViewAgendaBookings_horarioInformativo_false() {
         assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("¿A qué hora abren el lunes?")).isFalse();
+    }
+
+    @Test
+    void looksLikeViewAgendaBookings_quedoConfirmado() {
+        assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("Quedo confirmado?")).isTrue();
+        assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("¿Quedó confirmada mi cita?")).isTrue();
+        assertThat(InboundTextHeuristics.looksLikeViewAgendaBookings("Estado de mi reserva")).isTrue();
     }
 
     @Test

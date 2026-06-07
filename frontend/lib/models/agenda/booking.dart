@@ -8,14 +8,20 @@ enum BookingEstado {
 
   static BookingEstado fromString(String v) {
     switch (v.toUpperCase()) {
+      case 'PENDING':
       case 'PENDIENTE':
         return BookingEstado.pendiente;
+      case 'CONFIRMED':
       case 'CONFIRMADA':
         return BookingEstado.confirmada;
+      case 'CANCELLED':
       case 'CANCELADA':
         return BookingEstado.cancelada;
+      case 'COMPLETED':
       case 'COMPLETADA':
         return BookingEstado.completada;
+      case 'NO_SHOW':
+        return BookingEstado.cancelada;
       default:
         return BookingEstado.pendiente;
     }

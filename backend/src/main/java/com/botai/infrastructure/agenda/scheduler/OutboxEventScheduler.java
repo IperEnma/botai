@@ -7,7 +7,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.dao.InvalidDataAccessResourceUsageException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +40,7 @@ public class OutboxEventScheduler {
     private final OutboxEventRepository outboxRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private volatile boolean applicationReady;
 
     public OutboxEventScheduler(OutboxEventRepository outboxRepository,
                                 ApplicationEventPublisher eventPublisher,
@@ -44,10 +50,25 @@ public class OutboxEventScheduler {
         this.objectMapper     = objectMapper;
     }
 
+    @Order(Ordered.LOWEST_PRECEDENCE)
+    @EventListener(ApplicationReadyEvent.class)
+    void markApplicationReady() {
+        applicationReady = true;
+    }
+
     @Scheduled(fixedDelay = 10_000)
     @Transactional
     public void processOutbox() {
-        List<OutboxEvent> pending = outboxRepository.findPending();
+        if (!applicationReady) {
+            return;
+        }
+        List<OutboxEvent> pending;
+        try {
+            pending = outboxRepository.findPending();
+        } catch (InvalidDataAccessResourceUsageException ex) {
+            log.debug("AGENDA outbox: schema aún no disponible ({})", ex.getMostSpecificCause().getMessage());
+            return;
+        }
         if (pending.isEmpty()) return;
 
         log.debug("AGENDA outbox: {} evento(s) pendiente(s)", pending.size());

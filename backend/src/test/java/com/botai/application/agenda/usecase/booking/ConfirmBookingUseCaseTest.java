@@ -86,15 +86,17 @@ class ConfirmBookingUseCaseTest {
     }
 
     @Test
-    void reservaYaConfirmada_lanzaExcepcion() {
+    void reservaYaConfirmada_esIdempotente() {
         when(businessRepository.findByIdAndTenantId(BUSINESS_ID, TENANT))
                 .thenReturn(Optional.of(business()));
-        when(bookingRepository.findById(BOOKING_ID))
-                .thenReturn(Optional.of(booking(BookingEstado.CONFIRMED)));
+        Booking confirmed = booking(BookingEstado.CONFIRMED);
+        when(bookingRepository.findById(BOOKING_ID)).thenReturn(Optional.of(confirmed));
 
-        assertThrows(IllegalStateException.class,
-                () -> useCase.execute(TENANT, BUSINESS_ID, BOOKING_ID));
+        Booking result = useCase.execute(TENANT, BUSINESS_ID, BOOKING_ID);
+
+        assertEquals(BookingEstado.CONFIRMED, result.getEstado());
         verify(bookingRepository, never()).save(any());
+        verify(confirmedOutbox, never()).enqueue(any());
     }
 
     @Test

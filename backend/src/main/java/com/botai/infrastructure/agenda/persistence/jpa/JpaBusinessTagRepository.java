@@ -6,20 +6,26 @@ import com.botai.infrastructure.agenda.persistence.entity.BusinessTagEntity;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
 public class JpaBusinessTagRepository implements BusinessTagRepository {
 
     private final BusinessTagJpaRepository jpa;
+    private final EntityManager entityManager;
 
-    public JpaBusinessTagRepository(BusinessTagJpaRepository jpa) {
+    public JpaBusinessTagRepository(BusinessTagJpaRepository jpa, EntityManager entityManager) {
         this.jpa = jpa;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -52,19 +58,30 @@ public class JpaBusinessTagRepository implements BusinessTagRepository {
             return;
         }
         jpa.deleteByBusinessId(businessId);
+        entityManager.flush();
         if (tags == null || tags.isEmpty()) {
             return;
         }
+        Set<String> seen = new LinkedHashSet<>();
         List<BusinessTagEntity> entities = new ArrayList<>(tags.size());
         for (SearchTag tag : tags) {
+            if (tag == null || tag.value() == null || tag.value().isBlank()) {
+                continue;
+            }
+            String dedupeKey = tag.type() + "\0" + tag.value().strip().toLowerCase();
+            if (!seen.add(dedupeKey)) {
+                continue;
+            }
             BusinessTagEntity entity = new BusinessTagEntity();
             entity.setId(UUID.randomUUID());
             entity.setBusinessId(businessId);
-            entity.setValue(tag.value());
+            entity.setValue(tag.value().strip());
             entity.setType(tag.type());
             entities.add(entity);
         }
-        jpa.saveAll(entities);
+        if (!entities.isEmpty()) {
+            jpa.saveAll(entities);
+        }
     }
 
     private SearchTag toDomain(BusinessTagEntity entity) {

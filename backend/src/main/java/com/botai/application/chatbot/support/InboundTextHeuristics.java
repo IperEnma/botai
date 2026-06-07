@@ -14,6 +14,7 @@ public final class InboundTextHeuristics {
     private static final List<Pattern> NEW_BOOKING_PATTERNS = List.of(
         Pattern.compile("(?i)\\b(quiero|necesito|me gustar[ií]a|podr[ií]a|puedo)\\b[^.]{0,80}\\b(agendar|reservar|sacar\\s+turno|pedir\\s+hora|hacer\\s+una\\s+cita)\\b"),
         Pattern.compile("(?i)\\b(agendar|reservar|sacar\\s+turno|pedir\\s+hora)\\b"),
+        Pattern.compile("(?i)\\b(quiero|necesito|me gustar[ií]a|podr[ií]a|puedo)\\b[^.]{0,40}\\bagend[a-z]{0,6}\\b"),
         Pattern.compile("(?i)\\b(link|enlace|url)\\b[^.]{0,40}\\b(agenda|reservar|turno|cita)\\b"),
         Pattern.compile("(?i)\\bmand(a|ame|en)\\b[^.]{0,30}\\b(la\\s+)?agenda\\b")
     );
@@ -25,7 +26,12 @@ public final class InboundTextHeuristics {
         Pattern.compile("(?i)\\b(agendas?|citas?|turnos?|reservas?)\\s+pendientes?\\b"),
         Pattern.compile("(?i)\\btengo\\s+(agendas?|citas?|turnos?|reservas?)\\s*(pendientes?|programadas?|reservadas?)?\\b"),
         Pattern.compile("(?i)\\bqu[eé]\\s+(turnos?|citas?|agendas?)\\s+tengo\\b"),
-        Pattern.compile("(?i)\\ba\\s+qu[eé]\\s+hora\\s+es\\s+mi\\s+(cita|turno|agenda)\\b")
+        Pattern.compile("(?i)\\ba\\s+qu[eé]\\s+hora\\s+es\\s+mi\\s+(cita|turno|agenda)\\b"),
+        Pattern.compile("(?i)\\b(qued[oó]|esta|est[aá])\\s+(confirmad[oa]s?|aprobada?|aceptada?)\\b"),
+        Pattern.compile("(?i)\\b(qued[oó]|esta|est[aá])\\s+(la\\s+)?(cita|turno|reserva|agenda)\\b"),
+        Pattern.compile("(?i)\\b(estado|estatus)\\s+(de\\s+)?(mi\\s+)?(cita|turno|reserva|agenda)\\b"),
+        Pattern.compile("(?i)\\bmi\\s+(cita|turno|reserva|agenda)\\s+(est[aá]|qued[oó])\\s+confirmad"),
+        Pattern.compile("(?i)\\b(tengo|hay)\\s+(alguna\\s+)?(cita|turno|reserva|agenda)\\s+(confirmad|pendiente|programad)")
     );
 
     private static final Set<String> GREETING_ONLY_TOKENS = Set.of(

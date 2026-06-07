@@ -11,6 +11,7 @@ class AgendaRagSourceSyncContentTest {
         String content = AgendaRagSourceSync.buildNegocioKnowledgeContent(
             "Peluquería Zemi",
             "Corte y color",
+            "Av. Agraciada 2526, Montevideo",
             "peluqueria-zemi-abc12345",
             "https://app.example.com/#/reservar/peluqueria-zemi-abc12345",
             null,
@@ -18,6 +19,7 @@ class AgendaRagSourceSyncContentTest {
         assertTrue(content.contains("Nombre comercial del negocio: Peluquería Zemi"));
         assertTrue(content.contains("El negocio se llama Peluquería Zemi"));
         assertTrue(content.contains("Descripción: Corte y color"));
+        assertTrue(content.contains("Dirección / ubicación del consultorio: Av. Agraciada 2526, Montevideo"));
         assertTrue(content.contains("Enlace oficial para reservar cita nueva:"));
         assertTrue(content.contains("https://app.example.com/#/reservar/peluqueria-zemi-abc12345"));
     }
