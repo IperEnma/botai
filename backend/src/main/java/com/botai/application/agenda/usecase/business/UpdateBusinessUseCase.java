@@ -4,6 +4,7 @@ import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.SearchTag;
 import com.botai.domain.agenda.repository.BusinessRepository;
+import com.botai.application.agenda.support.BusinessAddressSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -61,7 +62,7 @@ public class UpdateBusinessUseCase {
                 existing.getPublicSlug(),
                 existing.getCompanySlug(),
                 existing.getBotId(),
-                direccion == null ? existing.getDireccion() : direccion,
+                direccion == null ? existing.getDireccion() : BusinessAddressSupport.normalizeOrNull(direccion),
                 bannerUrl == null ? existing.getBannerUrl() : blankToNull(bannerUrl),
                 existing.getDeletedAt(),
                 existing.getCreatedAt(),

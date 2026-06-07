@@ -153,4 +153,19 @@ class UpdateBusinessUseCaseTest {
 
         verify(businessRepository, never()).save(any(Business.class));
     }
+
+    @Test
+    void direccionInvalidaNoSePersiste() {
+        when(businessRepository.findByIdAndTenantId(businessId, tenantId))
+                .thenReturn(Optional.of(existing()));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> useCase.execute(tenantId, businessId,
+                        null, null, null, null,
+                        null, null, null, null, null, null, null,
+                        null,
+                        "https://maps.example.com"));
+
+        verify(businessRepository, never()).save(any(Business.class));
+    }
 }

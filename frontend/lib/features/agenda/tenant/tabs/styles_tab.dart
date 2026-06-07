@@ -1,10 +1,12 @@
 // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
+import 'dart:async';
 import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/agenda_address.dart';
 import '../../../../core/agenda_image_upload_prep_web.dart';
 import '../../../../core/agenda_media_url.dart';
 import '../../../../models/agenda/business.dart';
@@ -47,18 +49,27 @@ class _StylesTabState extends ConsumerState<StylesTab> {
   bool _saving = false;
   bool _uploadingLogo = false;
   bool _uploadingBanner = false;
+  String? _addressFormatError;
+  AddressGeocodeResult? _addressGeocode;
+  bool _addressValidating = false;
+  Timer? _addressDebounce;
+  int _addressGeocodeGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     _hydrate(widget.business);
+    _direccionCtrl.addListener(_handleDireccionChange);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cleanupCorruptMediaIfNeeded();
+      _handleDireccionChange();
     });
   }
 
   @override
   void dispose() {
+    _addressDebounce?.cancel();
+    _direccionCtrl.removeListener(_handleDireccionChange);
     _direccionCtrl.dispose();
     super.dispose();
   }
@@ -87,6 +98,50 @@ class _StylesTabState extends ConsumerState<StylesTab> {
   String? get _direccionValue {
     final v = _direccionCtrl.text.trim();
     return v.isEmpty ? null : v;
+  }
+
+  void _handleDireccionChange() {
+    _addressDebounce?.cancel();
+    final value = _direccionCtrl.text;
+    final formatError = AgendaAddressFormat.validate(value);
+
+    if (value.trim() != (widget.business.direccion ?? '').trim()) {
+      if (!_changed) setState(() => _changed = true);
+    }
+
+    setState(() {
+      _addressFormatError = formatError;
+      if (formatError != null || value.trim().isEmpty) {
+        _addressGeocode = null;
+        _addressValidating = false;
+      }
+    });
+
+    if (formatError != null || value.trim().isEmpty) return;
+
+    _addressDebounce = Timer(const Duration(milliseconds: 700), () {
+      _runAddressGeocode(value.trim());
+    });
+  }
+
+  Future<void> _runAddressGeocode(String address) async {
+    final generation = ++_addressGeocodeGeneration;
+    if (mounted) setState(() => _addressValidating = true);
+    try {
+      final result =
+          await ref.read(agendaApiServiceProvider).geocodeAddress(address);
+      if (!mounted || generation != _addressGeocodeGeneration) return;
+      setState(() {
+        _addressGeocode = result;
+        _addressValidating = false;
+      });
+    } catch (_) {
+      if (!mounted || generation != _addressGeocodeGeneration) return;
+      setState(() {
+        _addressGeocode = AddressGeocodeResult.notFound;
+        _addressValidating = false;
+      });
+    }
   }
 
   void _setPrimary(String hex) {
@@ -254,6 +309,16 @@ class _StylesTabState extends ConsumerState<StylesTab> {
   // ── Save styles ────────────────────────────────────────────────────────────
 
   Future<void> _save() async {
+    final formatError = AgendaAddressFormat.validate(_direccionCtrl.text);
+    if (formatError != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(formatError)),
+        );
+      }
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       await ref.read(businessesProvider(widget.tenantId).notifier).update(
@@ -366,6 +431,9 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       logoUrl: _logoUrl,
       bannerUrl: _bannerUrl,
       direccionCtrl: _direccionCtrl,
+      addressFormatError: _addressFormatError,
+      addressGeocode: _addressGeocode,
+      addressValidating: _addressValidating,
       isUploadingLogo: _uploadingLogo,
       isUploadingBanner: _uploadingBanner,
       isChanged: _changed,
@@ -374,9 +442,6 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       photoUrls: photoUrls,
       onUploadLogo: _pickAndUploadLogo,
       onUploadBanner: _pickAndUploadBanner,
-      onDireccionChanged: () {
-        if (!_changed) setState(() => _changed = true);
-      },
       onPrimaryChange: _setPrimary,
       onBackgroundChange: _setBackground,
       onFontChange: _setFont,
@@ -464,6 +529,9 @@ class _ConfigColumn extends StatelessWidget {
     required this.logoUrl,
     required this.bannerUrl,
     required this.direccionCtrl,
+    required this.addressFormatError,
+    required this.addressGeocode,
+    required this.addressValidating,
     required this.isUploadingLogo,
     required this.isUploadingBanner,
     required this.isChanged,
@@ -472,7 +540,6 @@ class _ConfigColumn extends StatelessWidget {
     required this.photoUrls,
     required this.onUploadLogo,
     required this.onUploadBanner,
-    required this.onDireccionChanged,
     required this.onPrimaryChange,
     required this.onBackgroundChange,
     required this.onFontChange,
@@ -486,6 +553,9 @@ class _ConfigColumn extends StatelessWidget {
   final String? logoUrl;
   final String? bannerUrl;
   final TextEditingController direccionCtrl;
+  final String? addressFormatError;
+  final AddressGeocodeResult? addressGeocode;
+  final bool addressValidating;
   final bool isUploadingLogo;
   final bool isUploadingBanner;
   final bool isChanged;
@@ -494,7 +564,6 @@ class _ConfigColumn extends StatelessWidget {
   final List<String> photoUrls;
   final VoidCallback onUploadLogo;
   final VoidCallback onUploadBanner;
-  final VoidCallback onDireccionChanged;
   final ValueChanged<String> onPrimaryChange;
   final ValueChanged<String> onBackgroundChange;
   final ValueChanged<String> onFontChange;
@@ -559,21 +628,85 @@ class _ConfigColumn extends StatelessWidget {
               _Block(
                 title: 'Dirección',
                 hint:
-                    'Dirección del local. Se muestra en tu perfil público para que los clientes te encuentren.',
-                child: TextField(
-                  controller: direccionCtrl,
-                  onChanged: (_) => onDireccionChanged(),
-                  style: GoogleFonts.inter(fontSize: 14, color: KTokens.ink),
-                  decoration: InputDecoration(
-                    hintText: 'Av. Siempre Viva 742, Springfield',
-                    hintStyle:
-                        GoogleFonts.inter(fontSize: 14, color: KTokens.inkPlaceholder),
-                    prefixIcon: const Icon(Icons.place_outlined,
-                        size: 20, color: KTokens.inkSoft),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(KTokens.rMd),
+                    'Dirección completa, barrio o ciudad. Se muestra en tu perfil público; el mapa usa la mejor ubicación posible.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: direccionCtrl,
+                      style: GoogleFonts.inter(fontSize: 14, color: KTokens.ink),
+                      decoration: InputDecoration(
+                        hintText: 'Av. Brasil 2847, Montevideo — o solo Pocitos, Montevideo',
+                        hintStyle: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: KTokens.inkPlaceholder,
+                        ),
+                        prefixIcon: const Icon(Icons.place_outlined,
+                            size: 20, color: KTokens.inkSoft),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(KTokens.rMd),
+                        ),
+                        errorText: addressFormatError,
+                      ),
                     ),
-                  ),
+                    if (addressValidating) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: KTokens.inkMuted,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Buscando en el mapa…',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: KTokens.inkMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else if (addressFormatError == null &&
+                        direccionCtrl.text.trim().isNotEmpty &&
+                        addressGeocode != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            addressGeocode!.found
+                                ? Icons.check_circle_outline
+                                : Icons.info_outline,
+                            size: 16,
+                            color: addressGeocode!.found
+                                ? const Color(0xFF16A34A)
+                                : KTokens.inkMuted,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              addressGeocode!.found
+                                  ? AgendaAddressFormat.mapHintForPrecision(
+                                      addressGeocode!.precision,
+                                      direccionCtrl.text,
+                                    )
+                                  : 'No pudimos ubicarla en el mapa. Podés guardarla igual; el perfil mostrará la dirección sin miniatura.',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: KTokens.inkMuted,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
               const _BlockDivider(),
@@ -639,7 +772,7 @@ class _ConfigColumn extends StatelessWidget {
                       label: 'Guardar cambios',
                       icon: Icons.check_rounded,
                       loading: isSaving,
-                      onPressed: onSave,
+                      onPressed: addressFormatError == null ? onSave : null,
                     ),
                     const SizedBox(width: 12),
                     Text(

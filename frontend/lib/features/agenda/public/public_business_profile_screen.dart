@@ -1096,6 +1096,14 @@ class _Location extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if (AgendaAddressFormat.looksLikeAreaOnly(addr))
+                      Padding(
+                        padding: const EdgeInsets.only(left: 24, top: 4),
+                        child: Text(
+                          'Ubicación aproximada en el mapa.',
+                          style: _D.t(11, c: _D.muted, h: 1.35),
+                        ),
+                      ),
                   ],
                 ),
               ),

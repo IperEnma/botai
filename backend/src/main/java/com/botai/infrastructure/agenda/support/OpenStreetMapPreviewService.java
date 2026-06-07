@@ -1,5 +1,6 @@
 package com.botai.infrastructure.agenda.support;
 
+import com.botai.application.agenda.dto.AddressGeocodeResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -48,8 +49,23 @@ public class OpenStreetMapPreviewService {
             return Optional.empty();
         }
         int size = Math.max(64, Math.min(512, pixelSize));
-        return geocode(address.trim())
-                .flatMap(coords -> renderMapPng(coords.lat(), coords.lon(), size));
+        return lookupAddress(address.trim())
+                .flatMap(hit -> renderMapPng(hit.lat(), hit.lon(), size));
+    }
+
+    /** Geocodifica con las mismas variantes de consulta que el preview del mapa. */
+    public Optional<GeocodeHit> lookupAddress(String address) {
+        if (address == null || address.isBlank()) {
+            return Optional.empty();
+        }
+        return geocodeDetailed(address.trim());
+    }
+
+    public AddressGeocodeResponse lookupAddressResponse(String address) {
+        return lookupAddress(address)
+                .map(hit -> new AddressGeocodeResponse(
+                        true, hit.lat(), hit.lon(), hit.displayName(), hit.precision()))
+                .orElseGet(AddressGeocodeResponse::notFound);
     }
 
     static List<String> geocodeQueries(String address) {
@@ -90,7 +106,7 @@ public class OpenStreetMapPreviewService {
         return out;
     }
 
-    private Optional<Coords> geocode(String address) {
+    private Optional<GeocodeHit> geocodeDetailed(String address) {
         List<String> queries = geocodeQueries(address);
         for (int i = 0; i < queries.size(); i++) {
             if (i > 0) {
@@ -101,7 +117,7 @@ public class OpenStreetMapPreviewService {
                     return Optional.empty();
                 }
             }
-            Optional<Coords> found = geocodeOnce(queries.get(i));
+            Optional<GeocodeHit> found = geocodeOnce(queries.get(i));
             if (found.isPresent()) {
                 return found;
             }
@@ -109,7 +125,7 @@ public class OpenStreetMapPreviewService {
         return Optional.empty();
     }
 
-    private Optional<Coords> geocodeOnce(String query) {
+    private Optional<GeocodeHit> geocodeOnce(String query) {
         try {
             String q = URLEncoder.encode(query, StandardCharsets.UTF_8);
             String countryCodes = query.toLowerCase(Locale.ROOT).contains("uruguay") ? "&countrycodes=uy" : "";
@@ -136,10 +152,38 @@ public class OpenStreetMapPreviewService {
             if (Double.isNaN(lat) || Double.isNaN(lon)) {
                 return Optional.empty();
             }
-            return Optional.of(new Coords(lat, lon));
+            String displayName = item.hasNonNull("display_name")
+                    ? item.get("display_name").asText()
+                    : query;
+            String type = item.hasNonNull("type") ? item.get("type").asText() : "";
+            String osmClass = item.hasNonNull("class") ? item.get("class").asText() : "";
+            String precision = classifyPrecision(type, osmClass);
+            return Optional.of(new GeocodeHit(lat, lon, displayName, precision));
         } catch (Exception ex) {
             return Optional.empty();
         }
+    }
+
+    static String classifyPrecision(String type, String osmClass) {
+        String t = type == null ? "" : type.toLowerCase(Locale.ROOT);
+        String c = osmClass == null ? "" : osmClass.toLowerCase(Locale.ROOT);
+
+        if ("house".equals(t) || "building".equals(t) || ("yes".equals(t) && "building".equals(c))) {
+            return "EXACT";
+        }
+        if ("place".equals(c)) {
+            if (Set.of("city", "town", "village", "suburb", "neighbourhood", "quarter", "locality", "municipality")
+                    .contains(t)) {
+                return "AREA";
+            }
+        }
+        if ("boundary".equals(c) && ("administrative".equals(t) || "political".equals(t))) {
+            return "AREA";
+        }
+        if ("highway".equals(c) || t.contains("road") || "pedestrian".equals(t) || "footway".equals(t)) {
+            return "APPROXIMATE";
+        }
+        return "APPROXIMATE";
     }
 
     private Optional<byte[]> renderMapPng(double lat, double lon, int size) {
@@ -270,6 +314,6 @@ public class OpenStreetMapPreviewService {
         }
     }
 
-    private record Coords(double lat, double lon) {
+    public record GeocodeHit(double lat, double lon, String displayName, String precision) {
     }
 }

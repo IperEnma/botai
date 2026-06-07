@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../core/api_error_presenter.dart';
+import '../core/agenda_address.dart';
 import '../core/auth_bearer_token.dart';
 import '../core/config.dart';
 import '../models/agenda/agenda_json.dart';
@@ -467,6 +468,18 @@ class AgendaApiService {
           headers: _publicHeaders(),
         ));
     return _decodeList(r, agenda.Category.fromJson);
+  }
+
+  /// `GET /public/address/geocode?address=` — valida formato y geocodifica (exacta o aproximada).
+  Future<AddressGeocodeResult> geocodeAddress(String address) async {
+    final r = await _sendPublic(() => _client.get(
+          _uri('/public/address/geocode', {'address': address}),
+          headers: _publicHeaders(),
+        ));
+    _ensureOk(r);
+    return AddressGeocodeResult.fromJson(
+      jsonDecode(r.body) as Map<String, dynamic>,
+    );
   }
 
   /// `GET /public/categories/{slug}/businesses`
