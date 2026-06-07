@@ -14,7 +14,7 @@ import '../features/agenda/public/public_company_landing_screen.dart';
 import '../features/agenda/public/public_mis_reservas_screen.dart';
 import '../features/agenda/public/public_reservar_screen.dart';
 import '../features/agenda/public/category_businesses_screen.dart';
-import '../features/agenda/public/public_business_detail_screen.dart';
+import '../features/agenda/public/public_business_profile_screen.dart';
 import '../features/agenda/public/search_screen.dart';
 import '../features/agenda/public/landing_screen.dart';
 import '../features/agenda/platform/categories_admin_screen.dart';
