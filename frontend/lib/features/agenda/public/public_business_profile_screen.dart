@@ -961,22 +961,48 @@ class _Location extends StatelessWidget {
   static (String, String?) _addressLines(String addr, Business b) {
     final trimmed = addr.trim();
     if (trimmed.isEmpty) return ('', null);
-    final parts = trimmed
+
+    final locTags = b.locationTags
+        .map((t) => t.value.trim())
+        .where((v) => v.isNotEmpty)
+        .toList();
+
+    final segments = trimmed
         .split(',')
         .map((p) => p.trim())
         .where((p) => p.isNotEmpty)
         .toList();
-    if (parts.length >= 2) {
-      final a = parts.first;
-      final b = parts.sublist(1).join(', ');
-      final bLooksLikeStreet = RegExp(r'\d').hasMatch(b);
-      final aLooksLikeStreet = RegExp(r'\d').hasMatch(a);
-      if (bLooksLikeStreet && !aLooksLikeStreet) return (b, a);
-      return (a, b);
+
+    final digitIdx = segments.indexWhere((s) => RegExp(r'\d').hasMatch(s));
+    String line1;
+    String? line2;
+
+    if (digitIdx >= 0) {
+      line1 = segments.sublist(0, digitIdx + 1).join(', ');
+      if (digitIdx + 1 < segments.length) {
+        line2 = segments.sublist(digitIdx + 1).join(', ');
+      }
+    } else {
+      line1 = trimmed;
     }
-    final loc = b.locationTags.map((t) => t.value.trim()).where((v) => v.isNotEmpty);
-    if (loc.isNotEmpty) return (trimmed, loc.join(', '));
-    return (trimmed, null);
+
+    if (locTags.isNotEmpty) {
+      line2 = locTags.join(', ');
+    } else if (line2 == null && segments.length >= 2) {
+      final withoutStreet = segments.where((s) => !RegExp(r'\d').hasMatch(s)).toList();
+      if (withoutStreet.isNotEmpty) {
+        line2 = withoutStreet.join(', ').replaceAll(' / ', ', ');
+      }
+    }
+
+    return (line1, line2);
+  }
+
+  static String _geocodeQuery(String addr, Business b) {
+    return OpenStreetMapPreview.geocodeQuery(
+      address: addr,
+      locationHints: b.locationTags.map((t) => t.value),
+    );
   }
 
   @override
@@ -1013,12 +1039,12 @@ class _Location extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: _MapPreview(
-                      address: addr,
+                      geocodeQuery: _geocodeQuery(addr, business),
                       mapsUrl: mapsUrl,
                       width: 96,
                       height: 96,
@@ -1028,13 +1054,14 @@ class _Location extends StatelessWidget {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         if (_hasAddress) ...[
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.only(top: 1),
+                                padding: const EdgeInsets.only(top: 2),
                                 child: Icon(
                                   Icons.place_outlined,
                                   size: 18,
@@ -1057,23 +1084,31 @@ class _Location extends StatelessWidget {
                                         line2,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: _D.t(13, w: FontWeight.w500, h: 1.35),
+                                        style: _D.t(
+                                          13,
+                                          w: FontWeight.w400,
+                                          c: _D.muted,
+                                          h: 1.35,
+                                        ),
                                       ),
                                   ],
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           if (mapsUrl != null)
-                            GestureDetector(
-                              onTap: () => openExternalUrl(mapsUrl),
-                              child: Text(
-                                'Ver en el mapa >',
-                                style: _D.t(
-                                  13,
-                                  w: FontWeight.w600,
-                                  c: _D.brand(context),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 24),
+                              child: GestureDetector(
+                                onTap: () => openExternalUrl(mapsUrl),
+                                child: Text(
+                                  'Ver en el mapa >',
+                                  style: _D.t(
+                                    13,
+                                    w: FontWeight.w600,
+                                    c: _D.brand(context),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1095,14 +1130,6 @@ class _Location extends StatelessWidget {
                   facebookUrl: _normalizeUrl(business.facebookUrl),
                 ),
               ],
-              if (_hasAddress)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    '© OpenStreetMap',
-                    style: _D.t(10, c: _D.faint),
-                  ),
-                ),
             ],
           ),
         ),
@@ -1208,81 +1235,29 @@ class _SocialIconButton extends StatelessWidget {
   }
 }
 
-class _MapPreview extends StatefulWidget {
+class _MapPreview extends StatelessWidget {
   const _MapPreview({
-    required this.address,
+    required this.geocodeQuery,
     required this.mapsUrl,
     this.width = 96,
     this.height = 96,
   });
 
-  final String address;
+  final String geocodeQuery;
   final String? mapsUrl;
   final double width;
   final double height;
 
-  @override
-  State<_MapPreview> createState() => _MapPreviewState();
-}
-
-class _MapPreviewState extends State<_MapPreview> {
-  String? _imageUrl;
-  ({double lat, double lon})? _coords;
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPreview();
-  }
-
-  @override
-  void didUpdateWidget(_MapPreview oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.address != widget.address) _loadPreview();
-  }
-
-  Future<void> _loadPreview() async {
-    final addr = widget.address.trim();
-    if (addr.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _imageUrl = null;
-          _coords = null;
-          _loaded = true;
-        });
-      }
-      return;
-    }
-    final coords = await OpenStreetMapPreview.geocode(addr);
-    if (!mounted) return;
-    setState(() {
-      _coords = coords;
-      _imageUrl = coords == null
-          ? null
-          : OpenStreetMapPreview.staticMapUrl(
-              lat: coords.lat,
-              lon: coords.lon,
-              pixelSize: (widget.width * 2).round(),
-            );
-      _loaded = true;
-    });
-  }
-
-  String? _openUrl() {
-    final addr = widget.address.trim();
-    if (addr.isEmpty) return null;
-    final coords = _coords;
-    if (coords != null) {
-      return GoogleMapsUrls.searchCoords(lat: coords.lat, lng: coords.lon);
-    }
-    return widget.mapsUrl ?? GoogleMapsUrls.search(addr);
+  String? get _openUrl {
+    final q = geocodeQuery.trim();
+    if (q.isEmpty) return null;
+    return mapsUrl ?? GoogleMapsUrls.search(q);
   }
 
   Widget _placeholder(BuildContext context) {
     return Container(
-      width: widget.width,
-      height: widget.height,
+      width: width,
+      height: height,
       color: const Color(0xFFE7E4DC),
       child: Stack(
         fit: StackFit.expand,
@@ -1302,29 +1277,52 @@ class _MapPreviewState extends State<_MapPreview> {
 
   @override
   Widget build(BuildContext context) {
-    final openUrl = _openUrl();
+    final q = geocodeQuery.trim();
+    final openUrl = _openUrl;
     final placeholder = _placeholder(context);
 
     Widget body;
-    if (!_loaded) {
+    if (q.isEmpty) {
       body = placeholder;
-    } else if (_imageUrl != null) {
-      body = Image.network(
-        _imageUrl!,
-        width: widget.width,
-        height: widget.height,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => placeholder,
-      );
     } else {
-      body = placeholder;
+      final imageUrl = OpenStreetMapPreview.previewImageUrl(
+        q,
+        pixelSize: (width * 2).round(),
+      );
+      body = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Image.network(
+            imageUrl,
+            width: width,
+            height: height,
+            fit: BoxFit.cover,
+            loadingBuilder: (_, child, progress) =>
+                progress == null ? child : placeholder,
+            errorBuilder: (_, _, _) => placeholder,
+          ),
+          Positioned(
+            left: 4,
+            bottom: 2,
+            child: Text(
+              '© OSM',
+              style: TextStyle(
+                fontSize: 7,
+                height: 1,
+                color: Colors.black.withValues(alpha: 0.45),
+              ),
+            ),
+          ),
+        ],
+      );
     }
 
-    if (openUrl == null) return body;
+    final sized = SizedBox(width: width, height: height, child: body);
+    if (openUrl == null) return sized;
 
     return GestureDetector(
       onTap: () => openExternalUrl(openUrl),
-      child: body,
+      child: sized,
     );
   }
 }
