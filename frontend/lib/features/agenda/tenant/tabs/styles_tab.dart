@@ -117,29 +117,32 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     }
   }
 
-  /// Limpia logo/banner inválidos en BD (p. ej. dirección guardada por error).
+  /// Repara banner/dirección intercambiados en BD o media inválida en logo/banner.
   Future<void> _cleanupCorruptMediaIfNeeded() async {
-    if (!widget.business.hadInvalidMediaUrls || !mounted) return;
+    if (!mounted) return;
+    final b = widget.business;
+    if (!b.needsFieldRepair && !b.hadInvalidMediaUrls) return;
     try {
       await ref.read(businessesProvider(widget.tenantId).notifier).update(
-            businessId: widget.business.id,
-            nombre: widget.business.nombre,
-            descripcion: widget.business.descripcion,
-            searchTags: widget.business.searchTags,
-            logoUrl: '',
-            bannerUrl: '',
+            businessId: b.id,
+            nombre: b.nombre,
+            descripcion: b.descripcion,
+            searchTags: b.searchTags,
+            logoUrl: b.logoUrl ?? '',
+            bannerUrl: b.bannerUrl ?? '',
             colorPrimario: _primary,
-            instagramUrl: widget.business.instagramUrl,
-            tiktokUrl: widget.business.tiktokUrl,
-            facebookUrl: widget.business.facebookUrl,
+            instagramUrl: b.instagramUrl,
+            tiktokUrl: b.tiktokUrl,
+            facebookUrl: b.facebookUrl,
             colorFondo: _background,
             fontFamily: _font,
-            direccion: _direccionValue,
+            direccion: b.direccion,
           );
       if (mounted) {
         setState(() {
-          _logoUrl = null;
-          _bannerUrl = null;
+          _logoUrl = b.logoUrl;
+          _bannerUrl = b.bannerUrl;
+          _direccionCtrl.text = b.direccion ?? '';
         });
         _invalidatePublicProfile();
       }
@@ -192,7 +195,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
               bannerUrl: _bannerUrl ?? '',
             );
         if (mounted) {
-          setState(() => _logoUrl = url);
+          setState(() => _logoUrl = sanitizeAgendaMediaUrl(url) ?? url);
           _invalidatePublicProfile();
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Logo actualizado')));
@@ -252,7 +255,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
               bannerUrl: url,
             );
         if (mounted) {
-          setState(() => _bannerUrl = url);
+          setState(() => _bannerUrl = sanitizeAgendaMediaUrl(url) ?? url);
           _invalidatePublicProfile();
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Portada actualizada')));

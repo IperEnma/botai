@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../core/api_error_presenter.dart';
 import '../core/auth_bearer_token.dart';
 import '../core/config.dart';
+import '../models/agenda/agenda_json.dart';
 import '../models/agenda/agenda_notification.dart';
 import '../models/agenda/agenda_review.dart';
 import '../models/agenda/agenda_service.dart';
@@ -223,6 +224,13 @@ class AgendaApiService {
           .map((e) => map(Map<String, dynamic>.from(e)))
           .toList(growable: false);
     });
+  }
+
+  String _parseUploadUrl(dynamic body) {
+    if (body is! Map) {
+      throw AgendaApiException(message: 'Respuesta de upload inválida');
+    }
+    return AgendaJson.parseString((body as Map)['url']);
   }
 
   // =====================================================================
@@ -860,7 +868,7 @@ class AgendaApiService {
     request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
     final streamed = await request.send().timeout(_uploadTimeout);
     final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
-    return _decode(r, (body) => (body as Map<String, dynamic>)['url'] as String);
+    return _decode(r, _parseUploadUrl);
   }
 
   /// `POST /me/businesses/{businessId}/staff/{staffId}/avatar`
@@ -880,7 +888,7 @@ class AgendaApiService {
     request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
     final streamed = await request.send().timeout(_uploadTimeout);
     final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
-    return _decode(r, (body) => (body as Map<String, dynamic>)['url'] as String);
+    return _decode(r, _parseUploadUrl);
   }
 
   /// `POST /me/businesses/{businessId}/banner` — sube imagen de banner del negocio.
@@ -900,7 +908,7 @@ class AgendaApiService {
     request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
     final streamed = await request.send().timeout(_uploadTimeout);
     final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
-    return _decode(r, (body) => (body as Map<String, dynamic>)['url'] as String);
+    return _decode(r, _parseUploadUrl);
   }
 
   // =====================================================================

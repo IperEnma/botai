@@ -60,8 +60,8 @@ public class UpdateBusinessUseCase {
                 existing.getPublicSlug(),
                 existing.getCompanySlug(),
                 existing.getBotId(),
-                bannerUrl == null ? existing.getBannerUrl() : blankToNull(bannerUrl),
                 direccion == null ? existing.getDireccion() : direccion,
+                bannerUrl == null ? existing.getBannerUrl() : blankToNull(bannerUrl),
                 existing.getDeletedAt(),
                 existing.getCreatedAt(),
                 existing.getUpdatedAt()

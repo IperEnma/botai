@@ -32,6 +32,8 @@ class Business {
   final int reviewCount;
   /// True si el JSON traía logo/banner que no son paths de upload (p. ej. dirección).
   final bool hadInvalidMediaUrls;
+  /// True si banner/dirección venían intercambiados en BD (bug backend corregido).
+  final bool needsFieldRepair;
 
   const Business({
     required this.id,
@@ -58,13 +60,20 @@ class Business {
     this.rating,
     this.reviewCount = 0,
     this.hadInvalidMediaUrls = false,
+    this.needsFieldRepair = false,
   });
 
   factory Business.fromJson(Map<String, dynamic> json) {
     final rawLogo = AgendaJson.parseStringOrNull(json['logoUrl']);
     final rawBanner = AgendaJson.parseStringOrNull(json['bannerUrl']);
+    final rawDireccion = AgendaJson.parseStringOrNull(json['direccion']);
+    final bannerInDireccion = sanitizeAgendaMediaUrl(rawDireccion);
+    final addressInBanner = (rawBanner != null && !isAgendaMediaUrl(rawBanner))
+        ? rawBanner.trim()
+        : null;
     final hadInvalidMedia = (rawLogo != null && !isAgendaMediaUrl(rawLogo)) ||
         (rawBanner != null && !isAgendaMediaUrl(rawBanner));
+    final needsRepair = bannerInDireccion != null || addressInBanner != null;
 
     return Business(
       id: AgendaJson.parseString(json['id']),
@@ -86,11 +95,12 @@ class Business {
       botId: AgendaJson.parseIntOrNull(json['botId']),
       createdAt: AgendaJson.parseDateTimeOrNull(json['createdAt']),
       updatedAt: AgendaJson.parseDateTimeOrNull(json['updatedAt']),
-      direccion: AgendaJson.parseStringOrNull(json['direccion']),
-      bannerUrl: sanitizeAgendaMediaUrl(rawBanner),
+      direccion: sanitizeBusinessDireccion(rawDireccion) ?? addressInBanner,
+      bannerUrl: sanitizeAgendaMediaUrl(rawBanner) ?? bannerInDireccion,
       rating: AgendaJson.parseDoubleOrNull(json['rating']),
       reviewCount: AgendaJson.parseInt(json['reviewCount']),
       hadInvalidMediaUrls: hadInvalidMedia,
+      needsFieldRepair: needsRepair,
     );
   }
 
@@ -134,6 +144,7 @@ class Business {
       rating: rating,
       reviewCount: reviewCount,
       hadInvalidMediaUrls: hadInvalidMediaUrls,
+      needsFieldRepair: needsFieldRepair,
     );
   }
 

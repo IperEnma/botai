@@ -46,6 +46,14 @@ bool isAgendaMediaUrl(String? raw) {
 String? sanitizeAgendaMediaUrl(String? raw) =>
     isAgendaMediaUrl(raw) ? raw!.trim() : null;
 
+/// Dirección postal: rechaza paths `/uploads/…` guardados por error en [direccion].
+String? sanitizeBusinessDireccion(String? raw) {
+  if (raw == null) return null;
+  final v = raw.trim();
+  if (v.isEmpty || isAgendaMediaUrl(v)) return null;
+  return v;
+}
+
 /// Devuelve `/uploads/…` si [raw] apunta a un archivo subido de Agenda.
 String? _extractUploadPath(String raw) {
   const marker = '/uploads/';

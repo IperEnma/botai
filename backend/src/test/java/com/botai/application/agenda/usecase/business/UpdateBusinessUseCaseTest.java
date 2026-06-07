@@ -106,6 +106,43 @@ class UpdateBusinessUseCaseTest {
     }
 
     @Test
+    void actualizaBannerUrlYDireccionEnCamposCorrectos() {
+        when(businessRepository.findByIdAndTenantId(businessId, tenantId))
+                .thenReturn(Optional.of(existing()));
+        when(businessRepository.save(any(Business.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        useCase.execute(tenantId, businessId,
+                null, null, null, null,
+                null, null, null, null, null, null, null,
+                "/uploads/businesses/test/banner.jpg",
+                "Av. Brasil 2847, Montevideo");
+
+        ArgumentCaptor<Business> captor = ArgumentCaptor.forClass(Business.class);
+        verify(businessRepository).save(captor.capture());
+        Business saved = captor.getValue();
+
+        assertEquals("/uploads/businesses/test/banner.jpg", saved.getBannerUrl());
+        assertEquals("Av. Brasil 2847, Montevideo", saved.getDireccion());
+    }
+
+    @Test
+    void bannerUrlVacioSePersisteComoNull() {
+        when(businessRepository.findByIdAndTenantId(businessId, tenantId))
+                .thenReturn(Optional.of(existing()));
+        when(businessRepository.save(any(Business.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        useCase.execute(tenantId, businessId,
+                null, null, null, null,
+                null, null, null, null, null, null, null,
+                "   ",
+                null);
+
+        ArgumentCaptor<Business> captor = ArgumentCaptor.forClass(Business.class);
+        verify(businessRepository).save(captor.capture());
+        assertEquals(null, captor.getValue().getBannerUrl());
+    }
+
+    @Test
     void siNoExisteElNegocioParaElTenantLanzaNotFound() {
         when(businessRepository.findByIdAndTenantId(businessId, tenantId))
                 .thenReturn(Optional.empty());
