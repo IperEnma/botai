@@ -42,13 +42,16 @@ class AgendaApiService {
     String? baseUrl,
     http.Client? client,
     Duration? timeout,
+    Duration? uploadTimeout,
   })  : baseUrl = baseUrl ?? AppConfig.agendaApiBaseUrl,
         _client = client ?? http.Client(),
-        _timeout = timeout ?? const Duration(seconds: 15);
+        _timeout = timeout ?? const Duration(seconds: 15),
+        _uploadTimeout = uploadTimeout ?? const Duration(seconds: 90);
 
   final String baseUrl;
   final http.Client _client;
   final Duration _timeout;
+  final Duration _uploadTimeout;
 
   String? _accessToken;
   String? _userId;
@@ -855,8 +858,8 @@ class AgendaApiService {
       request.headers['Authorization'] = 'Bearer $_accessToken';
     }
     request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
-    final streamed = await request.send().timeout(_timeout);
-    final r = await http.Response.fromStream(streamed);
+    final streamed = await request.send().timeout(_uploadTimeout);
+    final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
     return _decode(r, (body) => (body as Map<String, dynamic>)['url'] as String);
   }
 
@@ -875,8 +878,8 @@ class AgendaApiService {
       request.headers['Authorization'] = 'Bearer $_accessToken';
     }
     request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
-    final streamed = await request.send().timeout(_timeout);
-    final r = await http.Response.fromStream(streamed);
+    final streamed = await request.send().timeout(_uploadTimeout);
+    final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
     return _decode(r, (body) => (body as Map<String, dynamic>)['url'] as String);
   }
 
@@ -895,8 +898,8 @@ class AgendaApiService {
       request.headers['Authorization'] = 'Bearer $_accessToken';
     }
     request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
-    final streamed = await request.send().timeout(_timeout);
-    final r = await http.Response.fromStream(streamed);
+    final streamed = await request.send().timeout(_uploadTimeout);
+    final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
     return _decode(r, (body) => (body as Map<String, dynamic>)['url'] as String);
   }
 

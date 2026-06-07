@@ -1,11 +1,11 @@
 // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html' as html;
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/agenda_image_upload_prep_web.dart';
 import '../../../../models/agenda/business.dart';
 import '../../../../providers/agenda/agenda_api_provider.dart';
 import '../../../../providers/agenda/public/public_business_slug_provider.dart';
@@ -131,18 +131,13 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       }
       setState(() => _uploadingLogo = true);
       try {
-        final reader = html.FileReader();
-        reader.readAsDataUrl(file);
-        await reader.onLoad.first;
-        final dataUrl = reader.result as String;
-        final comma = dataUrl.indexOf(',');
-        final bytes = base64.decode(dataUrl.substring(comma + 1));
+        final prepared = await prepareLogoUpload(file);
 
         final api = ref.read(agendaApiServiceProvider);
         final url = await api.uploadBusinessAvatar(
           businessId: widget.business.id,
-          bytes: bytes,
-          fileName: file.name,
+          bytes: prepared.bytes,
+          fileName: prepared.fileName,
         );
 
         // Persistimos el logo enseguida (igual que el flow actual).
@@ -196,18 +191,13 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       }
       setState(() => _uploadingBanner = true);
       try {
-        final reader = html.FileReader();
-        reader.readAsDataUrl(file);
-        await reader.onLoad.first;
-        final dataUrl = reader.result as String;
-        final comma = dataUrl.indexOf(',');
-        final bytes = base64.decode(dataUrl.substring(comma + 1));
+        final prepared = await prepareBannerUpload(file);
 
         final api = ref.read(agendaApiServiceProvider);
         final url = await api.uploadBusinessBanner(
           businessId: widget.business.id,
-          bytes: bytes,
-          fileName: file.name,
+          bytes: prepared.bytes,
+          fileName: prepared.fileName,
         );
 
         // Persistimos el banner enseguida (igual que el logo).
