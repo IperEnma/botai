@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-/// OpenStreetMap gratuito para la sección Ubicación del perfil público.
+/// Geocodificación gratuita (Nominatim) para la sección Ubicación del perfil público.
 abstract final class OpenStreetMapUrls {
   static const _nominatimBase = 'https://nominatim.openstreetmap.org';
   static const _staticMapBase = 'https://staticmap.openstreetmap.de/staticmap';

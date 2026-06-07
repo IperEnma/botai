@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/agenda_address.dart';
 import '../../../core/agenda_media_image.dart';
 import '../../../core/agenda_media_url.dart';
+import '../../../core/agenda_google_map_embed.dart';
+import '../../../core/google_maps_urls.dart';
 import '../../../core/openstreetmap_urls.dart';
 import '../../../core/open_external_url.dart';
 import '../../../core/public_business_share.dart';
@@ -915,7 +917,7 @@ class _Location extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final addr = address.trim();
-    final mapsUrl = _hasAddress ? OpenStreetMapUrls.search(addr) : null;
+    final mapsUrl = _hasAddress ? GoogleMapsUrls.search(addr) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -967,11 +969,6 @@ class _Location extends StatelessWidget {
             ],
           ),
         ),
-        if (_hasAddress)
-          Padding(
-            padding: const EdgeInsets.only(top: 6, left: 4),
-            child: Text('© OpenStreetMap', style: _D.t(10, c: _D.faint)),
-          ),
       ],
     );
   }
@@ -988,7 +985,7 @@ class _MapThumbnail extends StatefulWidget {
 }
 
 class _MapThumbnailState extends State<_MapThumbnail> {
-  String? _thumbUrl;
+  ({double lat, double lon})? _coords;
   bool _loaded = false;
 
   @override
@@ -1010,7 +1007,7 @@ class _MapThumbnailState extends State<_MapThumbnail> {
     if (addr.isEmpty) {
       if (mounted) {
         setState(() {
-          _thumbUrl = null;
+          _coords = null;
           _loaded = true;
         });
       }
@@ -1019,23 +1016,29 @@ class _MapThumbnailState extends State<_MapThumbnail> {
     final coords = await OpenStreetMapUrls.geocode(addr);
     if (!mounted) return;
     setState(() {
-      _thumbUrl = coords == null
-          ? null
-          : OpenStreetMapUrls.staticMapThumbnail(
-              lat: coords.lat,
-              lon: coords.lon,
-            );
+      _coords = coords;
       _loaded = true;
     });
+  }
+
+  String? _mapsOpenUrl(String address) {
+    final coords = _coords;
+    if (coords != null) {
+      return GoogleMapsUrls.searchCoords(lat: coords.lat, lng: coords.lon);
+    }
+    return widget.mapsUrl;
   }
 
   @override
   Widget build(BuildContext context) {
     const size = 96.0;
 
-    Widget image;
+    final placeholder = _placeholder(size);
+    final addr = widget.address.trim();
+
+    Widget mapContent;
     if (!_loaded) {
-      image = Container(
+      mapContent = Container(
         color: const Color(0xFFE5E7EB),
         alignment: Alignment.center,
         child: SizedBox(
@@ -1044,24 +1047,29 @@ class _MapThumbnailState extends State<_MapThumbnail> {
           child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context)),
         ),
       );
-    } else if (_thumbUrl != null) {
-      image = Image.network(
-        _thumbUrl!,
+    } else if (addr.isNotEmpty) {
+      final coords = _coords;
+      final embedUrl = GoogleMapsUrls.embed(
+        address: addr,
+        lat: coords?.lat,
+        lng: coords?.lon,
+      );
+      mapContent = AgendaGoogleMapEmbed(
+        embedUrl: embedUrl,
         width: size,
         height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _placeholder(size),
+        placeholder: placeholder,
       );
     } else {
-      image = _placeholder(size);
+      mapContent = placeholder;
     }
 
     final clipped = ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: SizedBox(width: size, height: size, child: image),
+      child: SizedBox(width: size, height: size, child: mapContent),
     );
 
-    final mapsUrl = widget.mapsUrl;
+    final mapsUrl = _mapsOpenUrl(addr);
     if (mapsUrl == null) return clipped;
 
     return GestureDetector(
