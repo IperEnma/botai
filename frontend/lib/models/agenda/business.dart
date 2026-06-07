@@ -1,4 +1,5 @@
 import 'agenda_json.dart';
+import '../../core/agenda_media_url.dart';
 
 /// Negocio completo (vista admin de tenant). Espejo de `BusinessResponse`.
 class Business {
@@ -66,7 +67,7 @@ class Business {
       searchTags: AgendaJson.parseStringList(json['searchTags']),
       categorias: AgendaJson.parseStringList(json['categorias']),
       activo: AgendaJson.parseBool(json['activo'], fallback: true),
-      logoUrl: AgendaJson.parseStringOrNull(json['logoUrl']),
+      logoUrl: sanitizeAgendaMediaUrl(AgendaJson.parseStringOrNull(json['logoUrl'])),
       colorPrimario: AgendaJson.parseStringOrNull(json['colorPrimario']),
       instagramUrl: AgendaJson.parseStringOrNull(json['instagramUrl']),
       tiktokUrl: AgendaJson.parseStringOrNull(json['tiktokUrl']),
@@ -78,7 +79,7 @@ class Business {
       createdAt: AgendaJson.parseDateTimeOrNull(json['createdAt']),
       updatedAt: AgendaJson.parseDateTimeOrNull(json['updatedAt']),
       direccion: AgendaJson.parseStringOrNull(json['direccion']),
-      bannerUrl: AgendaJson.parseStringOrNull(json['bannerUrl']),
+      bannerUrl: sanitizeAgendaMediaUrl(AgendaJson.parseStringOrNull(json['bannerUrl'])),
       rating: AgendaJson.parseDoubleOrNull(json['rating']),
       reviewCount: AgendaJson.parseInt(json['reviewCount']),
     );

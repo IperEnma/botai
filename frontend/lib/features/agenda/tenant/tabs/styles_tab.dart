@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/agenda_image_upload_prep_web.dart';
+import '../../../../core/agenda_media_url.dart';
 import '../../../../models/agenda/business.dart';
 import '../../../../providers/agenda/agenda_api_provider.dart';
 import '../../../../providers/agenda/public/public_business_slug_provider.dart';
@@ -66,8 +67,8 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       _hydrate(widget.business);
     } else {
       // Logo y banner se persisten por separado (al subir) — sincronizar igual.
-      _logoUrl = widget.business.logoUrl ?? _logoUrl;
-      _bannerUrl = widget.business.bannerUrl ?? _bannerUrl;
+      _logoUrl = sanitizeAgendaMediaUrl(widget.business.logoUrl) ?? _logoUrl;
+      _bannerUrl = sanitizeAgendaMediaUrl(widget.business.bannerUrl) ?? _bannerUrl;
     }
   }
 
@@ -75,8 +76,8 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     _primary = (b.colorPrimario ?? '#3B2F63').toUpperCase();
     _background = (b.colorFondo ?? '#FBFAF7').toUpperCase();
     _font = b.fontFamily ?? 'Inter';
-    _logoUrl = b.logoUrl;
-    _bannerUrl = b.bannerUrl;
+    _logoUrl = sanitizeAgendaMediaUrl(b.logoUrl);
+    _bannerUrl = sanitizeAgendaMediaUrl(b.bannerUrl);
     _direccionCtrl.text = b.direccion ?? '';
   }
 
@@ -154,7 +155,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
               colorFondo: _background,
               fontFamily: _font,
               direccion: _direccionValue,
-              bannerUrl: _bannerUrl,
+              bannerUrl: _bannerUrl ?? '',
             );
         if (mounted) {
           setState(() => _logoUrl = url);
@@ -206,7 +207,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
               nombre: widget.business.nombre,
               descripcion: widget.business.descripcion,
               searchTags: widget.business.searchTags,
-              logoUrl: _logoUrl,
+              logoUrl: _logoUrl ?? '',
               colorPrimario: _primary,
               instagramUrl: widget.business.instagramUrl,
               tiktokUrl: widget.business.tiktokUrl,
@@ -243,7 +244,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             nombre: widget.business.nombre,
             descripcion: widget.business.descripcion,
             searchTags: widget.business.searchTags,
-            logoUrl: _logoUrl,
+            logoUrl: _logoUrl ?? '',
             colorPrimario: _primary,
             instagramUrl: widget.business.instagramUrl,
             tiktokUrl: widget.business.tiktokUrl,
@@ -251,7 +252,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             colorFondo: _background,
             fontFamily: _font,
             direccion: _direccionValue,
-            bannerUrl: _bannerUrl,
+            bannerUrl: _bannerUrl ?? '',
           );
       if (mounted) {
         setState(() => _changed = false);

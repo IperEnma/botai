@@ -50,7 +50,7 @@ public class UpdateBusinessUseCase {
                 existing.getOwnerUserId(),
                 searchTags == null ? existing.getSearchTags() : searchTags,
                 activo == null ? existing.isActivo() : activo,
-                logoUrl == null ? existing.getLogoUrl() : logoUrl,
+                logoUrl == null ? existing.getLogoUrl() : blankToNull(logoUrl),
                 colorPrimario == null ? existing.getColorPrimario() : colorPrimario,
                 instagramUrl == null ? existing.getInstagramUrl() : instagramUrl,
                 tiktokUrl == null ? existing.getTiktokUrl() : tiktokUrl,
@@ -60,7 +60,7 @@ public class UpdateBusinessUseCase {
                 existing.getPublicSlug(),
                 existing.getCompanySlug(),
                 existing.getBotId(),
-                bannerUrl == null ? existing.getBannerUrl() : bannerUrl,
+                bannerUrl == null ? existing.getBannerUrl() : blankToNull(bannerUrl),
                 direccion == null ? existing.getDireccion() : direccion,
                 existing.getDeletedAt(),
                 existing.getCreatedAt(),
@@ -69,5 +69,9 @@ public class UpdateBusinessUseCase {
         Business saved = businessRepository.save(updated);
         log.info("AGENDA: negocio actualizado id={} tenantId={}", saved.getId(), tenantId);
         return saved;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }
