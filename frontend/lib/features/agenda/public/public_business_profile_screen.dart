@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/config.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/business_hours.dart';
@@ -66,6 +67,14 @@ abstract final class _D {
       GoogleFonts.inter(fontSize: s, fontWeight: w, color: c, height: h);
 }
 
+String? _mediaUrl(String? raw) {
+  if (raw == null || raw.trim().isEmpty) return null;
+  final u = raw.trim();
+  if (u.startsWith('http://') || u.startsWith('https://')) return u;
+  if (u.startsWith('/')) return '${AppConfig.serverBaseUrl}$u';
+  return '${AppConfig.serverBaseUrl}/$u';
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 class _FelitoBarberPage extends ConsumerWidget {
@@ -94,7 +103,7 @@ class _FelitoBarberPage extends ConsumerWidget {
     final hours = ref.watch(publicHoursBySlugProvider(slug));
     final services = servicesAsync.valueOrNull ?? const [];
     final canBook = services.isNotEmpty;
-    final addr = business.direccion?.trim();
+    final addr = business.direccion?.trim() ?? '';
 
     return Scaffold(
       backgroundColor: _D.bg,
@@ -120,10 +129,8 @@ class _FelitoBarberPage extends ConsumerWidget {
                     const SizedBox(height: 26),
                     _Hours(hoursAsync: hours),
                     const SizedBox(height: 26),
-                    if (addr != null && addr.isNotEmpty)
-                      _Location(address: addr),
-                    if (addr != null && addr.isNotEmpty)
-                      const SizedBox(height: 26),
+                    _Location(address: addr),
+                    const SizedBox(height: 26),
                     _Team(staffAsync: staff),
                   ]),
                 ),
@@ -153,76 +160,91 @@ class _Hero extends StatelessWidget {
   final Business business;
   final VoidCallback onBack;
 
-  bool get _bannerOk =>
-      business.bannerUrl != null && business.bannerUrl!.startsWith('http');
+  List<String> get _categoryLabels {
+    if (business.categorias.isNotEmpty) {
+      return business.categorias.take(3).toList();
+    }
+    if (business.searchTags.isNotEmpty) {
+      return business.searchTags.take(3).toList();
+    }
+    return const [];
+  }
 
-  bool get _ratingOk =>
-      business.reviewCount > 0 && business.rating != null;
+  String get _ratingLabel {
+    if (business.reviewCount > 0 && business.rating != null) {
+      return '${business.rating!.toStringAsFixed(1)} (${business.reviewCount} reseñas)';
+    }
+    return 'Sin reseñas aún';
+  }
 
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
+    final bannerUrl = _mediaUrl(business.bannerUrl);
+    final logoUrl = _mediaUrl(business.logoUrl);
+    final cats = _categoryLabels;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: _D.bannerH + top,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (_bannerOk)
-                Image.network(business.bannerUrl!, fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const _BannerFallback())
-              else
-                const _BannerFallback(),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  height: _D.bannerH * 0.62,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.78),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            SizedBox(
+              height: _D.bannerH + top,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (bannerUrl != null)
+                    Image.network(
+                      bannerUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const _BannerFallback(),
+                    )
+                  else
+                    const _BannerFallback(),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      height: _D.bannerH * 0.72,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.55),
+                            Colors.black.withValues(alpha: 0.88),
+                          ],
+                          stops: const [0, 0.4, 1],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: top + 8,
+                    left: _D.pad,
+                    child: _RoundBtn(
+                      icon: Icons.arrow_back_ios_new,
+                      size: 16,
+                      onTap: onBack,
+                    ),
+                  ),
+                  Positioned(
+                    top: top + 8,
+                    right: _D.pad,
+                    child: Row(
+                      children: [
+                        _RoundBtn(icon: Icons.ios_share, onTap: () {}),
+                        const SizedBox(width: 8),
+                        const _HeartBtn(),
                       ],
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                top: top + 8,
-                left: _D.pad,
-                child: _RoundBtn(icon: Icons.arrow_back_ios_new, size: 16, onTap: onBack),
-              ),
-              Positioned(
-                top: top + 8,
-                right: _D.pad,
-                child: Row(
-                  children: [
-                    _RoundBtn(icon: Icons.ios_share, onTap: () {}),
-                    const SizedBox(width: 8),
-                    const _HeartBtn(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        Transform.translate(
-          offset: const Offset(0, -_D.logoLift),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: _D.pad),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _LogoCircle(name: business.nombre, url: business.logoUrl),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                  Positioned(
+                    left: _D.pad + _D.logo + 12,
+                    right: _D.pad,
+                    bottom: _D.logoLift + 10,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -232,43 +254,45 @@ class _Hero extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: _D.t(20, w: FontWeight.w700, c: _D.white, h: 1.15),
                         ),
-                        if (_ratingOk) ...[
-                          const SizedBox(height: 5),
-                          Row(
-                            children: [
-                              _Stars(rating: business.rating!),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  '${business.rating!.toStringAsFixed(1)} (${business.reviewCount} reseñas)',
-                                  style: _D.t(13, w: FontWeight.w500, c: _D.white),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                        const SizedBox(height: 5),
+                        Row(
+                          children: [
+                            _Stars(rating: business.rating ?? 0),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                _ratingLabel,
+                                style: _D.t(13, w: FontWeight.w500, c: _D.white),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
-                        ],
-                        if (business.categorias.isNotEmpty) ...[
+                            ),
+                          ],
+                        ),
+                        if (cats.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
                             runSpacing: 6,
                             children: [
-                              for (final c in business.categorias.take(3))
-                                _Pill(_prettyCat(c)),
+                              for (final c in cats) _Pill(_prettyCat(c)),
                             ],
                           ),
                         ],
                       ],
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            Positioned(
+              left: _D.pad,
+              top: top + _D.bannerH - _D.logoLift,
+              child: _LogoCircle(name: business.nombre, url: logoUrl),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: _D.logoLift + 6),
       ],
     );
   }
@@ -350,7 +374,7 @@ class _LogoCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ok = url != null && url!.startsWith('http');
+    final ok = url != null;
     return Container(
       width: _D.logo,
       height: _D.logo,
@@ -694,8 +718,12 @@ class _Location extends StatelessWidget {
 
   final String address;
 
+  bool get _hasAddress => address.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
+    final text = _hasAddress ? address.trim() : 'Agregá la dirección desde el panel del negocio';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -727,17 +755,24 @@ class _Location extends StatelessWidget {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            address,
-                            style: _D.t(13, w: FontWeight.w500, h: 1.35),
+                            text,
+                            style: _D.t(
+                              13,
+                              w: FontWeight.w500,
+                              h: 1.35,
+                              c: _hasAddress ? _D.ink : _D.muted,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Ver en el mapa >',
-                      style: _D.t(13, w: FontWeight.w600, c: _D.purple),
-                    ),
+                    if (_hasAddress) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ver en el mapa >',
+                        style: _D.t(13, w: FontWeight.w600, c: _D.purple),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -833,13 +868,14 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const sz = 52.0;
-    final ok = url != null && url!.startsWith('http');
+    final resolved = _mediaUrl(url);
+    final ok = resolved != null;
     return ClipOval(
       child: SizedBox(
         width: sz,
         height: sz,
         child: ok
-            ? Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, _, _) => _ini(sz))
+            ? Image.network(resolved, fit: BoxFit.cover, errorBuilder: (_, _, _) => _ini(sz))
             : _ini(sz),
       ),
     );
