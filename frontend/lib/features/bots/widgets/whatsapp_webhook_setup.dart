@@ -10,6 +10,20 @@ import '../../agenda/register/konecta_tokens.dart';
 
 const _verifyTokenDeliveredKeyPrefix = 'wa_verify_delivered_';
 
+/// Pasos Meta comunes (paso 5 depende de si el webhook ya está visible abajo).
+const kWhatsAppMetaSetupStepsPrefix = '''1. Ve a developers.facebook.com
+2. Crea una app de tipo "Business"
+3. Agrega el producto "WhatsApp"
+4. En WhatsApp › API Setup encontrarás Phone Number ID y Access Token''';
+
+String whatsAppMetaSetupStep5({required bool webhookVisibleBelow}) =>
+    webhookVisibleBelow
+        ? '5. Copiá la URL del webhook y el verify token (abajo) en Meta › WhatsApp › Configuration › Webhook'
+        : '5. Creá el bot: abajo vas a copiar la URL y el verify token en Meta › Webhook';
+
+String whatsAppMetaSetupTutorial({required bool webhookVisibleBelow}) =>
+    '$kWhatsAppMetaSetupStepsPrefix\n${whatsAppMetaSetupStep5(webhookVisibleBelow: webhookVisibleBelow)}';
+
 /// URL del webhook + verify token (copia al portapapeles; no se muestra en pantalla).
 class WhatsAppWebhookSetup extends ConsumerStatefulWidget {
   const WhatsAppWebhookSetup({
@@ -146,7 +160,7 @@ class _WhatsAppWebhookSetupState extends ConsumerState<WhatsAppWebhookSetup> {
   }
 }
 
-/// Mensaje en el wizard de creación (aún no hay botId).
+/// Mensaje previo a crear el bot (aún no hay botId para el webhook).
 class WhatsAppWebhookSetupPending extends StatelessWidget {
   const WhatsAppWebhookSetupPending({
     super.key,
@@ -157,6 +171,9 @@ class WhatsAppWebhookSetupPending extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text =
+        'Al crear el bot vas a ver acá la URL del webhook y el botón para copiar el verify token '
+        '(igual que en Configuración). Podés completarlo ahora o después.';
     if (style == WhatsAppWebhookSetupStyle.konecta) {
       return Container(
         width: double.infinity,
@@ -167,8 +184,7 @@ class WhatsAppWebhookSetupPending extends StatelessWidget {
           border: Border.all(color: KTokens.border),
         ),
         child: Text(
-          'Al crear el bot, en Configuración vas a copiar la URL del webhook y el verify token '
-          '(se genera solo y se copia al portapapeles; no queda visible en pantalla).',
+          text,
           style: GoogleFonts.inter(
             fontSize: 12,
             color: KTokens.inkMuted,
@@ -184,8 +200,7 @@ class WhatsAppWebhookSetupPending extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        'Al crear el bot, en Configuración copiás la URL y el verify token en Meta › WhatsApp › Webhook. '
-        'El token se copia al portapapeles y no se muestra en pantalla.',
+        text,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.45),
       ),
     );

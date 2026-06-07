@@ -154,6 +154,7 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
   final TextEditingController _accessTokenCtrl = TextEditingController();
   bool _obscureToken = true;
   bool _isCreating = false;
+  String? _createdBotId;
 
   @override
   void initState() {
@@ -226,7 +227,10 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
       setState(() => _isCreating = false);
       return;
     }
-    Navigator.pop(context);
+    setState(() {
+      _createdBotId = result.id;
+      _isCreating = false;
+    });
   }
 
   @override
@@ -333,13 +337,18 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
               _PanelFooter(
                 isCreating: _isCreating,
                 canProceed: canProceed,
-                onBack: _step > 0 ? () => setState(() => _step--) : null,
-                onNext: _step < lastStep
+                onBack: _step > 0 && _createdBotId == null
+                    ? () => setState(() => _step--)
+                    : null,
+                onNext: _createdBotId == null && _step < lastStep
                     ? () {
                         if (canProceed) setState(() => _step++);
                       }
                     : null,
-                onCreate: _step == lastStep ? _create : null,
+                onCreate: _createdBotId == null && _step == lastStep ? _create : null,
+                onDone: _createdBotId != null
+                    ? () => Navigator.pop(context)
+                    : null,
               ),
             ],
           ),
@@ -387,6 +396,7 @@ class _CreateBotPanelState extends ConsumerState<_CreateBotPanel> {
       accessTokenCtrl: _accessTokenCtrl,
       obscureToken: _obscureToken,
       onToggleObscure: () => setState(() => _obscureToken = !_obscureToken),
+      createdBotId: _createdBotId,
     );
   }
 }
@@ -516,6 +526,7 @@ class _PanelFooter extends StatelessWidget {
     this.onBack,
     this.onNext,
     this.onCreate,
+    this.onDone,
   });
 
   final bool canProceed;
@@ -523,6 +534,7 @@ class _PanelFooter extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onNext;
   final VoidCallback? onCreate;
+  final VoidCallback? onDone;
 
   @override
   Widget build(BuildContext context) {
@@ -590,6 +602,23 @@ class _PanelFooter extends StatelessWidget {
                           strokeWidth: 2, color: Colors.white),
                     )
                   : const Text('Crear bot →'),
+            ),
+          if (onDone != null)
+            ElevatedButton(
+              onPressed: onDone,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: KTokens.ink,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(KTokens.rSm),
+                ),
+                textStyle: GoogleFonts.inter(
+                    fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              child: const Text('Listo'),
             ),
         ],
       ),
@@ -724,12 +753,16 @@ class _StepCanales extends StatelessWidget {
     required this.accessTokenCtrl,
     required this.obscureToken,
     required this.onToggleObscure,
+    this.createdBotId,
   });
 
   final TextEditingController phoneIdCtrl;
   final TextEditingController accessTokenCtrl;
   final bool obscureToken;
   final VoidCallback onToggleObscure;
+  final String? createdBotId;
+
+  bool get _webhookVisible => createdBotId != null && createdBotId!.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -764,11 +797,7 @@ class _StepCanales extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '1. Ve a developers.facebook.com\n'
-                '2. Crea una app de tipo "Business"\n'
-                '3. Agrega el producto "WhatsApp"\n'
-                '4. En WhatsApp › API Setup encontrarás Phone Number ID y Access Token\n'
-                '5. Después de crear el bot, copiá URL y Verify Token desde Configuración',
+                whatsAppMetaSetupTutorial(webhookVisibleBelow: _webhookVisible),
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   color: KTokens.ink,
@@ -780,49 +809,56 @@ class _StepCanales extends StatelessWidget {
         ),
         const SizedBox(height: 24),
 
-        // Phone Number ID
-        Text(
-          'PHONE NUMBER ID',
-          style: GoogleFonts.jetBrainsMono(
-              fontSize: 10, color: KTokens.inkSoft, letterSpacing: 0.8),
-        ),
-        const SizedBox(height: 8),
-        _UnderlineTextField(
-            controller: phoneIdCtrl, hint: 'Ej: 1234567890123456'),
-        const SizedBox(height: 20),
+        if (!_webhookVisible) ...[
+          Text(
+            'PHONE NUMBER ID',
+            style: GoogleFonts.jetBrainsMono(
+                fontSize: 10, color: KTokens.inkSoft, letterSpacing: 0.8),
+          ),
+          const SizedBox(height: 8),
+          _UnderlineTextField(
+              controller: phoneIdCtrl, hint: 'Ej: 1234567890123456'),
+          const SizedBox(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                'ACCESS TOKEN',
+                style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10, color: KTokens.inkSoft, letterSpacing: 0.8),
+              ),
+              const SizedBox(width: 10),
+              const WhatsAppAccessTokenHelpButton(
+                style: WhatsAppAccessTokenHelpStyle.konecta,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _AccessTokenField(
+            controller: accessTokenCtrl,
+            obscure: obscureToken,
+            onToggle: onToggleObscure,
+          ),
+          const SizedBox(height: 24),
+        ],
 
-        // Access Token
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              'ACCESS TOKEN',
-              style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10, color: KTokens.inkSoft, letterSpacing: 0.8),
-            ),
-            const SizedBox(width: 10),
-            const WhatsAppAccessTokenHelpButton(
-              style: WhatsAppAccessTokenHelpStyle.konecta,
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _AccessTokenField(
-          controller: accessTokenCtrl,
-          obscure: obscureToken,
-          onToggle: onToggleObscure,
-        ),
-        const SizedBox(height: 24),
-        const WhatsAppWebhookSetupPending(
-          style: WhatsAppWebhookSetupStyle.konecta,
-        ),
+        if (_webhookVisible)
+          WhatsAppWebhookSetup(
+            botId: createdBotId!,
+            style: WhatsAppWebhookSetupStyle.konecta,
+          )
+        else
+          const WhatsAppWebhookSetupPending(
+            style: WhatsAppWebhookSetupStyle.konecta,
+          ),
         const SizedBox(height: 16),
 
-        // Skip hint
         Center(
           child: Text(
-            'Podés completar esto después desde la configuración del bot.',
+            _webhookVisible
+                ? 'Phone ID y Access Token los podés ajustar después en Configuración del bot.'
+                : 'Phone ID, Access Token y webhook son opcionales ahora. Podés completarlos acá al crear o después en Configuración.',
             style: GoogleFonts.inter(fontSize: 12, color: KTokens.inkSoft),
             textAlign: TextAlign.center,
           ),

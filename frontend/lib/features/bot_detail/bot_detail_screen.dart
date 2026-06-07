@@ -407,13 +407,7 @@ class _WhatsAppTutorialCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '1. Ve a developers.facebook.com\n'
-            '2. Crea una app de tipo "Business"\n'
-            '3. Agrega el producto "WhatsApp"\n'
-            '4. En WhatsApp > API Setup encontrarás:\n'
-            '   • Phone number ID\n'
-            '   • Access Token (temporal o permanente)\n'
-            '5. Después de crear el bot, copiá URL y Verify Token desde Configuración',
+            whatsAppMetaSetupTutorial(webhookVisibleBelow: true),
             style: TextStyle(
               color: Colors.blue[900],
               fontSize: 13,

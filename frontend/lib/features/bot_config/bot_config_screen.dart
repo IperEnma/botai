@@ -45,15 +45,7 @@ class _BotConfigScreenState extends ConsumerState<BotConfigScreen> {
                 children: [
                   _InfoCard(
                     title: '¿Cómo obtener estas credenciales?',
-                    content: '''
-1. Ve a developers.facebook.com
-2. Crea una app de tipo "Business"
-3. Agrega el producto "WhatsApp"
-4. En WhatsApp > API Setup encontrarás:
-   • Phone number ID
-   • Access Token (temporal o permanente)
-5. Después de crear el bot, copiá URL y Verify Token desde Configuración del bot
-                    ''',
+                    content: whatsAppMetaSetupTutorial(webhookVisibleBelow: true),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
