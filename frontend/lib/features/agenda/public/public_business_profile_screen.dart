@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/agenda_address.dart';
 import '../../../core/agenda_media_image.dart';
 import '../../../core/agenda_media_url.dart';
-import '../../../core/google_maps_urls.dart';
+import '../../../core/openstreetmap_urls.dart';
 import '../../../core/open_external_url.dart';
 import '../../../core/public_business_share.dart';
 import '../../../providers/agenda/public/public_client_session_provider.dart';
@@ -93,11 +93,13 @@ class _FelitoBarberPage extends ConsumerWidget {
 
   void _back(BuildContext c) => c.canPop() ? c.pop() : c.go('/');
 
-  void _book(BuildContext c) {
-    final co = GoRouterState.of(c).uri.queryParameters['company'];
-    var p = '/reservar/$slug/reservar';
-    if (co != null && co.isNotEmpty) p = '$p?company=$co';
-    c.go(p);
+  void _openBookingModal(BuildContext context, {AgendaService? service}) {
+    showPublicServiceBookingModal(
+      context: context,
+      slug: slug,
+      business: business,
+      initialService: service,
+    );
   }
 
   @override
@@ -127,13 +129,8 @@ class _FelitoBarberPage extends ConsumerWidget {
                   delegate: SliverChildListDelegate([
                     _Services(
                       servicesAsync: servicesAsync,
-                      onAll: () => _book(context),
-                      onPick: (svc) => showPublicServiceBookingModal(
-                        context: context,
-                        slug: slug,
-                        business: business,
-                        service: svc,
-                      ),
+                      onAll: () => _openBookingModal(context),
+                      onPick: (svc) => _openBookingModal(context, service: svc),
                     ),
                     const SizedBox(height: 26),
                     _Hours(hoursAsync: hours),
@@ -152,7 +149,7 @@ class _FelitoBarberPage extends ConsumerWidget {
             bottom: 0,
             child: _BottomCta(
               enabled: canBook,
-              onTap: canBook ? () => _book(context) : null,
+              onTap: canBook ? () => _openBookingModal(context) : null,
             ),
           ),
         ],
@@ -830,8 +827,7 @@ class _Location extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final addr = address.trim();
-    final mapsUrl = _hasAddress ? GoogleMapsUrls.search(addr) : null;
-    final mapThumb = _hasAddress ? GoogleMapsUrls.staticMapThumbnail(addr) : null;
+    final mapsUrl = _hasAddress ? OpenStreetMapUrls.search(addr) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -843,7 +839,7 @@ class _Location extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _MapThumbnail(url: mapThumb, mapsUrl: mapsUrl),
+              _MapThumbnail(address: addr, mapsUrl: mapsUrl),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -883,25 +879,86 @@ class _Location extends StatelessWidget {
             ],
           ),
         ),
+        if (_hasAddress)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text('© OpenStreetMap', style: _D.t(10, c: _D.faint)),
+          ),
       ],
     );
   }
 }
 
-class _MapThumbnail extends StatelessWidget {
-  const _MapThumbnail({required this.url, required this.mapsUrl});
+class _MapThumbnail extends StatefulWidget {
+  const _MapThumbnail({required this.address, required this.mapsUrl});
 
-  final String? url;
+  final String address;
   final String? mapsUrl;
+
+  @override
+  State<_MapThumbnail> createState() => _MapThumbnailState();
+}
+
+class _MapThumbnailState extends State<_MapThumbnail> {
+  String? _thumbUrl;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThumb();
+  }
+
+  @override
+  void didUpdateWidget(_MapThumbnail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.address != widget.address) {
+      _loadThumb();
+    }
+  }
+
+  Future<void> _loadThumb() async {
+    final addr = widget.address.trim();
+    if (addr.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _thumbUrl = null;
+          _loaded = true;
+        });
+      }
+      return;
+    }
+    final coords = await OpenStreetMapUrls.geocode(addr);
+    if (!mounted) return;
+    setState(() {
+      _thumbUrl = coords == null
+          ? null
+          : OpenStreetMapUrls.staticMapThumbnail(
+              lat: coords.lat,
+              lon: coords.lon,
+            );
+      _loaded = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     const size = 96.0;
 
     Widget image;
-    if (url != null) {
+    if (!_loaded) {
+      image = Container(
+        color: const Color(0xFFE5E7EB),
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2, color: _D.purple),
+        ),
+      );
+    } else if (_thumbUrl != null) {
       image = Image.network(
-        url!,
+        _thumbUrl!,
         width: size,
         height: size,
         fit: BoxFit.cover,
@@ -916,10 +973,11 @@ class _MapThumbnail extends StatelessWidget {
       child: SizedBox(width: size, height: size, child: image),
     );
 
+    final mapsUrl = widget.mapsUrl;
     if (mapsUrl == null) return clipped;
 
     return GestureDetector(
-      onTap: () => openExternalUrl(mapsUrl!),
+      onTap: () => openExternalUrl(mapsUrl),
       child: clipped,
     );
   }

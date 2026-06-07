@@ -11,18 +11,19 @@ import '../../../models/agenda/public_client_profile.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/public/public_client_session_provider.dart';
+import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import 'public_reservar_identity_step.dart';
 import 'public_reservar_layout.dart';
 import 'public_reservar_schedule_step.dart';
 
-enum _ModalStep { schedule, identity, confirmed }
+enum _ModalStep { service, schedule, identity, confirmed }
 
-/// Abre el flujo de reserva en modal (calendario → WhatsApp → confirmación).
+/// Abre el flujo de reserva en modal (servicio opcional → calendario → WhatsApp).
 Future<void> showPublicServiceBookingModal({
   required BuildContext context,
   required String slug,
   required Business business,
-  required AgendaService service,
+  AgendaService? initialService,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -32,7 +33,7 @@ Future<void> showPublicServiceBookingModal({
     builder: (_) => PublicServiceBookingModal(
       slug: slug,
       business: business,
-      service: service,
+      initialService: initialService,
     ),
   );
 }
@@ -42,12 +43,12 @@ class PublicServiceBookingModal extends ConsumerStatefulWidget {
     super.key,
     required this.slug,
     required this.business,
-    required this.service,
+    this.initialService,
   });
 
   final String slug;
   final Business business;
-  final AgendaService service;
+  final AgendaService? initialService;
 
   @override
   ConsumerState<PublicServiceBookingModal> createState() =>
@@ -56,7 +57,8 @@ class PublicServiceBookingModal extends ConsumerStatefulWidget {
 
 class _PublicServiceBookingModalState
     extends ConsumerState<PublicServiceBookingModal> {
-  _ModalStep _step = _ModalStep.schedule;
+  late _ModalStep _step;
+  AgendaService? _service;
   bool _anyStaff = true;
   StaffMember? _selectedStaff;
   DateTime? _selectedDate;
@@ -79,7 +81,17 @@ class _PublicServiceBookingModalState
 
   PublicReservarTheme get _theme => PublicReservarTheme.felito();
 
-  bool get _usesStaff => widget.service.requiresStaffSelection;
+  bool get _skipsServiceStep => widget.initialService != null;
+
+  AgendaService get _activeService {
+    final s = _service;
+    if (s == null) {
+      throw StateError('No hay servicio seleccionado');
+    }
+    return s;
+  }
+
+  bool get _usesStaff => _service?.requiresStaffSelection ?? false;
 
   String? get _effectiveStaffId {
     if (!_usesStaff) return null;
@@ -89,6 +101,8 @@ class _PublicServiceBookingModalState
   @override
   void initState() {
     super.initState();
+    _service = widget.initialService;
+    _step = _service != null ? _ModalStep.schedule : _ModalStep.service;
     WidgetsBinding.instance.addPostFrameCallback((_) => _restoreSession());
   }
 
@@ -121,8 +135,18 @@ class _PublicServiceBookingModalState
 
   void _goBack() {
     switch (_step) {
-      case _ModalStep.schedule:
+      case _ModalStep.service:
         _close();
+      case _ModalStep.schedule:
+        if (_skipsServiceStep) {
+          _close();
+        } else {
+          setState(() {
+            _step = _ModalStep.service;
+            _selectedDate = null;
+            _selectedSlot = null;
+          });
+        }
       case _ModalStep.identity:
         if (_identityPhase == PublicReservarIdentityPhase.attendee) {
           if (_session != null) {
@@ -141,6 +165,17 @@ class _PublicServiceBookingModalState
       case _ModalStep.confirmed:
         _close();
     }
+  }
+
+  void _selectService(AgendaService service) {
+    setState(() {
+      _service = service;
+      _anyStaff = true;
+      _selectedStaff = null;
+      _selectedDate = null;
+      _selectedSlot = null;
+      _step = _ModalStep.schedule;
+    });
   }
 
   void _goToIdentity() {
@@ -175,8 +210,14 @@ class _PublicServiceBookingModalState
     return _selectedStaff?.nombre ?? '—';
   }
 
+  List<String> get _progressLabels => _skipsServiceStep
+      ? const ['Agenda', 'WhatsApp', 'Confirmar']
+      : const ['Servicio', 'Agenda', 'WhatsApp', 'Confirmar'];
+
   String _stepTitle() {
     switch (_step) {
+      case _ModalStep.service:
+        return 'Elegí un servicio';
       case _ModalStep.schedule:
         return 'Elegí fecha y horario';
       case _ModalStep.identity:
@@ -192,6 +233,8 @@ class _PublicServiceBookingModalState
 
   String? _stepSubtitle() {
     switch (_step) {
+      case _ModalStep.service:
+        return 'Seleccioná el servicio para ver disponibilidad.';
       case _ModalStep.schedule:
         return 'Filtrá por profesional y elegí un turno disponible.';
       case _ModalStep.identity:
@@ -210,14 +253,19 @@ class _PublicServiceBookingModalState
 
   int get _progressIndex {
     switch (_step) {
-      case _ModalStep.schedule:
+      case _ModalStep.service:
         return 1;
+      case _ModalStep.schedule:
+        return _skipsServiceStep ? 1 : 2;
       case _ModalStep.identity:
-        return 2;
+        return _skipsServiceStep ? 2 : 3;
       case _ModalStep.confirmed:
-        return 3;
+        return _skipsServiceStep ? 3 : 4;
     }
   }
+
+  String get _headerTitle =>
+      _service?.nombre ?? (_step == _ModalStep.service ? 'Reservar turno' : widget.business.nombre);
 
   void _applyVerifiedClient(PublicClientProfile client) {
     if (!client.needsName && client.nombre.isNotEmpty) {
@@ -330,7 +378,7 @@ class _PublicServiceBookingModalState
       final api = ref.read(agendaApiServiceProvider);
       final booking = await api.publicCreateBooking(
         businessId: widget.business.id,
-        serviceId: widget.service.id,
+        serviceId: _activeService.id,
         staffMemberId: _effectiveStaffId,
         fechaHoraInicio: slot.inicio,
         nombreCliente: nombre,
@@ -369,6 +417,8 @@ class _PublicServiceBookingModalState
   Widget? _buildFooter() {
     final t = _theme;
     switch (_step) {
+      case _ModalStep.service:
+        return null;
       case _ModalStep.schedule:
         if (_selectedSlot == null) return null;
         return _ModalPrimaryButton(
@@ -450,7 +500,8 @@ class _PublicServiceBookingModalState
             children: [
               _ModalHeader(
                 theme: t,
-                serviceName: widget.service.nombre,
+                title: _headerTitle,
+                progressLabels: _progressLabels,
                 stepIndex: _progressIndex,
                 onBack: _step == _ModalStep.confirmed ? null : _goBack,
                 onClose: _close,
@@ -488,11 +539,39 @@ class _PublicServiceBookingModalState
 
   Widget _buildBody(PublicReservarTheme t) {
     switch (_step) {
+      case _ModalStep.service:
+        final servicesAsync =
+            ref.watch(publicBusinessServicesBySlugProvider(widget.slug));
+        return servicesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Text(
+            'No se pudieron cargar los servicios.',
+            style: t.textStyle(color: t.textSub),
+          ),
+          data: (list) {
+            if (list.isEmpty) {
+              return Text(
+                'Este negocio todavía no publicó servicios.',
+                style: t.textStyle(color: t.textSub),
+              );
+            }
+            return Column(
+              children: [
+                for (final svc in list)
+                  _ModalServiceRow(
+                    theme: t,
+                    service: svc,
+                    onTap: () => _selectService(svc),
+                  ),
+              ],
+            );
+          },
+        );
       case _ModalStep.schedule:
         return PublicReservarScheduleStep(
           theme: t,
           slug: widget.slug,
-          service: widget.service,
+          service: _activeService,
           anyStaff: _anyStaff,
           selectedStaff: _selectedStaff,
           selectedDate: _selectedDate,
@@ -531,7 +610,7 @@ class _PublicServiceBookingModalState
               _nombreCtrl.text = _session!.nombre!;
             }
           }),
-          serviceName: widget.service.nombre,
+          serviceName: _activeService.nombre,
           dateLabel: _formattedSelectedDate(),
           slotLabel: _selectedSlot?.label ?? '—',
           staffLabel: _staffSummaryLabel(),
@@ -546,7 +625,7 @@ class _PublicServiceBookingModalState
         return _ModalConfirmedBody(
           theme: t,
           businessName: widget.business.nombre,
-          serviceName: widget.service.nombre,
+          serviceName: _activeService.nombre,
           dateLabel: _confirmedDateLabel ?? '—',
           slotLabel: _confirmedSlotLabel ?? '—',
           estado: _confirmedEstado ?? BookingEstado.pendiente,
@@ -558,19 +637,19 @@ class _PublicServiceBookingModalState
 class _ModalHeader extends StatelessWidget {
   const _ModalHeader({
     required this.theme,
-    required this.serviceName,
+    required this.title,
+    required this.progressLabels,
     required this.stepIndex,
     required this.onClose,
     this.onBack,
   });
 
   final PublicReservarTheme theme;
-  final String serviceName;
+  final String title;
+  final List<String> progressLabels;
   final int stepIndex;
   final VoidCallback onClose;
   final VoidCallback? onBack;
-
-  static const _labels = ['Agenda', 'WhatsApp', 'Confirmar'];
 
   @override
   Widget build(BuildContext context) {
@@ -601,7 +680,7 @@ class _ModalHeader extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      serviceName,
+                      title,
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -611,7 +690,7 @@ class _ModalHeader extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        for (var i = 0; i < _labels.length; i++) ...[
+                        for (var i = 0; i < progressLabels.length; i++) ...[
                           if (i > 0)
                             Container(
                               width: 20,
@@ -623,7 +702,7 @@ class _ModalHeader extends StatelessWidget {
                             ),
                           _StepDot(
                             theme: t,
-                            label: _labels[i],
+                            label: progressLabels[i],
                             active: i + 1 == stepIndex,
                             done: i + 1 < stepIndex,
                           ),
@@ -642,6 +721,85 @@ class _ModalHeader extends StatelessWidget {
         ),
         Divider(height: 1, color: t.cardBorder),
       ],
+    );
+  }
+}
+
+class _ModalServiceRow extends StatelessWidget {
+  const _ModalServiceRow({
+    required this.theme,
+    required this.service,
+    required this.onTap,
+  });
+
+  final PublicReservarTheme theme;
+  final AgendaService service;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = theme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: t.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: t.cardBorder),
+            boxShadow: [
+              BoxShadow(
+                color: t.primary.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: t.primarySoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.spa_outlined, color: t.primary, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      service.nombre,
+                      style: t.textStyle(size: 15, weight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${service.duracionMin} min',
+                      style: t.textStyle(size: 12, color: t.textSub),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '\$${service.precio.toStringAsFixed(0)}',
+                style: t.textStyle(
+                  size: 16,
+                  weight: FontWeight.w700,
+                  color: t.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right, color: t.textSub, size: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
