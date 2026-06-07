@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/agenda_address.dart';
 import '../../../core/agenda_media_image.dart';
-import '../../../core/agenda_media_url.dart';
 import '../../../core/openstreetmap_urls.dart';
 import '../../../core/open_external_url.dart';
 import '../../../core/public_business_share.dart';
@@ -185,7 +184,7 @@ class _Hero extends StatelessWidget {
     final top = MediaQuery.paddingOf(context).top;
     final bannerH = (MediaQuery.sizeOf(context).height * 0.34)
         .clamp(_D.bannerMinH, _D.bannerMaxH);
-    final bannerUrl = resolveAgendaMediaUrl(business.bannerUrl);
+    final hasBanner = business.bannerUrl != null && business.bannerUrl!.trim().isNotEmpty;
     final cats = _categoryLabels;
     final bannerBottom = top + bannerH;
 
@@ -203,23 +202,18 @@ class _Hero extends StatelessWidget {
               clipBehavior: Clip.none,
               fit: StackFit.expand,
               children: [
-                if (bannerUrl != null)
-                  AgendaMediaImage(
-                    url: business.bannerUrl,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                    width: double.infinity,
-                    height: double.infinity,
-                    cacheWidth: (MediaQuery.sizeOf(context).width *
-                            MediaQuery.devicePixelRatioOf(context))
-                        .round(),
-                    cacheHeight:
-                        (bannerH * MediaQuery.devicePixelRatioOf(context))
-                            .round(),
-                    errorWidget: const _BannerFallback(),
+                if (hasBanner)
+                  Positioned.fill(
+                    child: AgendaMediaImage(
+                      url: business.bannerUrl,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                      expand: true,
+                      errorWidget: const _BannerFallback(),
+                    ),
                   )
                 else
-                  const _BannerFallback(),
+                  const Positioned.fill(child: _BannerFallback()),
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(

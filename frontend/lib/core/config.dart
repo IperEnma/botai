@@ -1,19 +1,51 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
   static const String appName = 'BotAI Admin';
 
+  static const _localHosts = {'localhost', '127.0.0.1', '0.0.0.0'};
+
   static String _stripTrailingSlash(String value) =>
       value.replaceAll(RegExp(r'/+$'), '');
+
+  static String _configuredKonectaBaseUrl() =>
+      dotenv.env['KONECTA_BASE_URL']?.trim() ?? 'http://localhost:8080';
+
+  /// Resuelve el host del backend según desde dónde se abre la app (web/LAN/HTTPS).
+  static String _resolveKonectaBaseUrl(String configured) {
+    final uri = Uri.parse(configured);
+
+    if (kIsWeb) {
+      final page = Uri.base;
+
+      // Dev: frontend por IP (ej. celular en la red) pero .env dice localhost:8080
+      if (_localHosts.contains(uri.host) &&
+          page.host.isNotEmpty &&
+          !_localHosts.contains(page.host)) {
+        return Uri(
+          scheme: page.scheme,
+          host: page.host,
+          port: uri.hasPort ? uri.port : 8080,
+        ).toString();
+      }
+
+      // Prod: evitar mixed content (página https + imágenes http)
+      if (page.scheme == 'https' && uri.scheme == 'http') {
+        return uri.replace(scheme: 'https').toString();
+      }
+    }
+
+    return configured;
+  }
 
   /// Host Konecta sin path. Variable única: `KONECTA_BASE_URL`.
   ///
   /// - Chatbot API → [apiBaseUrl] = `{KONECTA_BASE_URL}/api`
   /// - Agenda API → [agendaApiBaseUrl] = `{KONECTA_BASE_URL}/api/agenda`
   /// - Uploads → `{KONECTA_BASE_URL}/uploads/…`
-  static String get konectaBaseUrl =>
-      _stripTrailingSlash(
-        dotenv.env['KONECTA_BASE_URL']?.trim() ?? 'http://localhost:8080',
+  static String get konectaBaseUrl => _stripTrailingSlash(
+        _resolveKonectaBaseUrl(_configuredKonectaBaseUrl()),
       );
 
   static String get apiBaseUrl => '$konectaBaseUrl/api';
