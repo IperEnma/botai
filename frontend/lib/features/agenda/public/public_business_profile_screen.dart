@@ -6,8 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/agenda_address.dart';
 import '../../../core/agenda_media_image.dart';
 import '../../../core/agenda_media_url.dart';
-import '../../../core/agenda_google_map_embed.dart';
 import '../../../core/google_maps_urls.dart';
+import '../../../core/openstreetmap_preview.dart';
 import '../../../core/open_external_url.dart';
 import '../../../core/public_business_share.dart';
 import '../../../providers/agenda/public/public_client_session_provider.dart';
@@ -160,7 +160,12 @@ class _FelitoBarberPage extends ConsumerWidget {
                 ),
               ),
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(_D.pad, 14, _D.pad, 100),
+                padding: EdgeInsets.fromLTRB(
+                  _D.pad,
+                  14,
+                  _D.pad,
+                  88 + MediaQuery.paddingOf(context).bottom,
+                ),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _Services(
@@ -713,7 +718,7 @@ class _Services extends StatelessWidget {
         const SizedBox(height: 14),
         servicesAsync.when(
           loading: () => SizedBox(
-            height: 132,
+            height: 150,
             child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context))),
           ),
           error: (_, _) => Text('Error al cargar servicios.', style: _D.t(14, c: _D.muted)),
@@ -722,7 +727,7 @@ class _Services extends StatelessWidget {
               return Text('Sin servicios.', style: _D.t(14, c: _D.muted));
             }
             return SizedBox(
-              height: 132,
+              height: 150,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 clipBehavior: Clip.none,
@@ -763,10 +768,12 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 158,
+      width: 165,
+      height: 150,
       child: Material(
         color: _D.white,
         borderRadius: BorderRadius.circular(_D.r),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(_D.r),
@@ -791,22 +798,35 @@ class _ServiceCard extends StatelessWidget {
                   child: Icon(icon, color: _D.white, size: 20),
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  svc.nombre,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: _D.t(14, w: FontWeight.w700, h: 1.2),
+                Expanded(
+                  child: Text(
+                    svc.nombre,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: _D.t(14, w: FontWeight.w700, h: 1.2),
+                  ),
                 ),
-                const Spacer(),
                 Row(
                   children: [
                     Icon(Icons.schedule, size: 12, color: _D.faint),
                     const SizedBox(width: 4),
-                    Text('${svc.duracionMin} min', style: _D.t(12, c: _D.muted)),
+                    Flexible(
+                      child: Text(
+                        '${svc.duracionMin} min',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _D.t(12, c: _D.muted),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(_price, style: _D.t(15, w: FontWeight.w700, c: _D.brand(context))),
+                Text(
+                  _price,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _D.t(15, w: FontWeight.w700, c: _D.brand(context)),
+                ),
               ],
             ),
           ),
@@ -869,9 +889,11 @@ class _Hours extends StatelessWidget {
     final r = _find(all, dow);
     if (r == null || r.cerrado) return 'Cerrado';
     bool ok(String? a, String? b) => a != null && a.isNotEmpty && b != null && b.isNotEmpty;
-    if (ok(r.apertura, r.cierre)) return '${r.apertura} - ${r.cierre}';
-    if (ok(r.apertura2, r.cierre2)) return '${r.apertura2} - ${r.cierre2}';
-    return 'Cerrado';
+    final ranges = <String>[];
+    if (ok(r.apertura, r.cierre)) ranges.add('${r.apertura} - ${r.cierre}');
+    if (ok(r.apertura2, r.cierre2)) ranges.add('${r.apertura2} - ${r.cierre2}');
+    if (ranges.isEmpty) return 'Cerrado';
+    return ranges.join('\n');
   }
 }
 
@@ -885,21 +907,31 @@ class _DayCol extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(day, style: _D.t(11, w: FontWeight.w600, c: _D.muted)),
-        const SizedBox(height: 8),
-        Text(
-          text,
-          textAlign: TextAlign.center,
-          style: _D.t(
-            9.5,
-            w: FontWeight.w500,
-            c: _closed ? _D.faint : _D.ink,
-            h: 1.3,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Column(
+        children: [
+          Text(day, style: _D.t(11, w: FontWeight.w600, c: _D.muted)),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 38,
+            child: Center(
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: _D.t(
+                  10,
+                  w: FontWeight.w500,
+                  c: _closed ? _D.faint : _D.ink,
+                  h: 1.25,
+                ),
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -935,7 +967,12 @@ class _Location extends StatelessWidget {
         .where((p) => p.isNotEmpty)
         .toList();
     if (parts.length >= 2) {
-      return (parts.first, parts.sublist(1).join(', '));
+      final a = parts.first;
+      final b = parts.sublist(1).join(', ');
+      final bLooksLikeStreet = RegExp(r'\d').hasMatch(b);
+      final aLooksLikeStreet = RegExp(r'\d').hasMatch(a);
+      if (bLooksLikeStreet && !aLooksLikeStreet) return (b, a);
+      return (a, b);
     }
     final loc = b.locationTags.map((t) => t.value.trim()).where((v) => v.isNotEmpty);
     if (loc.isNotEmpty) return (trimmed, loc.join(', '));
@@ -972,83 +1009,103 @@ class _Location extends StatelessWidget {
         const SizedBox(height: 14),
         _Card(
           pad: 12,
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: _MapPreview(
-                  address: addr,
-                  mapsUrl: mapsUrl,
-                  width: 96,
-                  height: 96,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_hasAddress) ...[
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.place_outlined,
-                            size: 18,
-                            color: _D.brand(context),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  line1,
-                                  style: _D.t(13, w: FontWeight.w500, h: 1.35),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: _MapPreview(
+                      address: addr,
+                      mapsUrl: mapsUrl,
+                      width: 96,
+                      height: 96,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_hasAddress) ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 1),
+                                child: Icon(
+                                  Icons.place_outlined,
+                                  size: 18,
+                                  color: _D.brand(context),
                                 ),
-                                if (line2 != null && line2.isNotEmpty)
-                                  Text(
-                                    line2,
-                                    style: _D.t(13, w: FontWeight.w500, h: 1.35),
-                                  ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      line1,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: _D.t(13, w: FontWeight.w500, h: 1.35),
+                                    ),
+                                    if (line2 != null && line2.isNotEmpty)
+                                      Text(
+                                        line2,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: _D.t(13, w: FontWeight.w500, h: 1.35),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (mapsUrl != null)
-                        GestureDetector(
-                          onTap: () => openExternalUrl(mapsUrl),
-                          child: Text(
-                            'Ver en el mapa >',
-                            style: _D.t(
-                              13,
-                              w: FontWeight.w600,
-                              c: _D.brand(context),
+                          const SizedBox(height: 8),
+                          if (mapsUrl != null)
+                            GestureDetector(
+                              onTap: () => openExternalUrl(mapsUrl),
+                              child: Text(
+                                'Ver en el mapa >',
+                                style: _D.t(
+                                  13,
+                                  w: FontWeight.w600,
+                                  c: _D.brand(context),
+                                ),
+                              ),
                             ),
+                        ] else
+                          Text(
+                            'Agregá la dirección en Estilos o completá el onboarding.',
+                            style: _D.t(13, w: FontWeight.w500, h: 1.35, c: _D.muted),
                           ),
-                        ),
-                    ] else
-                      Text(
-                        'Agregá la dirección en Estilos o completá el onboarding.',
-                        style: _D.t(13, w: FontWeight.w500, h: 1.35, c: _D.muted),
-                      ),
-                  ],
-                ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+              if (_hasSocial) ...[
+                const SizedBox(height: 12),
+                _SocialIconRow(
+                  instagramUrl: _normalizeUrl(business.instagramUrl),
+                  tiktokUrl: _normalizeUrl(business.tiktokUrl),
+                  facebookUrl: _normalizeUrl(business.facebookUrl),
+                ),
+              ],
+              if (_hasAddress)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '© OpenStreetMap',
+                    style: _D.t(10, c: _D.faint),
+                  ),
+                ),
             ],
           ),
         ),
-        if (_hasSocial) ...[
-          const SizedBox(height: 12),
-          _SocialIconRow(
-            instagramUrl: _normalizeUrl(business.instagramUrl),
-            tiktokUrl: _normalizeUrl(business.tiktokUrl),
-            facebookUrl: _normalizeUrl(business.facebookUrl),
-          ),
-        ],
       ],
     );
   }
@@ -1151,7 +1208,7 @@ class _SocialIconButton extends StatelessWidget {
   }
 }
 
-class _MapPreview extends StatelessWidget {
+class _MapPreview extends StatefulWidget {
   const _MapPreview({
     required this.address,
     required this.mapsUrl,
@@ -1165,40 +1222,130 @@ class _MapPreview extends StatelessWidget {
   final double height;
 
   @override
-  Widget build(BuildContext context) {
-    final addr = address.trim();
-    final hasAddress = addr.isNotEmpty;
+  State<_MapPreview> createState() => _MapPreviewState();
+}
 
-    Widget placeholder() {
-      return Container(
-        width: width,
-        height: height,
-        color: const Color(0xFFE7E4DC),
-        alignment: Alignment.center,
-        child: Icon(
-          Icons.location_on_rounded,
-          size: 28,
-          color: _D.brand(context),
-        ),
+class _MapPreviewState extends State<_MapPreview> {
+  String? _imageUrl;
+  ({double lat, double lon})? _coords;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreview();
+  }
+
+  @override
+  void didUpdateWidget(_MapPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.address != widget.address) _loadPreview();
+  }
+
+  Future<void> _loadPreview() async {
+    final addr = widget.address.trim();
+    if (addr.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _imageUrl = null;
+          _coords = null;
+          _loaded = true;
+        });
+      }
+      return;
+    }
+    final coords = await OpenStreetMapPreview.geocode(addr);
+    if (!mounted) return;
+    setState(() {
+      _coords = coords;
+      _imageUrl = coords == null
+          ? null
+          : OpenStreetMapPreview.staticMapUrl(
+              lat: coords.lat,
+              lon: coords.lon,
+              pixelSize: (widget.width * 2).round(),
+            );
+      _loaded = true;
+    });
+  }
+
+  String? _openUrl() {
+    final addr = widget.address.trim();
+    if (addr.isEmpty) return null;
+    final coords = _coords;
+    if (coords != null) {
+      return GoogleMapsUrls.searchCoords(lat: coords.lat, lng: coords.lon);
+    }
+    return widget.mapsUrl ?? GoogleMapsUrls.search(addr);
+  }
+
+  Widget _placeholder(BuildContext context) {
+    return Container(
+      width: widget.width,
+      height: widget.height,
+      color: const Color(0xFFE7E4DC),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(painter: _MapGridPainter()),
+          Center(
+            child: Icon(
+              Icons.location_on_rounded,
+              size: 28,
+              color: _D.brand(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final openUrl = _openUrl();
+    final placeholder = _placeholder(context);
+
+    Widget body;
+    if (!_loaded) {
+      body = placeholder;
+    } else if (_imageUrl != null) {
+      body = Image.network(
+        _imageUrl!,
+        width: widget.width,
+        height: widget.height,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => placeholder,
       );
+    } else {
+      body = placeholder;
     }
 
-    if (!hasAddress) return placeholder();
-
-    final embedUrl = GoogleMapsUrls.embed(address: addr);
-    final openUrl = mapsUrl ?? GoogleMapsUrls.search(addr);
-    final map = AgendaGoogleMapEmbed(
-      embedUrl: embedUrl,
-      width: width,
-      height: height,
-      placeholder: placeholder(),
-    );
+    if (openUrl == null) return body;
 
     return GestureDetector(
       onTap: () => openExternalUrl(openUrl),
-      child: map,
+      child: body,
     );
   }
+}
+
+class _MapGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFD1D5DB)
+      ..strokeWidth = 0.5;
+    const step = 16.0;
+    for (var x = 0.0; x <= size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var y = 0.0; y <= size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ─── Equipo ──────────────────────────────────────────────────────────────────
@@ -1217,7 +1364,7 @@ class _Team extends StatelessWidget {
         const SizedBox(height: 14),
         staffAsync.when(
           loading: () => SizedBox(
-            height: 72,
+            height: 80,
             child: Center(
               child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context)),
             ),
@@ -1235,7 +1382,7 @@ class _Team extends StatelessWidget {
               );
             }
             return SizedBox(
-              height: 76,
+              height: 80,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 clipBehavior: Clip.none,
