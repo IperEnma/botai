@@ -50,7 +50,8 @@ public class AgendaCorsConfig implements WebMvcConfigurer {
         FilterRegistrationBean<CorsFilter> bean =
                 new FilterRegistrationBean<>(new CorsFilter(source));
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
-        bean.addUrlPatterns("/uploads/*", "/uploads/businesses/*", "/uploads/staff/*");
+        // /uploads/* cubre rutas anidadas (/uploads/businesses/…/file.jpg).
+        bean.addUrlPatterns("/uploads/*");
         return bean;
     }
 }

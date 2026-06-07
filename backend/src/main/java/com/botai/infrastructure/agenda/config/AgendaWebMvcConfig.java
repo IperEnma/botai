@@ -1,9 +1,12 @@
 package com.botai.infrastructure.agenda.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.time.Duration;
 
 /**
  * Registro del {@link AgendaFeatureGuard} como interceptor de MVC sobre las
@@ -32,7 +35,8 @@ public class AgendaWebMvcConfig implements WebMvcConfigurer {
         String uploadDir = uploadProperties.getDir();
         String uploadPath = uploadDir.endsWith("/") ? uploadDir : uploadDir + "/";
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + uploadPath);
+                .addResourceLocations("file:" + uploadPath)
+                .setCacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic());
     }
 
     @Override

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../../core/agenda_media_url.dart';
+import '../../../../../core/agenda_media_image.dart';
 import '../../../register/konecta_tokens.dart';
 import '../../../shared/k_button.dart';
 
@@ -53,6 +53,9 @@ class _BannerPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width.clamp(320.0, 1200.0);
+    final h = w * 6 / 16;
+
     return AspectRatio(
       aspectRatio: 16 / 6,
       child: Container(
@@ -62,16 +65,15 @@ class _BannerPreview extends StatelessWidget {
           border: Border.all(color: KTokens.borderStrong),
         ),
         clipBehavior: Clip.antiAlias,
-        child: () {
-          final resolved = resolveAgendaMediaUrl(url);
-          return resolved != null
-              ? Image.network(
-                  resolved,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _placeholder(),
-                )
-              : _placeholder();
-        }(),
+        child: url != null
+            ? AgendaMediaImage(
+                url: url,
+                fit: BoxFit.cover,
+                width: w,
+                height: h,
+                errorWidget: _placeholder(),
+              )
+            : _placeholder(),
       ),
     );
   }

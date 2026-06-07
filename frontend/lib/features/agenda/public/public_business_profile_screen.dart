@@ -210,6 +210,12 @@ class _Hero extends StatelessWidget {
                     alignment: Alignment.center,
                     width: double.infinity,
                     height: double.infinity,
+                    cacheWidth: (MediaQuery.sizeOf(context).width *
+                            MediaQuery.devicePixelRatioOf(context))
+                        .round(),
+                    cacheHeight:
+                        (bannerH * MediaQuery.devicePixelRatioOf(context))
+                            .round(),
                     errorWidget: const _BannerFallback(),
                   )
                 else
@@ -473,7 +479,6 @@ class _LogoCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolved = resolveAgendaMediaUrl(url);
     return Container(
       width: _D.logo,
       height: _D.logo,
@@ -485,10 +490,12 @@ class _LogoCircle extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: resolved != null
+      child: url != null
           ? AgendaMediaImage(
               url: url,
               fit: BoxFit.cover,
+              width: _D.logo,
+              height: _D.logo,
               errorWidget: _fb(),
             )
           : _fb(),
@@ -1136,7 +1143,6 @@ class _StaffAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const sz = 56.0;
-    final resolved = resolveAgendaMediaUrl(url);
     return Container(
       width: sz,
       height: sz,
@@ -1148,10 +1154,12 @@ class _StaffAvatar extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: resolved != null
+      child: url != null
           ? AgendaMediaImage(
               url: url,
               fit: BoxFit.cover,
+              width: sz,
+              height: sz,
               errorWidget: _initials(sz),
             )
           : _initials(sz),

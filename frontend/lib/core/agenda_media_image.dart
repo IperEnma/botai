@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'agenda_media_url.dart';
 
 /// Imagen remota de Agenda (logo, banner, avatar) con URL resuelta al backend actual.
+///
+/// - **Web:** [Image.network] → `<img>` nativo + cache HTTP del navegador (más eficiente).
+/// - **Mobile:** [CachedNetworkImage] con cache en disco + decode acotado al tamaño en pantalla.
 class AgendaMediaImage extends StatelessWidget {
   const AgendaMediaImage({
     super.key,
@@ -13,6 +16,8 @@ class AgendaMediaImage extends StatelessWidget {
     this.alignment = Alignment.center,
     this.width,
     this.height,
+    this.cacheWidth,
+    this.cacheHeight,
     this.errorWidget,
   });
 
@@ -21,7 +26,18 @@ class AgendaMediaImage extends StatelessWidget {
   final Alignment alignment;
   final double? width;
   final double? height;
+  /// Ancho máximo de decode en px lógicos (prioridad sobre [width] × DPR).
+  final int? cacheWidth;
+  /// Alto máximo de decode en px lógicos (prioridad sobre [height] × DPR).
+  final int? cacheHeight;
   final Widget? errorWidget;
+
+  (int?, int?) _decodeSize(BuildContext context) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final w = cacheWidth ?? (width != null ? (width! * dpr).round() : null);
+    final h = cacheHeight ?? (height != null ? (height! * dpr).round() : null);
+    return (w, h);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,18 +46,9 @@ class AgendaMediaImage extends StatelessWidget {
       return errorWidget ?? const SizedBox.shrink();
     }
 
-    final loading = Container(
-      color: const Color(0xFFE5E7EB),
-      alignment: Alignment.center,
-      child: const SizedBox(
-        width: 22,
-        height: 22,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-    );
+    final (memW, memH) = _decodeSize(context);
+    final onError = errorWidget ?? const SizedBox.shrink();
 
-    // Web: mismo patrón que el panel (Image.network → <img>, sin CORS para mostrar).
-    // CachedNetworkImage en web usa fetch y falla si /uploads no expone CORS.
     if (kIsWeb) {
       return Image.network(
         resolved,
@@ -49,9 +56,11 @@ class AgendaMediaImage extends StatelessWidget {
         alignment: alignment,
         width: width,
         height: height,
-        loadingBuilder: (_, child, progress) =>
-            progress == null ? child : loading,
-        errorBuilder: (_, _, _) => errorWidget ?? const SizedBox.shrink(),
+        cacheWidth: memW,
+        cacheHeight: memH,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, _, _) => onError,
       );
     }
 
@@ -61,9 +70,13 @@ class AgendaMediaImage extends StatelessWidget {
       alignment: alignment,
       width: width,
       height: height,
-      fadeInDuration: const Duration(milliseconds: 150),
-      placeholder: (_, _) => loading,
-      errorWidget: (_, _, _) => errorWidget ?? const SizedBox.shrink(),
+      memCacheWidth: memW,
+      memCacheHeight: memH,
+      maxWidthDiskCache: memW,
+      maxHeightDiskCache: memH,
+      fadeInDuration: Duration.zero,
+      placeholder: (_, _) => const SizedBox.shrink(),
+      errorWidget: (_, _, _) => onError,
     );
   }
 }

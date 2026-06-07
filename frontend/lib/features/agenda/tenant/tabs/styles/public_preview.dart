@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../../core/agenda_media_url.dart';
+import '../../../../../core/agenda_media_image.dart';
 import '../../../register/konecta_tokens.dart';
 import 'brand_style.dart';
 
@@ -223,16 +223,15 @@ class _Hero extends StatelessWidget {
               color: Colors.white,
             ),
             clipBehavior: Clip.antiAlias,
-            child: () {
-              final resolved = resolveAgendaMediaUrl(logoUrl);
-              return resolved != null
-                  ? Image.network(
-                      resolved,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const _LogoPlaceholder(),
-                    )
-                  : const _LogoPlaceholder();
-            }(),
+            child: logoUrl != null
+                ? AgendaMediaImage(
+                    url: logoUrl,
+                    fit: BoxFit.cover,
+                    width: 54,
+                    height: 54,
+                    errorWidget: const _LogoPlaceholder(),
+                  )
+                : const _LogoPlaceholder(),
           ),
         ),
         Padding(
