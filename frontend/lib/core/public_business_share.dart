@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -17,12 +16,6 @@ String buildPublicBusinessProfileUrl(BuildContext context, String slug) {
     if (origin.isNotEmpty && origin != 'null') {
       return '$origin$path';
     }
-  }
-
-  final configured = dotenv.env['PUBLIC_APP_BASE_URL']?.trim();
-  if (configured != null && configured.isNotEmpty) {
-    final base = configured.endsWith('/') ? configured.substring(0, configured.length - 1) : configured;
-    return '$base$path';
   }
 
   return path;
