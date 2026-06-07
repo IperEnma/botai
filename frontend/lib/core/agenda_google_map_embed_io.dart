@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import 'google_maps_urls.dart';
-
 /// Google Maps embebido vía WebView (sin API key) — Android, iOS y desktop.
 class AgendaGoogleMapEmbed extends StatefulWidget {
   const AgendaGoogleMapEmbed({
@@ -65,22 +63,10 @@ class _AgendaGoogleMapEmbedIoState extends State<AgendaGoogleMapEmbed> {
         child: widget.placeholder,
       );
     }
-    final crop = GoogleMapsUrls.embedTopChromeCrop;
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: ClipRect(
-        child: IgnorePointer(
-          child: Transform.translate(
-            offset: Offset(0, -crop),
-            child: SizedBox(
-              width: widget.width,
-              height: widget.height + crop,
-              child: WebViewWidget(controller: _controller!),
-            ),
-          ),
-        ),
-      ),
+      child: WebViewWidget(controller: _controller!),
     );
   }
 }

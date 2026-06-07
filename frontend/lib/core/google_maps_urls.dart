@@ -1,8 +1,5 @@
 /// Google Maps sin API key: enlaces oficiales + iframe embed en web.
 abstract final class GoogleMapsUrls {
-  /// Barra "Maps ↗" del iframe embed gratuito de Google (se recorta visualmente).
-  static const embedTopChromeCrop = 46.0;
-
   /// Abre la dirección en Google Maps (web o app nativa).
   static String search(String address) {
     final q = Uri.encodeComponent(address.trim());

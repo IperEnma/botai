@@ -3,8 +3,6 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
 
-import 'google_maps_urls.dart';
-
 /// Google Maps embebido vía iframe (sin API key) — solo web.
 class AgendaGoogleMapEmbed extends StatefulWidget {
   const AgendaGoogleMapEmbed({
@@ -44,17 +42,15 @@ class _AgendaGoogleMapEmbedState extends State<AgendaGoogleMapEmbed> {
   }
 
   void _registerView() {
-    final crop = GoogleMapsUrls.embedTopChromeCrop;
     final viewType =
         'agenda-google-map-${Object.hash(widget.embedUrl, widget.width, widget.height)}';
     ui_web.platformViewRegistry.registerViewFactory(viewType, (int viewId) {
       final iframe = html.IFrameElement()
         ..src = widget.embedUrl
         ..style.border = 'none'
-        ..style.width = '${widget.width}px'
-        ..style.height = '${widget.height + crop}px'
-        ..style.marginTop = '-${crop}px'
-        ..style.pointerEvents = 'none';
+        ..width = '${widget.width}'
+        ..height = '${widget.height}'
+        ..allowFullscreen = true;
       return iframe;
     });
     _viewType = viewType;
@@ -73,11 +69,7 @@ class _AgendaGoogleMapEmbedState extends State<AgendaGoogleMapEmbed> {
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: ClipRect(
-        child: IgnorePointer(
-          child: HtmlElementView(viewType: viewType),
-        ),
-      ),
+      child: HtmlElementView(viewType: viewType),
     );
   }
 }
