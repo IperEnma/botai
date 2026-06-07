@@ -93,7 +93,7 @@ public final class BotPrompts {
          */
         public static final String RAG_LINE_CANCEL_TOOL_MANDATORY =
             "Use listarCitasActivasDelCanal when the user asks about their existing appointments (this channel). Summarize the tool output in Spanish. "
-                + "Use verificarCitaExistentePorDocumento when they give name + document and you need to confirm legacy appointments. "
+                + "Do not ask for cédula or document to look up Agenda bookings on WhatsApp; that flow is handled outside these legacy tools. "
                 + "For cancellations, call cancelarCita and/or cancelarTodasLasCitasDelCanal in the same turn and then confirm the result in Spanish based on the tool output.";
         public static final String RAG_LINE_CITAS_SOLO_CUANDO_PREGUNTAN =
             "Talk about appointments, cancellation, or booking links when the user asks about them or when the classified intent is about reservations.";
@@ -104,7 +104,7 @@ public final class BotPrompts {
         public static final String RAG_LINE_CITAS_EN_CHAT =
             "New bookings: share BOOKING_URL from the system block or «Enlace oficial para reservar» in snippets; "
                 + "the client completes the reservation on that web page. "
-                + "Existing appointments: use listarCitasActivasDelCanal, verificarCitaExistentePorDocumento, cancelarCita as appropriate.";
+                + "Existing appointments (legacy table): use listarCitasActivasDelCanal, cancelarCita as appropriate.";
 
         /** Instrucciones mínimas para saludo puro (sin RAG ni BOOKING_URL). */
         public static List<String> ragGreetingOnlyPreambleLines() {
@@ -150,7 +150,7 @@ public final class BotPrompts {
                 RAG_LINE_STRICT_GROUNDING,
                 RAG_LINE_GENERAL_VS_SPECIFIC,
                 RAG_LINE_BUSINESS_IDENTITY,
-                "In this mode, call tools (getHorario, listarServicios, buscarConocimiento, listarCitasActivasDelCanal, verificarCitaExistentePorDocumento, cancelarCita, cancelarTodasLasCitasDelCanal) for verified data and reply in Spanish.",
+                "In this mode, call tools (getHorario, listarServicios, buscarConocimiento, listarCitasActivasDelCanal, cancelarCita, cancelarTodasLasCitasDelCanal) for verified data and reply in Spanish.",
                 INSTRUCTIONS_FOOTER
             );
         }
@@ -164,7 +164,8 @@ public final class BotPrompts {
                 + "Mention missing data only when the user asked for one specific detail those sources do not contain.";
         public static final String NO_CHUNKS_LINE_AGENDAR_TOOLS =
             "For a new reservation, guide the user to the public agenda link (the channel sends it when they ask to book). "
-                + "For existing appointments on this channel, use listarCitasActivasDelCanal, verificarCitaExistentePorDocumento, cancelarCita, or cancelarTodasLasCitasDelCanal as needed. "
+                + "For existing appointments on this channel (legacy), use listarCitasActivasDelCanal, cancelarCita, or cancelarTodasLasCitasDelCanal as needed. "
+                + "Never ask for cédula to consult Agenda bookings on WhatsApp. "
                 + "For hours or services without snippets, use getHorario, listarServicios, buscarConocimiento.";
 
         public static final String FAQ_HINTS_SECTION_TITLE = "--- Pistas FAQ (parafrasear; no copiar literal salvo datos sensibles) ---";
@@ -350,17 +351,12 @@ public final class BotPrompts {
         public static final String TOOL_OBTENER_ENLACE_AGENDA =
             "Usar cuando el usuario quiera agendar o reservar una cita nueva o pida el enlace de agenda. "
                 + "Devuelve el enlace oficial del negocio; copiar ese texto en la respuesta al cliente.";
-        public static final String TOOL_VERIFICAR_CITA =
-            "Verificar si ya hay cita futura registrada con ese documento (tabla legacy del bot). Usar cuando tengas nombre y cédula escritos por el usuario. "
-                + "Si hay citas, infórmalas. Para una reserva NUEVA no uses herramientas: el usuario debe usar el enlace de agenda web.";
-        public static final String PARAM_NOMBRE_VERIF = "Nombre completo del cliente (como lo indicó el usuario)";
-        public static final String PARAM_DOC_VERIF = "Cédula o documento (como lo indicó el usuario)";
 
         public static final String TOOL_LISTAR_CITAS_CANAL =
             "Listar las citas futuras activas asociadas a este mismo chat de WhatsApp (sin pedir cédula). "
                 + "OBLIGATORIO llamarla cuando el usuario pregunte qué citas tiene, «cuáles tengo», «mis citas», o ANTES de preguntar «¿cuál cita quiere cancelar?» si aún no conoces la lista real desde el sistema. "
                 + "No inventes citas: solo enumera lo que devuelve esta herramienta. "
-                + "Si la respuesta es CITAS_ACTIVAS_CANAL_VACIO, dile al usuario que no hay citas enlazadas a este WhatsApp y ofrece verificar por cédula con verificarCitaExistentePorDocumento (nombre y documento reales).";
+                + "Si la respuesta es CITAS_ACTIVAS_CANAL_VACIO, decile que no hay citas legacy en este WhatsApp; no pidas cédula ni documento (Agenda usa el teléfono del chat).";
         public static final String TOOL_CANCELAR_CITA =
             "Cancelar (anular) una cita futura en el sistema. Cuando el usuario pida cancelar o anular, DEBES llamar esta herramienta en el mismo turno (antes de responder en texto); no inventes el resultado ni listes citas como canceladas sin esta llamada. "
                 + "Si el usuario agendó desde este mismo chat de WhatsApp, puedes pasar documento vacío o un placeholder: la herramienta busca la cita por el usuario del canal. "
@@ -378,33 +374,7 @@ public final class BotPrompts {
         public static final String PARAM_HORA_CANCELAR =
             "Opcional: hora en HH:mm (si hay varias el mismo día y el usuario indica la hora)";
 
-        public static final String CITAS_MULT_VERIF_PREFIX =
-            "CITAS_EXISTENTES_VARIAS: Con esta cédula hay varias citas vigentes:\n";
-        public static final String CITAS_MULT_VERIF_SUFFIX =
-            "Responde enumerando todas si pregunta cuántas o «solo esa». Para otra reserva nueva, indicá que debe usar el enlace de agenda web. "
-                + "Para cancelar una concreta usa cancelarCita con documento y, si hace falta, fecha y hora.\n";
-
         public static final String ERR_TENANT_UNKNOWN = "No se pudo identificar el negocio.";
-        public static final String ERR_FALTA_NOMBRE_VERIF =
-            "Falta el nombre del cliente. Pregunta primero: '¿Cuál es tu nombre completo?'";
-        public static final String ERR_NOMBRE_PLACEHOLDER_VERIF =
-            "El nombre debe ser el real del usuario. Pregunta su nombre completo antes de verificar.";
-        public static final String ERR_FALTA_DOC_VERIF =
-            "Falta el documento o cédula. Pregunta: '¿Cuál es tu número de cédula o documento?'";
-        public static final String ERR_DOC_PLACEHOLDER_VERIF =
-            "El documento debe ser el real del usuario. Pregunta su cédula o documento antes de verificar.";
-        public static final String ERR_DOC_INVALIDO = "El documento no es válido. Pide un número de documento correcto.";
-        public static final String MSG_SIN_CITA_PREVIA =
-            "No hay cita registrada con ese documento desde hoy en adelante (en el sistema de citas vinculado a este bot). "
-                + "Si quiere un turno nuevo, debe usar el enlace de agenda web; no se completa la reserva nueva aquí en el chat.";
-
-        public static String citaDuplicadaVerificacion(String appointmentDate, String appointmentTime, String serviceName) {
-            return "CITA_EXISTENTE: Con esta cédula ya hay una cita el " + appointmentDate + " a las " + appointmentTime
-                + " (servicio: " + serviceName + "). "
-                + "Si pregunta detalle, responde con fecha, hora y servicio de arriba. "
-                + "Para agregar otra reserva nueva, debe usar el enlace de agenda web (no hay herramienta de reserva nueva en el chat).";
-        }
-
         public static final String ERR_FALTA_DOC_CANCELAR =
             "No se pudo identificar la cita: indica la cédula correcta o cancela desde el mismo WhatsApp donde agendaste (sin documento).";
         public static final String ERR_DOC_PLACEHOLDER_CANCELAR = "El documento debe ser el real del usuario. Pídelo antes de cancelar.";
@@ -414,8 +384,8 @@ public final class BotPrompts {
             "No hay citas futuras activas para este WhatsApp o con ese documento para cancelar.";
         /** listarCitasActivasDelCanal: sin filas para user_id del canal (citas creadas sin WhatsApp o otro número). */
         public static final String MSG_LISTAR_CITAS_CANAL_VACIO =
-            "CITAS_ACTIVAS_CANAL_VACIO: No hay citas futuras activas vinculadas a este número de WhatsApp en el sistema. "
-                + "Si el usuario cree que sí tiene cita, puede haberse agendado sin guardar este chat, desde otro teléfono o desde el panel: pide nombre y cédula y usa verificarCitaExistentePorDocumento.";
+            "CITAS_ACTIVAS_CANAL_VACIO: No hay citas futuras activas vinculadas a este número de WhatsApp en el sistema legacy. "
+                + "No pidas cédula ni documento. Si pregunta por reservas de Agenda, el canal ya identifica su teléfono.";
         public static String citasActivasCanalListado(int count, List<String> numberedLines) {
             return "CITAS_ACTIVAS_CANAL: Hay " + count + " cita(s) futura(s) registradas con este WhatsApp:\n"
                 + String.join("\n", numberedLines)

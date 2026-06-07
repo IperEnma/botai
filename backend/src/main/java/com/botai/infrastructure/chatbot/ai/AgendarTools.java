@@ -23,8 +23,8 @@ import java.util.stream.Collectors;
 
 /**
  * Herramientas de IA para citas <strong>ya existentes</strong> en el modelo legacy {@code appointment}
- * (listado, verificación por documento, cancelación). Las reservas nuevas son solo por enlace público de Agenda
- * ({@code get_agenda_public_url}), no por chat.
+ * (listado y cancelación). Las reservas nuevas y la consulta de turnos Agenda son por enlace público
+ * y acción CRM {@code view_agenda_bookings_by_contact} (teléfono del canal), no por cédula en chat.
  */
 @Component
 public class AgendarTools {
@@ -45,50 +45,6 @@ public class AgendarTools {
             return blocked;
         }
         return action.get();
-    }
-
-    @Tool(description = BotPrompts.ToolsAgendar.TOOL_VERIFICAR_CITA)
-    public String verificarCitaExistentePorDocumento(
-            @ToolParam(description = BotPrompts.ToolsAgendar.PARAM_NOMBRE_VERIF) String nombreCliente,
-            @ToolParam(description = BotPrompts.ToolsAgendar.PARAM_DOC_VERIF) String documento) {
-        return gated(() -> verificarCitaExistentePorDocumentoInternal(nombreCliente, documento));
-    }
-
-    private String verificarCitaExistentePorDocumentoInternal(String nombreCliente, String documento) {
-        String tenantId = ThreadTenantContext.getTenantId();
-        if (tenantId == null || tenantId.isBlank()) {
-            return BotPrompts.ToolsAgendar.ERR_TENANT_UNKNOWN;
-        }
-        if (nombreCliente == null || nombreCliente.isBlank()) {
-            return BotPrompts.ToolsAgendar.ERR_FALTA_NOMBRE_VERIF;
-        }
-        if (BookingContextSanitizer.isPlaceholderName(nombreCliente)) {
-            return BotPrompts.ToolsAgendar.ERR_NOMBRE_PLACEHOLDER_VERIF;
-        }
-        if (documento == null || documento.isBlank()) {
-            return BotPrompts.ToolsAgendar.ERR_FALTA_DOC_VERIF;
-        }
-        if (BookingContextSanitizer.isPlaceholderDocument(documento)) {
-            return BotPrompts.ToolsAgendar.ERR_DOC_PLACEHOLDER_VERIF;
-        }
-        String normalized = CustomerDocumentNormalizer.normalize(documento);
-        if (normalized.isEmpty()) {
-            return BotPrompts.ToolsAgendar.ERR_DOC_INVALIDO;
-        }
-        List<AppointmentEntity> existing = appointmentRepository
-                .findByTenantIdAndCustomerDocumentAndStatusAndAppointmentDateGreaterThanEqualOrderByAppointmentDateAscAppointmentTimeAsc(
-                        tenantId, normalized, "scheduled", LocalDate.now());
-        if (existing.isEmpty()) {
-            return BotPrompts.ToolsAgendar.MSG_SIN_CITA_PREVIA;
-        }
-        if (existing.size() == 1) {
-            AppointmentEntity a = existing.get(0);
-            return BotPrompts.ToolsAgendar.citaDuplicadaVerificacion(
-                String.valueOf(a.getAppointmentDate()),
-                String.valueOf(a.getAppointmentTime()),
-                a.getServiceName());
-        }
-        return formatCitasMultiplesVerificacion(existing);
     }
 
     @Tool(description = BotPrompts.ToolsAgendar.TOOL_CANCELAR_CITA)
@@ -286,15 +242,5 @@ public class AgendarTools {
         } catch (DateTimeParseException e) {
             return null;
         }
-    }
-
-    private static String formatCitasMultiplesVerificacion(List<AppointmentEntity> list) {
-        StringBuilder sb = new StringBuilder(BotPrompts.ToolsAgendar.CITAS_MULT_VERIF_PREFIX);
-        for (AppointmentEntity a : list) {
-            sb.append("• ").append(a.getAppointmentDate()).append(" ")
-                .append(normalizeTime(a.getAppointmentTime())).append(" — ").append(a.getServiceName()).append("\n");
-        }
-        sb.append(BotPrompts.ToolsAgendar.CITAS_MULT_VERIF_SUFFIX);
-        return sb.toString();
     }
 }
