@@ -50,11 +50,35 @@ Same rule as [AGENTS.md](../AGENTS.md): **no alternate flow paths or dev fallbac
 
 ### Agenda conventions
 
-- New tables: prefix `agenda_`, Flyway `db/migration/agenda/`.
-- **Greenfield (obligatorio):** tablas/columnas con `@Entity` → Hibernate (`ddl-auto: update`); **no** migración Flyway de `CREATE TABLE` / `ADD COLUMN`. Flyway Agenda = **solo V1–V7** (extensiones, seeds, CHECK, UNIQUE parciales, EXCLUDE, tablas sin entidad, índices GIN). Detalle: [docs/AGENDA_FLYWAY_MIGRATIONS.md](docs/AGENDA_FLYWAY_MIGRATIONS.md).
-- Schema desactualizado → recrear Postgres (`docker-compose down -v`), no acumular `V8+` ni parches en prod.
-- Hibernate `ddl-auto: validate` for Agenda entities.
+- New tables: prefix `agenda_`.
+- **Greenfield (obligatorio):** sección completa abajo — **no** depender solo de links externos.
 - REST under `/api/agenda/...` (see table below).
+
+### Política greenfield — schema Agenda
+
+**Asunción:** BD vacía o recreada. Schema desactualizado → `docker-compose down -v`, **no** `V8+` ni parches en prod.
+
+| Qué cambia | Dónde |
+|------------|--------|
+| Tabla/columna con `@Entity` | `@Entity` + Hibernate (`ddl-auto: update`) — **sin** Flyway `CREATE TABLE` / `ADD COLUMN` |
+| Suplemento PG (CHECK, UNIQUE parcial, EXCLUDE, GIN, tabla sin entidad, seeds) | Flyway V1–V7 |
+| Índice simple | `@Table(indexes=...)` en la entidad (Hibernate) |
+
+**Orden:** Hibernate al arrancar → Flyway V1–V7 en `ApplicationReadyEvent` (`AgendaFlywayConfig`).
+
+| Versión | Archivo | Responsabilidad |
+|---------|---------|-----------------|
+| **V1** | `V1__agenda_extensions.sql` | Extensiones PostgreSQL |
+| **V2** | `V2__agenda_initial_data.sql` | Seed `agenda_categories` |
+| **V3** | `V3__agenda_check_constraints.sql` | CHECK constraints |
+| **V4** | `V4__agenda_unique_constraints.sql` | UNIQUE parciales |
+| **V5** | `V5__agenda_exclusion_constraints.sql` | EXCLUDE GiST (anti solapamiento reservas) |
+| **V6** | `V6__agenda_tables_without_entities.sql` | Tablas sin `@Entity` (`agenda_idempotency_keys`) |
+| **V7** | `V7__agenda_indexes.sql` | Índices GIN / parciales / expresión |
+
+**Prohibido:** `CREATE TABLE agenda_*` en Flyway si existe `@Entity`; `ALTER TABLE ADD COLUMN`; `V8+` para tablas JPA (ej. `UploadedFileEntity` → `agenda_uploaded_files`).
+
+Skills: `new-agenda-entity` (JPA), `new-agenda-migration` (solo suplemento V3–V7).
 
 ### Chatbot conventions
 
@@ -107,6 +131,6 @@ cd backend && mvn flyway:migrate -Dflyway.configFiles=flyway-agenda.conf
 
 - [ ] `mvn compile` passes
 - [ ] Agenda tests added/updated
-- [ ] Schema change: `@Entity` (Hibernate) or suplemento Flyway V1–V7 per [AGENDA_FLYWAY_MIGRATIONS.md](docs/AGENDA_FLYWAY_MIGRATIONS.md) — **never** `V8+` for JPA tables
+- [ ] Schema: `@Entity` (Hibernate) o suplemento V1–V7 según tabla arriba — **never** `V8+` / `CREATE TABLE` para entidades JPA
 - [ ] OpenAPI on new endpoints
 - [ ] `agenda-boundary-check` clean

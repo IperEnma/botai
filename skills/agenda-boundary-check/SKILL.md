@@ -52,6 +52,12 @@ grep -liE "\b(bot|appointment|conversation|faq|knowledge_chunk|lead|menu|menu_op
 ```
 Esperado: ningún archivo listado.
 
+### 5. Greenfield — no CREATE TABLE Flyway para entidades JPA
+```bash
+ls backend/src/main/resources/db/migration/agenda/V[89]*.sql backend/src/main/resources/db/migration/agenda/V[1-9][0-9]*.sql 2>/dev/null
+```
+Esperado: vacío salvo suplemento nuevo acordado — **nunca** tablas con `@Entity` (ej. `agenda_uploaded_files`).
+
 ## Formato del reporte
 
 ```
@@ -60,6 +66,7 @@ Esperado: ningún archivo listado.
   - chatbot → agenda:      0 imports
   - @Table sin agenda_:    0
   - migraciones cruzadas:  0
+  - greenfield Flyway:     OK (V1–V7; sin CREATE TABLE para @Entity)
 ```
 
 Con violaciones: listar archivo:línea y fix sugerido (DTO, puerto, evento — no import de dominio).

@@ -80,7 +80,7 @@ Both domains live in one backend and are **editable**. Keep **technical** separa
 | Rule | Detail |
 |------|--------|
 | No cross-imports | `com.botai.*.agenda` must not import `com.botai.*.chatbot` and vice versa |
-| Agenda schema | New tables: `agenda_*`; Hibernate for `@Entity`; Flyway V1–V7 supplement only — [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](backend/docs/AGENDA_FLYWAY_MIGRATIONS.md) |
+| Agenda schema | Greenfield híbrido: Hibernate + Flyway V1–V7 (tabla en sección *Política greenfield*) |
 | Chatbot schema | Bot tables (`bot`, `conversation`, `faq`, …) — change only when the task requires it |
 | Integration | REST, actions, shared infra — not domain-to-domain imports |
 
@@ -89,10 +89,31 @@ Details: [CLAUDE.md](CLAUDE.md). Pre-commit for Agenda: `agenda-boundary-check`.
 ### Política greenfield (schema)
 
 - **Asunción:** BD vacía o recreada; no migraciones incrementales en prod.
-- **Agenda:** Hibernate crea tablas/columnas desde `@Entity`; Flyway aplica **V1–V7** (extensiones PG, seeds, CHECK, UNIQUE parciales, EXCLUDE GiST, tablas sin entidad, índices GIN). **No** `ALTER TABLE ADD COLUMN` en Flyway; **no** `CREATE TABLE` si ya hay entidad JPA (ej. `agenda_uploaded_files` → `UploadedFileEntity`, sin V8).
 - **Local desactualizado:** `docker-compose down -v` y volver a levantar.
-- **Prod (Render/Neon):** recrear la base si el schema no coincide — ver [deploy/RENDER.md](deploy/RENDER.md).
-- **Referencia agentes:** [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](backend/docs/AGENDA_FLYWAY_MIGRATIONS.md).
+- **Prod (Render/Neon):** recrear la base si el schema no coincide — [deploy/RENDER.md](deploy/RENDER.md).
+
+**Agenda — quién crea qué**
+
+| Qué | Mecanismo |
+|-----|-----------|
+| Tablas/columnas con `@Entity` | Hibernate (`ddl-auto: update`) |
+| CHECK, UNIQUE parcial, EXCLUDE GiST, índice GIN, tabla sin entidad, seeds | Flyway V1–V7 |
+
+**Flyway Agenda — responsabilidad por versión** (`backend/src/main/resources/db/migration/agenda/`)
+
+| V | Archivo | Responsabilidad |
+|---|---------|-----------------|
+| V1 | `V1__agenda_extensions.sql` | Extensiones PG |
+| V2 | `V2__agenda_initial_data.sql` | Seed categorías |
+| V3 | `V3__agenda_check_constraints.sql` | CHECK |
+| V4 | `V4__agenda_unique_constraints.sql` | UNIQUE parciales |
+| V5 | `V5__agenda_exclusion_constraints.sql` | EXCLUDE GiST reservas |
+| V6 | `V6__agenda_tables_without_entities.sql` | Tablas sin `@Entity` |
+| V7 | `V7__agenda_indexes.sql` | Índices GIN / parciales |
+
+**Secuencia termina en V7.** No `ALTER TABLE ADD COLUMN` en Flyway. No `CREATE TABLE` si hay `@Entity` (ej. `UploadedFileEntity` → `agenda_uploaded_files`). No inventar `V8+` para tablas JPA.
+
+Detalle operativo: [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](backend/docs/AGENDA_FLYWAY_MIGRATIONS.md).
 
 ---
 

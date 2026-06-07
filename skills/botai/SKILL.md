@@ -42,6 +42,29 @@ Monorepo: **Agenda** (scheduling SaaS) + **Chatbot** (WhatsApp / web), shared Sp
 - **Do not** cross-import `agenda` ↔ `chatbot` domain packages.
 - Integrate via bot actions, REST, shared infrastructure wiring.
 
+## Greenfield — schema Agenda (leer antes de Flyway o `@Entity`)
+
+BD vacía o recreada. **No** parches prod.
+
+| Qué | Dónde |
+|-----|--------|
+| Tabla/columna con `@Entity` | Hibernate — **sin** Flyway `CREATE TABLE` |
+| CHECK / UNIQUE parcial / EXCLUDE / GIN / tabla sin entidad / seeds | Flyway **V1–V7** |
+
+| V | Responsabilidad |
+|---|-----------------|
+| V1 | Extensiones PG |
+| V2 | Seed categorías |
+| V3 | CHECK |
+| V4 | UNIQUE parciales |
+| V5 | EXCLUDE GiST reservas |
+| V6 | Tablas sin `@Entity` |
+| V7 | Índices GIN / parciales |
+
+**Termina en V7.** Ej.: `agenda_uploaded_files` = `UploadedFileEntity`, **no** migración Flyway.
+
+Ver: [backend/AGENTS.md](../../backend/AGENTS.md), skill `new-agenda-migration`.
+
 ## Commands
 
 ```bash

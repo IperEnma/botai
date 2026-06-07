@@ -1,6 +1,6 @@
 ---
 name: new-agenda-feature
-description: Scaffolding end-to-end de una feature nueva del módulo AGENDA. Crea domain model + port + adapter JPA + use case + controller + migración Flyway + tests, siguiendo la arquitectura hexagonal. Úsese cuando el usuario pide "agregar X a AGENDA" y la feature toca múltiples capas. No importa paquetes chatbot desde agenda.
+description: Scaffolding end-to-end de una feature nueva del módulo AGENDA. Domain + port + adapter + use case + controller + tests. Schema greenfield: @Entity/Hibernate; Flyway solo suplemento V1–V7 si aplica. No importa paquetes chatbot desde agenda.
 metadata:
   author: botai
   version: "1.0"
@@ -37,17 +37,21 @@ No usar si:
 ### Paso 1 — Diseño rápido
 Listar al usuario (en 5 líneas max) qué archivos van a crearse. Si la feature es compleja, sugerir delegar primero al subagente `agenda-architect`.
 
-### Paso 2 — Migración Flyway
-Crear `backend/src/main/resources/db/migration/agenda/V<N>__agenda_<feature>.sql` con:
-- Tablas nuevas con prefijo `agenda_`.
-- Columnas `created_at TIMESTAMP NOT NULL DEFAULT NOW()` y `updated_at TIMESTAMP NOT NULL DEFAULT NOW()`.
-- Índices necesarios (al menos uno por `tenant_id` si aplica).
-- `deleted_at TIMESTAMP NULL` si la tabla requiere soft delete.
+### Paso 2 — Schema (greenfield)
 
-Calcular `<N>` con:
-```bash
-ls backend/src/main/resources/db/migration/agenda/ | grep -oP '^V\d+' | sort -V | tail -1
-```
+**Tabla/columna con `@Entity`:** entidad JPA — Hibernate crea el DDL. **No** `CREATE TABLE` en Flyway.
+
+**Suplemento Flyway solo si hace falta:** CHECK, UNIQUE parcial, índice GIN, tabla sin entidad → V3–V7 ([backend/AGENTS.md](../../backend/AGENTS.md)).
+
+| V | Responsabilidad |
+|---|-----------------|
+| V1 | Extensiones PG |
+| V2 | Seeds |
+| V3 | CHECK |
+| V4 | UNIQUE parciales |
+| V5 | EXCLUDE GiST |
+| V6 | Tablas sin `@Entity` |
+| V7 | Índices GIN / parciales |
 
 ### Paso 3 — Capa de persistencia
 Crear bajo `com.botai.agenda.infrastructure.persistence`:

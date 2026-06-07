@@ -13,9 +13,21 @@ metadata:
 
 # new-agenda-migration
 
-Crea una migración Flyway **suplementaria** para el módulo AGENDA (greenfield).
+Crea migración Flyway **suplementaria** para AGENDA (greenfield). **Secuencia: V1–V7.**
 
-**Leer primero:** [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](../../backend/docs/AGENDA_FLYWAY_MIGRATIONS.md)
+## Responsabilidad por versión (no inventar V8 para tablas JPA)
+
+| V | Archivo | Solo para |
+|---|---------|-----------|
+| V1 | `V1__agenda_extensions.sql` | Extensiones PG |
+| V2 | `V2__agenda_initial_data.sql` | Seeds |
+| V3 | `V3__agenda_check_constraints.sql` | CHECK |
+| V4 | `V4__agenda_unique_constraints.sql` | UNIQUE parciales |
+| V5 | `V5__agenda_exclusion_constraints.sql` | EXCLUDE GiST |
+| V6 | `V6__agenda_tables_without_entities.sql` | Tablas **sin** `@Entity` |
+| V7 | `V7__agenda_indexes.sql` | Índices GIN / parciales |
+
+Tabla/columna con `@Entity` → entidad JPA + recrear BD (`new-agenda-entity`), **no** este skill.
 
 ## Cuándo usar
 

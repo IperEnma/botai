@@ -36,10 +36,10 @@ Una frase clara: qué problema resolvés y para qué actor (cliente, admin de ne
 ### 4. Casos de uso
 - Clases en `application/usecase/` con: input DTO, output DTO, pasos (pseudocódigo breve), transaccionalidad, eventos que publica.
 
-### 5. Impacto de base de datos
-- Tablas nuevas (con prefijo `agenda_`) o cambios a existentes.
-- Índices requeridos.
-- Nombre sugerido de la migración Flyway (ej. `V7__agenda_loyalty_rules.sql`).
+### 5. Impacto de base de datos (greenfield)
+
+- Tablas/columnas → `@Entity` JPA; Hibernate crea el DDL. **No** `CREATE TABLE` / `ADD COLUMN` en Flyway.
+- Suplemento Flyway solo CHECK, UNIQUE parcial, EXCLUDE, GIN, tabla sin entidad → V3–V7 ([backend/AGENTS.md](../backend/AGENTS.md)).
 
 ### 6. Endpoints REST
 - Método, ruta, scope (`public` / `platform` / `tenants` / `me`).

@@ -37,12 +37,12 @@ grep -rn "import com.botai.application.chatbot\|import com.botai.domain.chatbot"
 - Use cases: `*UseCase` o verbo explícito.
 - DTOs: `*Request` / `*Response`.
 
-### 4. Base de datos
-- Toda tabla nueva lleva prefijo `agenda_`.
-- Hay una migración Flyway nueva en `db/migration/agenda/` con número correlativo.
-- Nombre de migración sigue `V<N>__agenda_<descripcion>.sql`.
-- Ninguna entidad nueva depende de `ddl-auto` para crearse.
-- Columnas de auditoría (`created_at`, `updated_at`) presentes.
+### 4. Base de datos (greenfield)
+
+- Tablas nuevas → `@Entity` con prefijo `agenda_`; Hibernate las crea.
+- **Violación:** `CREATE TABLE agenda_*` en Flyway con `@Entity` existente.
+- **Violación:** `V8+` para tablas JPA (ej. `agenda_uploaded_files`).
+- Flyway permitido: suplemento V1–V7 — [backend/AGENTS.md](../backend/AGENTS.md).
 
 ### 5. Feature flag
 - Endpoints bajo `/api/agenda/tenants/**` y `/api/agenda/me/**` están cubiertos por `AgendaFeatureGuard`.

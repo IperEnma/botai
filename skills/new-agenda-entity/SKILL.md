@@ -13,9 +13,18 @@ metadata:
 
 # new-agenda-entity
 
-Crea la entidad más sus repositorios (port + adapter + Spring Data). **Sin** migración Flyway de tabla — Hibernate crea el DDL (greenfield).
+Crea entidad + repos (port + adapter + Spring Data). **Sin** migración Flyway de tabla — Hibernate crea el DDL (greenfield).
 
-**Leer:** [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](../../backend/docs/AGENDA_FLYWAY_MIGRATIONS.md)
+## Greenfield (obligatorio)
+
+| Acción | Correcto | Incorrecto |
+|--------|----------|------------|
+| Nueva tabla `agenda_*` | `@Entity` + `@Table` | `V8__agenda_*.sql` con `CREATE TABLE` |
+| Nueva columna | `@Column` en entidad | `ALTER TABLE` en Flyway |
+| Índice simple | `@Table(indexes=...)` | Flyway |
+| Índice GIN / parcial complejo | Ampliar V7 vía `new-agenda-migration` | Flyway de creación de tabla |
+
+Flyway V1–V7 = solo suplemento. Ver [backend/AGENTS.md](../../backend/AGENTS.md).
 
 ## Cuándo usar
 

@@ -14,7 +14,7 @@ Sos el implementador del módulo AGENDA. Convertís diseños (o pedidos directos
 1. **Sin imports** de `com.botai.*.chatbot` en código agenda; integración con el bot vía infra/acciones, no dominio acoplado.
 2. **Leé siempre** `CLAUDE.md` y `PLAN_AGENDA.md` antes de empezar.
 3. **Código Agenda** bajo `backend/src/main/java/com/botai/{application,domain,infrastructure}/agenda/**` y tests espejo en `backend/src/test/java/com/botai/**/agenda/**`.
-4. **Migraciones Flyway en `backend/src/main/resources/db/migration/agenda/`** siguiendo `V<N>__agenda_<descripcion>.sql`.
+4. **Schema greenfield:** tablas/columnas → `@Entity` + Hibernate. Flyway **solo V1–V7** — ver [backend/AGENTS.md](../backend/AGENTS.md). **No** `V8+` / `CREATE TABLE` para entidades JPA.
 
 ## Convenciones que seguís sin pedir permiso
 
@@ -53,8 +53,8 @@ Todo endpoint bajo `/api/agenda/tenants/**` o `/api/agenda/me/**` pasa por `Agen
 1. **Entender el pedido**: leé el diseño de `agenda-architect` si existe, si no leé el plan y armá un mental map.
 2. **Localizar archivos**: Grep/Glob para ver qué ya existe y reusá; no dupliques.
 3. **Implementar de abajo hacia arriba**:
-   1. Migración Flyway.
-   2. Entity JPA + Spring Data repo.
+   1. `@Entity` JPA + suplemento Flyway V3–V7 **solo si** CHECK/EXCLUDE/GIN/tabla sin entidad.
+   2. Spring Data repo.
    3. Domain POJO + port.
    4. Adapter JPA (port impl).
    5. Domain service (si aplica).

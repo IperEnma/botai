@@ -100,11 +100,37 @@ Both domains live in one backend and are **editable**. Keep **technical** separa
 | Rule | Detail |
 |------|--------|
 | No cross-imports | `com.botai.*.agenda` must not import `com.botai.*.chatbot` and vice versa |
-| Agenda schema | New tables: `agenda_*`, Flyway under `db/migration/agenda/` |
+| Agenda schema | Greenfield: `@Entity` → Hibernate; Flyway **solo V1–V7** (ver tabla abajo). **No** `V8+` para tablas JPA. |
 | Chatbot schema | Bot tables (`bot`, `conversation`, `faq`, …) — change only when the task requires it |
 | Integration | REST, actions, shared infra — not domain-to-domain imports |
 
 Details: [CLAUDE.md](CLAUDE.md). Pre-commit for Agenda: `agenda-boundary-check`.
+
+### Política greenfield — schema Agenda (obligatorio para agentes)
+
+**Asunción:** BD vacía o recreada (`docker-compose down -v` local; Neon/Render: nueva base). **No** parches `ALTER TABLE` ni `V8+` “de creación” en prod.
+
+| Qué cambia | Dónde |
+|------------|--------|
+| Tabla/columna con `@Entity` | Entidad JPA + Hibernate (`ddl-auto: update`) — **sin** Flyway `CREATE TABLE` / `ADD COLUMN` |
+| CHECK, UNIQUE parcial, EXCLUDE GiST, índice GIN, tabla sin entidad, seeds | Flyway V1–V7 (archivo según responsabilidad) |
+| Schema local viejo | Recrear Postgres — **no** acumular migraciones |
+
+**Orden:** Hibernate crea `agenda_*` al arrancar → `ApplicationReadyEvent` → Flyway V1–V7.
+
+| Versión | Archivo | Responsabilidad |
+|---------|---------|-----------------|
+| **V1** | `V1__agenda_extensions.sql` | Extensiones PG (`vector`, `pgcrypto`, `unaccent`, `btree_gist`) |
+| **V2** | `V2__agenda_initial_data.sql` | Seed categorías (`INSERT` en tablas ya creadas por Hibernate) |
+| **V3** | `V3__agenda_check_constraints.sql` | CHECK (rating 1–5, enums string, etc.) |
+| **V4** | `V4__agenda_unique_constraints.sql` | UNIQUE parciales (slug, email tenant nullable, teléfono usuario) |
+| **V5** | `V5__agenda_exclusion_constraints.sql` | EXCLUDE GiST anti doble-reserva |
+| **V6** | `V6__agenda_tables_without_entities.sql` | Tablas **sin** `@Entity` (p. ej. `agenda_idempotency_keys`) |
+| **V7** | `V7__agenda_indexes.sql` | Índices GIN / parciales / expresión (Hibernate no los genera) |
+
+**Secuencia termina en V7.** Ejemplos **sin** Flyway: `agenda_reviews`, `agenda_uploaded_files` (`UploadedFileEntity` — imágenes en Postgres). **No** crear `V8__agenda_uploaded_files` ni similares.
+
+Carpeta: `backend/src/main/resources/db/migration/agenda/`. Detalle extendido: [backend/docs/AGENDA_FLYWAY_MIGRATIONS.md](backend/docs/AGENDA_FLYWAY_MIGRATIONS.md).
 
 ---
 
