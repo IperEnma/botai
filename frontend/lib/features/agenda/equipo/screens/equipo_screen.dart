@@ -63,15 +63,22 @@ class EquipoScreen extends ConsumerWidget {
       );
     }
 
+    final isNarrow = MediaQuery.sizeOf(context).width < 700;
+
     return Container(
       color: KTokens.bg,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(isNarrow ? 20 : 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             EquipoPageHeader(
-              onAddMember: () => showAddMemberPanel(context, key),
+              onAddMember: () async {
+                await showAddMemberPanel(context, key);
+                if (context.mounted) {
+                  ref.read(equipoProvider(key).notifier).syncFromStaff();
+                }
+              },
               onImport: () {},
             ),
             const SizedBox(height: 22),

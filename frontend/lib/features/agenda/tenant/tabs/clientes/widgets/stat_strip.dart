@@ -12,32 +12,69 @@ class StatStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: KTokens.surface,
-        borderRadius: BorderRadius.circular(KTokens.rMd),
-        border: Border.all(color: KTokens.border),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 520;
+        final cells = [
           _Cell(value: '${kpis.total}', label: 'Clientes totales'),
-          const _VDivider(),
           _Cell(value: '${kpis.nuevosEsteMes}', label: 'Nuevos este mes'),
-          const _VDivider(),
           _Cell(
             value: '${(kpis.recurrencia * 100).round()}%',
             label: 'Tasa de recurrencia',
             accent: true,
           ),
-          const _VDivider(),
           _Cell(
             value: kpis.visitasPromedio.toStringAsFixed(1).replaceAll('.', ','),
             label: 'Visitas promedio',
           ),
-        ],
-      ),
+        ];
+
+        final container = BoxDecoration(
+          color: KTokens.surface,
+          borderRadius: BorderRadius.circular(KTokens.rMd),
+          border: Border.all(color: KTokens.border),
+        );
+
+        if (narrow) {
+          return Container(
+            decoration: container,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                  child: Row(
+                    children: [cells[0], const _VDivider(), cells[1]],
+                  ),
+                ),
+                const Divider(height: 1, thickness: 1, color: KTokens.border),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                  child: Row(
+                    children: [cells[2], const _VDivider(), cells[3]],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Container(
+          decoration: container,
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              cells[0],
+              const _VDivider(),
+              cells[1],
+              const _VDivider(),
+              cells[2],
+              const _VDivider(),
+              cells[3],
+            ],
+          ),
+        );
+      },
     );
   }
 }

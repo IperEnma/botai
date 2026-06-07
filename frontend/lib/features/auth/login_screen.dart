@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -136,11 +138,13 @@ class LoginScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               LayoutBuilder(
-                                builder: (_, constraints) => SizedBox(
-                                  width: double.infinity,
-                                  height: 50,
-                                  child: buildGoogleIdentitySignInButton(
-                                    width: constraints.maxWidth,
+                                builder: (_, constraints) => ClipRect(
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    height: 40,
+                                    child: buildGoogleIdentitySignInButton(
+                                      width: math.min(constraints.maxWidth, 320),
+                                    ),
                                   ),
                                 ),
                               ),

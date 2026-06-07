@@ -6,15 +6,21 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../agenda/register/konecta_tokens.dart';
+import '../../agenda/tenant/widgets/new_turno_panel.dart';
 import '../controllers/inicio_controller.dart';
 import '../models/kpi_models.dart';
 import 'now_divider.dart';
 import 'turno_row.dart';
 
 class TurnosCard extends ConsumerStatefulWidget {
-  const TurnosCard({super.key, required this.tenantId});
+  const TurnosCard({
+    super.key,
+    required this.tenantId,
+    required this.businessId,
+  });
 
   final String tenantId;
+  final String businessId;
 
   @override
   ConsumerState<TurnosCard> createState() => _TurnosCardState();
@@ -56,7 +62,13 @@ class _TurnosCardState extends ConsumerState<TurnosCard> {
           _Header(snapshot: snapshot),
           const SizedBox(height: 12),
           if (snapshot == null || snapshot.upcomingToday.isEmpty)
-            _EmptyState()
+            _EmptyState(
+              onAgendar: () => showNewTurnoPanel(
+                context,
+                tenantId: widget.tenantId,
+                businessId: widget.businessId,
+              ),
+            )
           else
             _TurnosList(
               turnos: snapshot.upcomingToday,
@@ -86,10 +98,7 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'PROXIMOS TURNOS',
-                style: KTokens.tEyebrow,
-              ),
+              Text('PROXIMOS TURNOS', style: KTokens.tEyebrow),
               const SizedBox(height: 4),
               Text(
                 'HOY · $total TOTAL · $libres LIBRES',
@@ -153,6 +162,9 @@ class _TurnosList extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.onAgendar});
+  final VoidCallback onAgendar;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -180,7 +192,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           OutlinedButton(
-            onPressed: () {},
+            onPressed: onAgendar,
             style: OutlinedButton.styleFrom(
               foregroundColor: KTokens.accent,
               side: const BorderSide(color: KTokens.accent),

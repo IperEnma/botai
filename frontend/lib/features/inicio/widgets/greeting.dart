@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../agenda/register/konecta_tokens.dart';
 import '../../agenda/shared/k_button.dart';
+import '../../agenda/tenant/widgets/new_turno_panel.dart';
 import '../controllers/inicio_controller.dart';
 
 class Greeting extends ConsumerWidget {
@@ -13,10 +14,12 @@ class Greeting extends ConsumerWidget {
     super.key,
     required this.ownerName,
     required this.tenantId,
+    required this.businessId,
   });
 
   final String? ownerName;
   final String tenantId;
+  final String businessId;
 
   String _greeting() {
     final hour = DateTime.now().hour;
@@ -96,22 +99,15 @@ class Greeting extends ConsumerWidget {
       label: 'Nueva agenda',
       icon: Icons.add_rounded,
       compact: true,
-      onPressed: () => context.go('/agenda/panel?section=agenda'),
+      onPressed: () => showNewTurnoPanel(
+        context,
+        tenantId: tenantId,
+        businessId: businessId,
+      ),
     );
 
     if (!isWide) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          textColumn,
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            children: [btn1, btn2],
-          ),
-        ],
-      );
+      return textColumn;
     }
 
     return Row(

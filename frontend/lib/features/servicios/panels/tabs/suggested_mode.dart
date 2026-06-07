@@ -99,7 +99,7 @@ class _SuggestedModeState extends State<SuggestedMode> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 2.3,
+              mainAxisExtent: 90,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
             ),

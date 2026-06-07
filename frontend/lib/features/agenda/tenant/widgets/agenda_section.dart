@@ -188,63 +188,100 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
     );
     final activeStaff = staffState.members.where((s) => s.activo).toList();
     final ws = _weekStart(_focusDate);
+    final isMobile = MediaQuery.sizeOf(context).width < 700;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Two-column header: left = pill + date, right = buttons + tabs ────
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // LEFT: staff pill (top) + date+arrows (bottom)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _StaffPill(activeStaff: activeStaff),
-                  const SizedBox(height: 22),
-                  _DateNavRow(
-                    mode: _mode,
-                    title: _currentTitle(),
-                    onPrev: _goToPrevious,
-                    onNext: _goToNext,
-                  ),
-                ],
+        if (isMobile) ...[
+          // Mobile row 1: pill (expands) + icon-only action buttons
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: _StaffPill(activeStaff: activeStaff)),
+              const SizedBox(width: 8),
+              _SmallIconBtn(icon: Icons.link, onTap: _copyPublicLink),
+              const SizedBox(width: 6),
+              _SmallIconBtn(
+                icon: Icons.add_rounded,
+                onTap: () => _openNewTurno(),
+                primary: true,
               ),
-            ),
-            const SizedBox(width: 16),
-            // RIGHT: action buttons (top) + view tabs (bottom)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Mobile row 2: date nav (expands) + view tabs
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: _DateNavRow(
+                  mode: _mode,
+                  title: _currentTitle(),
+                  onPrev: _goToPrevious,
+                  onNext: _goToNext,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ViewTabs(
+                mode: _mode,
+                onModeChange: (m) => setState(() => _mode = m),
+              ),
+            ],
+          ),
+        ] else ...[
+          // Desktop: two-column header
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    KButton.secondary(
-                      label: 'Copiar vínculo',
-                      icon: Icons.link,
-                      compact: true,
-                      onPressed: _copyPublicLink,
-                    ),
-                    const SizedBox(width: 8),
-                    KButton.primary(
-                      label: 'Nueva agenda',
-                      icon: Icons.add_rounded,
-                      compact: true,
-                      onPressed: () => _openNewTurno(),
+                    _StaffPill(activeStaff: activeStaff),
+                    const SizedBox(height: 22),
+                    _DateNavRow(
+                      mode: _mode,
+                      title: _currentTitle(),
+                      onPrev: _goToPrevious,
+                      onNext: _goToNext,
                     ),
                   ],
                 ),
-                const SizedBox(height: 22),
-                _ViewTabs(
-                  mode: _mode,
-                  onModeChange: (m) => setState(() => _mode = m),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      KButton.secondary(
+                        label: 'Copiar vínculo',
+                        icon: Icons.link,
+                        compact: true,
+                        onPressed: _copyPublicLink,
+                      ),
+                      const SizedBox(width: 8),
+                      KButton.primary(
+                        label: 'Nueva agenda',
+                        icon: Icons.add_rounded,
+                        compact: true,
+                        onPressed: () => _openNewTurno(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  _ViewTabs(
+                    mode: _mode,
+                    onModeChange: (m) => setState(() => _mode = m),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 10),
         // ── Stats mono row ────────────────────────────────────────────────────
         _StatsRow(
@@ -335,12 +372,16 @@ class _StaffPill extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            'Todas las agendas · ${activeStaff.length} activa${activeStaff.length != 1 ? 's' : ''}',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: KTokens.ink,
+          Flexible(
+            child: Text(
+              'Todas las agendas · ${activeStaff.length} activa${activeStaff.length != 1 ? 's' : ''}',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: KTokens.ink,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],
@@ -555,6 +596,42 @@ class _StatsRow extends ConsumerWidget {
           fontWeight: FontWeight.w500,
         ),
       );
+}
+
+// ── Small icon button (mobile header) ─────────────────────────────────────────
+
+class _SmallIconBtn extends StatelessWidget {
+  const _SmallIconBtn({
+    required this.icon,
+    required this.onTap,
+    this.primary = false,
+  });
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: primary ? KTokens.ink : KTokens.surface,
+          borderRadius: BorderRadius.circular(KTokens.rPill),
+          border: Border.all(
+            color: primary ? KTokens.ink : KTokens.borderStrong,
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 15,
+          color: primary ? Colors.white : KTokens.ink,
+        ),
+      ),
+    );
+  }
 }
 
 // ── Empty state ────────────────────────────────────────────────────────────────

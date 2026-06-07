@@ -16,50 +16,71 @@ class EquipoPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.sizeOf(context).width < 700;
+
+    final textBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Equipo', style: KTokens.tDisplay),
+        if (!isNarrow) ...[
+          const SizedBox(height: 8),
+          _DescriptionText(),
+        ],
+      ],
+    );
+
+    final buttons = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KButton.secondary(
+          label: 'Importar lista',
+          icon: Icons.upload_outlined,
+          compact: true,
+          onPressed: onImport,
+        ),
+        const SizedBox(width: 8),
+        KButton.primary(
+          label: 'Agregar miembro',
+          icon: Icons.add_rounded,
+          compact: true,
+          onPressed: onAddMember,
+        ),
+      ],
+    );
+
+    if (isNarrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          textBlock,
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              KButton.secondary(
+                label: 'Importar lista',
+                icon: Icons.upload_outlined,
+                compact: true,
+                onPressed: onImport,
+              ),
+              const Spacer(),
+              KButton.primary(
+                label: 'Agregar miembro',
+                icon: Icons.add_rounded,
+                compact: true,
+                onPressed: onAddMember,
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'NEGOCIO',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
-                  letterSpacing: 1.4,
-                  color: KTokens.accent,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Equipo',
-                style: KTokens.tDisplay,
-              ),
-              const SizedBox(height: 8),
-              _DescriptionText(),
-            ],
-          ),
-        ),
+        Expanded(child: textBlock),
         const SizedBox(width: 16),
-        Row(
-          children: [
-            KButton.secondary(
-              label: 'Importar lista',
-              icon: Icons.upload_outlined,
-              compact: true,
-              onPressed: onImport,
-            ),
-            const SizedBox(width: 8),
-            KButton.primary(
-              label: 'Agregar miembro',
-              icon: Icons.add_rounded,
-              compact: true,
-              onPressed: onAddMember,
-            ),
-          ],
-        ),
+        buttons,
       ],
     );
   }

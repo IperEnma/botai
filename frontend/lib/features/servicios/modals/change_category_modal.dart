@@ -130,10 +130,15 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
         .firstOrNull;
     final sinceLabel = _sinceLabel(business?.createdAt);
 
+    final isNarrow = MediaQuery.sizeOf(context).width < 600;
+
     return Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isNarrow ? 16 : 40,
+        vertical: 40,
+      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 580,
@@ -245,13 +250,16 @@ class _ChangeCategoryModalState extends ConsumerState<_ChangeCategoryModal> {
                     const SizedBox(height: 12),
 
                     // Category grid (multi-select)
-                    GridView.count(
+                    GridView(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      childAspectRatio: 3.2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisExtent: 80,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
                       children: BusinessCategory.values.map((cat) {
                         final isSelected = _selected.contains(cat);
                         final isInitial = _initial.contains(cat);

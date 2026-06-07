@@ -74,71 +74,106 @@ class _RoleCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final roles = [
+    // (type, label, description, comingSoon)
+    final types = [
       (
-        MemberRole.duenio,
-        'Dueño',
-        'Acceso total: configuración, facturación y equipo.',
+        MemberType.profesionalSoloPerfil,
+        'Profesional solo perfil',
+        'Aparece en la agenda pero no puede iniciar sesión.',
+        false,
       ),
       (
-        MemberRole.profesional,
-        'Profesional',
-        'Gestiona su agenda y ve sus turnos. RECOMENDADO',
+        MemberType.profesionalConCuenta,
+        'Profesional con cuenta',
+        'Puede iniciar sesión y gestionar su agenda.',
+        true,
       ),
       (
-        MemberRole.recepcion,
-        'Recepción',
+        MemberType.recepcion,
+        'Recepción con cuenta',
         'Puede gestionar cualquier turno del negocio.',
+        true,
       ),
     ];
 
     return Column(
-      children: roles.map((r) {
-        final (role, name, desc) = r;
-        final isActive = member.role == role;
-        return GestureDetector(
-          onTap: () => notifier.updateMember(member.copyWith(role: role)),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: isActive ? KTokens.accentSoft : KTokens.surface,
-              border: Border.all(
-                color: isActive ? KTokens.accent : KTokens.border,
-                width: isActive ? 1.5 : 1,
-              ),
-              borderRadius: BorderRadius.circular(KTokens.rSm),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isActive ? KTokens.accent : KTokens.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        desc,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: isActive ? KTokens.accent : KTokens.inkMuted,
-                        ),
-                      ),
-                    ],
-                  ),
+      children: types.map((t) {
+        final (type, name, desc, comingSoon) = t;
+        final isActive = member.type == type;
+        return Opacity(
+          opacity: comingSoon ? 0.45 : 1.0,
+          child: GestureDetector(
+            onTap: comingSoon
+                ? null
+                : () => notifier.updateMember(member.copyWith(type: type)),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: const EdgeInsets.only(bottom: 10),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: isActive ? KTokens.accentSoft : KTokens.surface,
+                border: Border.all(
+                  color: isActive ? KTokens.accent : KTokens.border,
+                  width: isActive ? 1.5 : 1,
                 ),
-                if (isActive)
-                  const Icon(Icons.check_circle_rounded,
-                      color: KTokens.accent, size: 20),
-              ],
+                borderRadius: BorderRadius.circular(KTokens.rSm),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              name,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    isActive ? KTokens.accent : KTokens.ink,
+                              ),
+                            ),
+                            if (comingSoon) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: KTokens.inkSoft,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'PRÓXIMAMENTE',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 9,
+                                    color: Colors.white,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          desc,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color:
+                                isActive ? KTokens.accent : KTokens.inkMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isActive)
+                    const Icon(Icons.check_circle_rounded,
+                        color: KTokens.accent, size: 20),
+                ],
+              ),
             ),
           ),
         );

@@ -32,6 +32,8 @@ class MembersTable extends ConsumerWidget {
     );
     final services = servicesState.items;
 
+    final isMobile = MediaQuery.sizeOf(context).width < 700;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -41,8 +43,10 @@ class MembersTable extends ConsumerWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          _TableHeader(),
-          const Divider(height: 1, color: KTokens.border),
+          if (!isMobile) ...[
+            _TableHeader(),
+            const Divider(height: 1, color: KTokens.border),
+          ],
           if (members.isEmpty)
             _EmptyState(hasFilter: state.filterStatus != null || state.searchQuery.isNotEmpty)
           else

@@ -124,41 +124,47 @@ class _ScheduleCardState extends ConsumerState<ScheduleCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Horario regular',
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: KTokens.ink,
+          Builder(builder: (context) {
+            final isMobile = MediaQuery.sizeOf(context).width < 700;
+            return Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Horario regular',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: KTokens.ink,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Cuándo el negocio acepta turnos cada semana.',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: KTokens.inkMuted,
-                      ),
-                    ),
-                  ],
+                      if (!isMobile) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Cuándo el negocio acepta turnos cada semana.',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: KTokens.inkMuted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-              Text(
-                'UY · ZONA AMERICA/MONTEVIDEO',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9,
-                  color: KTokens.inkSoft,
-                  letterSpacing: 0.6,
-                ),
-              ),
-            ],
-          ),
+                if (!isMobile)
+                  Text(
+                    'UY · ZONA AMERICA/MONTEVIDEO',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 9,
+                      color: KTokens.inkSoft,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+              ],
+            );
+          }),
           const SizedBox(height: 16),
           const Divider(height: 1, color: KTokens.border),
           const SizedBox(height: 8),
@@ -180,8 +186,8 @@ class _ScheduleCardState extends ConsumerState<ScheduleCard> {
                     .removeBreak(day.diaSemana),
                 onCopy: () => _showCopyOptions(context, day.diaSemana),
               )),
-          // Copy footer
-          if (srcDay != null) ...[
+          // Copy footer (desktop only)
+          if (srcDay != null && MediaQuery.sizeOf(context).width >= 700) ...[
             const SizedBox(height: 12),
             const Divider(height: 1, color: KTokens.border),
             const SizedBox(height: 10),

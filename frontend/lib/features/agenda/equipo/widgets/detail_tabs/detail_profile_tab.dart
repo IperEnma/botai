@@ -117,13 +117,15 @@ class _DetailProfileTabState extends State<DetailProfileTab> {
             ),
           ),
           const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
+          GridView(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 3.2,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              mainAxisExtent: 68,
+            ),
             children: [
               _FieldBox(
                 label: 'NOMBRE',

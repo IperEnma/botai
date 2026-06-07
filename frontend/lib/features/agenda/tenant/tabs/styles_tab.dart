@@ -394,16 +394,6 @@ class _ConfigColumn extends StatelessWidget {
             children: [
               // Header
               Text(
-                'PERSONALIZACIÓN',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  letterSpacing: 1.6,
-                  color: KTokens.accent,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
                 'Estilos',
                 style: KTokens.tDisplay,
               ),

@@ -211,6 +211,19 @@ class EquipoNotifier extends StateNotifier<EquipoState> {
   void addMember(Member member) {
     state = state.copyWith(members: [...state.members, member]);
   }
+
+  void syncFromStaff() {
+    final staffState = _ref.read(businessStaffProvider(
+        (tenantId: _key.tenantId, businessId: _key.businessId)));
+    if (!staffState.isLoading && staffState.error == null) {
+      final members = staffState.members
+          .asMap()
+          .entries
+          .map((e) => _toMember(e.value, e.key))
+          .toList();
+      state = state.copyWith(members: members, isLoading: false, error: null);
+    }
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
