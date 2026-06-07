@@ -3,27 +3,43 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class AppConfig {
   static const String appName = 'BotAI Admin';
 
-  static String get apiBaseUrl =>
-      (dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api').trim();
+  static String _stripTrailingSlash(String value) =>
+      value.replaceAll(RegExp(r'/+$'), '');
 
-  /// Raíz del backend (sin sufijo /api).
-  static String get serverBaseUrl {
-    var api = apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+  /// Host del backend Konecta **sin path** (ej. `http://localhost:8080`).
+  ///
+  /// Context paths se arman en código:
+  /// - Chatbot API → [apiBaseUrl] (`/api`)
+  /// - Agenda API → [agendaApiBaseUrl] (`/api/agenda`)
+  /// - Uploads → [mediaBaseUrl]/uploads/…
+  static String get konectaBaseUrl {
+    for (final key in ['KONECTA_BASE_URL', 'PUBLIC_BACKEND_URL']) {
+      final v = dotenv.env[key]?.trim();
+      if (v != null && v.isNotEmpty) {
+        return _stripTrailingSlash(v);
+      }
+    }
+    return _stripTrailingSlash(_konectaBaseFromLegacyApiBaseUrl());
+  }
+
+  /// Compat: `API_BASE_URL=http://host:8080/api` → host `http://host:8080`.
+  static String _konectaBaseFromLegacyApiBaseUrl() {
+    var api = (dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api').trim();
+    api = _stripTrailingSlash(api);
     if (api.endsWith('/api')) {
-      api = api.substring(0, api.length - 4);
+      return api.substring(0, api.length - 4);
     }
-    return api.replaceAll(RegExp(r'/+$'), '');
+    return api;
   }
 
-  /// Host público para `/uploads/**` (logo, banner, avatares).
-  /// Prioriza `PUBLIC_BACKEND_URL`; si no, [serverBaseUrl].
-  static String get mediaBaseUrl {
-    final override = dotenv.env['PUBLIC_BACKEND_URL']?.trim();
-    if (override != null && override.isNotEmpty) {
-      return override.replaceAll(RegExp(r'/+$'), '');
-    }
-    return serverBaseUrl;
-  }
+  /// Base REST del chatbot: `{konectaBaseUrl}/api`.
+  static String get apiBaseUrl => '$konectaBaseUrl/api';
+
+  /// Imágenes Agenda (`/uploads/…`) servidas en la raíz del mismo host.
+  static String get mediaBaseUrl => konectaBaseUrl;
+
+  /// Alias interno (mismo valor que [konectaBaseUrl]).
+  static String get serverBaseUrl => konectaBaseUrl;
 
   static String get googleClientIdWeb =>
       dotenv.env['GOOGLE_CLIENT_ID_WEB'] ?? '';
@@ -36,14 +52,13 @@ class AppConfig {
 
   // ---------------- AGENDA module ----------------
 
-  /// Base URL para los endpoints /api/agenda/**. Si la var está vacía,
-  /// se deriva de [apiBaseUrl] agregando "/agenda".
+  /// Base Agenda: `{konectaBaseUrl}/api/agenda` salvo override explícito.
   static String get agendaApiBaseUrl {
-    final override = dotenv.env['AGENDA_API_BASE_URL'];
-    if (override != null && override.trim().isNotEmpty) {
-      return override.trim();
+    final override = dotenv.env['AGENDA_API_BASE_URL']?.trim();
+    if (override != null && override.isNotEmpty) {
+      return override;
     }
-    return '$apiBaseUrl/agenda';
+    return '$konectaBaseUrl/api/agenda';
   }
 
   /// Si true, el landing /agenda muestra el tile "Plataforma".

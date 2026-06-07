@@ -15,8 +15,9 @@ export PATH="${FLUTTER_HOME}/bin:${PATH}"
 flutter config --enable-web --no-analytics
 flutter precache --web
 
-if [[ -z "${API_BASE_URL:-}" ]]; then
-  echo "ERROR: Define API_BASE_URL en Vercel (ej. https://tu-backend.onrender.com/api)" >&2
+if [[ -z "${KONECTA_BASE_URL:-}" && -z "${API_BASE_URL:-}" && -z "${PUBLIC_BACKEND_URL:-}" ]]; then
+  echo "ERROR: Define KONECTA_BASE_URL en Vercel (ej. https://tu-backend.onrender.com)" >&2
+  echo "       Legacy: API_BASE_URL=https://.../api también funciona." >&2
   exit 1
 fi
 if [[ -z "${GOOGLE_CLIENT_ID_WEB:-}" ]]; then
@@ -26,7 +27,8 @@ fi
 
 echo ">> Writing .env for flutter_dotenv..."
 cat > .env <<EOF
-API_BASE_URL=${API_BASE_URL}
+KONECTA_BASE_URL=${KONECTA_BASE_URL:-${PUBLIC_BACKEND_URL:-}}
+API_BASE_URL=${API_BASE_URL:-}
 GOOGLE_CLIENT_ID_WEB=${GOOGLE_CLIENT_ID_WEB}
 GOOGLE_CLIENT_ID_ANDROID=${GOOGLE_CLIENT_ID_ANDROID:-}
 GOOGLE_CLIENT_ID_IOS=${GOOGLE_CLIENT_ID_IOS:-}
