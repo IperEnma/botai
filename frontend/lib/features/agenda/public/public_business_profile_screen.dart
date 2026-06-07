@@ -172,7 +172,7 @@ class _FelitoBarberPage extends ConsumerWidget {
                     const SizedBox(height: 26),
                     _Hours(hoursAsync: hours),
                     const SizedBox(height: 26),
-                    _Location(address: addr),
+                    _Location(business: business, address: addr),
                     const SizedBox(height: 26),
                     _Team(staffAsync: staff),
                   ]),
@@ -908,14 +908,71 @@ class _DayCol extends StatelessWidget {
 // ─── Ubicación ───────────────────────────────────────────────────────────────
 
 class _Location extends StatelessWidget {
-  const _Location({required this.address});
+  const _Location({required this.business, required this.address});
 
+  final Business business;
   final String address;
 
   bool get _hasAddress => address.trim().isNotEmpty;
 
+  bool get _hasSocial =>
+      _normalizeUrl(business.instagramUrl) != null ||
+      _normalizeUrl(business.tiktokUrl) != null ||
+      _normalizeUrl(business.facebookUrl) != null;
+
+  static String? _normalizeUrl(String? raw) {
+    final v = raw?.trim();
+    if (v == null || v.isEmpty) return null;
+    if (RegExp(r'^https?://', caseSensitive: false).hasMatch(v)) return v;
+    return 'https://$v';
+  }
+
+  static String _headline(Business b) {
+    final name = b.nombre.trim();
+    final desc = b.descripcion?.trim();
+    if (desc == null || desc.isEmpty) return name;
+    final snippet = desc.split('\n').first.trim();
+    if (snippet.isEmpty) return name;
+    final short =
+        snippet.length > 42 ? '${snippet.substring(0, 42).trim()}…' : snippet;
+    return '$name · $short';
+  }
+
+  static String _addressLine(String addr, Business b) {
+    final trimmed = addr.trim();
+    if (trimmed.isEmpty) return '';
+    final parts = trimmed
+        .split(',')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.length >= 2) {
+      return '${parts.first} · ${parts.sublist(1).join(' · ')}';
+    }
+    final loc = b.locationTags.map((t) => t.value.trim()).where((v) => v.isNotEmpty);
+    if (loc.isNotEmpty) return '$trimmed · ${loc.join(' · ')}';
+    return trimmed;
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!_hasAddress && !_hasSocial) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHead(title: 'Ubicación'),
+          const SizedBox(height: 14),
+          _Card(
+            pad: 16,
+            child: Text(
+              'Agregá la dirección y redes en Configuración.',
+              style: _D.t(13, w: FontWeight.w500, h: 1.35, c: _D.muted),
+            ),
+          ),
+        ],
+      );
+    }
+
     final addr = address.trim();
     final mapsUrl = _hasAddress ? GoogleMapsUrls.search(addr) : null;
 
@@ -924,45 +981,51 @@ class _Location extends StatelessWidget {
       children: [
         const _SectionHead(title: 'Ubicación'),
         const SizedBox(height: 14),
-        _Card(
-          pad: 12,
-          child: Row(
+        Container(
+          decoration: BoxDecoration(
+            color: _D.white,
+            borderRadius: BorderRadius.circular(_D.r),
+            boxShadow: const [
+              BoxShadow(color: _D.shadow, blurRadius: 14, offset: Offset(0, 4)),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _MapThumbnail(address: addr, mapsUrl: mapsUrl),
-              const SizedBox(width: 12),
-              Expanded(
+              _MapPreview(
+                address: addr,
+                mapsUrl: mapsUrl,
+                height: 120,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      _headline(business),
+                      style: _D.t(13, w: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     if (_hasAddress) ...[
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.place_outlined, size: 18, color: _D.brand(context)),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              addr,
-                              style: _D.t(13, w: FontWeight.w500, h: 1.35),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (mapsUrl != null)
-                        GestureDetector(
-                          onTap: () => openExternalUrl(mapsUrl),
-                          child: Text(
-                            'Ver en el mapa >',
-                            style: _D.t(13, w: FontWeight.w600, c: _D.brand(context)),
-                          ),
-                        ),
-                    ] else
+                      const SizedBox(height: 2),
                       Text(
-                        'Agregá la dirección en Estilos o completá el onboarding.',
-                        style: _D.t(13, w: FontWeight.w500, h: 1.35, c: _D.muted),
+                        _addressLine(addr, business),
+                        style: _D.t(11.5, c: _D.muted),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ],
+                    if (_hasSocial) ...[
+                      const SizedBox(height: 12),
+                      _SocialIconRow(
+                        instagramUrl: _normalizeUrl(business.instagramUrl),
+                        tiktokUrl: _normalizeUrl(business.tiktokUrl),
+                        facebookUrl: _normalizeUrl(business.facebookUrl),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -974,17 +1037,119 @@ class _Location extends StatelessWidget {
   }
 }
 
-class _MapThumbnail extends StatefulWidget {
-  const _MapThumbnail({required this.address, required this.mapsUrl});
+class _SocialIconRow extends StatelessWidget {
+  const _SocialIconRow({
+    this.instagramUrl,
+    this.tiktokUrl,
+    this.facebookUrl,
+  });
+
+  final String? instagramUrl;
+  final String? tiktokUrl;
+  final String? facebookUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final icons = <Widget>[];
+    void add(String? url, _SocialIcon icon) {
+      if (url == null) return;
+      if (icons.isNotEmpty) icons.add(const SizedBox(width: 8));
+      icons.add(_SocialIconButton(url: url, icon: icon));
+    }
+
+    add(
+      instagramUrl,
+      const _SocialIcon(
+        gradient: LinearGradient(
+          colors: [Color(0xFF833AB4), Color(0xFFE1306C), Color(0xFFF77737)],
+        ),
+        icon: Icons.camera_alt_rounded,
+      ),
+    );
+    add(
+      tiktokUrl,
+      const _SocialIcon(
+        color: Color(0xFF0F0F10),
+        iconText: '♪',
+      ),
+    );
+    add(
+      facebookUrl,
+      const _SocialIcon(
+        color: Color(0xFF1877F2),
+        iconText: 'f',
+      ),
+    );
+
+    if (icons.isEmpty) return const SizedBox.shrink();
+    return Row(children: icons);
+  }
+}
+
+class _SocialIcon {
+  const _SocialIcon({this.color, this.gradient, this.icon, this.iconText});
+
+  final Color? color;
+  final LinearGradient? gradient;
+  final IconData? icon;
+  final String? iconText;
+}
+
+class _SocialIconButton extends StatelessWidget {
+  const _SocialIconButton({required this.url, required this.icon});
+
+  final String url;
+  final _SocialIcon icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => openExternalUrl(url),
+        borderRadius: BorderRadius.circular(10),
+        child: Ink(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: icon.color,
+            gradient: icon.gradient,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Center(
+            child: icon.icon != null
+                ? Icon(icon.icon, size: 16, color: Colors.white)
+                : Text(
+                    icon.iconText ?? '',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MapPreview extends StatefulWidget {
+  const _MapPreview({
+    required this.address,
+    required this.mapsUrl,
+    this.height = 120,
+  });
 
   final String address;
   final String? mapsUrl;
+  final double height;
 
   @override
-  State<_MapThumbnail> createState() => _MapThumbnailState();
+  State<_MapPreview> createState() => _MapPreviewState();
 }
 
-class _MapThumbnailState extends State<_MapThumbnail> {
+class _MapPreviewState extends State<_MapPreview> {
   ({double lat, double lon})? _coords;
   bool _loaded = false;
 
@@ -995,7 +1160,7 @@ class _MapThumbnailState extends State<_MapThumbnail> {
   }
 
   @override
-  void didUpdateWidget(_MapThumbnail oldWidget) {
+  void didUpdateWidget(_MapPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.address != widget.address) {
       _loadThumb();
@@ -1031,86 +1196,71 @@ class _MapThumbnailState extends State<_MapThumbnail> {
 
   @override
   Widget build(BuildContext context) {
-    const size = 96.0;
-
-    final placeholder = _placeholder(size);
+    final height = widget.height;
     final addr = widget.address.trim();
+    final hasAddress = addr.isNotEmpty;
 
-    Widget mapContent;
-    if (!_loaded) {
-      mapContent = Container(
-        color: const Color(0xFFE5E7EB),
+    Widget placeholder({double? width}) {
+      return Container(
+        width: width,
+        height: height,
+        color: const Color(0xFFE7E4DC),
         alignment: Alignment.center,
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context)),
+        child: Icon(
+          Icons.location_on_rounded,
+          size: 28,
+          color: _D.brand(context),
         ),
       );
-    } else if (addr.isNotEmpty) {
+    }
+
+    Widget mapBody(double width) {
+      if (!hasAddress) return placeholder(width: width);
+
+      if (!_loaded) {
+        return Container(
+          width: width,
+          height: height,
+          color: const Color(0xFFE7E4DC),
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: _D.brand(context),
+            ),
+          ),
+        );
+      }
+
       final coords = _coords;
       final embedUrl = GoogleMapsUrls.embed(
         address: addr,
         lat: coords?.lat,
         lng: coords?.lon,
       );
-      mapContent = AgendaGoogleMapEmbed(
+      return AgendaGoogleMapEmbed(
         embedUrl: embedUrl,
-        width: size,
-        height: size,
-        placeholder: placeholder,
+        width: width,
+        height: height,
+        placeholder: placeholder(width: width),
       );
-    } else {
-      mapContent = placeholder;
     }
 
-    final clipped = ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(width: size, height: size, child: mapContent),
-    );
-
-    final mapsUrl = _mapsOpenUrl(addr);
-    if (mapsUrl == null) return clipped;
-
-    return GestureDetector(
-      onTap: () => openExternalUrl(mapsUrl),
-      child: clipped,
-    );
-  }
-
-  Widget _placeholder(double size) {
-    return Container(
-      color: const Color(0xFFE5E7EB),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          CustomPaint(painter: _MapGridPainter()),
-          Center(
-            child: Icon(Icons.location_on, color: _D.brand(context), size: 32),
-          ),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final content = mapBody(width);
+        final mapsUrl = hasAddress ? _mapsOpenUrl(addr) : null;
+        if (mapsUrl == null) return content;
+        return GestureDetector(
+          onTap: () => openExternalUrl(mapsUrl),
+          child: content,
+        );
+      },
     );
   }
-}
-
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFD1D5DB)
-      ..strokeWidth = 0.5;
-    const step = 16.0;
-    for (var x = 0.0; x <= size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (var y = 0.0; y <= size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ─── Equipo ──────────────────────────────────────────────────────────────────
