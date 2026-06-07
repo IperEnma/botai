@@ -67,7 +67,8 @@ abstract final class _D {
   static const bannerMaxH = 320.0;
   static const logo = 88.0;
   static const logoBorder = 3.5;
-  static const logoLift = 44.0;
+  /// Mitad del logo que cuelga bajo el borde del banner (superposición Felito).
+  static const logoOverlap = logo / 2;
 
   static TextStyle t(
     double s, {
@@ -124,7 +125,7 @@ class _FelitoBarberPage extends ConsumerWidget {
                 ),
               ),
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(_D.pad, _D.logoLift + 8, _D.pad, 100),
+                padding: EdgeInsets.fromLTRB(_D.pad, 12, _D.pad, 100),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _Services(
@@ -188,19 +189,20 @@ class _Hero extends StatelessWidget {
     final hasBanner = isAgendaMediaUrl(business.bannerUrl);
     final cats = _categoryLabels;
     final bannerBottom = top + bannerH;
+    final heroH = bannerBottom + _D.logoOverlap;
 
     return SizedBox(
-      height: bannerBottom + _D.logoLift,
+      height: heroH,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          // Banner + gradiente
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             height: bannerBottom,
             child: Stack(
-              clipBehavior: Clip.none,
               fit: StackFit.expand,
               children: [
                 if (hasBanner)
@@ -218,115 +220,135 @@ class _Hero extends StatelessWidget {
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
-                    height: bannerH * 0.75,
+                    height: bannerH * 0.82,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withValues(alpha: 0.35),
-                          Colors.black.withValues(alpha: 0.78),
+                          Colors.black.withValues(alpha: 0.25),
+                          Colors.black.withValues(alpha: 0.72),
                         ],
-                        stops: const [0, 0.45, 1],
+                        stops: const [0, 0.35, 1],
                       ),
                     ),
                   ),
                 ),
-                Positioned(
-                  top: top + 8,
-                  left: _D.pad,
-                  child: _RoundBtn(
-                    icon: Icons.arrow_back_ios_new,
-                    size: 16,
-                    onTap: onBack,
+              ],
+            ),
+          ),
+
+          // Botones superiores
+          Positioned(
+            top: top + 8,
+            left: _D.pad,
+            child: _RoundBtn(
+              icon: Icons.arrow_back_ios_new,
+              size: 16,
+              onTap: onBack,
+            ),
+          ),
+          Positioned(
+            top: top + 8,
+            right: _D.pad,
+            child: Row(
+              children: [
+                Builder(
+                  builder: (btnContext) => _RoundBtn(
+                    icon: Icons.ios_share,
+                    onTap: () => sharePublicBusinessProfile(
+                      context: context,
+                      slug: slug,
+                      businessName: business.nombre,
+                      sharePositionOrigin:
+                          sharePositionOriginFor(btnContext),
+                    ),
                   ),
                 ),
-                Positioned(
-                  top: top + 8,
-                  right: _D.pad,
-                  child: Row(
-                    children: [
-                      Builder(
-                        builder: (btnContext) => _RoundBtn(
-                          icon: Icons.ios_share,
-                          onTap: () => sharePublicBusinessProfile(
-                            context: context,
-                            slug: slug,
-                            businessName: business.nombre,
-                            sharePositionOrigin:
-                                sharePositionOriginFor(btnContext),
-                          ),
+                const SizedBox(width: 8),
+                _HeartBtn(slug: slug, business: business),
+              ],
+            ),
+          ),
+
+          // Franja blanca bajo el banner (mitad inferior del logo)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: bannerBottom - 1,
+            height: _D.logoOverlap + 20,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: _D.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Logo: centro en el borde inferior del banner (mitad arriba, mitad abajo)
+          Positioned(
+            left: _D.pad,
+            bottom: 0,
+            child: _LogoCircle(name: business.nombre, url: business.logoUrl),
+          ),
+
+          // Nombre, rating y categorías sobre el banner (a la derecha del logo)
+          Positioned(
+            left: _D.pad + _D.logo + 14,
+            right: _D.pad,
+            bottom: _D.logoOverlap + 10,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  business.nombre,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: _D.t(
+                    22,
+                    w: FontWeight.w700,
+                    c: _D.white,
+                    h: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    _Stars(rating: business.rating ?? 0, onDark: true),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        _ratingLabel,
+                        style: _D.t(
+                          13,
+                          w: FontWeight.w500,
+                          c: _D.white.withValues(alpha: 0.92),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 8),
-                      _HeartBtn(slug: slug, business: business),
+                    ),
+                  ],
+                ),
+                if (cats.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      for (final c in cats) _Pill(_prettyCat(c)),
                     ],
                   ),
-                ),
-                Positioned(
-                  left: _D.pad,
-                  right: _D.pad,
-                  bottom: 14,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Transform.translate(
-                        offset: const Offset(0, _D.logoLift),
-                        child: _LogoCircle(name: business.nombre, url: business.logoUrl),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              business.nombre,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: _D.t(
-                                20,
-                                w: FontWeight.w700,
-                                c: _D.white,
-                                h: 1.15,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Row(
-                              children: [
-                                _Stars(rating: business.rating ?? 0),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    _ratingLabel,
-                                    style: _D.t(
-                                      13,
-                                      w: FontWeight.w500,
-                                      c: _D.white,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (cats.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 6,
-                                children: [
-                                  for (final c in cats) _Pill(_prettyCat(c)),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ],
               ],
             ),
           ),
@@ -516,12 +538,17 @@ class _LogoCircle extends StatelessWidget {
 }
 
 class _Stars extends StatelessWidget {
-  const _Stars({required this.rating});
+  const _Stars({required this.rating, this.onDark = false});
 
   final double rating;
+  final bool onDark;
 
   @override
   Widget build(BuildContext context) {
+    final filled = onDark ? _D.purple : _D.purple;
+    final empty = onDark
+        ? _D.white.withValues(alpha: 0.35)
+        : _D.faint;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
@@ -529,7 +556,7 @@ class _Stars extends StatelessWidget {
         return Icon(
           rating >= n - 0.25 ? Icons.star_rounded : Icons.star_outline_rounded,
           size: 16,
-          color: _D.purple,
+          color: rating >= n - 0.25 ? filled : empty,
         );
       }),
     );
@@ -544,10 +571,11 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: _D.purple,
+        color: _D.purple.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _D.white.withValues(alpha: 0.15)),
       ),
       child: Text(label, style: _D.t(11, w: FontWeight.w600, c: _D.white)),
     );

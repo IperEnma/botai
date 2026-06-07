@@ -42,6 +42,10 @@ Monorepo: **Agenda** (scheduling SaaS) + **Chatbot** (WhatsApp / web), shared Sp
 - **Do not** cross-import `agenda` ↔ `chatbot` domain packages.
 - Integrate via bot actions, REST, shared infrastructure wiring.
 
+## Agent conduct
+
+Follow [AGENTS.md](../../AGENTS.md) (*Agent conduct*): no unnecessary fallbacks — e.g. do not show `searchTags` when the UI expects `categorias`; empty field → empty UI or fix data at source.
+
 ## Greenfield — schema Agenda (leer antes de Flyway o `@Entity`)
 
 BD vacía o recreada. **No** parches prod.

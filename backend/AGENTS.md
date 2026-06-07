@@ -46,7 +46,7 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 
 ### Agent conduct
 
-Same rule as [AGENTS.md](../AGENTS.md): **no alternate flow paths or dev fallbacks** (echo codes, bypass modes, extra flags) unless the user explicitly requested them. One failure mode, one user-facing path.
+Same rule as [AGENTS.md](../AGENTS.md): **no alternate flow paths, dev fallbacks, or substituting unrelated DTO fields** unless the user explicitly requested them. One failure mode, one user-facing path; empty field → null/empty in JSON, not a “helpful” alias from another column.
 
 ### Agenda conventions
 

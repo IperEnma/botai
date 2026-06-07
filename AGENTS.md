@@ -86,6 +86,7 @@ Forbidden unless the user asked for it:
 - Dev-only fallbacks that change production behavior (e.g. returning secrets in JSON when an external integration fails).
 - Feature flags or “shortcuts” that create a second way to complete the same step (OTP bypass, echo codes, optional auth paths) without a prior agreed design.
 - “Helpful” extras (extra endpoints, dual modes, silent retries with different semantics) not in the task scope.
+- **UI/data fallbacks** that hide missing configuration by substituting another field (e.g. show `searchTags` when `categorias` is empty, invent placeholder text, or silently use a default image URL). If the API field is empty, show empty state or fix the source data — do not map unrelated fields.
 
 When an integration fails (WhatsApp, payment, etc.), return a **single clear error** to the user. Fix infrastructure or ask the user how to handle dev/test — do not add a parallel code path on your own.
 

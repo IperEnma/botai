@@ -73,6 +73,12 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 
 ---
 
+## Agent conduct (mandatory)
+
+Same rules as [AGENTS.md](AGENTS.md#agent-conduct-mandatory): no alternate flows, dev bypasses, or **UI/data fallbacks** (substituting another API field when the intended one is empty). Ask before adding any fallback.
+
+---
+
 ## Modules (Agenda + Chatbot)
 
 Both domains live in one backend and are **editable**. Keep **technical** separation:

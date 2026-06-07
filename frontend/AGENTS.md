@@ -42,6 +42,7 @@ Flutter · Riverpod · go_router · Google Fonts (design tokens per screen/theme
 - Navigation via `go_router` — register routes in router config when adding screens
 - API access through existing Agenda providers/services, not ad-hoc HTTP in widgets
 - `PublicReservarTheme.textStyle` uses `size` and `weight`, not `fontSize` / `fontWeight`
+- **No fallbacks innecesarios en UI:** cada campo de pantalla usa su dato de API correspondiente (`categorias` → pills del banner, `logoUrl` → logo, etc.). Si falta dato, estado vacío o arreglar origen — no reutilizar otro campo (`searchTags`, dirección, etc.). Ver [AGENTS.md](../AGENTS.md) *Agent conduct*.
 
 ## Commands
 
