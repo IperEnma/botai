@@ -45,4 +45,12 @@ class AppConfig {
     final v = dotenv.env['AGENDA_DEFAULT_USER_ID'];
     return (v == null || v.isEmpty) ? null : v;
   }
+
+  /// URL pública del frontend para links compartidos (p. ej. app en Vercel).
+  /// Opcional: si no está, en web se usa [Uri.base.origin].
+  static String? get publicAppBaseUrl {
+    final v = dotenv.env['PUBLIC_APP_BASE_URL']?.trim();
+    if (v == null || v.isEmpty) return null;
+    return _stripTrailingSlash(v);
+  }
 }

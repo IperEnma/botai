@@ -252,12 +252,16 @@ class _Hero extends StatelessWidget {
                   right: _D.pad,
                   child: Row(
                     children: [
-                      _RoundBtn(
-                        icon: Icons.ios_share,
-                        onTap: () => sharePublicBusinessProfile(
-                          context: context,
-                          slug: slug,
-                          businessName: business.nombre,
+                      Builder(
+                        builder: (btnContext) => _RoundBtn(
+                          icon: Icons.ios_share,
+                          onTap: () => sharePublicBusinessProfile(
+                            context: context,
+                            slug: slug,
+                            businessName: business.nombre,
+                            sharePositionOrigin:
+                                sharePositionOriginFor(btnContext),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
