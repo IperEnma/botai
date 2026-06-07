@@ -13,6 +13,7 @@ import '../../../providers/agenda/agenda_api_provider.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../providers/agenda/public/public_client_session_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
+import 'public_felito_shell.dart';
 import 'public_reservar_identity_step.dart';
 import 'public_reservar_layout.dart';
 import 'public_reservar_schedule_step.dart';
@@ -544,12 +545,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         ),
       ),
       data: (business) {
-        final theme = PublicReservarTheme.fromHex(
-          colorPrimario: business.colorPrimario,
-          colorFondo: business.colorFondo,
-          fontFamily: business.fontFamily,
-          logoUrl: business.logoUrl,
-        );
+        final theme = PublicReservarTheme.felito();
 
         final isConfirmed = _step == _BookingStep.confirmed;
 
@@ -560,34 +556,28 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           );
         }
 
-        return PublicReservarShell(
-          theme: theme,
-          brandTitle: business.nombre,
+        return PublicFelitoBookingShell(
+          businessName: business.nombre,
           progressCurrent: isConfirmed ? _kBookingTotalSteps : _stepIndex(_step),
           progressTotal: _kBookingTotalSteps,
-          progressStepLabel: isConfirmed ? 'ConfirmaciÃ³n' : _stepProgressLabel(_step),
+          progressStepLabel: isConfirmed ? 'Confirmación' : _stepProgressLabel(_step),
           onBack: isConfirmed ? null : () => _goBack(theme, business),
           footer: isConfirmed
               ? null
-              : publicReservarFooterLink(
-                  theme: theme,
+              : felitoFooterLink(
+                  label: 'Ver o cancelar mis turnos',
                   onTap: () => context.go(_misReservasPath()),
                 ),
           child: Column(
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (_step == _BookingStep.service)
-                        publicReservarScrollBrandIntro(
-                          theme: theme,
-                          subtitle: business.descripcion,
-                        ),
                       if (_step != _BookingStep.confirmed)
                         publicReservarScrollSectionTitle(
                           theme: theme,
@@ -608,7 +598,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                   final footer = _buildStepFooter(business, theme);
                   if (footer == null) return const SizedBox.shrink();
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                     child: footer,
                   );
                 },

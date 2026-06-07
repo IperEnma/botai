@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/config.dart';
+import '../../../core/agenda_media_url.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/business_hours.dart';
@@ -65,14 +65,6 @@ abstract final class _D {
     double? h,
   }) =>
       GoogleFonts.inter(fontSize: s, fontWeight: w, color: c, height: h);
-}
-
-String? _mediaUrl(String? raw) {
-  if (raw == null || raw.trim().isEmpty) return null;
-  final u = raw.trim();
-  if (u.startsWith('http://') || u.startsWith('https://')) return u;
-  if (u.startsWith('/')) return '${AppConfig.serverBaseUrl}$u';
-  return '${AppConfig.serverBaseUrl}/$u';
 }
 
 /// Ignora URLs guardadas por error en el campo dirección.
@@ -181,8 +173,8 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
-    final bannerUrl = _mediaUrl(business.bannerUrl);
-    final logoUrl = _mediaUrl(business.logoUrl);
+    final bannerUrl = resolveAgendaMediaUrl(business.bannerUrl);
+    final logoUrl = resolveAgendaMediaUrl(business.logoUrl);
     final cats = _categoryLabels;
     final bannerBottom = top + _D.bannerH;
 
@@ -914,7 +906,7 @@ class _StaffAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const sz = 56.0;
-    final resolved = _mediaUrl(url);
+    final resolved = resolveAgendaMediaUrl(url);
     return Container(
       width: sz,
       height: sz,

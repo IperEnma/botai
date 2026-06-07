@@ -137,7 +137,7 @@ public class TenantStaffController {
         Files.createDirectories(dir);
         Files.copy(file.getInputStream(), dir.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
 
-        String url = uploadProps.getBaseUrl() + "/staff/" + staffId + "/" + fileName;
+        String url = "/uploads/staff/" + staffId + "/" + fileName;
         return ResponseEntity.ok(Map.of("url", url));
     }
 }

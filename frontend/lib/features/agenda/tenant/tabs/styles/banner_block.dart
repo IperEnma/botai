@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../../core/agenda_media_url.dart';
 import '../../../register/konecta_tokens.dart';
 import '../../../shared/k_button.dart';
 
@@ -61,13 +62,16 @@ class _BannerPreview extends StatelessWidget {
           border: Border.all(color: KTokens.borderStrong),
         ),
         clipBehavior: Clip.antiAlias,
-        child: url != null && url!.startsWith('http')
-            ? Image.network(
-                url!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _placeholder(),
-              )
-            : _placeholder(),
+        child: () {
+          final resolved = resolveAgendaMediaUrl(url);
+          return resolved != null
+              ? Image.network(
+                  resolved,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _placeholder(),
+                )
+              : _placeholder();
+        }(),
       ),
     );
   }

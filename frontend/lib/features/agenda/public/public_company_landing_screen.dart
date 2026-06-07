@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../providers/agenda/public/public_company_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
+import 'public_felito_shell.dart';
 import 'public_reservar_layout.dart';
 
 /// Entrada por marca: /reservar?company=felitobarber (mismo shell que el turno).
@@ -38,38 +39,39 @@ class PublicCompanyLandingScreen extends ConsumerWidget {
           return const Scaffold(body: AgendaLoadingView());
         }
 
-        final theme = PublicReservarTheme.fromHex(
-          colorPrimario: company.colorPrimario,
-          colorFondo: company.colorFondo,
-          fontFamily: company.fontFamily,
-          logoUrl: company.logoUrl,
-        );
+        final theme = PublicReservarTheme.felito(logoUrl: company.logoUrl);
 
-        return PublicReservarShell(
-          theme: theme,
-          brandTitle: company.brandName,
-          brandSubtitle: company.tagline,
+        return PublicFelitoBookingShell(
+          businessName: company.brandName,
           onBack: () => context.go('/'),
-          footer: publicReservarFooterLink(
-            theme: theme,
+          footer: felitoFooterLink(
+            label: 'Ver mis turnos',
             onTap: () => context.go('/agenda/me/bookings'),
           ),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
+              if (company.tagline != null && company.tagline!.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    company.tagline!.trim(),
+                    style: FelitoPublicD.t(14, c: FelitoPublicD.muted),
+                  ),
+                ),
               publicReservarScrollSectionTitle(
                 theme: theme,
                 title: 'Elegí tu sucursal',
               ),
               ...company.branches.map((b) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: PublicBranchTile(
-                  nombre: b.nombre,
-                  direccion: b.descripcion,
-                  theme: theme,
-                  onTap: () => _goBranch(context, b.publicSlug),
-                ),
-              )),
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: PublicBranchTile(
+                      nombre: b.nombre,
+                      direccion: b.descripcion,
+                      theme: theme,
+                      onTap: () => _goBranch(context, b.publicSlug),
+                    ),
+                  )),
             ],
           ),
         );

@@ -11,6 +11,7 @@ import '../../../providers/agenda/public/public_client_session_provider.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../../../widgets/agenda_phone_field.dart';
+import 'public_felito_shell.dart';
 import 'public_reservar_layout.dart';
 
 enum _MisReservasStep { gate, verifyCode, bookings }
@@ -60,8 +61,17 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
     super.dispose();
   }
 
-  String _reservarPath() {
+  String _profilePath() {
     final base = '/reservar/${widget.slug}';
+    final company = widget.companySlug;
+    if (company != null && company.isNotEmpty) {
+      return '$base?company=$company';
+    }
+    return base;
+  }
+
+  String _bookingPath() {
+    final base = '/reservar/${widget.slug}/reservar';
     final company = widget.companySlug;
     if (company != null && company.isNotEmpty) {
       return '$base?company=$company';
@@ -280,28 +290,23 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
         ),
       ),
       data: (business) {
-        final theme = PublicReservarTheme.fromHex(
-          colorPrimario: business.colorPrimario,
-          colorFondo: business.colorFondo,
-          fontFamily: business.fontFamily,
-          logoUrl: business.logoUrl,
-        );
+        final theme = PublicReservarTheme.felito();
 
         if (_loading) {
-          return PublicReservarShell(
-            theme: theme,
-            brandTitle: business.nombre,
+          return PublicFelitoBookingShell(
+            businessName: business.nombre,
             progressCurrent: 1,
             progressTotal: 2,
             progressStepLabel: 'Mis reservas',
-            onBack: () => context.go(_reservarPath()),
-            child: const Center(child: CircularProgressIndicator()),
+            onBack: () => context.go(_profilePath()),
+            child: const Center(
+              child: CircularProgressIndicator(color: FelitoPublicD.purple),
+            ),
           );
         }
 
-        return PublicReservarShell(
-          theme: theme,
-          brandTitle: business.nombre,
+        return PublicFelitoBookingShell(
+          businessName: business.nombre,
           progressCurrent: _step == _MisReservasStep.bookings ? 2 : 1,
           progressTotal: 2,
           progressStepLabel: 'Mis reservas',
@@ -309,16 +314,15 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
             if (_step == _MisReservasStep.verifyCode) {
               setState(() => _step = _MisReservasStep.gate);
             } else {
-              context.go(_reservarPath());
+              context.go(_profilePath());
             }
           },
-          footer: publicReservarFooterLink(
-            theme: theme,
+          footer: felitoFooterLink(
             label: 'Reservar un turno',
-            onTap: () => context.go(_reservarPath()),
+            onTap: () => context.go(_bookingPath()),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: _buildBody(business, theme),
           ),
         );

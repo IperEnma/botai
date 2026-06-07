@@ -54,7 +54,7 @@ public class BusinessAvatarController {
         Files.createDirectories(dir);
         Files.copy(file.getInputStream(), dir.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
 
-        String url = uploadProps.getBaseUrl() + "/businesses/" + businessId + "/" + fileName;
+        String url = "/uploads/businesses/" + businessId + "/" + fileName;
         return ResponseEntity.ok(Map.of("url", url));
     }
 }

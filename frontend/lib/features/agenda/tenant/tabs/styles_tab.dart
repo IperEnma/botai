@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../models/agenda/business.dart';
 import '../../../../providers/agenda/agenda_api_provider.dart';
+import '../../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../../providers/agenda/tenant/business_photos_provider.dart';
 import '../../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../register/konecta_tokens.dart';
@@ -105,6 +106,13 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     });
   }
 
+  void _invalidatePublicProfile() {
+    final slug = widget.business.publicSlug;
+    if (slug != null && slug.isNotEmpty) {
+      ref.invalidate(publicBusinessBySlugProvider(slug));
+    }
+  }
+
   // ── Logo upload ────────────────────────────────────────────────────────────
 
   void _pickAndUploadLogo() {
@@ -155,6 +163,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             );
         if (mounted) {
           setState(() => _logoUrl = url);
+          _invalidatePublicProfile();
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Logo actualizado')));
         }
@@ -219,6 +228,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             );
         if (mounted) {
           setState(() => _bannerUrl = url);
+          _invalidatePublicProfile();
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Portada actualizada')));
         }
