@@ -4,11 +4,17 @@ import '../models/agenda/business_hours.dart';
 class BusinessOpenStatus {
   const BusinessOpenStatus({
     required this.isOpen,
-    required this.label,
+    required this.headline,
+    required this.detail,
   });
 
   final bool isOpen;
-  final String label;
+  /// `Abierto` o `Cerrado`.
+  final String headline;
+  /// Ej. `cierra a las 18:00`, `abre mañana a las 09:00`.
+  final String detail;
+
+  String get label => '$headline · $detail';
 
   /// Devuelve `null` si no hay horarios configurados o no se puede determinar apertura.
   static BusinessOpenStatus? fromHours(
@@ -28,7 +34,8 @@ class BusinessOpenStatus {
         if (nowMinutes >= range.start && nowMinutes < range.end) {
           return BusinessOpenStatus(
             isOpen: true,
-            label: 'Abierto - cierra a las ${_formatMinutes(range.end)}',
+            headline: 'Abierto',
+            detail: 'cierra a las ${_formatMinutes(range.end)}',
           );
         }
       }
@@ -37,7 +44,8 @@ class BusinessOpenStatus {
         if (nowMinutes < range.start) {
           return BusinessOpenStatus(
             isOpen: false,
-            label: 'Cerrado - abre a las ${_formatMinutes(range.start)}',
+            headline: 'Cerrado',
+            detail: 'abre a las ${_formatMinutes(range.start)}',
           );
         }
       }
@@ -48,7 +56,8 @@ class BusinessOpenStatus {
 
     return BusinessOpenStatus(
       isOpen: false,
-      label: 'Cerrado - ${_formatNextOpen(next.date, next.minutes, clock)}',
+      headline: 'Cerrado',
+      detail: _formatNextOpen(next.date, next.minutes, clock),
     );
   }
 }

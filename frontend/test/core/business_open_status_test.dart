@@ -37,7 +37,9 @@ void main() {
       now: DateTime(2026, 6, 8, 10, 30),
     );
     expect(status?.isOpen, isTrue);
-    expect(status?.label, 'Abierto - cierra a las 18:00');
+    expect(status?.headline, 'Abierto');
+    expect(status?.detail, 'cierra a las 18:00');
+    expect(status?.label, 'Abierto · cierra a las 18:00');
   });
 
   test('cerrado antes de abrir hoy', () {
@@ -46,7 +48,8 @@ void main() {
       now: DateTime(2026, 6, 8, 8, 0),
     );
     expect(status?.isOpen, isFalse);
-    expect(status?.label, 'Cerrado - abre a las 09:00');
+    expect(status?.headline, 'Cerrado');
+    expect(status?.detail, 'abre a las 09:00');
   });
 
   test('cerrado con turno partido entre rangos', () {
@@ -64,7 +67,7 @@ void main() {
       now: DateTime(2026, 6, 8, 14, 0),
     );
     expect(status?.isOpen, isFalse);
-    expect(status?.label, 'Cerrado - abre a las 15:00');
+    expect(status?.detail, 'abre a las 15:00');
   });
 
   test('cerrado domingo indica proxima apertura', () {
@@ -73,7 +76,7 @@ void main() {
       now: DateTime(2026, 6, 7, 12, 0), // Sunday
     );
     expect(status?.isOpen, isFalse);
-    expect(status?.label, 'Cerrado - abre mañana a las 09:00');
+    expect(status?.detail, 'abre mañana a las 09:00');
   });
 
   test('sin horarios no muestra estado', () {

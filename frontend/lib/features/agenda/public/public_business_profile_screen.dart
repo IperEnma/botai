@@ -426,8 +426,8 @@ class _OpenStatusOnBanner extends ConsumerWidget {
 
   final String slug;
 
-  static const _openColor = Color(0xFF22C55E);
-  static const _closedColor = Color(0xFFEF4444);
+  static const _openAccent = Color(0xFF86EFAC);
+  static const _closedAccent = Color(0xFFFECACA);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -439,44 +439,53 @@ class _OpenStatusOnBanner extends ConsumerWidget {
         final status = BusinessOpenStatus.fromHours(hours);
         if (status == null) return const SizedBox.shrink();
 
-        final dotColor = status.isOpen ? _openColor : _closedColor;
+        final accent = status.isOpen ? _openAccent : _closedAccent;
+        final detailColor = _D.white.withValues(alpha: 0.72);
+
         return Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.42),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: dotColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Flexible(
-                    child: Text(
-                      status.label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: _D.t(
-                        12,
-                        w: FontWeight.w600,
-                        c: _D.white,
-                        h: 1.25,
-                      ),
-                    ),
-                  ),
-                ],
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 5,
+                height: 5,
+                margin: const EdgeInsets.only(top: 0.5),
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: status.headline,
+                        style: _D.t(
+                          11,
+                          w: FontWeight.w600,
+                          c: accent,
+                          h: 1.2,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' · ${status.detail}',
+                        style: _D.t(
+                          11,
+                          w: FontWeight.w400,
+                          c: detailColor,
+                          h: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         );
       },
