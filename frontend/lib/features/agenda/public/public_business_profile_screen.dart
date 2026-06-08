@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/agenda_address.dart';
 import '../../../core/agenda_icon_registry.dart';
+import '../../../core/business_hours_summary.dart';
 import '../../../core/business_open_status.dart';
 import '../../../core/agenda_media_image.dart';
 import '../../../core/agenda_media_url.dart';
@@ -193,9 +194,11 @@ class _FelitoBarberPage extends ConsumerWidget {
                       onPick: (svc) => _openBookingModal(context, service: svc),
                     ),
                     const SizedBox(height: 26),
-                    _Hours(hoursAsync: hours),
-                    const SizedBox(height: 26),
-                    _Location(business: business, address: addr),
+                    _Location(
+                      business: business,
+                      address: addr,
+                      hoursAsync: hours,
+                    ),
                     const SizedBox(height: 26),
                     _Team(staffAsync: staff),
                     _Works(
@@ -933,113 +936,18 @@ class _ServiceCard extends StatelessWidget {
   }
 }
 
-// ─── Horarios ────────────────────────────────────────────────────────────────
-
-class _Hours extends StatelessWidget {
-  const _Hours({required this.hoursAsync});
-
-  final AsyncValue<List<BusinessHours>> hoursAsync;
-
-  static const _days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHead(title: 'Horarios de atención'),
-        const SizedBox(height: 14),
-        hoursAsync.when(
-          loading: () => SizedBox(
-            height: 68,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context))),
-          ),
-          error: (_, _) => Text('Error al cargar horarios.', style: _D.t(14, c: _D.muted)),
-          data: (rows) {
-            if (rows.isEmpty) {
-              return Text('Sin horarios.', style: _D.t(14, c: _D.muted));
-            }
-            return _Card(
-              pad: 14,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var d = 0; d < 7; d++)
-                    Expanded(child: _DayCol(day: _days[d], text: _text(rows, d))),
-                ],
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  static BusinessHours? _find(List<BusinessHours> all, int dow) {
-    for (final h in all) {
-      if (h.diaSemana == dow) return h;
-    }
-    return null;
-  }
-
-  static String _text(List<BusinessHours> all, int dow) {
-    final r = _find(all, dow);
-    if (r == null || r.cerrado) return 'Cerrado';
-    bool ok(String? a, String? b) => a != null && a.isNotEmpty && b != null && b.isNotEmpty;
-    final ranges = <String>[];
-    if (ok(r.apertura, r.cierre)) ranges.add('${r.apertura} - ${r.cierre}');
-    if (ok(r.apertura2, r.cierre2)) ranges.add('${r.apertura2} - ${r.cierre2}');
-    if (ranges.isEmpty) return 'Cerrado';
-    return ranges.join('\n');
-  }
-}
-
-class _DayCol extends StatelessWidget {
-  const _DayCol({required this.day, required this.text});
-
-  final String day;
-  final String text;
-
-  bool get _closed => text == 'Cerrado';
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Column(
-        children: [
-          Text(day, style: _D.t(11, w: FontWeight.w600, c: _D.muted)),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 38,
-            child: Center(
-              child: Text(
-                text,
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: _D.t(
-                  10,
-                  w: FontWeight.w500,
-                  c: _closed ? _D.faint : _D.ink,
-                  h: 1.25,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Ubicación ───────────────────────────────────────────────────────────────
+// ─── Datos del local (ubicación + horarios) ──────────────────────────────────
 
 class _Location extends StatelessWidget {
-  const _Location({required this.business, required this.address});
+  const _Location({
+    required this.business,
+    required this.address,
+    required this.hoursAsync,
+  });
 
   final Business business;
   final String address;
+  final AsyncValue<List<BusinessHours>> hoursAsync;
 
   bool get _hasAddress => address.trim().isNotEmpty;
 
@@ -1093,19 +1001,24 @@ class _Location extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!_hasAddress) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionHead(title: 'Ubicación'),
-          const SizedBox(height: 14),
-          _Card(
-            pad: 16,
-            child: Text(
-              'Agregá la dirección en Configuración.',
-              style: _D.t(13, w: FontWeight.w500, h: 1.35, c: _D.muted),
-            ),
-          ),
-        ],
+      return hoursAsync.when(
+        loading: () => const SizedBox.shrink(),
+        error: (_, _) => const SizedBox.shrink(),
+        data: (rows) {
+          final lines = BusinessHoursSummary.lines(rows);
+          if (lines.isEmpty) return const SizedBox.shrink();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _SectionHead(title: 'Datos del local'),
+              const SizedBox(height: 14),
+              _Card(
+                pad: 16,
+                child: _HoursSummaryLines(lines: lines),
+              ),
+            ],
+          );
+        },
       );
     }
 
@@ -1116,94 +1029,184 @@ class _Location extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionHead(title: 'Ubicación'),
+        const _SectionHead(title: 'Datos del local'),
         const SizedBox(height: 14),
         _Card(
           pad: 12,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: _MapPreview(
-                  geocodeQuery: _geocodeQuery(addr, business),
-                  mapsUrl: mapsUrl,
-                  width: 96,
-                  height: 96,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Icon(
-                            Icons.place_outlined,
-                            size: 18,
-                            color: _D.brand(context),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                line1,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: _D.t(13, w: FontWeight.w500, h: 1.35),
-                              ),
-                              if (line2 != null && line2.isNotEmpty)
-                                Text(
-                                  line2,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: _D.t(
-                                    13,
-                                    w: FontWeight.w400,
-                                    c: _D.muted,
-                                    h: 1.35,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: _MapPreview(
+                      geocodeQuery: _geocodeQuery(addr, business),
+                      mapsUrl: mapsUrl,
+                      width: 96,
+                      height: 96,
                     ),
-                    const SizedBox(height: 6),
-                    if (mapsUrl != null)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 24),
-                        child: GestureDetector(
-                          onTap: () => openExternalUrl(mapsUrl),
-                          child: Text(
-                            'Ver en el mapa >',
-                            style: _D.t(
-                              13,
-                              w: FontWeight.w600,
-                              c: _D.brand(context),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Icon(
+                                Icons.place_outlined,
+                                size: 18,
+                                color: _D.brand(context),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    line1,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: _D.t(13, w: FontWeight.w500, h: 1.35),
+                                  ),
+                                  if (line2 != null && line2.isNotEmpty)
+                                    Text(
+                                      line2,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: _D.t(
+                                        13,
+                                        w: FontWeight.w400,
+                                        c: _D.muted,
+                                        h: 1.35,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        if (mapsUrl != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 24),
+                            child: GestureDetector(
+                              onTap: () => openExternalUrl(mapsUrl),
+                              child: Text(
+                                'Ver en el mapa >',
+                                style: _D.t(
+                                  13,
+                                  w: FontWeight.w600,
+                                  c: _D.brand(context),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    if (AgendaAddressFormat.looksLikeAreaOnly(addr))
-                      Padding(
-                        padding: const EdgeInsets.only(left: 24, top: 4),
-                        child: Text(
-                          'Ubicación aproximada en el mapa.',
-                          style: _D.t(11, c: _D.muted, h: 1.35),
-                        ),
-                      ),
-                  ],
-                ),
+                        if (AgendaAddressFormat.looksLikeAreaOnly(addr))
+                          Padding(
+                            padding: const EdgeInsets.only(left: 24, top: 4),
+                            child: Text(
+                              'Ubicación aproximada en el mapa.',
+                              style: _D.t(11, c: _D.muted, h: 1.35),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+              _EmbeddedHoursSummary(hoursAsync: hoursAsync),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmbeddedHoursSummary extends StatelessWidget {
+  const _EmbeddedHoursSummary({required this.hoursAsync});
+
+  final AsyncValue<List<BusinessHours>> hoursAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    return hoursAsync.when(
+      loading: () => Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: _D.brand(context),
+          ),
+        ),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (rows) {
+        final lines = BusinessHoursSummary.lines(rows);
+        if (lines.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Divider(height: 1, color: _D.faint.withValues(alpha: 0.35)),
+              const SizedBox(height: 12),
+              _HoursSummaryLines(lines: lines),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HoursSummaryLines extends StatelessWidget {
+  const _HoursSummaryLines({required this.lines});
+
+  final List<BusinessHoursSummaryLine> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(
+            Icons.schedule_outlined,
+            size: 18,
+            color: _D.brand(context),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final line in lines)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text(
+                    line.text,
+                    style: _D.t(
+                      13,
+                      w: FontWeight.w500,
+                      c: line.isClosed ? _D.faint : _D.muted,
+                      h: 1.35,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
