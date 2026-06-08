@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1340,6 +1342,8 @@ class _Works extends StatelessWidget {
   });
 
   static const _previewLimit = 6;
+  static const _maxThumbSize = 100.0;
+  static const _gap = 8.0;
 
   final AsyncValue<List<BusinessPhoto>> photosAsync;
   final ValueChanged<List<BusinessPhoto>> onViewAll;
@@ -1366,16 +1370,17 @@ class _Works extends StatelessWidget {
                 link: hasMore ? 'Ver todos' : null,
                 onLink: hasMore ? () => onViewAll(photos) : null,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final cols = constraints.maxWidth >= 520 ? 3 : 2;
-                  const gap = 10.0;
-                  final cell =
-                      (constraints.maxWidth - gap * (cols - 1)) / cols;
+                  final cols = constraints.maxWidth >= 520 ? 4 : 3;
+                  final cell = math.min(
+                    _maxThumbSize,
+                    (constraints.maxWidth - _gap * (cols - 1)) / cols,
+                  );
                   return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
+                    spacing: _gap,
+                    runSpacing: _gap,
                     children: [
                       for (final photo in preview)
                         _WorkThumb(url: photo.url, size: cell),
@@ -1400,7 +1405,7 @@ class _WorkThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
       child: SizedBox(
         width: size,
         height: size,
