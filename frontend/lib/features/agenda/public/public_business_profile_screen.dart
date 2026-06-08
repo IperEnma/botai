@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/agenda_address.dart';
+import '../../../core/business_open_status.dart';
 import '../../../core/agenda_media_image.dart';
 import '../../../core/agenda_media_url.dart';
 import '../../../core/google_maps_urls.dart';
@@ -357,6 +358,7 @@ class _Hero extends ConsumerWidget {
                           ),
                         ],
                       ),
+                      _OpenStatusOnBanner(slug: slug),
                       if (cats.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Wrap(
@@ -416,6 +418,69 @@ class _Hero extends ConsumerWidget {
       if (w.isEmpty) return w;
       return '${w[0].toUpperCase()}${w.substring(1)}';
     }).join(' ');
+  }
+}
+
+class _OpenStatusOnBanner extends ConsumerWidget {
+  const _OpenStatusOnBanner({required this.slug});
+
+  final String slug;
+
+  static const _openColor = Color(0xFF22C55E);
+  static const _closedColor = Color(0xFFEF4444);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hoursAsync = ref.watch(publicHoursBySlugProvider(slug));
+    return hoursAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, s) => const SizedBox.shrink(),
+      data: (hours) {
+        final status = BusinessOpenStatus.fromHours(hours);
+        if (status == null) return const SizedBox.shrink();
+
+        final dotColor = status.isOpen ? _openColor : _closedColor;
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.42),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      status.label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: _D.t(
+                        12,
+                        w: FontWeight.w600,
+                        c: _D.white,
+                        h: 1.25,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
