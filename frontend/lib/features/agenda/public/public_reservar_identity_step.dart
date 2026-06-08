@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/agenda_icon_registry.dart';
 import '../../../widgets/agenda_phone_field.dart';
 import 'public_reservar_layout.dart';
 
@@ -19,6 +20,7 @@ class PublicReservarIdentityStep extends StatelessWidget {
     required this.bookingForOther,
     required this.onBookingForOtherChanged,
     required this.serviceName,
+    required this.categorySlugs,
     required this.dateLabel,
     required this.slotLabel,
     required this.staffLabel,
@@ -39,6 +41,7 @@ class PublicReservarIdentityStep extends StatelessWidget {
   final bool bookingForOther;
   final ValueChanged<bool> onBookingForOtherChanged;
   final String serviceName;
+  final List<String> categorySlugs;
   final String dateLabel;
   final String slotLabel;
   final String staffLabel;
@@ -59,6 +62,7 @@ class PublicReservarIdentityStep extends StatelessWidget {
           _BookingSummaryCard(
             theme: t,
             serviceName: serviceName,
+            categorySlugs: categorySlugs,
             dateLabel: dateLabel,
             slotLabel: slotLabel,
             staffLabel: staffLabel,
@@ -240,6 +244,7 @@ class _BookingSummaryCard extends StatelessWidget {
   const _BookingSummaryCard({
     required this.theme,
     required this.serviceName,
+    required this.categorySlugs,
     required this.dateLabel,
     required this.slotLabel,
     required this.staffLabel,
@@ -248,6 +253,7 @@ class _BookingSummaryCard extends StatelessWidget {
 
   final PublicReservarTheme theme;
   final String serviceName;
+  final List<String> categorySlugs;
   final String dateLabel;
   final String slotLabel;
   final String staffLabel;
@@ -265,7 +271,15 @@ class _BookingSummaryCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _SummaryRow(theme: t, icon: Icons.spa_outlined, label: 'Servicio', value: serviceName),
+          _SummaryRow(
+            theme: t,
+            icon: AgendaIconRegistry.forService(
+              serviceName,
+              categorySlugs: categorySlugs,
+            ),
+            label: 'Servicio',
+            value: serviceName,
+          ),
           if (showStaffRow)
             _SummaryRow(
               theme: t,

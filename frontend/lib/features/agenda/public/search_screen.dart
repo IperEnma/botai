@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config.dart';
 import '../../../models/agenda/business_summary.dart';
+import '../../../core/agenda_icon_registry.dart';
 import '../../../models/agenda/category.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../providers/agenda/public/search_provider.dart';
@@ -393,12 +394,26 @@ class _CategoryStrip extends StatelessWidget {
                         : Colors.white.withValues(alpha: 0.35),
                   ),
                 ),
-                child: Text(
-                  c.nombre,
-                  textAlign: TextAlign.center,
-                  style: _b(12,
-                      w: FontWeight.w600,
-                      c: selected ? _kPrimary : Colors.white),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      AgendaIconRegistry.forCategory(
+                        slug: c.slug,
+                        icono: c.icono,
+                      ),
+                      size: 14,
+                      color: selected ? _kPrimary : Colors.white,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      c.nombre,
+                      textAlign: TextAlign.center,
+                      style: _b(12,
+                          w: FontWeight.w600,
+                          c: selected ? _kPrimary : Colors.white),
+                    ),
+                  ],
                 ),
               ),
             );

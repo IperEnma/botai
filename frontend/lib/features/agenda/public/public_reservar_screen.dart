@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/agenda_icon_registry.dart';
 import '../../../core/agenda_phone.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/booking.dart';
@@ -635,6 +636,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
                       _ServiceRow(
                         theme: theme,
                         service: svc,
+                        categorySlugs: business.categorias,
                         onTap: () => setState(() {
                           _service = svc;
                           _anyStaff = true;
@@ -691,6 +693,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
             }
           }),
           serviceName: _service!.nombre,
+          categorySlugs: business.categorias,
           dateLabel: _formattedSelectedDate(),
           slotLabel: _selectedSlot?.label ?? 'â€”',
           staffLabel: _staffSummaryLabel(),
@@ -864,16 +867,22 @@ class _ServiceRow extends StatelessWidget {
   const _ServiceRow({
     required this.theme,
     required this.service,
+    required this.categorySlugs,
     required this.onTap,
   });
 
   final PublicReservarTheme theme;
   final AgendaService service;
+  final List<String> categorySlugs;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = theme;
+    final icon = AgendaIconRegistry.forService(
+      service.nombre,
+      categorySlugs: categorySlugs,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -902,7 +911,7 @@ class _ServiceRow extends StatelessWidget {
                   color: t.primarySoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.spa_outlined, color: t.primary, size: 22),
+                child: Icon(icon, color: t.primary, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(

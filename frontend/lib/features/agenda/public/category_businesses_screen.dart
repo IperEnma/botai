@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/agenda_icon_registry.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../../../widgets/agenda/business_summary_card.dart';
@@ -33,8 +34,6 @@ class CategoryBusinessesScreen extends ConsumerWidget {
         children: [
           // ── Hero degradado ─────────────────────────────────────────────
           _CategoryHero(slug: slug),
-
-          // ── Contenido ─────────────────────────────────────────────────
           Expanded(
             child: asyncList.when(
               loading: () => const AgendaLoadingView(),
@@ -83,37 +82,21 @@ class CategoryBusinessesScreen extends ConsumerWidget {
 
 // ── Hero de categoría ─────────────────────────────────────────────────────────
 
-class _CategoryHero extends StatelessWidget {
+class _CategoryHero extends ConsumerWidget {
   const _CategoryHero({required this.slug});
 
   final String slug;
 
-  IconData _iconForSlug() {
-    switch (slug.toLowerCase()) {
-      case 'peluqueria':
-      case 'barberia':
-        return Icons.content_cut;
-      case 'gym':
-      case 'gimnasio':
-      case 'fitness':
-        return Icons.fitness_center;
-      case 'medico':
-      case 'salud':
-        return Icons.local_hospital_outlined;
-      case 'spa':
-      case 'belleza':
-      case 'unas':
-        return Icons.spa_outlined;
-      case 'restaurante':
-      case 'gastronomia':
-        return Icons.restaurant_outlined;
-      default:
-        return Icons.store_outlined;
-    }
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(publicCategoriesProvider).valueOrNull;
+    final match = catalog?.where((c) => c.slug == slug).firstOrNull;
+    final icon = AgendaIconRegistry.forCategory(
+      slug: slug,
+      icono: match?.icono,
+    );
+    final title = match?.nombre ?? slug.replaceAll('-', ' ');
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -152,7 +135,7 @@ class _CategoryHero extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(_iconForSlug(), color: Colors.white, size: 28),
+            child: Icon(icon, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -160,7 +143,7 @@ class _CategoryHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  slug[0].toUpperCase() + slug.substring(1),
+                  title,
                   style: GoogleFonts.poppins(
                       fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white),
                 ),

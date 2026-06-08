@@ -5,6 +5,7 @@ class Category {
   final String id;
   final String nombre;
   final String slug;
+  final String? icono;
   final List<String> synonyms;
   final bool activo;
 
@@ -12,6 +13,7 @@ class Category {
     required this.id,
     required this.nombre,
     required this.slug,
+    this.icono,
     required this.synonyms,
     required this.activo,
   });
@@ -21,6 +23,7 @@ class Category {
       id: AgendaJson.parseString(json['id']),
       nombre: AgendaJson.parseString(json['nombre']),
       slug: AgendaJson.parseString(json['slug']),
+      icono: AgendaJson.parseStringOrNull(json['icono']),
       synonyms: AgendaJson.parseStringList(json['synonyms']),
       activo: AgendaJson.parseBool(json['activo'], fallback: true),
     );
@@ -30,6 +33,7 @@ class Category {
         'id': id,
         'nombre': nombre,
         'slug': slug,
+        if (icono != null) 'icono': icono,
         'synonyms': synonyms,
         'activo': activo,
       };
@@ -38,6 +42,7 @@ class Category {
     String? id,
     String? nombre,
     String? slug,
+    String? icono,
     List<String>? synonyms,
     bool? activo,
   }) {
@@ -45,6 +50,7 @@ class Category {
       id: id ?? this.id,
       nombre: nombre ?? this.nombre,
       slug: slug ?? this.slug,
+      icono: icono ?? this.icono,
       synonyms: synonyms ?? this.synonyms,
       activo: activo ?? this.activo,
     );

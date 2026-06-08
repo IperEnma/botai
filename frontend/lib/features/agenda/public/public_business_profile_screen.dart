@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/agenda_address.dart';
+import '../../../core/agenda_icon_registry.dart';
 import '../../../core/business_open_status.dart';
 import '../../../core/agenda_media_image.dart';
 import '../../../core/agenda_media_url.dart';
@@ -187,6 +188,7 @@ class _FelitoBarberPage extends ConsumerWidget {
                   delegate: SliverChildListDelegate([
                     _Services(
                       servicesAsync: servicesAsync,
+                      categorySlugs: business.categorias,
                       onAll: () => _openBookingModal(context),
                       onPick: (svc) => _openBookingModal(context, service: svc),
                     ),
@@ -788,20 +790,15 @@ class _Card extends StatelessWidget {
 class _Services extends StatelessWidget {
   const _Services({
     required this.servicesAsync,
+    required this.categorySlugs,
     required this.onAll,
     required this.onPick,
   });
 
   final AsyncValue<List<AgendaService>> servicesAsync;
+  final List<String> categorySlugs;
   final VoidCallback onAll;
   final ValueChanged<AgendaService> onPick;
-
-  static const _icons = [
-    Icons.content_cut_rounded,
-    Icons.content_cut_outlined,
-    Icons.face_retouching_natural_outlined,
-    Icons.brush_outlined,
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -827,11 +824,17 @@ class _Services extends StatelessWidget {
                 clipBehavior: Clip.none,
                 itemCount: list.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (_, i) => _ServiceCard(
-                  svc: list[i],
-                  icon: _icons[i % _icons.length],
-                  onTap: () => onPick(list[i]),
-                ),
+                itemBuilder: (_, i) {
+                  final svc = list[i];
+                  return _ServiceCard(
+                    svc: svc,
+                    icon: AgendaIconRegistry.forService(
+                      svc.nombre,
+                      categorySlugs: categorySlugs,
+                    ),
+                    onTap: () => onPick(svc),
+                  );
+                },
               ),
             );
           },

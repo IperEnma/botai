@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/agenda_icon_registry.dart';
 import '../../../core/agenda_phone.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/availability_slot.dart';
@@ -566,6 +567,7 @@ class _PublicServiceBookingModalState
                   _ModalServiceRow(
                     theme: t,
                     service: svc,
+                    categorySlugs: widget.business.categorias,
                     onTap: () => _selectService(svc),
                   ),
               ],
@@ -616,6 +618,7 @@ class _PublicServiceBookingModalState
             }
           }),
           serviceName: _activeService.nombre,
+          categorySlugs: widget.business.categorias,
           dateLabel: _formattedSelectedDate(),
           slotLabel: _selectedSlot?.label ?? '—',
           staffLabel: _staffSummaryLabel(),
@@ -734,16 +737,22 @@ class _ModalServiceRow extends StatelessWidget {
   const _ModalServiceRow({
     required this.theme,
     required this.service,
+    required this.categorySlugs,
     required this.onTap,
   });
 
   final PublicReservarTheme theme;
   final AgendaService service;
+  final List<String> categorySlugs;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = theme;
+    final icon = AgendaIconRegistry.forService(
+      service.nombre,
+      categorySlugs: categorySlugs,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -772,7 +781,7 @@ class _ModalServiceRow extends StatelessWidget {
                   color: t.primarySoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.spa_outlined, color: t.primary, size: 22),
+                child: Icon(icon, color: t.primary, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(

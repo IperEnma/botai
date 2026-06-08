@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/agenda_icon_registry.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tokens
 // ─────────────────────────────────────────────────────────────────────────────
@@ -992,14 +994,18 @@ class _CategoriesSection extends StatelessWidget {
   const _CategoriesSection();
 
   static const _cats = [
-    (Icons.content_cut, 'Peluquería', Color(0xFF6366F1)),
-    (Icons.face_retouching_natural, 'Estética', Color(0xFFEC4899)),
-    (Icons.sports_gymnastics, 'Fitness', Color(0xFF14B8A6)),
-    (Icons.medical_services_outlined, 'Salud', Color(0xFF3B82F6)),
-    (Icons.spa_outlined, 'Spa', Color(0xFF8B5CF6)),
-    (Icons.school_outlined, 'Clases', Color(0xFFF59E0B)),
-    (Icons.directions_bike_outlined, 'Deporte', Color(0xFF22C55E)),
-    (Icons.psychology_outlined, 'Terapia', Color(0xFFEF4444)),
+    ('peluqueria', 'Peluquería', Color(0xFF6366F1)),
+    ('barberia', 'Barbería', Color(0xFF475569)),
+    ('estetica', 'Estética', Color(0xFFEC4899)),
+    ('gimnasio', 'Fitness', Color(0xFF14B8A6)),
+    ('salud', 'Salud', Color(0xFF3B82F6)),
+    ('odontologia', 'Odontología', Color(0xFF0EA5E9)),
+    ('spa', 'Spa', Color(0xFF8B5CF6)),
+    ('clases', 'Clases', Color(0xFFF59E0B)),
+    ('veterinaria', 'Veterinaria', Color(0xFF22C55E)),
+    ('psicologia', 'Terapia', Color(0xFFEF4444)),
+    ('gastronomia', 'Gastronomía', Color(0xFFF97316)),
+    ('legal', 'Legal', Color(0xFF64748B)),
   ];
 
   @override
@@ -1027,9 +1033,10 @@ class _CategoriesSection extends StatelessWidget {
                 children: [
                   for (final cat in _cats)
                     _CatBubble(
-                        icon: cat.$1,
-                        label: cat.$2,
-                        color: cat.$3),
+                      icon: AgendaIconRegistry.forCategory(slug: cat.$1),
+                      label: cat.$2,
+                      color: cat.$3,
+                    ),
                 ],
               ),
               const SizedBox(height: 36),
