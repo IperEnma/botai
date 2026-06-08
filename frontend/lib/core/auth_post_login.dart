@@ -20,7 +20,8 @@ void navigateAfterAuthenticatedSession(WidgetRef ref) {
 
   final router = ref.read(routerProvider);
   final loc = router.routerDelegate.currentConfiguration.uri.path;
-  if (loc == '/login' || loc == '/') {
+  if (loc == '/login' || loc == '/' ||
+      loc == '/agenda/register' || loc == '/agenda/onboarding') {
     router.go('/agenda/panel');
   }
 }
