@@ -16,6 +16,7 @@ import '../../../../providers/agenda/tenant/business_photos_provider.dart';
 import '../../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../register/konecta_tokens.dart';
 import '../../shared/k_button.dart';
+import '../utils/business_work_photo_upload.dart';
 import 'styles/banner_block.dart';
 import 'styles/brand_style.dart';
 import 'styles/color_block.dart';
@@ -351,63 +352,20 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     }
   }
 
-  // ── Photo dialog ───────────────────────────────────────────────────────────
+  // ── Work photo upload ──────────────────────────────────────────────────────
 
-  void _showAddPhotoDialog(({String tenantId, String businessId}) key) {
-    final ctrl = TextEditingController();
-    showDialog<void>(
+  Future<void> _pickAndUploadWorkPhoto(
+      ({String tenantId, String businessId}) key) async {
+    await pickAndUploadBusinessWorkPhoto(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(KTokens.rMd)),
-        title: Text('Agregar foto',
-            style:
-                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Pegá la URL de la foto del trabajo realizado.',
-              style: GoogleFonts.inter(fontSize: 13, color: KTokens.inkMuted),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'https://...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: KTokens.ink,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              final url = ctrl.text.trim();
-              if (url.isEmpty) return;
-              Navigator.of(ctx).pop();
-              await ref
-                  .read(businessPhotosProvider(key).notifier)
-                  .addPhoto(url);
-            },
-            child: const Text('Agregar'),
-          ),
-        ],
-      ),
+      ref: ref,
+      key: key,
+      publicSlug: widget.business.publicSlug,
     );
+    if (mounted) setState(() => _changed = true);
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  // ── Save styles ────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -445,7 +403,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       onPrimaryChange: _setPrimary,
       onBackgroundChange: _setBackground,
       onFontChange: _setFont,
-      onAddPhoto: () => _showAddPhotoDialog(photosKey),
+      onAddPhoto: () => _pickAndUploadWorkPhoto(photosKey),
       onDeletePhoto: (i) async {
         if (i >= photosState.photos.length) return;
         final photo = photosState.photos[i];
@@ -755,7 +713,7 @@ class _ConfigColumn extends StatelessWidget {
               _Block(
                 title: 'Trabajos',
                 hint:
-                    'Mostrá tus mejores resultados — hasta ${BrandStyle.maxPhotos} fotos. Se ven en 2 columnas en el celular y 4 en escritorio.',
+                    'Subí fotos de tus trabajos (PNG, JPG o WEBP — máx. 5 MB). Aparecen en tu perfil público.',
                 child: WorksBlock(
                   photoUrls: photoUrls,
                   busy: isBusyPhotos,

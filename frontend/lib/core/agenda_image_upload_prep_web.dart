@@ -1,5 +1,6 @@
 // Web: redimensiona/comprime antes de POST multipart (Render ~30s, Neon BYTEA).
 // ignore: avoid_web_libraries_in_flutter
+import 'dart:async';
 import 'dart:html' as html;
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -31,6 +32,46 @@ Future<PreparedImageUpload> prepareLogoUpload(html.File file) {
     quality: 0.88,
     namePrefix: 'logo',
   );
+}
+
+/// Foto de trabajo: cuadrado max 1200px.
+Future<PreparedImageUpload> prepareWorkPhotoUpload(html.File file) {
+  return _prepareImageUpload(
+    file,
+    maxWidth: 1200,
+    maxHeight: 1200,
+    quality: 0.85,
+    namePrefix: 'work',
+  );
+}
+
+/// Abre el selector de archivos y devuelve la imagen preparada, o null si cancela.
+Future<PreparedImageUpload?> pickWorkPhotoUpload() async {
+  final input = html.FileUploadInputElement()..accept = 'image/*';
+  final completer = Completer<PreparedImageUpload?>();
+
+  input.onChange.listen((_) async {
+    try {
+      final file = input.files?.first;
+      if (file == null) {
+        if (!completer.isCompleted) completer.complete(null);
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        if (!completer.isCompleted) {
+          completer.completeError(StateError('Máx. 5 MB.'));
+        }
+        return;
+      }
+      final prepared = await prepareWorkPhotoUpload(file);
+      if (!completer.isCompleted) completer.complete(prepared);
+    } catch (e, st) {
+      if (!completer.isCompleted) completer.completeError(e, st);
+    }
+  });
+
+  input.click();
+  return completer.future;
 }
 
 Future<PreparedImageUpload> _prepareImageUpload(

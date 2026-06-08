@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/agenda_media_image.dart';
 import '../../../../providers/agenda/tenant/business_photos_provider.dart';
 import '../../../../widgets/agenda/agenda_state_views.dart';
+import '../utils/business_work_photo_upload.dart';
 
 class PhotosTab extends ConsumerWidget {
   const PhotosTab({
@@ -58,10 +60,14 @@ class PhotosTab extends ConsumerWidget {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.add_photo_alternate_outlined, size: 18),
-                  label: const Text('Agregar foto'),
+                  label: const Text('Subir foto'),
                   onPressed: state.isSaving
                       ? null
-                      : () => _showAddPhotoDialog(context, ref, key),
+                      : () => pickAndUploadBusinessWorkPhoto(
+                            context: context,
+                            ref: ref,
+                            key: key,
+                          ),
                 ),
             ],
           ),
@@ -71,7 +77,7 @@ class PhotosTab extends ConsumerWidget {
               child: AgendaEmptyState(
                 icon: Icons.photo_library_outlined,
                 title: 'Sin fotos todavía',
-                subtitle: 'Agregá hasta 10 fotos de tus trabajos',
+                subtitle: 'Subí hasta 10 fotos de tus trabajos (PNG, JPG o WEBP — máx. 5 MB)',
               ),
             )
           else
@@ -100,63 +106,6 @@ class PhotosTab extends ConsumerWidget {
             Text(state.error!,
                 style: TextStyle(color: Colors.red.shade600, fontSize: 13)),
           ],
-        ],
-      ),
-    );
-  }
-
-  void _showAddPhotoDialog(BuildContext context, WidgetRef ref,
-      ({String tenantId, String businessId}) key) {
-    final ctrl = TextEditingController();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Agregar foto'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Pegá la URL de la foto del trabajo realizado.',
-                style: TextStyle(fontSize: 13)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'URL de la imagen',
-                hintText: 'https://ejemplo.com/foto.jpg',
-                prefixIcon: Icon(Icons.link),
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final url = ctrl.text.trim();
-              if (url.isEmpty) return;
-              Navigator.of(ctx).pop();
-              final ok = await ref
-                  .read(businessPhotosProvider(key).notifier)
-                  .addPhoto(url);
-              if (!ok && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        ref.read(businessPhotosProvider(key)).error ??
-                            'Error al guardar la foto'),
-                    backgroundColor: Colors.red.shade700,
-                  ),
-                );
-              }
-            },
-            child: const Text('Agregar'),
-          ),
         ],
       ),
     );
@@ -201,10 +150,11 @@ class _PhotoCard extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            url,
+          child: AgendaMediaImage(
+            url: url,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => Container(
+            expand: true,
+            errorWidget: Container(
               decoration: BoxDecoration(
                 color: Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(12),

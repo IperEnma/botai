@@ -59,6 +59,29 @@ class BusinessPhotosNotifier
     }
   }
 
+  Future<bool> uploadPhoto({
+    required List<int> bytes,
+    required String fileName,
+  }) async {
+    state = state.copyWith(isSaving: true, error: null);
+    try {
+      final api = _ref.read(agendaApiServiceProvider);
+      final photo = await api.uploadBusinessWorkPhoto(
+        businessId: _key.businessId,
+        bytes: bytes,
+        fileName: fileName,
+      );
+      state = state.copyWith(
+        photos: [...state.photos, photo],
+        isSaving: false,
+      );
+      return true;
+    } on AgendaApiException catch (e) {
+      state = state.copyWith(isSaving: false, error: e.message);
+      return false;
+    }
+  }
+
   Future<bool> addPhoto(String url) async {
     state = state.copyWith(isSaving: true, error: null);
     try {

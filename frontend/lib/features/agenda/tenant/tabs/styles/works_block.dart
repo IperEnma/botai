@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../../core/agenda_media_image.dart';
 import '../../../register/konecta_tokens.dart';
 import 'brand_style.dart';
 
@@ -102,13 +103,12 @@ class _PhotoTile extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            url.startsWith('http')
-                ? Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _placeholder(),
-                  )
-                : _placeholder(),
+            AgendaMediaImage(
+              url: url,
+              fit: BoxFit.cover,
+              expand: true,
+              errorWidget: _placeholder(),
+            ),
             if (onDelete != null)
               Positioned(
                 top: 6,
@@ -182,7 +182,7 @@ class _AddTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Agregar foto',
+      label: 'Subir foto',
       button: true,
       child: GestureDetector(
         onTap: onTap,
@@ -207,9 +207,9 @@ class _AddTile extends StatelessWidget {
                       : const Icon(Icons.add_rounded,
                           size: 22, color: KTokens.accent),
                   const SizedBox(height: 4),
-                  Text(
-                    busy ? 'Subiendo…' : 'Agregar',
-                    style: GoogleFonts.inter(
+          Text(
+            busy ? 'Subiendo…' : 'Subir foto',
+            style: GoogleFonts.inter(
                       fontSize: 12,
                       color: KTokens.accent,
                       fontWeight: FontWeight.w500,

@@ -1028,6 +1028,31 @@ class AgendaApiService {
     return _decode(r, (body) => BusinessPhoto.fromJson(body as Map<String, dynamic>));
   }
 
+  /// `POST /me/businesses/{businessId}/photos/upload` — sube archivo y lo agrega a la galería.
+  Future<BusinessPhoto> uploadBusinessWorkPhoto({
+    required String businessId,
+    required List<int> bytes,
+    required String fileName,
+  }) async {
+    final uri = Uri.parse('$baseUrl/me/businesses/$businessId/photos/upload');
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Accept'] = 'application/json';
+    if (_accessToken != null) {
+      request.headers['Authorization'] = 'Bearer $_accessToken';
+    }
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      _asUploadBytes(bytes),
+      filename: fileName,
+    ));
+    final streamed = await request.send().timeout(_uploadTimeout);
+    final r = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
+    return _decode(
+      r,
+      (body) => BusinessPhoto.fromJson(body as Map<String, dynamic>),
+    );
+  }
+
   /// `DELETE /me/businesses/{businessId}/photos/{photoId}`
   Future<void> deleteBusinessPhoto({
     required String businessId,
