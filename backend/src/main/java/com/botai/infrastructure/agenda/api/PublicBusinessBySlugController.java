@@ -2,6 +2,7 @@ package com.botai.infrastructure.agenda.api;
 
 import com.botai.application.agenda.dto.AvailabilitySlotResponse;
 import com.botai.application.agenda.dto.BusinessHoursResponse;
+import com.botai.application.agenda.dto.BusinessPhotoResponse;
 import com.botai.application.agenda.dto.BusinessResponse;
 import com.botai.application.agenda.dto.ServiceResponse;
 import com.botai.application.agenda.dto.StaffMemberResponse;
@@ -10,10 +11,12 @@ import com.botai.application.agenda.mapper.ServiceDtoMapper;
 import com.botai.application.agenda.mapper.StaffMemberDtoMapper;
 import com.botai.application.agenda.service.PublicAvailabilityService;
 import com.botai.application.agenda.service.ServiceStaffLookup;
+import com.botai.application.agenda.usecase.business.BusinessPhotosUseCase;
 import com.botai.application.agenda.usecase.business.ListBusinessServicesUseCase;
 import com.botai.application.agenda.usecase.staff.ListPublicStaffUseCase;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.model.BusinessHours;
+import com.botai.domain.agenda.model.BusinessPhoto;
 import com.botai.domain.agenda.model.RatingSummary;
 import com.botai.domain.agenda.repository.BusinessCategoryRepository;
 import com.botai.domain.agenda.repository.BusinessHoursRepository;
@@ -56,6 +59,7 @@ public class PublicBusinessBySlugController {
     private final PublicAvailabilityService publicAvailabilityService;
     private final ServiceStaffLookup serviceStaffLookup;
     private final ReviewRepository reviewRepository;
+    private final BusinessPhotosUseCase businessPhotosUseCase;
 
     public PublicBusinessBySlugController(BusinessRepository businessRepository,
                                           BusinessCategoryRepository businessCategoryRepository,
@@ -65,7 +69,8 @@ public class PublicBusinessBySlugController {
                                           BusinessHoursRepository hoursRepository,
                                           PublicAvailabilityService publicAvailabilityService,
                                           ServiceStaffLookup serviceStaffLookup,
-                                          ReviewRepository reviewRepository) {
+                                          ReviewRepository reviewRepository,
+                                          BusinessPhotosUseCase businessPhotosUseCase) {
         this.businessRepository = businessRepository;
         this.businessCategoryRepository = businessCategoryRepository;
         this.listBusinessServices = listBusinessServices;
@@ -75,6 +80,7 @@ public class PublicBusinessBySlugController {
         this.publicAvailabilityService = publicAvailabilityService;
         this.serviceStaffLookup = serviceStaffLookup;
         this.reviewRepository = reviewRepository;
+        this.businessPhotosUseCase = businessPhotosUseCase;
     }
 
     private Business requireBusiness(String slug) {
@@ -131,6 +137,15 @@ public class PublicBusinessBySlugController {
                 .toList();
     }
 
+    @GetMapping("/photos")
+    @Operation(summary = "Fotos de trabajos publicadas (por slug)")
+    public List<BusinessPhotoResponse> photos(@PathVariable("slug") String slug) {
+        Business b = requireBusiness(slug);
+        return businessPhotosUseCase.listPublic(b.getId()).stream()
+                .map(this::toPhotoResponse)
+                .toList();
+    }
+
     @GetMapping("/availability")
     @Operation(summary = "Turnos disponibles para un servicio en una fecha (por slug)")
     public List<AvailabilitySlotResponse> availability(
@@ -154,6 +169,11 @@ public class PublicBusinessBySlugController {
                 date,
                 service.getSchedulingMode(),
                 eligibleStaff);
+    }
+
+    private BusinessPhotoResponse toPhotoResponse(BusinessPhoto p) {
+        return new BusinessPhotoResponse(
+                p.getId(), p.getBusinessId(), p.getUrl(), p.getOrden(), p.getCreatedAt());
     }
 }
 

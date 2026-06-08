@@ -403,6 +403,15 @@ class AgendaApiService {
     return _decodeList(r, StaffMember.fromJson);
   }
 
+  /// `GET /public/businesses/by-slug/{slug}/photos`
+  Future<List<BusinessPhoto>> publicBusinessPhotosBySlug(String slug) async {
+    final r = await _sendPublic(() => _client.get(
+          _uri('/public/businesses/by-slug/$slug/photos'),
+          headers: _publicHeaders(),
+        ));
+    return _decodeList(r, BusinessPhoto.fromJson);
+  }
+
   /// `GET /public/businesses/by-slug/{slug}/availability`
   Future<List<AvailabilitySlot>> publicAvailabilityBySlug({
     required String slug,

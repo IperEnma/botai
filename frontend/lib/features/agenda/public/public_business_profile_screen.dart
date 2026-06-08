@@ -16,6 +16,7 @@ import '../../../providers/agenda/public/public_favorites_provider.dart';
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/business_hours.dart';
+import '../../../models/agenda/business_photo.dart';
 import '../../../models/agenda/category.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../../../providers/agenda/public/public_business_slug_provider.dart';
@@ -131,10 +132,23 @@ class _FelitoBarberPage extends ConsumerWidget {
     );
   }
 
+  void _openWorksGallery(BuildContext context, List<BusinessPhoto> photos) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _D.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(_D.r)),
+      ),
+      builder: (ctx) => _WorksGallerySheet(photos: photos),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final staff = ref.watch(publicStaffBySlugProvider(slug));
     final hours = ref.watch(publicHoursBySlugProvider(slug));
+    final photos = ref.watch(publicPhotosBySlugProvider(slug));
     final services = servicesAsync.valueOrNull ?? const [];
     final canBook = services.isNotEmpty;
     final addr = resolveBusinessAddress(business) ?? '';
@@ -180,6 +194,10 @@ class _FelitoBarberPage extends ConsumerWidget {
                     _Location(business: business, address: addr),
                     const SizedBox(height: 26),
                     _Team(staffAsync: staff),
+                    _Works(
+                      photosAsync: photos,
+                      onViewAll: (all) => _openWorksGallery(context, all),
+                    ),
                   ]),
                 ),
               ),
@@ -1298,6 +1316,200 @@ class _MapGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ─── Trabajos ────────────────────────────────────────────────────────────────
+
+bool _isValidWorkPhotoUrl(String raw) {
+  final t = raw.trim();
+  if (t.isEmpty) return false;
+  if (isAgendaMediaUrl(t)) return true;
+  return t.startsWith('http://') || t.startsWith('https://');
+}
+
+List<BusinessPhoto> _visibleWorkPhotos(List<BusinessPhoto> photos) {
+  final list = photos.where((p) => _isValidWorkPhotoUrl(p.url)).toList();
+  list.sort((a, b) => a.orden.compareTo(b.orden));
+  return list;
+}
+
+class _Works extends StatelessWidget {
+  const _Works({
+    required this.photosAsync,
+    required this.onViewAll,
+  });
+
+  static const _previewLimit = 6;
+
+  final AsyncValue<List<BusinessPhoto>> photosAsync;
+  final ValueChanged<List<BusinessPhoto>> onViewAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return photosAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, s) => const SizedBox.shrink(),
+      data: (raw) {
+        final photos = _visibleWorkPhotos(raw);
+        if (photos.isEmpty) return const SizedBox.shrink();
+
+        final preview = photos.take(_previewLimit).toList();
+        final hasMore = photos.length > preview.length;
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 26),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SectionHead(
+                title: 'Algunos trabajos',
+                link: hasMore ? 'Ver todos' : null,
+                onLink: hasMore ? () => onViewAll(photos) : null,
+              ),
+              const SizedBox(height: 14),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final cols = constraints.maxWidth >= 520 ? 3 : 2;
+                  const gap = 10.0;
+                  final cell =
+                      (constraints.maxWidth - gap * (cols - 1)) / cols;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final photo in preview)
+                        _WorkThumb(url: photo.url, size: cell),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _WorkThumb extends StatelessWidget {
+  const _WorkThumb({required this.url, required this.size});
+
+  final String url;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: _WorkPhotoImage(rawUrl: url),
+      ),
+    );
+  }
+}
+
+class _WorkPhotoImage extends StatelessWidget {
+  const _WorkPhotoImage({required this.rawUrl, this.expand = false});
+
+  final String rawUrl;
+  final bool expand;
+
+  Widget _fallback() => Container(
+        color: const Color(0xFFEEEAF6),
+        alignment: Alignment.center,
+        child: Icon(Icons.image_outlined, color: _D.faint, size: 28),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    if (isAgendaMediaUrl(rawUrl)) {
+      return AgendaMediaImage(
+        url: rawUrl,
+        fit: BoxFit.cover,
+        expand: expand,
+        errorWidget: _fallback(),
+      );
+    }
+
+    final external = rawUrl.trim();
+    if (external.startsWith('http://') || external.startsWith('https://')) {
+      return SizedBox.expand(
+        child: Image.network(
+          external,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _fallback(),
+        ),
+      );
+    }
+
+    return _fallback();
+  }
+}
+
+class _WorksGallerySheet extends StatelessWidget {
+  const _WorksGallerySheet({required this.photos});
+
+  final List<BusinessPhoto> photos;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _visibleWorkPhotos(photos);
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final sheetHeight = MediaQuery.sizeOf(context).height * 0.72;
+    final cols = MediaQuery.sizeOf(context).width >= 520 ? 3 : 2;
+
+    return SizedBox(
+      height: sheetHeight,
+      child: Column(
+        children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: _D.faint.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(_D.pad, 16, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Algunos trabajos',
+                    style: _D.t(17, w: FontWeight.w700),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded, size: 22),
+                  color: _D.muted,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: GridView.builder(
+              padding: EdgeInsets.fromLTRB(_D.pad, 0, _D.pad, bottom + 16),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: items.length,
+              itemBuilder: (_, i) => ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _WorkPhotoImage(rawUrl: items[i].url, expand: true),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── Equipo ──────────────────────────────────────────────────────────────────

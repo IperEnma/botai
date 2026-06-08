@@ -32,6 +32,14 @@ public class BusinessPhotosUseCase {
         return photoRepository.findByBusinessId(businessId);
     }
 
+    /** Galería pública del perfil (sin auth); el negocio debe existir. */
+    @Transactional(readOnly = true)
+    public List<BusinessPhoto> listPublic(UUID businessId) {
+        businessRepository.findById(businessId)
+                .orElseThrow(() -> new BusinessNotFoundException(businessId));
+        return photoRepository.findByBusinessId(businessId);
+    }
+
     @Transactional
     public BusinessPhoto add(String tenantId, UUID businessId, String url) {
         validateOwnership(tenantId, businessId);

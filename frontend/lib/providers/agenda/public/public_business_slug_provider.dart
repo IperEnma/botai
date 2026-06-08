@@ -4,6 +4,7 @@ import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/availability_slot.dart';
 import '../../../models/agenda/business.dart';
 import '../../../models/agenda/business_hours.dart';
+import '../../../models/agenda/business_photo.dart';
 import '../../../models/agenda/staff_member.dart';
 import '../agenda_api_provider.dart';
 
@@ -29,6 +30,12 @@ final publicHoursBySlugProvider =
     FutureProvider.autoDispose.family<List<BusinessHours>, String>((ref, slug) {
   final api = ref.watch(agendaApiServiceProvider);
   return api.publicBusinessHoursBySlug(slug);
+});
+
+final publicPhotosBySlugProvider =
+    FutureProvider.autoDispose.family<List<BusinessPhoto>, String>((ref, slug) {
+  final api = ref.watch(agendaApiServiceProvider);
+  return api.publicBusinessPhotosBySlug(slug);
 });
 
 typedef AvailabilitySlugKey = ({
