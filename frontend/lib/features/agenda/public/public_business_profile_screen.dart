@@ -1429,6 +1429,10 @@ class _Location extends StatelessWidget {
     final mapsUrl = GoogleMapsUrls.search(addr);
     final (line1, line2) = _addressLines(addr, business);
     final geocodeQuery = _geocodeQuery(addr, business);
+    const mobileMapW = 88.0;
+    const mobileMapH = 80.0;
+    const sidebarMapW = 100.0;
+    const sidebarMapH = 92.0;
 
     if (sidebar) {
       return Column(
@@ -1438,34 +1442,16 @@ class _Location extends StatelessWidget {
           const SizedBox(height: 14),
           _Card(
             pad: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) => _MapPreview(
-                      geocodeQuery: geocodeQuery,
-                      mapsUrl: mapsUrl,
-                      width: constraints.maxWidth,
-                      height: 128,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _addressText(
-                  context,
-                  line1: line1,
-                  line2: line2,
-                  addr: addr,
-                  mapsUrl: mapsUrl,
-                ),
-                _EmbeddedHoursSummary(hoursAsync: hoursAsync),
-                if (bookButton != null) ...[
-                  const SizedBox(height: 16),
-                  bookButton,
-                ],
-              ],
+            child: _locationCardBody(
+              context,
+              addr: addr,
+              line1: line1,
+              line2: line2,
+              mapsUrl: mapsUrl,
+              geocodeQuery: geocodeQuery,
+              mapWidth: sidebarMapW,
+              mapHeight: sidebarMapH,
+              trailing: bookButton,
             ),
           ),
         ],
@@ -1479,33 +1465,61 @@ class _Location extends StatelessWidget {
         const SizedBox(height: 14),
         _Card(
           pad: 14,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LayoutBuilder(
-                  builder: (context, constraints) => _MapPreview(
-                    geocodeQuery: geocodeQuery,
-                    mapsUrl: mapsUrl,
-                    width: constraints.maxWidth,
-                    height: 120,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              _addressText(
+          child: _locationCardBody(
+            context,
+            addr: addr,
+            line1: line1,
+            line2: line2,
+            mapsUrl: mapsUrl,
+            geocodeQuery: geocodeQuery,
+            mapWidth: mobileMapW,
+            mapHeight: mobileMapH,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _locationCardBody(
+    BuildContext context, {
+    required String addr,
+    required String line1,
+    required String? line2,
+    required String? mapsUrl,
+    required String geocodeQuery,
+    required double mapWidth,
+    required double mapHeight,
+    Widget? trailing,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _addressText(
                 context,
                 line1: line1,
                 line2: line2,
                 addr: addr,
                 mapsUrl: mapsUrl,
-                stacked: true,
               ),
-              _EmbeddedHoursSummary(hoursAsync: hoursAsync),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            _MapPreview(
+              geocodeQuery: geocodeQuery,
+              mapsUrl: mapsUrl,
+              width: mapWidth,
+              height: mapHeight,
+            ),
+          ],
         ),
+        _EmbeddedHoursSummary(hoursAsync: hoursAsync),
+        if (trailing != null) ...[
+          const SizedBox(height: 16),
+          trailing,
+        ],
       ],
     );
   }
@@ -1677,11 +1691,28 @@ class _MapPreview extends StatelessWidget {
     }
 
     final sized = SizedBox(width: width, height: height, child: body);
-    if (openUrl == null) return sized;
+    final framed = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _D.faint.withValues(alpha: 0.35)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: sized,
+      ),
+    );
+    if (openUrl == null) return framed;
 
     return GestureDetector(
       onTap: () => openExternalUrl(openUrl),
-      child: sized,
+      child: framed,
     );
   }
 }
