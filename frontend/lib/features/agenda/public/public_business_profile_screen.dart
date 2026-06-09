@@ -208,28 +208,31 @@ class _FelitoBarberPage extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _Services(
-                                        servicesAsync: servicesAsync,
-                                        categorySlugs: business.categorias,
-                                        onAll: () =>
-                                            _openBookingModal(context),
-                                        onPick: (svc) => _openBookingModal(
-                                          context,
-                                          service: svc,
+                                  child: ClipRect(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _Services(
+                                          servicesAsync: servicesAsync,
+                                          categorySlugs: business.categorias,
+                                          useGrid: true,
+                                          onAll: () =>
+                                              _openBookingModal(context),
+                                          onPick: (svc) => _openBookingModal(
+                                            context,
+                                            service: svc,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 26),
-                                      _Team(staffAsync: staff),
-                                      _Works(
-                                        photosAsync: photos,
-                                        onViewAll: (all) =>
-                                            _openWorksGallery(context, all),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 26),
+                                        _Team(staffAsync: staff),
+                                        _Works(
+                                          photosAsync: photos,
+                                          onViewAll: (all) =>
+                                              _openWorksGallery(context, all),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 24),
@@ -847,17 +850,45 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(pad),
-      decoration: BoxDecoration(
-        color: _D.white,
-        borderRadius: BorderRadius.circular(_D.r),
-        boxShadow: const [
-          BoxShadow(color: _D.shadow, blurRadius: 14, offset: Offset(0, 4)),
-        ],
-      ),
+      decoration: _surfaceDecoration(),
       child: child,
     );
   }
 }
+
+/// Cuadrado redondeado con el color primario del negocio (mismo lenguaje que íconos de servicio).
+class _BrandSquare extends StatelessWidget {
+  const _BrandSquare({
+    required this.child,
+    this.size = 40,
+  });
+
+  final Widget child;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: _D.brand(context),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      clipBehavior: Clip.antiAlias,
+      alignment: Alignment.center,
+      child: child,
+    );
+  }
+}
+
+BoxDecoration _surfaceDecoration() => BoxDecoration(
+      color: _D.white,
+      borderRadius: BorderRadius.circular(_D.r),
+      boxShadow: const [
+        BoxShadow(color: _D.shadow, blurRadius: 14, offset: Offset(0, 4)),
+      ],
+    );
 
 // ─── Servicios ───────────────────────────────────────────────────────────────
 
@@ -867,12 +898,30 @@ class _Services extends StatelessWidget {
     required this.categorySlugs,
     required this.onAll,
     required this.onPick,
+    this.useGrid = false,
   });
 
   final AsyncValue<List<AgendaService>> servicesAsync;
   final List<String> categorySlugs;
   final VoidCallback onAll;
   final ValueChanged<AgendaService> onPick;
+  final bool useGrid;
+
+  static const _gridGap = 12.0;
+  static const _gridCols = 2;
+  static const _cardH = 150.0;
+
+  Widget _serviceCard(AgendaService svc, {double width = 165}) {
+    return _ServiceCard(
+      svc: svc,
+      width: width,
+      icon: AgendaIconRegistry.forService(
+        svc.nombre,
+        categorySlugs: categorySlugs,
+      ),
+      onTap: () => onPick(svc),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -883,32 +932,49 @@ class _Services extends StatelessWidget {
         const SizedBox(height: 14),
         servicesAsync.when(
           loading: () => SizedBox(
-            height: 150,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context))),
+            height: _cardH,
+            child: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: _D.brand(context),
+              ),
+            ),
           ),
-          error: (_, _) => Text('Error al cargar servicios.', style: _D.t(14, c: _D.muted)),
+          error: (_, _) =>
+              Text('Error al cargar servicios.', style: _D.t(14, c: _D.muted)),
           data: (list) {
             if (list.isEmpty) {
               return Text('Sin servicios.', style: _D.t(14, c: _D.muted));
             }
-            return SizedBox(
-              height: 150,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
-                itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (_, i) {
-                  final svc = list[i];
-                  return _ServiceCard(
-                    svc: svc,
-                    icon: AgendaIconRegistry.forService(
-                      svc.nombre,
-                      categorySlugs: categorySlugs,
-                    ),
-                    onTap: () => onPick(svc),
+            if (useGrid) {
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final cellW = (constraints.maxWidth -
+                          _gridGap * (_gridCols - 1)) /
+                      _gridCols;
+                  return Wrap(
+                    spacing: _gridGap,
+                    runSpacing: _gridGap,
+                    children: [
+                      for (final svc in list)
+                        SizedBox(
+                          width: cellW,
+                          height: _cardH,
+                          child: _serviceCard(svc, width: cellW),
+                        ),
+                    ],
                   );
                 },
+              );
+            }
+            return SizedBox(
+              height: _cardH,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.hardEdge,
+                itemCount: list.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (_, i) => _serviceCard(list[i]),
               ),
             );
           },
@@ -919,11 +985,17 @@ class _Services extends StatelessWidget {
 }
 
 class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({required this.svc, required this.icon, required this.onTap});
+  const _ServiceCard({
+    required this.svc,
+    required this.icon,
+    required this.onTap,
+    this.width = 165,
+  });
 
   final AgendaService svc;
   final IconData icon;
   final VoidCallback onTap;
+  final double width;
 
   String get _price {
     final n = svc.precio.round();
@@ -939,7 +1011,7 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 165,
+      width: width,
       height: 150,
       child: Material(
         color: _D.white,
@@ -959,13 +1031,7 @@ class _ServiceCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _D.brand(context),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                _BrandSquare(
                   child: Icon(icon, color: _D.white, size: 20),
                 ),
                 const SizedBox(height: 10),
@@ -1089,15 +1155,14 @@ class _Location extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Icon(
+            _BrandSquare(
+              child: const Icon(
                 Icons.place_outlined,
-                size: 18,
-                color: _D.brand(context),
+                size: 20,
+                color: _D.white,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1120,35 +1185,32 @@ class _Location extends StatelessWidget {
                         h: 1.35,
                       ),
                     ),
+                  const SizedBox(height: 6),
+                  if (mapsUrl != null)
+                    GestureDetector(
+                      onTap: () => openExternalUrl(mapsUrl),
+                      child: Text(
+                        'Ver en el mapa >',
+                        style: _D.t(
+                          13,
+                          w: FontWeight.w600,
+                          c: _D.brand(context),
+                        ),
+                      ),
+                    ),
+                  if (AgendaAddressFormat.looksLikeAreaOnly(addr))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Ubicación aproximada en el mapa.',
+                        style: _D.t(11, c: _D.muted, h: 1.35),
+                      ),
+                    ),
                 ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        if (mapsUrl != null)
-          Padding(
-            padding: const EdgeInsets.only(left: 24),
-            child: GestureDetector(
-              onTap: () => openExternalUrl(mapsUrl),
-              child: Text(
-                'Ver en el mapa >',
-                style: _D.t(
-                  13,
-                  w: FontWeight.w600,
-                  c: _D.brand(context),
-                ),
-              ),
-            ),
-          ),
-        if (AgendaAddressFormat.looksLikeAreaOnly(addr))
-          Padding(
-            padding: const EdgeInsets.only(left: 24, top: 4),
-            child: Text(
-              'Ubicación aproximada en el mapa.',
-              style: _D.t(11, c: _D.muted, h: 1.35),
-            ),
-          ),
       ],
     );
   }
@@ -1356,15 +1418,14 @@ class _HoursSummaryLines extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(
+        _BrandSquare(
+          child: const Icon(
             Icons.schedule_outlined,
-            size: 18,
-            color: _D.brand(context),
+            size: 20,
+            color: _D.white,
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1551,23 +1612,26 @@ class _Works extends StatelessWidget {
                 link: hasMore ? 'Ver todos' : null,
                 onLink: hasMore ? () => onViewAll(photos) : null,
               ),
-              const SizedBox(height: 12),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final cols = constraints.maxWidth >= 520 ? 4 : 3;
-                  final cell = math.min(
-                    _maxThumbSize,
-                    (constraints.maxWidth - _gap * (cols - 1)) / cols,
-                  );
-                  return Wrap(
-                    spacing: _gap,
-                    runSpacing: _gap,
-                    children: [
-                      for (final photo in preview)
-                        _WorkThumb(url: photo.url, size: cell),
-                    ],
-                  );
-                },
+              const SizedBox(height: 14),
+              _Card(
+                pad: 12,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cols = constraints.maxWidth >= 520 ? 4 : 3;
+                    final cell = math.min(
+                      _maxThumbSize,
+                      (constraints.maxWidth - _gap * (cols - 1)) / cols,
+                    );
+                    return Wrap(
+                      spacing: _gap,
+                      runSpacing: _gap,
+                      children: [
+                        for (final photo in preview)
+                          _WorkThumb(url: photo.url, size: cell),
+                      ],
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -1585,12 +1649,20 @@ class _WorkThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: _WorkPhotoImage(rawUrl: url),
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: _D.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(color: _D.shadow, blurRadius: 8, offset: Offset(0, 2)),
+        ],
+      ),
+      padding: const EdgeInsets.all(4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: _WorkPhotoImage(rawUrl: url, expand: true),
       ),
     );
   }
@@ -1732,12 +1804,12 @@ class _Team extends StatelessWidget {
               );
             }
             return SizedBox(
-              height: 80,
+              height: 96,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
+                clipBehavior: Clip.hardEdge,
                 itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 28),
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (_, i) => _StaffCard(m: list[i]),
               ),
             );
@@ -1751,105 +1823,118 @@ class _Team extends StatelessWidget {
 class _StaffCard extends StatelessWidget {
   const _StaffCard({required this.m});
 
+  static const _cardW = 210.0;
+  static const _cardH = 96.0;
+
   final StaffMember m;
 
   bool get _rated => m.reviewCount > 0 && m.rating != null;
 
+  String get _initials {
+    final w = m.nombre.trim().split(RegExp(r'\s+'));
+    if (w.length >= 2) return '${w[0][0]}${w[1][0]}'.toUpperCase();
+    return m.nombre.substring(0, m.nombre.length.clamp(1, 2)).toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _StaffAvatar(name: m.nombre, url: m.avatarUrl),
-        const SizedBox(width: 12),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 140),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
+    return SizedBox(
+      width: _cardW,
+      height: _cardH,
+      child: DecoratedBox(
+        decoration: _surfaceDecoration(),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
             children: [
-              Text(
-                m.nombre,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _D.t(15, w: FontWeight.w700),
+              _BrandSquare(
+                size: 48,
+                child: _StaffAvatarContent(
+                  name: m.nombre,
+                  url: m.avatarUrl,
+                  initials: _initials,
+                ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                (m.rol != null && m.rol!.trim().isNotEmpty)
-                    ? m.rol!.trim()
-                    : 'Profesional',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _D.t(13, c: _D.muted),
-              ),
-              const SizedBox(height: 3),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _rated ? Icons.star_rounded : Icons.star_outline_rounded,
-                    size: 14,
-                    color: _D.brand(context),
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    _rated ? m.rating!.toStringAsFixed(1) : '—',
-                    style: _D.t(12, w: FontWeight.w600, c: _D.muted),
-                  ),
-                ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      m.nombre,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _D.t(14, w: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      (m.rol != null && m.rol!.trim().isNotEmpty)
+                          ? m.rol!.trim()
+                          : 'Profesional',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _D.t(12, c: _D.muted),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _rated
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          size: 14,
+                          color: _D.brand(context),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          _rated ? m.rating!.toStringAsFixed(1) : '—',
+                          style: _D.t(12, w: FontWeight.w600, c: _D.muted),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
-class _StaffAvatar extends StatelessWidget {
-  const _StaffAvatar({required this.name, required this.url});
+class _StaffAvatarContent extends StatelessWidget {
+  const _StaffAvatarContent({
+    required this.name,
+    required this.url,
+    required this.initials,
+  });
 
   final String name;
   final String? url;
+  final String initials;
 
   @override
   Widget build(BuildContext context) {
-    const sz = 56.0;
-    return Container(
-      width: sz,
-      height: sz,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: _D.white, width: 2),
-        boxShadow: const [
-          BoxShadow(color: _D.shadow, blurRadius: 8, offset: Offset(0, 2)),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: url != null
-          ? AgendaMediaImage(
-              url: url,
-              fit: BoxFit.cover,
-              width: sz,
-              height: sz,
-              errorWidget: _initials(sz),
-            )
-          : _initials(sz),
-    );
+    if (url != null && isAgendaMediaUrl(url)) {
+      return AgendaMediaImage(
+        url: url,
+        fit: BoxFit.cover,
+        expand: true,
+        errorWidget: _initialsLabel(),
+      );
+    }
+
+    return _initialsLabel();
   }
 
-  Widget _initials(double sz) {
-    final w = name.trim().split(RegExp(r'\s+'));
-    final l = w.length >= 2
-        ? '${w[0][0]}${w[1][0]}'.toUpperCase()
-        : name.substring(0, name.length.clamp(1, 2)).toUpperCase();
-    return ColoredBox(
-      color: const Color(0xFFD1D5DB),
-      child: Center(
-        child: Text(l, style: _D.t(17, w: FontWeight.w600, c: _D.muted)),
+  Widget _initialsLabel() {
+    return Center(
+      child: Text(
+        initials,
+        style: _D.t(16, w: FontWeight.w700, c: _D.white),
       ),
     );
   }
