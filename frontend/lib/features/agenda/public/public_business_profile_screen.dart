@@ -123,6 +123,32 @@ const _kWideBreakpoint = 900.0;
 const _kContentMaxWidth = 1140.0;
 const _kSidebarWidth = 340.0;
 
+/// Mismo ancho y márgenes que el cuerpo del perfil (hero alineado con secciones).
+class _ProfileContentAlign extends StatelessWidget {
+  const _ProfileContentAlign({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final padded = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _D.pad),
+      child: child,
+    );
+    if (!_isWideProfile(context)) return padded;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _D.pad),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 class _FelitoBarberPage extends ConsumerWidget {
@@ -419,97 +445,103 @@ class _Hero extends ConsumerWidget {
 
           // ── Logo + texto sobre el banner (referencia Felito Barber) ──
           Positioned(
-            left: _D.pad,
-            right: _D.pad,
+            left: 0,
+            right: 0,
             bottom: _D.bannerIdentityBottom,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _LogoCircle(name: business.nombre, url: business.logoUrl),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        business.nombre,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: _D.t(
-                          21,
-                          w: FontWeight.w700,
-                          c: _D.white,
-                          h: 1.12,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          _Stars(rating: business.rating ?? 0, onDark: true),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              _ratingLabel,
-                              style: _D.t(
-                                12.5,
-                                w: FontWeight.w500,
-                                c: _D.white.withValues(alpha: 0.95),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+            child: _ProfileContentAlign(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _LogoCircle(name: business.nombre, url: business.logoUrl),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          business.nombre,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: _D.t(
+                            21,
+                            w: FontWeight.w700,
+                            c: _D.white,
+                            h: 1.12,
                           ),
-                        ],
-                      ),
-                      _OpenStatusOnBanner(slug: slug),
-                      if (cats.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
                           children: [
-                            for (final c in cats) _Pill(c),
+                            _Stars(rating: business.rating ?? 0, onDark: true),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                _ratingLabel,
+                                style: _D.t(
+                                  12.5,
+                                  w: FontWeight.w500,
+                                  c: _D.white.withValues(alpha: 0.95),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
+                        _OpenStatusOnBanner(slug: slug),
+                        if (cats.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              for (final c in cats) _Pill(c),
+                            ],
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
           // ── Botones superiores ──
           Positioned(
             top: top + 8,
-            left: _D.pad,
-            child: _RoundBtn(
-              icon: Icons.arrow_back_ios_new,
-              size: 16,
-              onTap: onBack,
-            ),
-          ),
-          Positioned(
-            top: top + 8,
-            right: _D.pad,
-            child: Row(
-              children: [
-                Builder(
-                  builder: (btnContext) => _RoundBtn(
-                    icon: Icons.ios_share,
-                    onTap: () => sharePublicBusinessProfile(
-                      context: context,
-                      slug: slug,
-                      businessName: business.nombre,
-                      sharePositionOrigin:
-                          sharePositionOriginFor(btnContext),
-                    ),
+            left: 0,
+            right: 0,
+            child: _ProfileContentAlign(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _RoundBtn(
+                    icon: Icons.arrow_back_ios_new,
+                    size: 16,
+                    onTap: onBack,
                   ),
-                ),
-                const SizedBox(width: 8),
-                _HeartBtn(slug: slug, business: business),
-              ],
+                  Row(
+                    children: [
+                      Builder(
+                        builder: (btnContext) => _RoundBtn(
+                          icon: Icons.ios_share,
+                          onTap: () => sharePublicBusinessProfile(
+                            context: context,
+                            slug: slug,
+                            businessName: business.nombre,
+                            sharePositionOrigin:
+                                sharePositionOriginFor(btnContext),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _HeartBtn(slug: slug, business: business),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
