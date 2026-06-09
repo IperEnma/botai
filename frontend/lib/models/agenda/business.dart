@@ -71,11 +71,15 @@ class Business {
     final rawBanner = AgendaJson.parseStringOrNull(json['bannerUrl']);
     final rawDireccion = AgendaJson.parseStringOrNull(json['direccion']);
     final bannerInDireccion = sanitizeAgendaMediaUrl(rawDireccion);
-    final addressInBanner = (rawBanner != null && !isAgendaMediaUrl(rawBanner))
+    final addressInBanner = (rawBanner != null &&
+            !isAgendaMediaUrl(rawBanner) &&
+            !isAgendaBannerPreset(rawBanner))
         ? rawBanner.trim()
         : null;
     final hadInvalidMedia = (rawLogo != null && !isAgendaMediaUrl(rawLogo)) ||
-        (rawBanner != null && !isAgendaMediaUrl(rawBanner));
+        (rawBanner != null &&
+            !isAgendaMediaUrl(rawBanner) &&
+            !isAgendaBannerPreset(rawBanner));
     final needsRepair = bannerInDireccion != null || addressInBanner != null;
 
     return Business(
@@ -100,7 +104,7 @@ class Business {
       createdAt: AgendaJson.parseDateTimeOrNull(json['createdAt']),
       updatedAt: AgendaJson.parseDateTimeOrNull(json['updatedAt']),
       direccion: sanitizeBusinessDireccion(rawDireccion) ?? addressInBanner,
-      bannerUrl: sanitizeAgendaMediaUrl(rawBanner) ?? bannerInDireccion,
+      bannerUrl: resolveBusinessBannerUrl(rawBanner) ?? bannerInDireccion,
       rating: AgendaJson.parseDoubleOrNull(json['rating']),
       reviewCount: AgendaJson.parseInt(json['reviewCount']),
       hadInvalidMediaUrls: hadInvalidMedia,

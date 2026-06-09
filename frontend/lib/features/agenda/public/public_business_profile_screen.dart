@@ -25,6 +25,7 @@ import '../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../providers/agenda/public/public_categories_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import 'public_phone_verify_sheet.dart';
+import '../shared/agenda_default_banner.dart';
 import 'public_reservar_layout.dart';
 import 'public_service_booking_modal.dart';
 
@@ -438,11 +439,19 @@ class _Hero extends ConsumerWidget {
                       fit: BoxFit.cover,
                       alignment: Alignment.center,
                       expand: true,
-                      errorWidget: const _BannerFallback(),
+                      errorWidget: AgendaDefaultBannerBackground(
+                        bannerUrl: business.bannerUrl,
+                        primaryColorHex: business.colorPrimario,
+                      ),
                     ),
                   )
                 else
-                  const Positioned.fill(child: _BannerFallback()),
+                  Positioned.fill(
+                    child: AgendaDefaultBannerBackground(
+                      bannerUrl: business.bannerUrl,
+                      primaryColorHex: business.colorPrimario,
+                    ),
+                  ),
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
@@ -660,23 +669,6 @@ class _OpenStatusOnBanner extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _BannerFallback extends StatelessWidget {
-  const _BannerFallback();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
-        ),
-      ),
     );
   }
 }

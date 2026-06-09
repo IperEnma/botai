@@ -46,6 +46,23 @@ bool isAgendaMediaUrl(String? raw) {
 String? sanitizeAgendaMediaUrl(String? raw) =>
     isAgendaMediaUrl(raw) ? raw!.trim() : null;
 
+/// Prefijo de portadas por defecto guardadas en [Business.bannerUrl].
+const kAgendaBannerPresetPrefix = 'banner-preset:';
+
+bool isAgendaBannerPreset(String? raw) {
+  if (raw == null) return false;
+  return raw.trim().startsWith(kAgendaBannerPresetPrefix);
+}
+
+/// Media subida o token `banner-preset:*`; null si es texto libre inválido.
+String? resolveBusinessBannerUrl(String? raw) {
+  if (raw == null) return null;
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  if (isAgendaBannerPreset(trimmed)) return trimmed;
+  return sanitizeAgendaMediaUrl(trimmed);
+}
+
 /// Dirección postal: rechaza paths `/uploads/…` guardados por error en [direccion].
 String? sanitizeBusinessDireccion(String? raw) {
   if (raw == null) return null;

@@ -26,6 +26,7 @@ import 'styles/brand_style.dart';
 import 'styles/color_block.dart';
 import 'styles/font_block.dart';
 import 'styles/logo_block.dart';
+import '../../shared/agenda_default_banner.dart';
 import '../../public/public_business_profile_preview.dart';
 import 'styles/works_block.dart';
 
@@ -88,7 +89,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     } else {
       // Logo y banner se persisten por separado (al subir) — sincronizar igual.
       _logoUrl = sanitizeAgendaMediaUrl(widget.business.logoUrl) ?? _logoUrl;
-      _bannerUrl = sanitizeAgendaMediaUrl(widget.business.bannerUrl) ?? _bannerUrl;
+      _bannerUrl = resolveBusinessBannerUrl(widget.business.bannerUrl) ?? _bannerUrl;
     }
   }
 
@@ -98,7 +99,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     _card = (b.colorTarjeta ?? '#FFFFFF').toUpperCase();
     _font = b.fontFamily ?? 'Inter';
     _logoUrl = sanitizeAgendaMediaUrl(b.logoUrl);
-    _bannerUrl = sanitizeAgendaMediaUrl(b.bannerUrl);
+    _bannerUrl = resolveBusinessBannerUrl(b.bannerUrl);
     _direccionCtrl.text = b.direccion ?? '';
   }
 
@@ -275,6 +276,17 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     });
   }
 
+  void _selectBannerPreset(String presetId) {
+    setState(() {
+      if (presetId == AgendaDefaultBanner.brandId) {
+        _bannerUrl = null;
+      } else {
+        _bannerUrl = AgendaDefaultBanner.presetToken(presetId);
+      }
+      _changed = true;
+    });
+  }
+
   // ── Banner upload ───────────────────────────────────────────────────────────
 
   void _pickAndUploadBanner() {
@@ -436,6 +448,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       photoUrls: photoUrls,
       onUploadLogo: _pickAndUploadLogo,
       onUploadBanner: _pickAndUploadBanner,
+      onSelectBannerPreset: _selectBannerPreset,
       onPrimaryChange: _setPrimary,
       onBackgroundChange: _setBackground,
       onCardChange: _setCard,
@@ -567,6 +580,7 @@ class _ConfigColumn extends StatelessWidget {
     required this.photoUrls,
     required this.onUploadLogo,
     required this.onUploadBanner,
+    required this.onSelectBannerPreset,
     required this.onPrimaryChange,
     required this.onBackgroundChange,
     required this.onCardChange,
@@ -592,6 +606,7 @@ class _ConfigColumn extends StatelessWidget {
   final List<String> photoUrls;
   final VoidCallback onUploadLogo;
   final VoidCallback onUploadBanner;
+  final ValueChanged<String> onSelectBannerPreset;
   final ValueChanged<String> onPrimaryChange;
   final ValueChanged<String> onBackgroundChange;
   final ValueChanged<String> onCardChange;
@@ -647,8 +662,10 @@ class _ConfigColumn extends StatelessWidget {
                     'Banner que se muestra arriba de tu perfil público. PNG, JPG o WEBP — máx. 5 MB.',
                 child: BannerBlock(
                   bannerUrl: bannerUrl,
+                  primaryColor: brand.primaryColor,
                   isUploading: isUploadingBanner,
                   onUpload: onUploadBanner,
+                  onPresetSelected: onSelectBannerPreset,
                 ),
               ),
               const _BlockDivider(),
