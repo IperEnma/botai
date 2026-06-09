@@ -243,6 +243,7 @@ class ConfigController extends StateNotifier<ConfigState> {
             tiktokUrl: c.redes[SocialKind.tiktok],
             facebookUrl: c.redes[SocialKind.facebook],
             colorFondo: business.colorFondo,
+            colorTarjeta: business.colorTarjeta,
             fontFamily: business.fontFamily,
             direccion: c.direccion,
             bannerUrl: business.bannerUrl,

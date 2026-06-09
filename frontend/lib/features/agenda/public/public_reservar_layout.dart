@@ -66,7 +66,9 @@ class PublicReservarTheme {
 
   static Color _colorFromHex(String? hex, Color fallback) {
     if (hex == null || hex.isEmpty) return fallback;
-    final val = int.tryParse('FF${hex.replaceAll('#', '')}', radix: 16);
+    final cleaned = hex.replaceAll('#', '').trim();
+    if (cleaned.length != 6) return fallback;
+    final val = int.tryParse('FF$cleaned', radix: 16);
     return val != null ? Color(val) : fallback;
   }
 

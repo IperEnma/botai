@@ -175,10 +175,14 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     });
   }
 
-  void _invalidatePublicProfile() {
+  Future<void> _refreshPublicProfile() async {
     final slug = widget.business.publicSlug;
-    if (slug != null && slug.isNotEmpty) {
-      ref.invalidate(publicBusinessBySlugProvider(slug));
+    if (slug == null || slug.isEmpty) return;
+    ref.invalidate(publicBusinessBySlugProvider(slug));
+    try {
+      await ref.read(publicBusinessBySlugProvider(slug).future);
+    } catch (_) {
+      // Best-effort: el perfil público se refrescará al abrirlo.
     }
   }
 
@@ -210,7 +214,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
           _bannerUrl = b.bannerUrl;
           _direccionCtrl.text = b.direccion ?? '';
         });
-        _invalidatePublicProfile();
+        unawaited(_refreshPublicProfile());
       }
     } catch (_) {
       // Silencioso: el usuario puede limpiar con Guardar.
@@ -251,7 +255,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
         } catch (_) {
           // Upload OK; refresh de lista es best-effort.
         }
-        _invalidatePublicProfile();
+        unawaited(_refreshPublicProfile());
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Logo actualizado')));
@@ -301,7 +305,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
         } catch (_) {
           // Upload OK; refresh de lista es best-effort.
         }
-        _invalidatePublicProfile();
+        unawaited(_refreshPublicProfile());
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Portada actualizada')));
@@ -332,7 +336,9 @@ class _StylesTabState extends ConsumerState<StylesTab> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(businessesProvider(widget.tenantId).notifier).update(
+      final updated = await ref
+          .read(businessesProvider(widget.tenantId).notifier)
+          .update(
             businessId: widget.business.id,
             nombre: widget.business.nombre,
             descripcion: widget.business.descripcion,
@@ -348,9 +354,15 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             direccion: _direccionValue,
             bannerUrl: _bannerUrl ?? '',
           );
+      await _refreshPublicProfile();
       if (mounted) {
-        setState(() => _changed = false);
-        _invalidatePublicProfile();
+        setState(() {
+          _changed = false;
+          final savedCard = updated.colorTarjeta;
+          if (savedCard != null && savedCard.isNotEmpty) {
+            _card = savedCard.toUpperCase();
+          }
+        });
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Estilos guardados')));
       }

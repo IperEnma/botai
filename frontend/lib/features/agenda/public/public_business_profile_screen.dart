@@ -1094,6 +1094,7 @@ class _ServiceCard extends StatelessWidget {
       height: 150,
       child: Material(
         color: _D.card(context),
+        surfaceTintColor: Colors.transparent,
         borderRadius: BorderRadius.circular(_D.r),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
