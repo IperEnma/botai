@@ -412,9 +412,11 @@ class _Hero extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final catalog = ref.watch(publicCategoriesProvider).valueOrNull;
-    final top = MediaQuery.paddingOf(context).top;
-    final bannerH = (MediaQuery.sizeOf(context).height * 0.36)
-        .clamp(_D.bannerMinH, _D.bannerMaxH);
+    final top = preview ? 12.0 : MediaQuery.paddingOf(context).top;
+    final bannerH = preview
+        ? 200.0
+        : (MediaQuery.sizeOf(context).height * 0.36)
+            .clamp(_D.bannerMinH, _D.bannerMaxH);
     final hasBanner = isAgendaMediaUrl(business.bannerUrl);
     final cats = _heroPills(catalog);
     final bannerBottom = top + bannerH;

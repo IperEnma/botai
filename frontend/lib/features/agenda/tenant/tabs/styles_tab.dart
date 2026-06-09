@@ -9,11 +9,15 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/agenda_address.dart';
 import '../../../../core/agenda_image_upload_prep_web.dart';
 import '../../../../core/agenda_media_url.dart';
+import '../../../../models/agenda/agenda_service.dart';
 import '../../../../models/agenda/business.dart';
+import '../../../../models/agenda/staff_member.dart';
 import '../../../../providers/agenda/agenda_api_provider.dart';
 import '../../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../../providers/agenda/tenant/business_photos_provider.dart';
+import '../../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../../../providers/agenda/tenant/businesses_provider.dart';
+import '../../../../providers/agenda/tenant/services_provider.dart';
 import '../../register/konecta_tokens.dart';
 import '../../shared/k_button.dart';
 import '../utils/business_work_photo_upload.dart';
@@ -26,7 +30,7 @@ import '../../public/public_business_profile_preview.dart';
 import 'styles/works_block.dart';
 
 const _kPreviewBreak = 1200.0;
-const _kPreviewWidth = 380.0;
+const _kPreviewWidth = 400.0;
 
 class StylesTab extends ConsumerStatefulWidget {
   const StylesTab({super.key, required this.tenantId, required this.business});
@@ -394,9 +398,16 @@ class _StylesTabState extends ConsumerState<StylesTab> {
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.sizeOf(context).width >= _kPreviewBreak;
-    final photosKey =
+    final businessKey =
         (tenantId: widget.tenantId, businessId: widget.business.id);
-    final photosState = ref.watch(businessPhotosProvider(photosKey));
+    final photosState = ref.watch(businessPhotosProvider(businessKey));
+    final tenantServices = ref.watch(servicesProvider(businessKey)).items;
+    final tenantStaff = ref.watch(businessStaffProvider(businessKey)).members;
+    final previewBundle = PublicBusinessProfilePreview.contentBundle(
+      business: widget.business,
+      tenantServices: tenantServices,
+      tenantStaff: tenantStaff,
+    );
     final photoUrls =
         photosState.photos.map((p) => p.url).take(BrandStyle.maxPhotos).toList();
 
@@ -429,12 +440,12 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       onBackgroundChange: _setBackground,
       onCardChange: _setCard,
       onFontChange: _setFont,
-      onAddPhoto: () => _pickAndUploadWorkPhoto(photosKey),
+      onAddPhoto: () => _pickAndUploadWorkPhoto(businessKey),
       onDeletePhoto: (i) async {
         if (i >= photosState.photos.length) return;
         final photo = photosState.photos[i];
         await ref
-            .read(businessPhotosProvider(photosKey).notifier)
+            .read(businessPhotosProvider(businessKey).notifier)
             .deletePhoto(photo.id);
       },
       onSave: _save,
@@ -444,6 +455,9 @@ class _StylesTabState extends ConsumerState<StylesTab> {
                 brand,
                 bannerUrl: _bannerUrl,
                 direccion: _direccionValue,
+                tenantServices: tenantServices,
+                tenantStaff: tenantStaff,
+                previewBundle: previewBundle,
               ),
     );
 
@@ -460,6 +474,9 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             brand,
             bannerUrl: _bannerUrl,
             direccion: _direccionValue,
+            tenantServices: tenantServices,
+            tenantStaff: tenantStaff,
+            previewBundle: previewBundle,
           ),
         ),
       );
@@ -483,6 +500,9 @@ class _StylesTabState extends ConsumerState<StylesTab> {
               business: widget.business,
               bannerUrl: _bannerUrl,
               direccion: _direccionValue,
+              tenantServices: tenantServices,
+              tenantStaff: tenantStaff,
+              previewBundle: previewBundle,
             ),
           ),
         ],
@@ -494,6 +514,9 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     BrandStyle brand, {
     String? bannerUrl,
     String? direccion,
+    required List<AgendaService> tenantServices,
+    required List<StaffMember> tenantStaff,
+    required PreviewContentBundle previewBundle,
   }) {
     showModalBottomSheet<void>(
       context: context,
@@ -513,6 +536,9 @@ class _StylesTabState extends ConsumerState<StylesTab> {
               business: widget.business,
               bannerUrl: bannerUrl,
               direccion: direccion,
+              tenantServices: tenantServices,
+              tenantStaff: tenantStaff,
+              previewBundle: previewBundle,
               inSheet: true,
             ),
           ),
@@ -869,6 +895,9 @@ class _PreviewColumn extends StatelessWidget {
     required this.business,
     this.bannerUrl,
     this.direccion,
+    required this.tenantServices,
+    required this.tenantStaff,
+    required this.previewBundle,
     this.inSheet = false,
   });
 
@@ -876,6 +905,9 @@ class _PreviewColumn extends StatelessWidget {
   final Business business;
   final String? bannerUrl;
   final String? direccion;
+  final List<AgendaService> tenantServices;
+  final List<StaffMember> tenantStaff;
+  final PreviewContentBundle previewBundle;
   final bool inSheet;
 
   @override
@@ -906,7 +938,9 @@ class _PreviewColumn extends StatelessWidget {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'Mismo diseño que ve el cliente en /reservar. Los cambios de estilo se reflejan al instante.',
+                previewBundle.usesAnySample
+                    ? 'Mismo diseño que /reservar. Los estilos se actualizan al instante; servicios y equipo son de ejemplo hasta que los publiques.'
+                    : 'Mismo diseño que ve el cliente en /reservar. Los cambios de estilo se reflejan al instante.',
                 style: GoogleFonts.inter(
                   fontSize: 11.5,
                   color: KTokens.inkPlaceholder,
@@ -924,6 +958,8 @@ class _PreviewColumn extends StatelessWidget {
       brand: brand,
       bannerUrl: bannerUrl,
       direccion: direccion,
+      tenantServices: tenantServices,
+      tenantStaff: tenantStaff,
     );
 
     final body = Column(
