@@ -41,6 +41,7 @@ public final class BusinessDtoMapper {
                 business.getTiktokUrl(),
                 business.getFacebookUrl(),
                 business.getColorFondo(),
+                business.getColorTarjeta(),
                 business.getFontFamily(),
                 business.getPublicSlug(),
                 business.getBotId(),

@@ -56,7 +56,7 @@ public class BusinessBannerController {
                 businessId,
                 null, null, null, null,
                 null,
-                null, null, null, null, null, null,
+                null, null, null, null, null, null, null,
                 url,
                 null
         );

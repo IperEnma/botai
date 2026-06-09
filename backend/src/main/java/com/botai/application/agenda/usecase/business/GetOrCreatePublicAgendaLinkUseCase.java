@@ -86,10 +86,13 @@ public class GetOrCreatePublicAgendaLinkUseCase {
                 b.getTiktokUrl(),
                 b.getFacebookUrl(),
                 b.getColorFondo(),
+                b.getColorTarjeta(),
                 b.getFontFamily(),
                 publicSlug,
                 companySlug,
                 b.getBotId(),
+                b.getDireccion(),
+                b.getBannerUrl(),
                 b.getDeletedAt(),
                 b.getCreatedAt(),
                 b.getUpdatedAt()

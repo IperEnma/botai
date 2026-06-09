@@ -293,6 +293,7 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
         final theme = PublicReservarTheme.fromHex(
           colorPrimario: business.colorPrimario,
           colorFondo: business.colorFondo,
+          colorTarjeta: business.colorTarjeta,
           fontFamily: business.fontFamily,
           logoUrl: business.logoUrl,
         );

@@ -38,6 +38,7 @@ public class UpdateBusinessUseCase {
                             String tiktokUrl,
                             String facebookUrl,
                             String colorFondo,
+                            String colorTarjeta,
                             String fontFamily,
                             String bannerUrl,
                             String direccion) {
@@ -58,6 +59,7 @@ public class UpdateBusinessUseCase {
                 tiktokUrl == null ? existing.getTiktokUrl() : tiktokUrl,
                 facebookUrl == null ? existing.getFacebookUrl() : facebookUrl,
                 colorFondo == null ? existing.getColorFondo() : colorFondo,
+                colorTarjeta == null ? existing.getColorTarjeta() : colorTarjeta,
                 fontFamily == null ? existing.getFontFamily() : fontFamily,
                 existing.getPublicSlug(),
                 existing.getCompanySlug(),

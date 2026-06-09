@@ -32,7 +32,7 @@ class PublicPreview extends StatelessWidget {
         ? Colors.white.withValues(alpha: 0.45)
         : const Color(0xFF9A978F);
     final surfaceInner =
-        dark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+        dark ? Colors.white.withValues(alpha: 0.05) : parseHex(style.cardColor);
     final borderInner = dark
         ? Colors.white.withValues(alpha: 0.10)
         : const Color(0x14000000);

@@ -18,6 +18,7 @@ public record UpdateBusinessRequest(
         @Size(max = 500) String tiktokUrl,
         @Size(max = 500) String facebookUrl,
         @Size(max = 20) String colorFondo,
+        @Size(max = 20) String colorTarjeta,
         @Size(max = 100) String fontFamily,
         @Size(max = 500) String bannerUrl,
         @Size(max = 500) String direccion

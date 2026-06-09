@@ -18,6 +18,7 @@ class Business {
   final String? tiktokUrl;
   final String? facebookUrl;
   final String? colorFondo;
+  final String? colorTarjeta;
   final String? fontFamily;
   /// Slug para `/reservar/{publicSlug}` (respuesta pública del backend).
   final String? publicSlug;
@@ -51,6 +52,7 @@ class Business {
     this.tiktokUrl,
     this.facebookUrl,
     this.colorFondo,
+    this.colorTarjeta,
     this.fontFamily,
     this.publicSlug,
     this.botId,
@@ -91,6 +93,7 @@ class Business {
       tiktokUrl: AgendaJson.parseStringOrNull(json['tiktokUrl']),
       facebookUrl: AgendaJson.parseStringOrNull(json['facebookUrl']),
       colorFondo: AgendaJson.parseStringOrNull(json['colorFondo']),
+      colorTarjeta: AgendaJson.parseStringOrNull(json['colorTarjeta']),
       fontFamily: AgendaJson.parseStringOrNull(json['fontFamily']),
       publicSlug: AgendaJson.parseStringOrNull(json['publicSlug']),
       botId: AgendaJson.parseIntOrNull(json['botId']),
@@ -117,6 +120,7 @@ class Business {
     Object? tiktokUrl = _sentinel,
     Object? facebookUrl = _sentinel,
     Object? colorFondo = _sentinel,
+    Object? colorTarjeta = _sentinel,
     Object? fontFamily = _sentinel,
     Object? direccion = _sentinel,
     Object? bannerUrl = _sentinel,
@@ -136,6 +140,7 @@ class Business {
       tiktokUrl: identical(tiktokUrl, _sentinel) ? this.tiktokUrl : tiktokUrl as String?,
       facebookUrl: identical(facebookUrl, _sentinel) ? this.facebookUrl : facebookUrl as String?,
       colorFondo: identical(colorFondo, _sentinel) ? this.colorFondo : colorFondo as String?,
+      colorTarjeta: identical(colorTarjeta, _sentinel) ? this.colorTarjeta : colorTarjeta as String?,
       fontFamily: identical(fontFamily, _sentinel) ? this.fontFamily : fontFamily as String?,
       direccion: identical(direccion, _sentinel) ? this.direccion : direccion as String?,
       bannerUrl: identical(bannerUrl, _sentinel) ? this.bannerUrl : bannerUrl as String?,

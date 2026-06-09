@@ -17,6 +17,7 @@ public record BusinessResponse(
         String tiktokUrl,
         String facebookUrl,
         String colorFondo,
+        String colorTarjeta,
         String fontFamily,
         /** Slug público para /reservar/{slug}; null si aún no se generó. */
         String publicSlug,

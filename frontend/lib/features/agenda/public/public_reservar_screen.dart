@@ -549,6 +549,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         final theme = PublicReservarTheme.fromHex(
           colorPrimario: business.colorPrimario,
           colorFondo: business.colorFondo,
+          colorTarjeta: business.colorTarjeta,
           fontFamily: business.fontFamily,
           logoUrl: business.logoUrl,
         );

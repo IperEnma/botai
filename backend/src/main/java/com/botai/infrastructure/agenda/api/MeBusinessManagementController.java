@@ -127,6 +127,7 @@ public class MeBusinessManagementController {
                 request.tiktokUrl(),
                 request.facebookUrl(),
                 request.colorFondo(),
+                request.colorTarjeta(),
                 request.fontFamily(),
                 request.bannerUrl(),
                 request.direccion()

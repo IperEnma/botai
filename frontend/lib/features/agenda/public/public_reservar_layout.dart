@@ -6,6 +6,7 @@ class PublicReservarTheme {
   PublicReservarTheme({
     required this.primary,
     required this.background,
+    required this.card,
     required this.dark,
     this.fontFamily = 'Roboto',
     this.logoUrl,
@@ -13,6 +14,7 @@ class PublicReservarTheme {
 
   final Color primary;
   final Color background;
+  final Color card;
   final bool dark;
   final String fontFamily;
   final String? logoUrl;
@@ -23,8 +25,7 @@ class PublicReservarTheme {
       dark ? Colors.white.withValues(alpha: 0.07) : const Color(0xFFF8FAFC);
   Color get cardBorder =>
       dark ? Colors.white12 : const Color(0xFFE2E8F0);
-  Color get surface =>
-      dark ? const Color(0xFF1E293B) : Colors.white;
+  Color get surface => card;
 
   Color get primarySoft => primary.withValues(alpha: 0.12);
 
@@ -36,13 +37,16 @@ class PublicReservarTheme {
   static PublicReservarTheme fromHex({
     String? colorPrimario,
     String? colorFondo,
+    String? colorTarjeta,
     String? fontFamily,
     String? logoUrl,
   }) {
+    final background = _colorFromHex(colorFondo, const Color(0xFFFBFAF7));
     return PublicReservarTheme(
       primary: _colorFromHex(colorPrimario, const Color(0xFF6366F1)),
-      background: _colorFromHex(colorFondo, Colors.white),
-      dark: _colorFromHex(colorFondo, Colors.white).computeLuminance() < 0.4,
+      background: background,
+      card: _colorFromHex(colorTarjeta, Colors.white),
+      dark: background.computeLuminance() < 0.4,
       fontFamily: fontFamily ?? 'Roboto',
       logoUrl: logoUrl,
     );
@@ -53,6 +57,7 @@ class PublicReservarTheme {
     return PublicReservarTheme(
       primary: const Color(0xFF7C5CFF),
       background: const Color(0xFFF3F4F6),
+      card: Colors.white,
       dark: false,
       fontFamily: 'Inter',
       logoUrl: logoUrl,

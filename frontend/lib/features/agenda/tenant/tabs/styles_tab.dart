@@ -41,6 +41,7 @@ class StylesTab extends ConsumerStatefulWidget {
 class _StylesTabState extends ConsumerState<StylesTab> {
   late String _primary;
   late String _background;
+  late String _card;
   late String _font;
   String? _logoUrl;
   String? _bannerUrl;
@@ -90,6 +91,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
   void _hydrate(Business b) {
     _primary = (b.colorPrimario ?? '#3B2F63').toUpperCase();
     _background = (b.colorFondo ?? '#FBFAF7').toUpperCase();
+    _card = (b.colorTarjeta ?? '#FFFFFF').toUpperCase();
     _font = b.fontFamily ?? 'Inter';
     _logoUrl = sanitizeAgendaMediaUrl(b.logoUrl);
     _bannerUrl = sanitizeAgendaMediaUrl(b.bannerUrl);
@@ -159,6 +161,13 @@ class _StylesTabState extends ConsumerState<StylesTab> {
     });
   }
 
+  void _setCard(String hex) {
+    setState(() {
+      _card = hex;
+      _changed = true;
+    });
+  }
+
   void _setFont(String family) {
     setState(() {
       _font = family;
@@ -191,6 +200,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             tiktokUrl: b.tiktokUrl,
             facebookUrl: b.facebookUrl,
             colorFondo: _background,
+            colorTarjeta: _card,
             fontFamily: _font,
             direccion: b.direccion,
           );
@@ -333,12 +343,14 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             tiktokUrl: widget.business.tiktokUrl,
             facebookUrl: widget.business.facebookUrl,
             colorFondo: _background,
+            colorTarjeta: _card,
             fontFamily: _font,
             direccion: _direccionValue,
             bannerUrl: _bannerUrl ?? '',
           );
       if (mounted) {
         setState(() => _changed = false);
+        _invalidatePublicProfile();
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Estilos guardados')));
       }
@@ -380,6 +392,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       logoUrl: _logoUrl,
       primaryColor: _primary,
       backgroundColor: _background,
+      cardColor: _card,
       fontFamily: _font,
       workPhotos: photoUrls,
     );
@@ -402,6 +415,7 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       onUploadBanner: _pickAndUploadBanner,
       onPrimaryChange: _setPrimary,
       onBackgroundChange: _setBackground,
+      onCardChange: _setCard,
       onFontChange: _setFont,
       onAddPhoto: () => _pickAndUploadWorkPhoto(photosKey),
       onDeletePhoto: (i) async {
@@ -500,6 +514,7 @@ class _ConfigColumn extends StatelessWidget {
     required this.onUploadBanner,
     required this.onPrimaryChange,
     required this.onBackgroundChange,
+    required this.onCardChange,
     required this.onFontChange,
     required this.onAddPhoto,
     required this.onDeletePhoto,
@@ -524,6 +539,7 @@ class _ConfigColumn extends StatelessWidget {
   final VoidCallback onUploadBanner;
   final ValueChanged<String> onPrimaryChange;
   final ValueChanged<String> onBackgroundChange;
+  final ValueChanged<String> onCardChange;
   final ValueChanged<String> onFontChange;
   final VoidCallback onAddPhoto;
   final ValueChanged<int> onDeletePhoto;
@@ -691,6 +707,20 @@ class _ConfigColumn extends StatelessWidget {
                   swatches: bgPalette,
                   value: brand.backgroundColor,
                   onChanged: onBackgroundChange,
+                  bordered: true,
+                ),
+              ),
+              const _BlockDivider(),
+
+              // 4.3b Color de tarjetas
+              _Block(
+                title: 'Color de tarjetas',
+                hint:
+                    'Servicios, equipo, ubicación y trabajos usan este color en sus tarjetas.',
+                child: ColorBlock(
+                  swatches: cardPalette,
+                  value: brand.cardColor,
+                  onChanged: onCardChange,
                   bordered: true,
                 ),
               ),

@@ -75,7 +75,8 @@ class _PublicProfileScope extends InheritedWidget {
   @override
   bool updateShouldNotify(_PublicProfileScope oldWidget) =>
       theme.primary != oldWidget.theme.primary ||
-      theme.background != oldWidget.theme.background;
+      theme.background != oldWidget.theme.background ||
+      theme.card != oldWidget.theme.card;
 }
 
 // ─── Design tokens (layout fijo; acento = tema del negocio) ───────────────────
@@ -86,6 +87,9 @@ abstract final class _D {
 
   static Color pageBg(BuildContext context) =>
       _PublicProfileScope.of(context).background;
+
+  static Color card(BuildContext context) =>
+      _PublicProfileScope.of(context).card;
 
   static const ink = Color(0xFF111827);
   static const muted = Color(0xFF6B7280);
@@ -166,6 +170,7 @@ class _FelitoBarberPage extends ConsumerWidget {
     final theme = PublicReservarTheme.fromHex(
       colorPrimario: business.colorPrimario,
       colorFondo: business.colorFondo,
+      colorTarjeta: business.colorTarjeta,
       fontFamily: business.fontFamily,
       logoUrl: business.logoUrl,
     );
@@ -850,7 +855,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(pad),
-      decoration: _surfaceDecoration(),
+      decoration: _surfaceDecoration(context),
       child: child,
     );
   }
@@ -882,8 +887,8 @@ class _BrandSquare extends StatelessWidget {
   }
 }
 
-BoxDecoration _surfaceDecoration() => BoxDecoration(
-      color: _D.white,
+BoxDecoration _surfaceDecoration(BuildContext context) => BoxDecoration(
+      color: _D.card(context),
       borderRadius: BorderRadius.circular(_D.r),
       boxShadow: const [
         BoxShadow(color: _D.shadow, blurRadius: 14, offset: Offset(0, 4)),
@@ -909,6 +914,7 @@ class _Services extends StatelessWidget {
 
   static const _gridGap = 12.0;
   static const _gridCols = 2;
+  static const _gridPreviewLimit = 4;
   static const _cardH = 150.0;
 
   Widget _serviceCard(AgendaService svc, {double width = 165}) {
@@ -923,59 +929,100 @@ class _Services extends StatelessWidget {
     );
   }
 
+  Widget _sectionHead({required bool showVerTodos}) {
+    return _SectionHead(
+      title: 'Servicios',
+      link: showVerTodos ? 'Ver todos' : null,
+      onLink: showVerTodos ? onAll : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHead(title: 'Servicios', link: 'Ver todos', onLink: onAll),
-        const SizedBox(height: 14),
         servicesAsync.when(
-          loading: () => SizedBox(
-            height: _cardH,
-            child: Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: _D.brand(context),
+          loading: () => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionHead(showVerTodos: !useGrid),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: _cardH,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _D.brand(context),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-          error: (_, _) =>
-              Text('Error al cargar servicios.', style: _D.t(14, c: _D.muted)),
+          error: (_, _) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionHead(showVerTodos: !useGrid),
+              const SizedBox(height: 14),
+              Text(
+                'Error al cargar servicios.',
+                style: _D.t(14, c: _D.muted),
+              ),
+            ],
+          ),
           data: (list) {
             if (list.isEmpty) {
-              return Text('Sin servicios.', style: _D.t(14, c: _D.muted));
-            }
-            if (useGrid) {
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  final cellW = (constraints.maxWidth -
-                          _gridGap * (_gridCols - 1)) /
-                      _gridCols;
-                  return Wrap(
-                    spacing: _gridGap,
-                    runSpacing: _gridGap,
-                    children: [
-                      for (final svc in list)
-                        SizedBox(
-                          width: cellW,
-                          height: _cardH,
-                          child: _serviceCard(svc, width: cellW),
-                        ),
-                    ],
-                  );
-                },
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionHead(showVerTodos: false),
+                  const SizedBox(height: 14),
+                  Text('Sin servicios.', style: _D.t(14, c: _D.muted)),
+                ],
               );
             }
-            return SizedBox(
-              height: _cardH,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.hardEdge,
-                itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (_, i) => _serviceCard(list[i]),
-              ),
+            final hasMore = useGrid && list.length > _gridPreviewLimit;
+            final visible = useGrid
+                ? list.take(_gridPreviewLimit).toList()
+                : list;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHead(showVerTodos: useGrid ? hasMore : true),
+                const SizedBox(height: 14),
+                if (useGrid)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cellW = (constraints.maxWidth -
+                              _gridGap * (_gridCols - 1)) /
+                          _gridCols;
+                      return Wrap(
+                        spacing: _gridGap,
+                        runSpacing: _gridGap,
+                        children: [
+                          for (final svc in visible)
+                            SizedBox(
+                              width: cellW,
+                              height: _cardH,
+                              child: _serviceCard(svc, width: cellW),
+                            ),
+                        ],
+                      );
+                    },
+                  )
+                else
+                  SizedBox(
+                    height: _cardH,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      clipBehavior: Clip.hardEdge,
+                      itemCount: visible.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (_, i) => _serviceCard(visible[i]),
+                    ),
+                  ),
+              ],
             );
           },
         ),
@@ -1014,7 +1061,7 @@ class _ServiceCard extends StatelessWidget {
       width: width,
       height: 150,
       child: Material(
-        color: _D.white,
+        color: _D.card(context),
         borderRadius: BorderRadius.circular(_D.r),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -1022,6 +1069,7 @@ class _ServiceCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(_D.r),
           child: Ink(
             decoration: BoxDecoration(
+              color: _D.card(context),
               borderRadius: BorderRadius.circular(_D.r),
               boxShadow: const [
                 BoxShadow(color: _D.shadow, blurRadius: 12, offset: Offset(0, 4)),
@@ -1112,21 +1160,27 @@ class _Location extends StatelessWidget {
     String? line2;
 
     if (digitIdx >= 0) {
-      line1 = segments.sublist(0, digitIdx + 1).join(', ');
-      if (digitIdx + 1 < segments.length) {
+      line1 = segments[digitIdx];
+      if (locTags.isNotEmpty) {
+        line2 = locTags.join(', ');
+      } else if (digitIdx > 0) {
+        line2 = segments.sublist(0, digitIdx).join(', ');
+      } else if (digitIdx + 1 < segments.length) {
         line2 = segments.sublist(digitIdx + 1).join(', ');
       }
+    } else if (segments.length >= 2) {
+      line1 = segments.last;
+      line2 = locTags.isNotEmpty
+          ? locTags.join(', ')
+          : segments.sublist(0, segments.length - 1).join(', ');
     } else {
       line1 = trimmed;
+      if (locTags.isNotEmpty) line2 = locTags.join(', ');
     }
 
-    if (locTags.isNotEmpty) {
-      line2 = locTags.join(', ');
-    } else if (line2 == null && segments.length >= 2) {
-      final withoutStreet = segments.where((s) => !RegExp(r'\d').hasMatch(s)).toList();
-      if (withoutStreet.isNotEmpty) {
-        line2 = withoutStreet.join(', ').replaceAll(' / ', ', ');
-      }
+    if (line2 != null &&
+        line2.trim().toLowerCase() == line1.trim().toLowerCase()) {
+      line2 = null;
     }
 
     return (line1, line2);
@@ -1147,70 +1201,65 @@ class _Location extends StatelessWidget {
     required String? line2,
     required String addr,
     required String? mapsUrl,
-    bool compact = false,
+    bool stacked = false,
   }) {
-    return Column(
+    final body = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _BrandSquare(
-              child: const Icon(
-                Icons.place_outlined,
-                size: 20,
-                color: _D.white,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    line1,
-                    maxLines: compact ? 3 : 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: _D.t(13, w: FontWeight.w500, h: 1.35),
-                  ),
-                  if (line2 != null && line2.isNotEmpty)
-                    Text(
-                      line2,
-                      maxLines: compact ? 3 : 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: _D.t(
-                        13,
-                        w: FontWeight.w400,
-                        c: _D.muted,
-                        h: 1.35,
-                      ),
-                    ),
-                  const SizedBox(height: 6),
-                  if (mapsUrl != null)
-                    GestureDetector(
-                      onTap: () => openExternalUrl(mapsUrl),
-                      child: Text(
-                        'Ver en el mapa >',
-                        style: _D.t(
-                          13,
-                          w: FontWeight.w600,
-                          c: _D.brand(context),
-                        ),
-                      ),
-                    ),
-                  if (AgendaAddressFormat.looksLikeAreaOnly(addr))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        'Ubicación aproximada en el mapa.',
-                        style: _D.t(11, c: _D.muted, h: 1.35),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+        Text(
+          line1,
+          maxLines: stacked ? 2 : 3,
+          overflow: TextOverflow.ellipsis,
+          style: _D.t(
+            stacked ? 15 : 13,
+            w: FontWeight.w600,
+            h: 1.35,
+          ),
         ),
+        if (line2 != null && line2.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            line2,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: _D.t(13, w: FontWeight.w400, c: _D.muted, h: 1.35),
+          ),
+        ],
+        if (mapsUrl != null) ...[
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => openExternalUrl(mapsUrl),
+            child: Text(
+              'Ver en el mapa >',
+              style: _D.t(13, w: FontWeight.w600, c: _D.brand(context)),
+            ),
+          ),
+        ],
+        if (AgendaAddressFormat.looksLikeAreaOnly(addr))
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Ubicación aproximada en el mapa.',
+              style: _D.t(11, c: _D.muted, h: 1.35),
+            ),
+          ),
+      ],
+    );
+
+    if (stacked) return body;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _BrandSquare(
+          child: const Icon(
+            Icons.place_outlined,
+            size: 20,
+            color: _D.white,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: body),
       ],
     );
   }
@@ -1311,7 +1360,6 @@ class _Location extends StatelessWidget {
                   line2: line2,
                   addr: addr,
                   mapsUrl: mapsUrl,
-                  compact: true,
                 ),
                 _EmbeddedHoursSummary(hoursAsync: hoursAsync),
                 if (bookButton != null) ...[
@@ -1331,33 +1379,29 @@ class _Location extends StatelessWidget {
         _SectionHead(title: _sectionTitle),
         const SizedBox(height: 14),
         _Card(
-          pad: 12,
+          pad: 14,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: _MapPreview(
-                      geocodeQuery: geocodeQuery,
-                      mapsUrl: mapsUrl,
-                      width: 96,
-                      height: 96,
-                    ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => _MapPreview(
+                    geocodeQuery: geocodeQuery,
+                    mapsUrl: mapsUrl,
+                    width: constraints.maxWidth,
+                    height: 120,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _addressText(
-                      context,
-                      line1: line1,
-                      line2: line2,
-                      addr: addr,
-                      mapsUrl: mapsUrl,
-                    ),
-                  ),
-                ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              _addressText(
+                context,
+                line1: line1,
+                line2: line2,
+                addr: addr,
+                mapsUrl: mapsUrl,
+                stacked: true,
               ),
               _EmbeddedHoursSummary(hoursAsync: hoursAsync),
             ],
@@ -1653,7 +1697,7 @@ class _WorkThumb extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: _D.white,
+        color: _D.card(context),
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(color: _D.shadow, blurRadius: 8, offset: Offset(0, 2)),
@@ -1842,7 +1886,7 @@ class _StaffCard extends StatelessWidget {
       width: _cardW,
       height: _cardH,
       child: DecoratedBox(
-        decoration: _surfaceDecoration(),
+        decoration: _surfaceDecoration(context),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(

@@ -56,7 +56,7 @@ public class BusinessAvatarController {
                 businessId,
                 null, null, null, null,
                 url,
-                null, null, null, null, null, null,
+                null, null, null, null, null, null, null,
                 null,
                 null
         );

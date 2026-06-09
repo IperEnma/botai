@@ -21,6 +21,8 @@ public final class Business {
     private final String tiktokUrl;
     private final String facebookUrl;
     private final String colorFondo;
+    /** Color de tarjetas en el perfil público (hex); null → blanco en el cliente. */
+    private final String colorTarjeta;
     private final String fontFamily;
     private final String publicSlug;
     /** Slug de marca para {@code /reservar?company=}; compartido por sucursales del tenant. */
@@ -37,7 +39,7 @@ public final class Business {
                     UUID ownerUserId, List<SearchTag> searchTags, boolean activo,
                     String logoUrl, String colorPrimario,
                     String instagramUrl, String tiktokUrl, String facebookUrl,
-                    String colorFondo, String fontFamily,
+                    String colorFondo, String colorTarjeta, String fontFamily,
                     String publicSlug,
                     String companySlug,
                     Long botId,
@@ -57,6 +59,7 @@ public final class Business {
         this.tiktokUrl = tiktokUrl;
         this.facebookUrl = facebookUrl;
         this.colorFondo = colorFondo;
+        this.colorTarjeta = colorTarjeta;
         this.fontFamily = fontFamily;
         this.publicSlug = publicSlug;
         this.companySlug = companySlug;
@@ -79,7 +82,7 @@ public final class Business {
                     LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, tenantId, nombre, descripcion, ownerUserId, searchTags, activo,
                 logoUrl, colorPrimario, instagramUrl, tiktokUrl, facebookUrl,
-                colorFondo, fontFamily, null, null, null, null, null,
+                colorFondo, null, fontFamily, null, null, null, null, null,
                 deletedAt, createdAt, updatedAt);
     }
 
@@ -93,7 +96,7 @@ public final class Business {
                     LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, tenantId, nombre, descripcion, ownerUserId, searchTags, activo,
                 logoUrl, colorPrimario, instagramUrl, tiktokUrl, facebookUrl,
-                colorFondo, fontFamily, publicSlug, null, null, null, null,
+                colorFondo, null, fontFamily, publicSlug, null, null, null, null,
                 deletedAt, createdAt, updatedAt);
     }
 
@@ -112,7 +115,7 @@ public final class Business {
                     LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, tenantId, nombre, descripcion, ownerUserId, searchTags, activo,
                 logoUrl, colorPrimario, instagramUrl, tiktokUrl, facebookUrl,
-                colorFondo, fontFamily, publicSlug, companySlug, botId, null, null,
+                colorFondo, null, fontFamily, publicSlug, companySlug, botId, null, null,
                 deletedAt, createdAt, updatedAt);
     }
 
@@ -136,6 +139,7 @@ public final class Business {
     public String getTiktokUrl() { return tiktokUrl; }
     public String getFacebookUrl() { return facebookUrl; }
     public String getColorFondo() { return colorFondo; }
+    public String getColorTarjeta() { return colorTarjeta; }
     public String getFontFamily() { return fontFamily; }
     public String getPublicSlug() { return publicSlug; }
     public String getCompanySlug() { return companySlug; }

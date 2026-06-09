@@ -64,6 +64,7 @@ class UpdateBusinessUseCaseTest {
                 null,         // tiktokUrl
                 null,         // facebookUrl
                 null,         // colorFondo
+                null,         // colorTarjeta
                 null,         // fontFamily
                 null,         // bannerUrl
                 null          // direccion
@@ -94,7 +95,7 @@ class UpdateBusinessUseCaseTest {
                 "Nueva descripción",
                 List.of(SearchTag.profile("nuevo")),
                 false,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
 
         ArgumentCaptor<Business> captor = ArgumentCaptor.forClass(Business.class);
         verify(businessRepository).save(captor.capture());
@@ -114,7 +115,7 @@ class UpdateBusinessUseCaseTest {
 
         useCase.execute(tenantId, businessId,
                 null, null, null, null,
-                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
                 "/uploads/businesses/test/banner.jpg",
                 "Av. Brasil 2847, Montevideo");
 
@@ -134,7 +135,7 @@ class UpdateBusinessUseCaseTest {
 
         useCase.execute(tenantId, businessId,
                 null, null, null, null,
-                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
                 "   ",
                 null);
 
@@ -149,7 +150,7 @@ class UpdateBusinessUseCaseTest {
                 .thenReturn(Optional.empty());
 
         assertThrows(BusinessNotFoundException.class,
-                () -> useCase.execute(tenantId, businessId, "X", null, null, null, null, null, null, null, null, null, null, null, null));
+                () -> useCase.execute(tenantId, businessId, "X", null, null, null, null, null, null, null, null, null, null, null, null, null));
 
         verify(businessRepository, never()).save(any(Business.class));
     }
@@ -162,7 +163,7 @@ class UpdateBusinessUseCaseTest {
         assertThrows(IllegalArgumentException.class,
                 () -> useCase.execute(tenantId, businessId,
                         null, null, null, null,
-                        null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         null,
                         "https://maps.example.com"));
 

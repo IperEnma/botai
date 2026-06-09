@@ -34,6 +34,7 @@ public final class BusinessMapper {
                 entity.getTiktokUrl(),
                 entity.getFacebookUrl(),
                 entity.getColorFondo(),
+                entity.getColorTarjeta(),
                 entity.getFontFamily(),
                 entity.getPublicSlug(),
                 entity.getCompanySlug(),
@@ -63,6 +64,7 @@ public final class BusinessMapper {
         entity.setTiktokUrl(business.getTiktokUrl());
         entity.setFacebookUrl(business.getFacebookUrl());
         entity.setColorFondo(business.getColorFondo());
+        entity.setColorTarjeta(business.getColorTarjeta());
         entity.setFontFamily(business.getFontFamily());
         entity.setPublicSlug(business.getPublicSlug());
         entity.setCompanySlug(business.getCompanySlug());

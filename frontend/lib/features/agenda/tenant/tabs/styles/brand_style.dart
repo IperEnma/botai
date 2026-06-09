@@ -8,6 +8,7 @@ class BrandStyle {
   final String? logoUrl;
   final String primaryColor;
   final String backgroundColor;
+  final String cardColor;
   final String fontFamily;
   final List<String> workPhotos;
 
@@ -15,6 +16,7 @@ class BrandStyle {
     this.logoUrl,
     this.primaryColor = '#3b2f63',
     this.backgroundColor = '#fbfaf7',
+    this.cardColor = '#ffffff',
     this.fontFamily = 'Inter',
     this.workPhotos = const [],
   });
@@ -23,6 +25,7 @@ class BrandStyle {
     Object? logoUrl = _sentinel,
     String? primaryColor,
     String? backgroundColor,
+    String? cardColor,
     String? fontFamily,
     List<String>? workPhotos,
   }) {
@@ -30,6 +33,7 @@ class BrandStyle {
       logoUrl: identical(logoUrl, _sentinel) ? this.logoUrl : logoUrl as String?,
       primaryColor: primaryColor ?? this.primaryColor,
       backgroundColor: backgroundColor ?? this.backgroundColor,
+      cardColor: cardColor ?? this.cardColor,
       fontFamily: fontFamily ?? this.fontFamily,
       workPhotos: workPhotos ?? this.workPhotos,
     );
@@ -82,6 +86,11 @@ const primaryPalette = <String>[
   '#3B2F63', '#7C5CD6', '#E84393', '#16A085',
   '#27AE60', '#F1A417', '#E74C3C', '#2F6FDB',
   '#8AC926', '#1AA3D6', '#E8731A', '#5A6472',
+];
+
+const cardPalette = <String>[
+  '#FFFFFF', '#FBFAF7', '#EEF1F6', '#EEF6EE',
+  '#EEF2FB', '#FBEEF6', '#FBEEE6', '#F8FAFC',
 ];
 
 const bgPalette = <String>[

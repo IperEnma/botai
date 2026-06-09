@@ -57,6 +57,9 @@ public class BusinessEntity extends BaseAuditableEntity {
     @Column(name = "color_fondo", length = 20)
     private String colorFondo;
 
+    @Column(name = "color_tarjeta", length = 20)
+    private String colorTarjeta;
+
     @Column(name = "font_family", length = 100)
     private String fontFamily;
 
@@ -103,6 +106,8 @@ public class BusinessEntity extends BaseAuditableEntity {
     public void setFacebookUrl(String facebookUrl) { this.facebookUrl = facebookUrl; }
     public String getColorFondo() { return colorFondo; }
     public void setColorFondo(String colorFondo) { this.colorFondo = colorFondo; }
+    public String getColorTarjeta() { return colorTarjeta; }
+    public void setColorTarjeta(String colorTarjeta) { this.colorTarjeta = colorTarjeta; }
     public String getFontFamily() { return fontFamily; }
     public void setFontFamily(String fontFamily) { this.fontFamily = fontFamily; }
     public String getPublicSlug() { return publicSlug; }

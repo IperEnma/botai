@@ -83,6 +83,7 @@ class _PublicServiceBookingModalState
   PublicReservarTheme get _theme => PublicReservarTheme.fromHex(
         colorPrimario: widget.business.colorPrimario,
         colorFondo: widget.business.colorFondo,
+        colorTarjeta: widget.business.colorTarjeta,
         fontFamily: widget.business.fontFamily,
         logoUrl: widget.business.logoUrl,
       );
