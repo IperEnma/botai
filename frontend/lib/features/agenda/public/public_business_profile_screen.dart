@@ -1688,26 +1688,23 @@ class _Works extends StatelessWidget {
                 link: hasMore ? 'Ver todos' : null,
                 onLink: hasMore ? () => onViewAll(photos) : null,
               ),
-              const SizedBox(height: 14),
-              _Card(
-                pad: 12,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final cols = constraints.maxWidth >= 520 ? 4 : 3;
-                    final cell = math.min(
-                      _maxThumbSize,
-                      (constraints.maxWidth - _gap * (cols - 1)) / cols,
-                    );
-                    return Wrap(
-                      spacing: _gap,
-                      runSpacing: _gap,
-                      children: [
-                        for (final photo in preview)
-                          _WorkThumb(url: photo.url, size: cell),
-                      ],
-                    );
-                  },
-                ),
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final cols = constraints.maxWidth >= 520 ? 4 : 3;
+                  final cell = math.min(
+                    _maxThumbSize,
+                    (constraints.maxWidth - _gap * (cols - 1)) / cols,
+                  );
+                  return Wrap(
+                    spacing: _gap,
+                    runSpacing: _gap,
+                    children: [
+                      for (final photo in preview)
+                        _WorkThumb(url: photo.url, size: cell),
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -1725,19 +1722,11 @@ class _WorkThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: _D.card(context),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: _D.shadow, blurRadius: 8, offset: Offset(0, 2)),
-        ],
-      ),
-      padding: const EdgeInsets.all(4),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: size,
+        height: size,
         child: _WorkPhotoImage(rawUrl: url, expand: true),
       ),
     );
