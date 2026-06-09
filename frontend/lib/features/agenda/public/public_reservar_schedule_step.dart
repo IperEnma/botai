@@ -48,7 +48,8 @@ class _PublicReservarScheduleStepState
     extends ConsumerState<PublicReservarScheduleStep> {
   late DateTime _visibleMonth;
   Map<String, bool> _dayHasSlots = {};
-  bool _loadingMonth = false;
+  bool _loadingMonth = true;
+  int _monthLoadToken = 0;
   Future<List<AvailabilitySlot>>? _slotsFuture;
   String? _availabilityKey;
   final GlobalKey _slotsSectionKey = GlobalKey();
@@ -134,9 +135,15 @@ class _PublicReservarScheduleStepState
   }
 
   Future<void> _reloadMonth() async {
-    final hours = await ref.read(publicHoursBySlugProvider(widget.slug).future);
     if (!mounted) return;
-    setState(() => _loadingMonth = true);
+    final token = ++_monthLoadToken;
+    setState(() {
+      _loadingMonth = true;
+      _dayHasSlots = {};
+    });
+
+    final hours = await ref.read(publicHoursBySlugProvider(widget.slug).future);
+    if (!mounted || token != _monthLoadToken) return;
 
     final first = DateTime(_visibleMonth.year, _visibleMonth.month, 1);
     final last = DateTime(_visibleMonth.year, _visibleMonth.month + 1, 0);
@@ -165,7 +172,7 @@ class _PublicReservarScheduleStepState
     }
 
     await Future.wait(futures);
-    if (!mounted) return;
+    if (!mounted || token != _monthLoadToken) return;
     setState(() {
       _dayHasSlots = map;
       _loadingMonth = false;
@@ -175,6 +182,8 @@ class _PublicReservarScheduleStepState
   void _shiftMonth(int delta) {
     setState(() {
       _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+      _loadingMonth = true;
+      _dayHasSlots = {};
     });
     _reloadMonth();
   }
@@ -218,7 +227,8 @@ class _PublicReservarScheduleStepState
           visibleMonth: _visibleMonth,
           selectedDate: widget.selectedDate,
           dayHasSlots: _dayHasSlots,
-          loading: _loadingMonth,
+          loading: _loadingMonth ||
+              ref.watch(publicHoursBySlugProvider(widget.slug)).isLoading,
           hoursAsync: ref.watch(publicHoursBySlugProvider(widget.slug)),
           onPrevMonth: () => _shiftMonth(-1),
           onNextMonth: () => _shiftMonth(1),
@@ -458,9 +468,36 @@ class _MonthCalendar extends StatelessWidget {
             ],
           ),
           if (loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: LinearProgressIndicator(minHeight: 2),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+              child: Column(
+                children: [
+                  LinearProgressIndicator(
+                    minHeight: 3,
+                    backgroundColor: t.cardBorder,
+                    color: t.primary,
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: t.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Consultando disponibilidad…',
+                        style: t.textStyle(size: 12, color: t.textSub),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           const SizedBox(height: 8),
           Row(
@@ -497,6 +534,7 @@ class _MonthCalendar extends StatelessWidget {
               final isOpen = isPublicBookingDayOpen(day, hours);
               final key = _dateKey(day);
               final hasSlots = dayHasSlots[key] == true;
+              final isLoadingDay = loading && !isPast && isOpen;
               final enabled = !isPast && isOpen && !loading && hasSlots;
               final isSelected = selectedDate != null &&
                   selectedDate!.year == day.year &&
@@ -512,6 +550,7 @@ class _MonthCalendar extends StatelessWidget {
                 isToday: isToday,
                 isSelected: isSelected,
                 enabled: enabled,
+                isLoading: isLoadingDay,
                 hasSlots: hasSlots && !loading,
                 isPast: isPast,
                 isClosed: !isOpen,
@@ -520,14 +559,21 @@ class _MonthCalendar extends StatelessWidget {
             },
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _LegendDot(color: t.primary, label: 'Disponible', theme: t),
-              const SizedBox(width: 16),
-              _LegendDot(color: t.cardBorder, label: 'Sin turnos', theme: t),
-            ],
-          ),
+          if (loading)
+            Text(
+              'Marcando días con turnos libres…',
+              textAlign: TextAlign.center,
+              style: t.textStyle(size: 11, color: t.textSub),
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _LegendDot(color: t.primary, label: 'Disponible', theme: t),
+                const SizedBox(width: 16),
+                _LegendDot(color: t.cardBorder, label: 'Sin turnos', theme: t),
+              ],
+            ),
         ],
       ),
     );
@@ -569,6 +615,7 @@ class _CalendarDayCell extends StatelessWidget {
     required this.isToday,
     required this.isSelected,
     required this.enabled,
+    required this.isLoading,
     required this.hasSlots,
     required this.isPast,
     required this.isClosed,
@@ -580,6 +627,7 @@ class _CalendarDayCell extends StatelessWidget {
   final bool isToday;
   final bool isSelected;
   final bool enabled;
+  final bool isLoading;
   final bool hasSlots;
   final bool isPast;
   final bool isClosed;
@@ -598,6 +646,10 @@ class _CalendarDayCell extends StatelessWidget {
     } else if (enabled && hasSlots) {
       bg = t.primarySoft;
       border = t.primary.withValues(alpha: 0.35);
+    } else if (isLoading) {
+      bg = t.cardFill;
+      border = t.cardBorder;
+      fg = t.textSub.withValues(alpha: 0.75);
     } else if (isPast || isClosed) {
       fg = t.textSub.withValues(alpha: 0.45);
     } else {
@@ -628,7 +680,19 @@ class _CalendarDayCell extends StatelessWidget {
                 color: fg,
               ),
             ),
-            if (hasSlots && !isSelected)
+            if (isLoading)
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: SizedBox(
+                  width: 10,
+                  height: 10,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: t.primary.withValues(alpha: 0.85),
+                  ),
+                ),
+              )
+            else if (hasSlots && !isSelected)
               Container(
                 margin: const EdgeInsets.only(top: 2),
                 width: 4,
@@ -686,9 +750,18 @@ class _DaySlotsSection extends StatelessWidget {
           future: slotsFuture,
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
-              return const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
+              return Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(color: t.primary),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Cargando horarios…',
+                      style: t.textStyle(size: 13, color: t.textSub),
+                    ),
+                  ],
+                ),
               );
             }
             if (snap.hasError) {
