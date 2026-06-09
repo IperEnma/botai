@@ -301,18 +301,20 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
         if (_loading) {
           return PublicFelitoBookingShell(
             businessName: business.nombre,
+            theme: theme,
             progressCurrent: 1,
             progressTotal: 2,
             progressStepLabel: 'Mis reservas',
             onBack: () => context.go(_profilePath()),
-            child: const Center(
-              child: CircularProgressIndicator(color: FelitoPublicD.purple),
+            child: Center(
+              child: CircularProgressIndicator(color: theme.primary),
             ),
           );
         }
 
         return PublicFelitoBookingShell(
           businessName: business.nombre,
+          theme: theme,
           progressCurrent: _step == _MisReservasStep.bookings ? 2 : 1,
           progressTotal: 2,
           progressStepLabel: 'Mis reservas',
@@ -324,6 +326,7 @@ class _PublicMisReservasScreenState extends ConsumerState<PublicMisReservasScree
             }
           },
           footer: felitoFooterLink(
+            theme: theme,
             label: 'Reservar un turno',
             onTap: () => context.go(_bookingPath()),
           ),

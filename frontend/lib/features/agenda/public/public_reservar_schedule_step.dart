@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/agenda/agenda_service.dart';
 import '../../../models/agenda/availability_slot.dart';
@@ -444,9 +443,9 @@ class _MonthCalendar extends StatelessWidget {
                 child: Text(
                   '${_monthNames[visibleMonth.month - 1]} ${visibleMonth.year}',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                  style: t.textStyle(
+                    size: 16,
+                    weight: FontWeight.w700,
                     color: t.text,
                   ),
                 ),

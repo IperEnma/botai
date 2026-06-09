@@ -1,29 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-/// Tokens visuales del flujo público (perfil + reserva) — mockup Felito Barber.
-abstract final class FelitoPublicD {
-  static const purple = Color(0xFF7C5CFF);
-  static const bg = Color(0xFFF3F4F6);
-  static const ink = Color(0xFF111827);
-  static const muted = Color(0xFF6B7280);
-  static const white = Colors.white;
-  static const pad = 16.0;
+import 'public_reservar_layout.dart';
 
-  static TextStyle t(
-    double s, {
-    FontWeight w = FontWeight.w400,
-    Color c = ink,
-    double? h,
-  }) =>
-      GoogleFonts.inter(fontSize: s, fontWeight: w, color: c, height: h);
-}
+/// Padding horizontal compartido del shell de reserva.
+const _kShellPad = 16.0;
 
 /// Shell del wizard de reserva — mismo lenguaje visual que [PublicBusinessProfileScreen].
 class PublicFelitoBookingShell extends StatelessWidget {
   const PublicFelitoBookingShell({
     super.key,
     required this.businessName,
+    required this.theme,
     required this.child,
     this.onBack,
     this.progressCurrent,
@@ -33,6 +20,7 @@ class PublicFelitoBookingShell extends StatelessWidget {
   });
 
   final String businessName;
+  final PublicReservarTheme theme;
   final Widget child;
   final VoidCallback? onBack;
   final int? progressCurrent;
@@ -47,17 +35,17 @@ class PublicFelitoBookingShell extends StatelessWidget {
     final stepLabel = progressStepLabel?.trim();
 
     return Scaffold(
-      backgroundColor: FelitoPublicD.bg,
+      backgroundColor: theme.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, FelitoPublicD.pad, 0),
+              padding: const EdgeInsets.fromLTRB(8, 4, _kShellPad, 0),
               child: Row(
                 children: [
                   if (onBack != null)
-                    _BackBtn(onTap: onBack!)
+                    _BackBtn(onTap: onBack!, theme: theme)
                   else
                     const SizedBox(width: 38),
                   Expanded(
@@ -68,12 +56,12 @@ class PublicFelitoBookingShell extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: FelitoPublicD.t(16, w: FontWeight.w700),
+                          style: theme.textStyle(size: 16, weight: FontWeight.w700),
                         ),
                         if (hasProgress && stepLabel != null && stepLabel.isNotEmpty)
                           Text(
                             'Paso $progressCurrent de $progressTotal · $stepLabel',
-                            style: FelitoPublicD.t(12, c: FelitoPublicD.muted),
+                            style: theme.textStyle(size: 12, color: theme.textSub),
                           ),
                       ],
                     ),
@@ -85,10 +73,11 @@ class PublicFelitoBookingShell extends StatelessWidget {
             if (hasProgress) ...[
               const SizedBox(height: 12),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: FelitoPublicD.pad),
+                padding: const EdgeInsets.symmetric(horizontal: _kShellPad),
                 child: _StepBar(
                   current: progressCurrent!,
                   total: progressTotal!,
+                  theme: theme,
                 ),
               ),
             ],
@@ -96,7 +85,7 @@ class PublicFelitoBookingShell extends StatelessWidget {
             Expanded(child: child),
             if (footer != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(FelitoPublicD.pad, 4, FelitoPublicD.pad, 8),
+                padding: const EdgeInsets.fromLTRB(_kShellPad, 4, _kShellPad, 8),
                 child: footer!,
               ),
           ],
@@ -107,22 +96,23 @@ class PublicFelitoBookingShell extends StatelessWidget {
 }
 
 class _BackBtn extends StatelessWidget {
-  const _BackBtn({required this.onTap});
+  const _BackBtn({required this.onTap, required this.theme});
 
   final VoidCallback onTap;
+  final PublicReservarTheme theme;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: FelitoPublicD.white,
+      color: theme.card,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: const SizedBox(
+        child: SizedBox(
           width: 38,
           height: 38,
-          child: Icon(Icons.arrow_back_ios_new, size: 16, color: FelitoPublicD.ink),
+          child: Icon(Icons.arrow_back_ios_new, size: 16, color: theme.text),
         ),
       ),
     );
@@ -130,10 +120,15 @@ class _BackBtn extends StatelessWidget {
 }
 
 class _StepBar extends StatelessWidget {
-  const _StepBar({required this.current, required this.total});
+  const _StepBar({
+    required this.current,
+    required this.total,
+    required this.theme,
+  });
 
   final int current;
   final int total;
+  final PublicReservarTheme theme;
 
   @override
   Widget build(BuildContext context) {
@@ -149,8 +144,8 @@ class _StepBar extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(4),
               color: active || done
-                  ? FelitoPublicD.purple
-                  : FelitoPublicD.purple.withValues(alpha: 0.18),
+                  ? theme.primary
+                  : theme.primary.withValues(alpha: 0.18),
             ),
           ),
         );
@@ -160,6 +155,7 @@ class _StepBar extends StatelessWidget {
 }
 
 Widget felitoFooterLink({
+  required PublicReservarTheme theme,
   required VoidCallback onTap,
   required String label,
 }) {
@@ -168,7 +164,11 @@ Widget felitoFooterLink({
       onPressed: onTap,
       child: Text(
         label,
-        style: FelitoPublicD.t(14, w: FontWeight.w600, c: FelitoPublicD.purple),
+        style: theme.textStyle(
+          size: 14,
+          weight: FontWeight.w600,
+          color: theme.primary,
+        ),
       ),
     ),
   );

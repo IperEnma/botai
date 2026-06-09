@@ -43,8 +43,10 @@ class PublicCompanyLandingScreen extends ConsumerWidget {
 
         return PublicFelitoBookingShell(
           businessName: company.brandName,
+          theme: theme,
           onBack: () => context.go('/'),
           footer: felitoFooterLink(
+            theme: theme,
             label: 'Ver mis turnos',
             onTap: () => context.go('/agenda/me/bookings'),
           ),
@@ -56,7 +58,7 @@ class PublicCompanyLandingScreen extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Text(
                     company.tagline!.trim(),
-                    style: FelitoPublicD.t(14, c: FelitoPublicD.muted),
+                    style: theme.textStyle(size: 14, color: theme.textSub),
                   ),
                 ),
               publicReservarScrollSectionTitle(

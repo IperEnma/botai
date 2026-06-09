@@ -565,6 +565,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
 
         return PublicFelitoBookingShell(
           businessName: business.nombre,
+          theme: theme,
           progressCurrent: isConfirmed ? _kBookingTotalSteps : _stepIndex(_step),
           progressTotal: _kBookingTotalSteps,
           progressStepLabel: isConfirmed ? 'Confirmación' : _stepProgressLabel(_step),
@@ -572,6 +573,7 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           footer: isConfirmed
               ? null
               : felitoFooterLink(
+                  theme: theme,
                   label: 'Ver o cancelar mis turnos',
                   onTap: () => context.go(_misReservasPath()),
                 ),

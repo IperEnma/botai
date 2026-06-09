@@ -3,8 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../../../core/agenda_address.dart';
 import '../../../core/agenda_icon_registry.dart';
 import '../../../core/business_hours_summary.dart';
@@ -76,7 +74,8 @@ class _PublicProfileScope extends InheritedWidget {
   bool updateShouldNotify(_PublicProfileScope oldWidget) =>
       theme.primary != oldWidget.theme.primary ||
       theme.background != oldWidget.theme.background ||
-      theme.card != oldWidget.theme.card;
+      theme.card != oldWidget.theme.card ||
+      theme.fontFamily != oldWidget.theme.fontFamily;
 }
 
 // ─── Design tokens (layout fijo; acento = tema del negocio) ───────────────────
@@ -108,12 +107,19 @@ abstract final class _D {
   static const bannerIdentityBottom = 20.0;
 
   static TextStyle t(
+    BuildContext context,
     double s, {
     FontWeight w = FontWeight.w400,
-    Color c = ink,
+    Color? c,
     double? h,
-  }) =>
-      GoogleFonts.inter(fontSize: s, fontWeight: w, color: c, height: h);
+  }) {
+    final style = _PublicProfileScope.of(context).textStyle(
+      size: s,
+      weight: w,
+      color: c ?? ink,
+    );
+    return h == null ? style : style.copyWith(height: h);
+  }
 }
 
 bool _isWideProfile(BuildContext context) =>
@@ -463,7 +469,7 @@ class _Hero extends ConsumerWidget {
                           business.nombre,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: _D.t(
+                          style: _D.t(context,
                             21,
                             w: FontWeight.w700,
                             c: _D.white,
@@ -478,7 +484,7 @@ class _Hero extends ConsumerWidget {
                             Flexible(
                               child: Text(
                                 _ratingLabel,
-                                style: _D.t(
+                                style: _D.t(context,
                                   12.5,
                                   w: FontWeight.w500,
                                   c: _D.white.withValues(alpha: 0.95),
@@ -599,7 +605,7 @@ class _OpenStatusOnBanner extends ConsumerWidget {
                     children: [
                       TextSpan(
                         text: status.headline,
-                        style: _D.t(
+                        style: _D.t(context,
                           11,
                           w: FontWeight.w600,
                           c: accent,
@@ -608,7 +614,7 @@ class _OpenStatusOnBanner extends ConsumerWidget {
                       ),
                       TextSpan(
                         text: ' · ${status.detail}',
-                        style: _D.t(
+                        style: _D.t(context,
                           11,
                           w: FontWeight.w400,
                           c: detailColor,
@@ -786,13 +792,13 @@ class _LogoCircle extends StatelessWidget {
               fit: BoxFit.cover,
               width: _D.logo,
               height: _D.logo,
-              errorWidget: _fb(),
+              errorWidget: _fb(context),
             )
-          : _fb(),
+          : _fb(context),
     );
   }
 
-  Widget _fb() {
+  Widget _fb(BuildContext context) {
     final w = name.trim().split(RegExp(r'\s+'));
     final l = w.length >= 2
         ? '${w[0][0]}${w[1][0]}'.toUpperCase()
@@ -800,7 +806,10 @@ class _LogoCircle extends StatelessWidget {
     return ColoredBox(
       color: const Color(0xFF0A0A0A),
       child: Center(
-        child: Text(l, style: _D.t(22, w: FontWeight.w800, c: _D.white)),
+        child: Text(
+          l,
+          style: _D.t(context, 22, w: FontWeight.w800, c: _D.white),
+        ),
       ),
     );
   }
@@ -848,7 +857,7 @@ class _Pill extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _D.white.withValues(alpha: 0.15)),
       ),
-      child: Text(label, style: _D.t(11, w: FontWeight.w600, c: _D.white)),
+      child: Text(label, style: _D.t(context,11, w: FontWeight.w600, c: _D.white)),
     );
   }
 }
@@ -866,11 +875,11 @@ class _SectionHead extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(title, style: _D.t(17, w: FontWeight.w700))),
+        Expanded(child: Text(title, style: _D.t(context,17, w: FontWeight.w700))),
         if (link != null && onLink != null)
           GestureDetector(
             onTap: onLink,
-            child: Text('$link >', style: _D.t(13, w: FontWeight.w600, c: _D.brand(context))),
+            child: Text('$link >', style: _D.t(context,13, w: FontWeight.w600, c: _D.brand(context))),
           ),
       ],
     );
@@ -998,7 +1007,7 @@ class _Services extends StatelessWidget {
               const SizedBox(height: 14),
               Text(
                 'Error al cargar servicios.',
-                style: _D.t(14, c: _D.muted),
+                style: _D.t(context,14, c: _D.muted),
               ),
             ],
           ),
@@ -1009,7 +1018,7 @@ class _Services extends StatelessWidget {
                 children: [
                   _sectionHead(showVerTodos: false),
                   const SizedBox(height: 14),
-                  Text('Sin servicios.', style: _D.t(14, c: _D.muted)),
+                  Text('Sin servicios.', style: _D.t(context,14, c: _D.muted)),
                 ],
               );
             }
@@ -1121,7 +1130,7 @@ class _ServiceCard extends StatelessWidget {
                     svc.nombre,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: _D.t(14, w: FontWeight.w700, h: 1.2),
+                    style: _D.t(context,14, w: FontWeight.w700, h: 1.2),
                   ),
                 ),
                 Row(
@@ -1133,7 +1142,7 @@ class _ServiceCard extends StatelessWidget {
                         '${svc.duracionMin} min',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: _D.t(12, c: _D.muted),
+                        style: _D.t(context,12, c: _D.muted),
                       ),
                     ),
                   ],
@@ -1143,7 +1152,7 @@ class _ServiceCard extends StatelessWidget {
                   _price,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: _D.t(15, w: FontWeight.w700, c: _D.brand(context)),
+                  style: _D.t(context,15, w: FontWeight.w700, c: _D.brand(context)),
                 ),
               ],
             ),
@@ -1243,7 +1252,7 @@ class _Location extends StatelessWidget {
           line1,
           maxLines: stacked ? 2 : 3,
           overflow: TextOverflow.ellipsis,
-          style: _D.t(
+          style: _D.t(context,
             stacked ? 15 : 13,
             w: FontWeight.w600,
             h: 1.35,
@@ -1255,7 +1264,7 @@ class _Location extends StatelessWidget {
             line2,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: _D.t(13, w: FontWeight.w400, c: _D.muted, h: 1.35),
+            style: _D.t(context,13, w: FontWeight.w400, c: _D.muted, h: 1.35),
           ),
         ],
         if (mapsUrl != null) ...[
@@ -1264,7 +1273,7 @@ class _Location extends StatelessWidget {
             onTap: () => openExternalUrl(mapsUrl),
             child: Text(
               'Ver en el mapa >',
-              style: _D.t(13, w: FontWeight.w600, c: _D.brand(context)),
+              style: _D.t(context,13, w: FontWeight.w600, c: _D.brand(context)),
             ),
           ),
         ],
@@ -1273,7 +1282,7 @@ class _Location extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               'Ubicación aproximada en el mapa.',
-              style: _D.t(11, c: _D.muted, h: 1.35),
+              style: _D.t(context,11, c: _D.muted, h: 1.35),
             ),
           ),
       ],
@@ -1316,7 +1325,7 @@ class _Location extends StatelessWidget {
         icon: const Icon(Icons.calendar_month_outlined, color: _D.white, size: 20),
         label: Text(
           'Reservar turno',
-          style: _D.t(15, w: FontWeight.w700, c: _D.white),
+          style: _D.t(context,15, w: FontWeight.w700, c: _D.white),
         ),
       ),
     );
@@ -1512,7 +1521,7 @@ class _HoursSummaryLines extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 3),
                   child: Text(
                     line.text,
-                    style: _D.t(
+                    style: _D.t(context,
                       13,
                       w: FontWeight.w500,
                       c: line.isClosed ? _D.faint : _D.muted,
@@ -1804,7 +1813,7 @@ class _WorksGallerySheet extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Algunos trabajos',
-                    style: _D.t(17, w: FontWeight.w700),
+                    style: _D.t(context,17, w: FontWeight.w700),
                   ),
                 ),
                 IconButton(
@@ -1859,14 +1868,14 @@ class _Team extends StatelessWidget {
           ),
           error: (_, _) => Text(
             'No se pudo cargar el equipo.',
-            style: _D.t(14, c: _D.muted),
+            style: _D.t(context,14, c: _D.muted),
           ),
           data: (all) {
             final list = all.where((s) => s.activo).toList();
             if (list.isEmpty) {
               return Text(
                 'Este negocio aún no publicó profesionales.',
-                style: _D.t(14, c: _D.muted),
+                style: _D.t(context,14, c: _D.muted),
               );
             }
             return SizedBox(
@@ -1931,7 +1940,7 @@ class _StaffCard extends StatelessWidget {
                       m.nombre,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: _D.t(14, w: FontWeight.w700),
+                      style: _D.t(context,14, w: FontWeight.w700),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -1940,7 +1949,7 @@ class _StaffCard extends StatelessWidget {
                           : 'Profesional',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: _D.t(12, c: _D.muted),
+                      style: _D.t(context,12, c: _D.muted),
                     ),
                     const SizedBox(height: 4),
                     Row(
@@ -1956,7 +1965,7 @@ class _StaffCard extends StatelessWidget {
                         const SizedBox(width: 3),
                         Text(
                           _rated ? m.rating!.toStringAsFixed(1) : '—',
-                          style: _D.t(12, w: FontWeight.w600, c: _D.muted),
+                          style: _D.t(context,12, w: FontWeight.w600, c: _D.muted),
                         ),
                       ],
                     ),
@@ -1989,18 +1998,18 @@ class _StaffAvatarContent extends StatelessWidget {
         url: url,
         fit: BoxFit.cover,
         expand: true,
-        errorWidget: _initialsLabel(),
+        errorWidget: _initialsLabel(context),
       );
     }
 
-    return _initialsLabel();
+    return _initialsLabel(context);
   }
 
-  Widget _initialsLabel() {
+  Widget _initialsLabel(BuildContext context) {
     return Center(
       child: Text(
         initials,
-        style: _D.t(16, w: FontWeight.w700, c: _D.white),
+        style: _D.t(context, 16, w: FontWeight.w700, c: _D.white),
       ),
     );
   }
@@ -2042,7 +2051,7 @@ class _BottomCta extends StatelessWidget {
               icon: const Icon(Icons.calendar_month_outlined, color: _D.white, size: 20),
               label: Text(
                 'Reservar turno',
-                style: _D.t(15, w: FontWeight.w700, c: _D.white),
+                style: _D.t(context,15, w: FontWeight.w700, c: _D.white),
               ),
             ),
           ),
