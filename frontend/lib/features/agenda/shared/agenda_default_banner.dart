@@ -72,14 +72,14 @@ class AgendaDefaultBanner {
 
     if (preset.id == brandId) {
       final base = parseHex(primaryColorHex ?? '#3B2F63', fallback: const Color(0xFF3B2F63));
-      final dark = Color.lerp(base, Colors.black, 0.45) ?? base;
-      final light = Color.lerp(base, Colors.white, 0.12) ?? base;
+      final dark = Color.lerp(base, Colors.black, 0.32) ?? base;
+      final light = Color.lerp(base, Colors.white, 0.18) ?? base;
       return BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [light, base, dark],
-          stops: const [0, 0.45, 1],
+          stops: const [0, 0.42, 1],
         ),
       );
     }

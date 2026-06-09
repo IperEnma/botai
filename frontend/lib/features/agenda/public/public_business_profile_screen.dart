@@ -410,6 +410,44 @@ class _Hero extends ConsumerWidget {
     return 'Sin reseñas aún';
   }
 
+  /// Con foto: scrim fuerte para texto blanco. Sin foto: dejar ver el color/gradiente.
+  static double _heroOverlayHeightFactor(bool hasUploadedBanner, bool preview) {
+    if (hasUploadedBanner) return 0.88;
+    if (preview) return 0.52;
+    return 0.62;
+  }
+
+  static List<Color> _heroOverlayColors(bool hasUploadedBanner, bool preview) {
+    if (hasUploadedBanner) {
+      return [
+        Colors.transparent,
+        Colors.black.withValues(alpha: 0.15),
+        Colors.black.withValues(alpha: 0.55),
+        Colors.black.withValues(alpha: 0.82),
+      ];
+    }
+    if (preview) {
+      return [
+        Colors.transparent,
+        Colors.black.withValues(alpha: 0.04),
+        Colors.black.withValues(alpha: 0.22),
+        Colors.black.withValues(alpha: 0.42),
+      ];
+    }
+    return [
+      Colors.transparent,
+      Colors.black.withValues(alpha: 0.06),
+      Colors.black.withValues(alpha: 0.28),
+      Colors.black.withValues(alpha: 0.52),
+    ];
+  }
+
+  static List<double> _heroOverlayStops(bool hasUploadedBanner, bool preview) {
+    if (hasUploadedBanner) return const [0, 0.4, 0.72, 1];
+    if (preview) return const [0, 0.35, 0.68, 1];
+    return const [0, 0.38, 0.7, 1];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final catalog = ref.watch(publicCategoriesProvider).valueOrNull;
@@ -421,6 +459,8 @@ class _Hero extends ConsumerWidget {
     final hasBanner = isAgendaMediaUrl(business.bannerUrl);
     final cats = _heroPills(catalog);
     final bannerBottom = top + bannerH;
+    final bannerBgKey =
+        '${business.bannerUrl ?? ''}|${business.colorPrimario ?? ''}';
 
     return SizedBox(
       height: bannerBottom,
@@ -448,6 +488,7 @@ class _Hero extends ConsumerWidget {
                 else
                   Positioned.fill(
                     child: AgendaDefaultBannerBackground(
+                      key: ValueKey(bannerBgKey),
                       bannerUrl: business.bannerUrl,
                       primaryColorHex: business.colorPrimario,
                     ),
@@ -455,18 +496,13 @@ class _Hero extends ConsumerWidget {
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
-                    height: bannerH * 0.88,
+                    height: bannerH * _heroOverlayHeightFactor(hasBanner, preview),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.15),
-                          Colors.black.withValues(alpha: 0.55),
-                          Colors.black.withValues(alpha: 0.82),
-                        ],
-                        stops: const [0, 0.4, 0.72, 1],
+                        colors: _heroOverlayColors(hasBanner, preview),
+                        stops: _heroOverlayStops(hasBanner, preview),
                       ),
                     ),
                   ),
