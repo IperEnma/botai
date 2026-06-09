@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/agenda/business_photo.dart';
+import '../../../core/agenda_image_upload_diagnostics.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../agenda_api_provider.dart';
 
@@ -76,8 +77,29 @@ class BusinessPhotosNotifier
         isSaving: false,
       );
       return true;
-    } on AgendaApiException catch (e) {
-      state = state.copyWith(isSaving: false, error: e.message);
+    } on AgendaApiException catch (e, st) {
+      logAgendaImageUploadFailure(
+        e,
+        st,
+        stage: AgendaImageUploadStage.upload,
+        file: AgendaImageUploadContext(
+          fileName: fileName,
+          fileSizeBytes: bytes.length,
+          purpose: 'work-photo',
+        ),
+      );
+      state = state.copyWith(
+        isSaving: false,
+        error: formatAgendaImageUploadError(
+          e,
+          stage: AgendaImageUploadStage.upload,
+          file: AgendaImageUploadContext(
+            fileName: fileName,
+            fileSizeBytes: bytes.length,
+            purpose: 'work-photo',
+          ),
+        ),
+      );
       return false;
     }
   }

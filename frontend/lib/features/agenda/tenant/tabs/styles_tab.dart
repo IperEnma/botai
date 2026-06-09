@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/agenda_address.dart';
+import '../../../../core/agenda_image_upload_diagnostics.dart';
 import '../../../../core/agenda_image_upload_prep_web.dart';
 import '../../../../core/agenda_media_url.dart';
 import '../../../../models/agenda/agenda_service.dart';
@@ -237,14 +238,22 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       if (file.size > 5 * 1024 * 1024) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Máx. 5 MB.')),
+            SnackBar(content: Text(agendaImageTooLargeUserMessage)),
           );
         }
         return;
       }
       setState(() => _uploadingLogo = true);
+      final fileCtx = agendaUploadContextFromWebFile(
+        name: file.name,
+        size: file.size,
+        mimeType: file.type,
+        purpose: 'logo',
+      );
+      var stage = AgendaImageUploadStage.prepare;
       try {
         final prepared = await prepareLogoUpload(file);
+        stage = AgendaImageUploadStage.upload;
 
         final api = ref.read(agendaApiServiceProvider);
         final url = await api.uploadBusinessAvatar(
@@ -265,10 +274,27 @@ class _StylesTabState extends ConsumerState<StylesTab> {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Logo actualizado')));
         }
-      } catch (e) {
+      } catch (e, st) {
+        logAgendaImageUploadFailure(
+          e,
+          st,
+          stage: stage,
+          file: fileCtx,
+        );
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Error al subir: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                formatAgendaImageUploadError(
+                  e,
+                  stage: stage,
+                  file: fileCtx,
+                ),
+              ),
+              duration: const Duration(seconds: 6),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
         }
       } finally {
         if (mounted) setState(() => _uploadingLogo = false);
@@ -298,14 +324,22 @@ class _StylesTabState extends ConsumerState<StylesTab> {
       if (file.size > 5 * 1024 * 1024) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Máx. 5 MB.')),
+            SnackBar(content: Text(agendaImageTooLargeUserMessage)),
           );
         }
         return;
       }
       setState(() => _uploadingBanner = true);
+      final fileCtx = agendaUploadContextFromWebFile(
+        name: file.name,
+        size: file.size,
+        mimeType: file.type,
+        purpose: 'banner',
+      );
+      var stage = AgendaImageUploadStage.prepare;
       try {
         final prepared = await prepareBannerUpload(file);
+        stage = AgendaImageUploadStage.upload;
 
         final api = ref.read(agendaApiServiceProvider);
         final url = await api.uploadBusinessBanner(
@@ -326,10 +360,27 @@ class _StylesTabState extends ConsumerState<StylesTab> {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Portada actualizada')));
         }
-      } catch (e) {
+      } catch (e, st) {
+        logAgendaImageUploadFailure(
+          e,
+          st,
+          stage: stage,
+          file: fileCtx,
+        );
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Error al subir: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                formatAgendaImageUploadError(
+                  e,
+                  stage: stage,
+                  file: fileCtx,
+                ),
+              ),
+              duration: const Duration(seconds: 6),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
         }
       } finally {
         if (mounted) setState(() => _uploadingBanner = false);

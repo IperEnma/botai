@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/agenda_image_upload_diagnostics.dart';
 import '../../../../core/agenda_image_upload_prep_web.dart';
 import '../../../../providers/agenda/public/public_business_slug_provider.dart';
 import '../../../../providers/agenda/tenant/business_photos_provider.dart';
@@ -38,15 +39,32 @@ Future<bool> pickAndUploadBusinessWorkPhoto({
     final err = ref.read(businessPhotosProvider(key)).error;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(err ?? 'Error al subir la foto'),
+        content: Text(err ?? 'No pudimos subir la imagen. Probá con otra foto.'),
+        duration: const Duration(seconds: 6),
         backgroundColor: Colors.red.shade700,
       ),
     );
     return false;
-  } catch (e) {
+  } catch (e, st) {
+    logAgendaImageUploadFailure(
+      e,
+      st,
+      stage: AgendaImageUploadStage.prepare,
+      file: const AgendaImageUploadContext(purpose: 'work-photo'),
+    );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
+        SnackBar(
+          content: Text(
+            formatAgendaImageUploadError(
+              e,
+              stage: AgendaImageUploadStage.prepare,
+              file: const AgendaImageUploadContext(purpose: 'work-photo'),
+            ),
+          ),
+          duration: const Duration(seconds: 6),
+          backgroundColor: Colors.red.shade700,
+        ),
       );
     }
     return false;

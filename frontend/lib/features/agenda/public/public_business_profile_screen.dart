@@ -1942,31 +1942,19 @@ class _Team extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHead(title: 'Equipo'),
-        const SizedBox(height: 14),
-        staffAsync.when(
-          loading: () => SizedBox(
-            height: 80,
-            child: Center(
-              child: CircularProgressIndicator(strokeWidth: 2, color: _D.brand(context)),
-            ),
-          ),
-          error: (_, _) => Text(
-            'No se pudo cargar el equipo.',
-            style: _D.t(context,14, c: _D.muted),
-          ),
-          data: (all) {
-            final list = all.where((s) => s.activo).toList();
-            if (list.isEmpty) {
-              return Text(
-                'Este negocio aún no publicó profesionales.',
-                style: _D.t(context,14, c: _D.muted),
-              );
-            }
-            return SizedBox(
+    return staffAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (all) {
+        final list = all.where((s) => s.activo).toList();
+        if (list.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionHead(title: 'Equipo'),
+            const SizedBox(height: 14),
+            SizedBox(
               height: 96,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
@@ -1975,10 +1963,10 @@ class _Team extends StatelessWidget {
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (_, i) => _StaffCard(m: list[i]),
               ),
-            );
-          },
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -5,6 +5,8 @@ import 'dart:html' as html;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'agenda_image_upload_diagnostics.dart';
+
 class PreparedImageUpload {
   const PreparedImageUpload({required this.bytes, required this.fileName});
 
@@ -51,21 +53,39 @@ Future<PreparedImageUpload?> pickWorkPhotoUpload() async {
   final completer = Completer<PreparedImageUpload?>();
 
   input.onChange.listen((_) async {
+    html.File? picked;
     try {
-      final file = input.files?.first;
-      if (file == null) {
+      picked = input.files?.first;
+      if (picked == null) {
         if (!completer.isCompleted) completer.complete(null);
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
+      if (picked.size > 5 * 1024 * 1024) {
         if (!completer.isCompleted) {
-          completer.completeError(StateError('Máx. 5 MB.'));
+          completer.completeError(
+            StateError('Máx. 5 MB.'),
+            StackTrace.current,
+          );
         }
         return;
       }
-      final prepared = await prepareWorkPhotoUpload(file);
+      final prepared = await prepareWorkPhotoUpload(picked);
       if (!completer.isCompleted) completer.complete(prepared);
     } catch (e, st) {
+      final ctx = picked == null
+          ? const AgendaImageUploadContext(purpose: 'work-photo')
+          : agendaUploadContextFromWebFile(
+              name: picked.name,
+              size: picked.size,
+              mimeType: picked.type,
+              purpose: 'work-photo',
+            );
+      logAgendaImageUploadFailure(
+        e,
+        st,
+        stage: AgendaImageUploadStage.prepare,
+        file: ctx,
+      );
       if (!completer.isCompleted) completer.completeError(e, st);
     }
   });
@@ -132,13 +152,26 @@ Future<Uint8List> _compressWithCanvas(
   try {
     final img = html.ImageElement();
     final loaded = img.onLoad.first;
+    final failed = img.onError.first.then((_) {
+      throw StateError('No se pudo decodificar la imagen en el navegador.');
+    });
     img.src = objectUrl;
-    await loaded;
+    await Future.any([
+      loaded,
+      failed,
+      Future<void>.delayed(const Duration(seconds: 30), () {
+        throw StateError('La imagen tardó demasiado en cargar.');
+      }),
+    ]);
 
     var w = img.naturalWidth;
     var h = img.naturalHeight;
     if (w <= 0 || h <= 0) {
-      return _readFileBytes(file);
+      final ext = _extension(file.name);
+      throw StateError(
+        'No se pudo decodificar la imagen'
+        '${ext == 'heic' || ext == 'heif' ? ' (HEIC/HEIF)' : ''}.',
+      );
     }
 
     final scale = math.min(1.0, math.min(maxWidth / w, maxHeight / h));
