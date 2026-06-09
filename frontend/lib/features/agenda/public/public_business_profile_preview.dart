@@ -65,6 +65,24 @@ class PublicBusinessProfilePreview extends ConsumerWidget {
         .toList();
   }
 
+  /// Firma del borrador — fuerza recrear providers cuando cambian estilos en vivo.
+  static int draftRevisionKey({
+    required BrandStyle brand,
+    String? bannerUrl,
+    String? direccion,
+  }) {
+    return Object.hash(
+      brand.primaryColor.toUpperCase(),
+      brand.backgroundColor.toUpperCase(),
+      brand.cardColor.toUpperCase(),
+      brand.fontFamily,
+      brand.logoUrl,
+      bannerUrl,
+      direccion?.trim(),
+      Object.hashAll(brand.workPhotos),
+    );
+  }
+
   /// Servicios para la preview: reales del tenant o ejemplos si aún no hay.
   static PreviewContentBundle contentBundle({
     required Business business,
@@ -180,6 +198,11 @@ class PublicBusinessProfilePreview extends ConsumerWidget {
       tenantStaff: tenantStaff,
     );
     final previewHours = _sampleHours(previewBusiness.id);
+    final draftKey = draftRevisionKey(
+      brand: brand,
+      bannerUrl: bannerUrl,
+      direccion: direccion,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -195,6 +218,7 @@ class PublicBusinessProfilePreview extends ConsumerWidget {
             viewPadding: const EdgeInsets.only(top: kPublicProfilePreviewStatusBar),
           ),
           child: ProviderScope(
+            key: ValueKey(draftKey),
             overrides: [
               publicBusinessBySlugProvider.overrideWith(
                 (ref, _) async => previewBusiness,
@@ -212,7 +236,11 @@ class PublicBusinessProfilePreview extends ConsumerWidget {
                 (ref, _) async => previewHours,
               ),
             ],
-            child: PublicBusinessProfileScreen(slug: slug, preview: true),
+            child: PublicBusinessProfileScreen(
+              key: ValueKey(draftKey),
+              slug: slug,
+              preview: true,
+            ),
           ),
         );
 

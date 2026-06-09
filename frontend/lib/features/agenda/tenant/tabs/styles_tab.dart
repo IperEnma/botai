@@ -954,6 +954,13 @@ class _PreviewColumn extends StatelessWidget {
     );
 
     final preview = PublicBusinessProfilePreview(
+      key: ValueKey(
+        PublicBusinessProfilePreview.draftRevisionKey(
+          brand: brand,
+          bannerUrl: bannerUrl,
+          direccion: direccion,
+        ),
+      ),
       business: business,
       brand: brand,
       bannerUrl: bannerUrl,
