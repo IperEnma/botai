@@ -22,7 +22,7 @@ import 'styles/brand_style.dart';
 import 'styles/color_block.dart';
 import 'styles/font_block.dart';
 import 'styles/logo_block.dart';
-import 'styles/public_preview.dart';
+import '../../public/public_business_profile_preview.dart';
 import 'styles/works_block.dart';
 
 const _kPreviewBreak = 1200.0;
@@ -438,7 +438,13 @@ class _StylesTabState extends ConsumerState<StylesTab> {
             .deletePhoto(photo.id);
       },
       onSave: _save,
-      onOpenPreview: isWide ? null : () => _openPreviewSheet(brand),
+      onOpenPreview: isWide
+          ? null
+          : () => _openPreviewSheet(
+                brand,
+                bannerUrl: _bannerUrl,
+                direccion: _direccionValue,
+              ),
     );
 
     if (!isWide) {
@@ -450,7 +456,11 @@ class _StylesTabState extends ConsumerState<StylesTab> {
           foregroundColor: Colors.white,
           icon: const Icon(Icons.smartphone_rounded, size: 18),
           label: const Text('Previsualizar'),
-          onPressed: () => _openPreviewSheet(brand),
+          onPressed: () => _openPreviewSheet(
+            brand,
+            bannerUrl: _bannerUrl,
+            direccion: _direccionValue,
+          ),
         ),
       );
     }
@@ -468,14 +478,23 @@ class _StylesTabState extends ConsumerState<StylesTab> {
               border:
                   Border(left: BorderSide(color: KTokens.border)),
             ),
-            child: _PreviewColumn(brand: brand, business: widget.business),
+            child: _PreviewColumn(
+              brand: brand,
+              business: widget.business,
+              bannerUrl: _bannerUrl,
+              direccion: _direccionValue,
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _openPreviewSheet(BrandStyle brand) {
+  void _openPreviewSheet(
+    BrandStyle brand, {
+    String? bannerUrl,
+    String? direccion,
+  }) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFFF5F2EC),
@@ -484,21 +503,19 @@ class _StylesTabState extends ConsumerState<StylesTab> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.85,
-          maxChildSize: 0.95,
-          builder: (_, controller) {
-            return SingleChildScrollView(
-              controller: controller,
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-              child: _PreviewColumn(
-                brand: brand,
-                business: widget.business,
-                inSheet: true,
-              ),
-            );
-          },
+        final sheetH = MediaQuery.sizeOf(ctx).height * 0.9;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          child: SizedBox(
+            height: sheetH,
+            child: _PreviewColumn(
+              brand: brand,
+              business: widget.business,
+              bannerUrl: bannerUrl,
+              direccion: direccion,
+              inSheet: true,
+            ),
+          ),
         );
       },
     );
@@ -850,18 +867,20 @@ class _PreviewColumn extends StatelessWidget {
   const _PreviewColumn({
     required this.brand,
     required this.business,
+    this.bannerUrl,
+    this.direccion,
     this.inSheet = false,
   });
 
   final BrandStyle brand;
   final Business business;
+  final String? bannerUrl;
+  final String? direccion;
   final bool inSheet;
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = (business.descripcion?.split('\n').first.trim() ?? '');
-
-    final card = Column(
+    final header = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -878,17 +897,7 @@ class _PreviewColumn extends StatelessWidget {
           'Tu perfil público',
           style: KTokens.tHero,
         ),
-        const SizedBox(height: 20),
-        PublicPreview(
-          businessName: business.nombre,
-          subtitle: subtitle.isEmpty
-              ? (business.categorias.isNotEmpty
-                  ? business.categorias.first
-                  : 'Negocio')
-              : subtitle,
-          style: brand,
-        ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -897,7 +906,7 @@ class _PreviewColumn extends StatelessWidget {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'Esta es la cara pública de tu negocio. El enlace lo compartís por WhatsApp, Instagram o lo usa tu bot.',
+                'Mismo diseño que ve el cliente en /reservar. Los cambios de estilo se reflejan al instante.',
                 style: GoogleFonts.inter(
                   fontSize: 11.5,
                   color: KTokens.inkPlaceholder,
@@ -910,11 +919,29 @@ class _PreviewColumn extends StatelessWidget {
       ],
     );
 
-    if (inSheet) return card;
+    final preview = PublicBusinessProfilePreview(
+      business: business,
+      brand: brand,
+      bannerUrl: bannerUrl,
+      direccion: direccion,
+    );
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 36, 24, 36),
-      child: card,
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        header,
+        const SizedBox(height: 12),
+        Expanded(child: preview),
+      ],
+    );
+
+    if (inSheet) {
+      return body;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      child: body,
     );
   }
 }

@@ -31,9 +31,14 @@ import 'public_service_booking_modal.dart';
 /// Perfil público del negocio — diseño mockup Felito Barber.
 /// Ruta: `/reservar/:slug`
 class PublicBusinessProfileScreen extends ConsumerWidget {
-  const PublicBusinessProfileScreen({super.key, required this.slug});
+  const PublicBusinessProfileScreen({
+    super.key,
+    required this.slug,
+    this.preview = false,
+  });
 
   final String slug;
+  final bool preview;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,6 +57,7 @@ class PublicBusinessProfileScreen extends ConsumerWidget {
         business: business,
         servicesAsync: servicesAsync,
         slug: slug,
+        preview: preview,
       ),
     );
   }
@@ -162,15 +168,21 @@ class _FelitoBarberPage extends ConsumerWidget {
     required this.business,
     required this.servicesAsync,
     required this.slug,
+    this.preview = false,
   });
 
   final Business business;
   final AsyncValue<List<AgendaService>> servicesAsync;
   final String slug;
+  final bool preview;
 
-  void _back(BuildContext c) => c.canPop() ? c.pop() : c.go('/');
+  void _back(BuildContext c) {
+    if (preview) return;
+    c.canPop() ? c.pop() : c.go('/');
+  }
 
   void _openBookingModal(BuildContext context, {AgendaService? service}) {
+    if (preview) return;
     showPublicServiceBookingModal(
       context: context,
       slug: slug,
@@ -224,6 +236,7 @@ class _FelitoBarberPage extends ConsumerWidget {
                 child: _Hero(
                   business: business,
                   slug: slug,
+                  preview: preview,
                   onBack: () => _back(context),
                 ),
               ),
@@ -344,11 +357,13 @@ class _Hero extends ConsumerWidget {
     required this.business,
     required this.slug,
     required this.onBack,
+    this.preview = false,
   });
 
   final Business business;
   final String slug;
   final VoidCallback onBack;
+  final bool preview;
 
   List<String> _heroPills(List<Category>? catalog) {
     final pills = <String>[];
@@ -526,24 +541,36 @@ class _Hero extends ConsumerWidget {
                   _RoundBtn(
                     icon: Icons.arrow_back_ios_new,
                     size: 16,
-                    onTap: onBack,
+                    onTap: preview ? () {} : onBack,
                   ),
                   Row(
                     children: [
-                      Builder(
-                        builder: (btnContext) => _RoundBtn(
+                      if (preview)
+                        _RoundBtn(
                           icon: Icons.ios_share,
-                          onTap: () => sharePublicBusinessProfile(
-                            context: context,
-                            slug: slug,
-                            businessName: business.nombre,
-                            sharePositionOrigin:
-                                sharePositionOriginFor(btnContext),
+                          onTap: () {},
+                        )
+                      else
+                        Builder(
+                          builder: (btnContext) => _RoundBtn(
+                            icon: Icons.ios_share,
+                            onTap: () => sharePublicBusinessProfile(
+                              context: context,
+                              slug: slug,
+                              businessName: business.nombre,
+                              sharePositionOrigin:
+                                  sharePositionOriginFor(btnContext),
+                            ),
                           ),
                         ),
-                      ),
                       const SizedBox(width: 8),
-                      _HeartBtn(slug: slug, business: business),
+                      if (preview)
+                        _RoundBtn(
+                          icon: Icons.favorite_border,
+                          onTap: () {},
+                        )
+                      else
+                        _HeartBtn(slug: slug, business: business),
                     ],
                   ),
                 ],
