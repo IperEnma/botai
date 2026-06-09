@@ -112,6 +112,13 @@ abstract final class _D {
       GoogleFonts.inter(fontSize: s, fontWeight: w, color: c, height: h);
 }
 
+bool _isWideProfile(BuildContext context) =>
+    MediaQuery.sizeOf(context).width >= _kWideBreakpoint;
+
+const _kWideBreakpoint = 900.0;
+const _kContentMaxWidth = 1140.0;
+const _kSidebarWidth = 340.0;
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 class _FelitoBarberPage extends ConsumerWidget {
@@ -163,6 +170,11 @@ class _FelitoBarberPage extends ConsumerWidget {
       logoUrl: business.logoUrl,
     );
 
+    final wide = _isWideProfile(context);
+    final bottomPad = wide
+        ? 24.0 + MediaQuery.paddingOf(context).bottom
+        : 88.0 + MediaQuery.paddingOf(context).bottom;
+
     return _PublicProfileScope(
       theme: theme,
       child: Scaffold(
@@ -183,42 +195,101 @@ class _FelitoBarberPage extends ConsumerWidget {
                   _D.pad,
                   14,
                   _D.pad,
-                  88 + MediaQuery.paddingOf(context).bottom,
+                  bottomPad,
                 ),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    _Services(
-                      servicesAsync: servicesAsync,
-                      categorySlugs: business.categorias,
-                      onAll: () => _openBookingModal(context),
-                      onPick: (svc) => _openBookingModal(context, service: svc),
+                sliver: SliverToBoxAdapter(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: _kContentMaxWidth,
+                      ),
+                      child: wide
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _Services(
+                                        servicesAsync: servicesAsync,
+                                        categorySlugs: business.categorias,
+                                        onAll: () =>
+                                            _openBookingModal(context),
+                                        onPick: (svc) => _openBookingModal(
+                                          context,
+                                          service: svc,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 26),
+                                      _Team(staffAsync: staff),
+                                      _Works(
+                                        photosAsync: photos,
+                                        onViewAll: (all) =>
+                                            _openWorksGallery(context, all),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+                                SizedBox(
+                                  width: _kSidebarWidth,
+                                  child: _Location(
+                                    business: business,
+                                    address: addr,
+                                    hoursAsync: hours,
+                                    sidebar: true,
+                                    onBook: canBook
+                                        ? () => _openBookingModal(context)
+                                        : null,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _Services(
+                                  servicesAsync: servicesAsync,
+                                  categorySlugs: business.categorias,
+                                  onAll: () => _openBookingModal(context),
+                                  onPick: (svc) => _openBookingModal(
+                                    context,
+                                    service: svc,
+                                  ),
+                                ),
+                                const SizedBox(height: 26),
+                                _Location(
+                                  business: business,
+                                  address: addr,
+                                  hoursAsync: hours,
+                                ),
+                                const SizedBox(height: 26),
+                                _Team(staffAsync: staff),
+                                _Works(
+                                  photosAsync: photos,
+                                  onViewAll: (all) =>
+                                      _openWorksGallery(context, all),
+                                ),
+                              ],
+                            ),
                     ),
-                    const SizedBox(height: 26),
-                    _Location(
-                      business: business,
-                      address: addr,
-                      hoursAsync: hours,
-                    ),
-                    const SizedBox(height: 26),
-                    _Team(staffAsync: staff),
-                    _Works(
-                      photosAsync: photos,
-                      onViewAll: (all) => _openWorksGallery(context, all),
-                    ),
-                  ]),
+                  ),
                 ),
               ),
             ],
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _BottomCta(
-              enabled: canBook,
-              onTap: canBook ? () => _openBookingModal(context) : null,
+          if (!wide)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _BottomCta(
+                enabled: canBook,
+                onTap: canBook ? () => _openBookingModal(context) : null,
+              ),
             ),
-          ),
         ],
       ),
       ),
@@ -943,11 +1014,15 @@ class _Location extends StatelessWidget {
     required this.business,
     required this.address,
     required this.hoursAsync,
+    this.sidebar = false,
+    this.onBook,
   });
 
   final Business business;
   final String address;
   final AsyncValue<List<BusinessHours>> hoursAsync;
+  final bool sidebar;
+  final VoidCallback? onBook;
 
   bool get _hasAddress => address.trim().isNotEmpty;
 
@@ -998,23 +1073,141 @@ class _Location extends StatelessWidget {
     );
   }
 
+  String get _sectionTitle => sidebar ? 'Ubicación' : 'Datos del local';
+
+  Widget _addressText(
+    BuildContext context, {
+    required String line1,
+    required String? line2,
+    required String addr,
+    required String? mapsUrl,
+    bool compact = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.place_outlined,
+                size: 18,
+                color: _D.brand(context),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    line1,
+                    maxLines: compact ? 3 : 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: _D.t(13, w: FontWeight.w500, h: 1.35),
+                  ),
+                  if (line2 != null && line2.isNotEmpty)
+                    Text(
+                      line2,
+                      maxLines: compact ? 3 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: _D.t(
+                        13,
+                        w: FontWeight.w400,
+                        c: _D.muted,
+                        h: 1.35,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        if (mapsUrl != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 24),
+            child: GestureDetector(
+              onTap: () => openExternalUrl(mapsUrl),
+              child: Text(
+                'Ver en el mapa >',
+                style: _D.t(
+                  13,
+                  w: FontWeight.w600,
+                  c: _D.brand(context),
+                ),
+              ),
+            ),
+          ),
+        if (AgendaAddressFormat.looksLikeAreaOnly(addr))
+          Padding(
+            padding: const EdgeInsets.only(left: 24, top: 4),
+            child: Text(
+              'Ubicación aproximada en el mapa.',
+              style: _D.t(11, c: _D.muted, h: 1.35),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget? _sidebarBookButton(BuildContext context) {
+    final onTap = onBook;
+    if (!sidebar || onTap == null) return null;
+
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: FilledButton.icon(
+        onPressed: onTap,
+        style: FilledButton.styleFrom(
+          backgroundColor: _D.brand(context),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        icon: const Icon(Icons.calendar_month_outlined, color: _D.white, size: 20),
+        label: Text(
+          'Reservar turno',
+          style: _D.t(15, w: FontWeight.w700, c: _D.white),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bookButton = _sidebarBookButton(context);
+
     if (!_hasAddress) {
       return hoursAsync.when(
         loading: () => const SizedBox.shrink(),
         error: (_, _) => const SizedBox.shrink(),
         data: (rows) {
           final lines = BusinessHoursSummary.lines(rows);
-          if (lines.isEmpty) return const SizedBox.shrink();
+          if (lines.isEmpty && bookButton == null) {
+            return const SizedBox.shrink();
+          }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _SectionHead(title: 'Datos del local'),
+              _SectionHead(title: _sectionTitle),
               const SizedBox(height: 14),
               _Card(
                 pad: 16,
-                child: _HoursSummaryLines(lines: lines),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (lines.isNotEmpty) _HoursSummaryLines(lines: lines),
+                    if (bookButton != null) ...[
+                      if (lines.isNotEmpty) const SizedBox(height: 16),
+                      bookButton,
+                    ],
+                  ],
+                ),
               ),
             ],
           );
@@ -1023,13 +1216,57 @@ class _Location extends StatelessWidget {
     }
 
     final addr = address.trim();
-    final mapsUrl = _hasAddress ? GoogleMapsUrls.search(addr) : null;
+    final mapsUrl = GoogleMapsUrls.search(addr);
     final (line1, line2) = _addressLines(addr, business);
+    final geocodeQuery = _geocodeQuery(addr, business);
+
+    if (sidebar) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHead(title: _sectionTitle),
+          const SizedBox(height: 14),
+          _Card(
+            pad: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => _MapPreview(
+                      geocodeQuery: geocodeQuery,
+                      mapsUrl: mapsUrl,
+                      width: constraints.maxWidth,
+                      height: 128,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _addressText(
+                  context,
+                  line1: line1,
+                  line2: line2,
+                  addr: addr,
+                  mapsUrl: mapsUrl,
+                  compact: true,
+                ),
+                _EmbeddedHoursSummary(hoursAsync: hoursAsync),
+                if (bookButton != null) ...[
+                  const SizedBox(height: 16),
+                  bookButton,
+                ],
+              ],
+            ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionHead(title: 'Datos del local'),
+        _SectionHead(title: _sectionTitle),
         const SizedBox(height: 14),
         _Card(
           pad: 12,
@@ -1042,7 +1279,7 @@ class _Location extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: _MapPreview(
-                      geocodeQuery: _geocodeQuery(addr, business),
+                      geocodeQuery: geocodeQuery,
                       mapsUrl: mapsUrl,
                       width: 96,
                       height: 96,
@@ -1050,74 +1287,12 @@ class _Location extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Icon(
-                                Icons.place_outlined,
-                                size: 18,
-                                color: _D.brand(context),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    line1,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: _D.t(13, w: FontWeight.w500, h: 1.35),
-                                  ),
-                                  if (line2 != null && line2.isNotEmpty)
-                                    Text(
-                                      line2,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: _D.t(
-                                        13,
-                                        w: FontWeight.w400,
-                                        c: _D.muted,
-                                        h: 1.35,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        if (mapsUrl != null)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 24),
-                            child: GestureDetector(
-                              onTap: () => openExternalUrl(mapsUrl),
-                              child: Text(
-                                'Ver en el mapa >',
-                                style: _D.t(
-                                  13,
-                                  w: FontWeight.w600,
-                                  c: _D.brand(context),
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (AgendaAddressFormat.looksLikeAreaOnly(addr))
-                          Padding(
-                            padding: const EdgeInsets.only(left: 24, top: 4),
-                            child: Text(
-                              'Ubicación aproximada en el mapa.',
-                              style: _D.t(11, c: _D.muted, h: 1.35),
-                            ),
-                          ),
-                      ],
+                    child: _addressText(
+                      context,
+                      line1: line1,
+                      line2: line2,
+                      addr: addr,
+                      mapsUrl: mapsUrl,
                     ),
                   ),
                 ],
