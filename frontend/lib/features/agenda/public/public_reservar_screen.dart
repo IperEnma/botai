@@ -47,7 +47,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   DateTime? _selectedDate;
   AvailabilitySlot? _selectedSlot;
   final _nombreCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
   final _telCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
   final _contactFormKey = GlobalKey<FormState>();
@@ -66,7 +65,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
   @override
   void dispose() {
     _nombreCtrl.dispose();
-    _emailCtrl.dispose();
     _telCtrl.dispose();
     _codeCtrl.dispose();
     super.dispose();
@@ -200,9 +198,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     if (!client.needsName && client.nombre.isNotEmpty) {
       _nombreCtrl.text = client.nombre;
     }
-    if (client.email != null && client.email!.isNotEmpty) {
-      _emailCtrl.text = client.email!;
-    }
     _bookingForOther = false;
   }
 
@@ -268,7 +263,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
     if (!_contactFormKey.currentState!.validate()) return;
 
     final nombre = _nombreCtrl.text.trim();
-    final email = _emailCtrl.text.trim();
     if (nombre.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -291,7 +285,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
         staffMemberId: _effectiveStaffId,
         fechaHoraInicio: slot.inicio,
         nombreCliente: nombre,
-        emailCliente: email.isEmpty ? null : email,
         telefonoCliente: session.phone,
         clientSessionToken: session.token,
       );
@@ -685,7 +678,6 @@ class _PublicReservarScreenState extends ConsumerState<PublicReservarScreen> {
           telCtrl: _telCtrl,
           codeCtrl: _codeCtrl,
           attendeeNombreCtrl: _nombreCtrl,
-          emailCtrl: _emailCtrl,
           bookingForOther: _bookingForOther,
           onBookingForOtherChanged: (v) => setState(() {
             _bookingForOther = v;

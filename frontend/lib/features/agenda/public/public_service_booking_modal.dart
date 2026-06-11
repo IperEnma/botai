@@ -65,7 +65,6 @@ class _PublicServiceBookingModalState
   DateTime? _selectedDate;
   AvailabilitySlot? _selectedSlot;
   final _nombreCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
   final _telCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
   final _contactFormKey = GlobalKey<FormState>();
@@ -116,7 +115,6 @@ class _PublicServiceBookingModalState
   @override
   void dispose() {
     _nombreCtrl.dispose();
-    _emailCtrl.dispose();
     _telCtrl.dispose();
     _codeCtrl.dispose();
     super.dispose();
@@ -278,9 +276,6 @@ class _PublicServiceBookingModalState
     if (!client.needsName && client.nombre.isNotEmpty) {
       _nombreCtrl.text = client.nombre;
     }
-    if (client.email != null && client.email!.isNotEmpty) {
-      _emailCtrl.text = client.email!;
-    }
     _bookingForOther = false;
   }
 
@@ -389,7 +384,6 @@ class _PublicServiceBookingModalState
         staffMemberId: _effectiveStaffId,
         fechaHoraInicio: slot.inicio,
         nombreCliente: nombre,
-        emailCliente: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
         telefonoCliente: session.phone,
         clientSessionToken: session.token,
       );
@@ -608,7 +602,6 @@ class _PublicServiceBookingModalState
           telCtrl: _telCtrl,
           codeCtrl: _codeCtrl,
           attendeeNombreCtrl: _nombreCtrl,
-          emailCtrl: _emailCtrl,
           bookingForOther: _bookingForOther,
           onBookingForOtherChanged: (v) => setState(() {
             _bookingForOther = v;

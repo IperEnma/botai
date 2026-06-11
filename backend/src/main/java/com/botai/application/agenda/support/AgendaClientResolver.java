@@ -5,7 +5,9 @@ import com.botai.domain.agenda.model.UserType;
 import com.botai.domain.agenda.repository.UserRepository;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Alta/reutilización de clientes Agenda: mismo teléfono canónico o mismo email → mismo {@link User}.
@@ -63,21 +65,18 @@ public final class AgendaClientResolver {
             throw new IllegalArgumentException("Nombre del cliente obligatorio");
         }
 
+        // Teléfono verificado (OTP) tiene prioridad: no reasignar un número ya usado por otro cliente.
+        Optional<User> byPhone = userRepository.findClientByTenantIdAndTelefono(tenantId, phoneNorm);
+        if (byPhone.isPresent()) {
+            return mergeNombreAndEmail(userRepository, byPhone.get(), nombreTrim, email);
+        }
+
         if (email != null && !email.isBlank()) {
             String emailNorm = email.trim().toLowerCase(Locale.ROOT);
             Optional<User> byEmail = userRepository.findByTenantIdAndEmail(tenantId, emailNorm);
             if (byEmail.isPresent()) {
                 return mergePhoneAndNombre(userRepository, byEmail.get(), nombreTrim, emailNorm, phoneNorm);
             }
-        }
-
-        Optional<User> byPhone = userRepository.findClientByTenantIdAndTelefono(tenantId, phoneNorm);
-        if (byPhone.isPresent()) {
-            User u = byPhone.get();
-            String emailNorm = email != null && !email.isBlank()
-                    ? email.trim().toLowerCase(Locale.ROOT)
-                    : u.getEmail();
-            return mergePhoneAndNombre(userRepository, u, nombreTrim, emailNorm, phoneNorm);
         }
 
         return userRepository.save(new User(
@@ -93,6 +92,23 @@ public final class AgendaClientResolver {
         ));
     }
 
+    private static User mergeNombreAndEmail(UserRepository userRepository,
+                                            User existing,
+                                            String nombre,
+                                            String emailRaw) {
+        String newNombre = nombre.isBlank() ? existing.getNombre() : nombre;
+        String newEmail = emailRaw != null && !emailRaw.isBlank()
+                ? emailRaw.trim().toLowerCase(Locale.ROOT)
+                : existing.getEmail();
+        if (newNombre.equals(existing.getNombre()) && Objects.equals(newEmail, existing.getEmail())) {
+            return existing;
+        }
+        if (newEmail != null && !newEmail.isBlank() && !Objects.equals(newEmail, existing.getEmail())) {
+            releaseEmailFromOtherClient(userRepository, existing.getTenantId(), existing.getId(), newEmail);
+        }
+        return userRepository.save(copyUser(existing, newNombre, newEmail, existing.getTelefono()));
+    }
+
     private static User mergePhoneAndNombre(UserRepository userRepository,
                                             User existing,
                                             String nombre,
@@ -100,22 +116,37 @@ public final class AgendaClientResolver {
                                             String phoneNorm) {
         String newNombre = nombre.isBlank() ? existing.getNombre() : nombre;
         String newEmail = email != null && !email.isBlank() ? email : existing.getEmail();
-        String newPhone = phoneNorm;
         if (newNombre.equals(existing.getNombre())
-                && java.util.Objects.equals(newEmail, existing.getEmail())
+                && Objects.equals(newEmail, existing.getEmail())
                 && phoneNorm.equals(AgendaPhoneNormalizer.normalize(existing.getTelefono()))) {
             return existing;
         }
-        return userRepository.save(new User(
+        return userRepository.save(copyUser(existing, newNombre, newEmail, phoneNorm));
+    }
+
+    /** Evita violar uk_agenda_users_tenant_email al unificar identidad en el cliente del teléfono. */
+    private static void releaseEmailFromOtherClient(UserRepository userRepository,
+                                                    String tenantId,
+                                                    UUID keepUserId,
+                                                    String email) {
+        userRepository.findByTenantIdAndEmail(tenantId, email)
+                .filter(u -> !keepUserId.equals(u.getId()))
+                .filter(u -> u.getTipoUsuario() == UserType.CLIENT)
+                .ifPresent(other -> userRepository.save(
+                        copyUser(other, other.getNombre(), null, other.getTelefono())));
+    }
+
+    private static User copyUser(User existing, String nombre, String email, String telefono) {
+        return new User(
                 existing.getId(),
                 existing.getTenantId(),
-                newNombre,
-                newEmail,
-                newPhone,
+                nombre,
+                email,
+                telefono,
                 existing.getTipoUsuario(),
                 existing.isActivo(),
                 existing.getCreatedAt(),
                 existing.getUpdatedAt()
-        ));
+        );
     }
 }

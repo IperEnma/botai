@@ -16,7 +16,6 @@ class PublicReservarIdentityStep extends StatelessWidget {
     required this.telCtrl,
     required this.codeCtrl,
     required this.attendeeNombreCtrl,
-    required this.emailCtrl,
     required this.bookingForOther,
     required this.onBookingForOtherChanged,
     required this.serviceName,
@@ -37,7 +36,6 @@ class PublicReservarIdentityStep extends StatelessWidget {
   final TextEditingController telCtrl;
   final TextEditingController codeCtrl;
   final TextEditingController attendeeNombreCtrl;
-  final TextEditingController emailCtrl;
   final bool bookingForOther;
   final ValueChanged<bool> onBookingForOtherChanged;
   final String serviceName;
@@ -170,17 +168,6 @@ class PublicReservarIdentityStep extends StatelessWidget {
                 }
                 return null;
               },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: 'Correo de contacto (opcional)',
-                hintText: 'tu@email.com',
-                helperText: 'Para confirmaciones o recordatorios',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
             ),
             const SizedBox(height: 16),
             _InfoBox(
