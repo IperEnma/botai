@@ -162,7 +162,7 @@ jobs:
           echo "All checks passed"
 
   beta-tag:
-    name: Beta tag (versión)
+    name: Versionado (beta)
     needs: [ci]
     if: >-
       needs.ci.result == 'success' &&
@@ -183,7 +183,7 @@ jobs:
           RELEASE_VERSION_REMOTE: origin
         run: |
           git fetch origin --tags
-          OUT=$(./scripts/release-version.sh tag-beta-from-branch --push origin)
+          OUT=$(bash scripts/release-version.sh tag-beta-from-branch --push origin)
           echo "$OUT"
           TAG=$(echo "$OUT" | grep '^tag=' | tail -1 | cut -d= -f2)
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -198,4 +198,45 @@ jobs:
             echo "**\`${{ steps.tag.outputs.tag }}\`**"
             echo ""
             echo "Desplegar a test: **Actions → Deploy test → Run workflow** con ese tag."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  final-tag:
+    name: Versionado (final)
+    needs: [ci]
+    if: >-
+      needs.ci.result == 'success' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create final tag from latest beta
+        id: tag
+        env:
+          RELEASE_VERSION_REMOTE: origin
+        run: |
+          git fetch origin --tags
+          OUT=$(bash scripts/release-version.sh tag-final-from-main --push origin)
+          echo "$OUT"
+          TAG=$(echo "$OUT" | grep '^tag=' | tail -1 | cut -d= -f2)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Deploy production (manual)
+        if: steps.tag.outputs.tag != ''
+        run: |
+          echo "::notice title=Tag final::${{ steps.tag.outputs.tag }} — Actions → Deploy production → Run workflow"
+      - name: Summary
+        if: steps.tag.outputs.tag != ''
+        run: |
+          {
+            echo "## Tag final"
+            echo ""
+            echo "**\`${{ steps.tag.outputs.tag }}\`** (desde la última *-beta en main)"
+            echo ""
+            echo "Desplegar a prod: **Actions → Deploy production → Run workflow** con ese tag."
           } >> "$GITHUB_STEP_SUMMARY"

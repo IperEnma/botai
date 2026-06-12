@@ -5,14 +5,18 @@
 # Tags prod:  release-1.2.0-final | hotfix-1.2.1-final
 #
 # Ramas plantilla: release/<major>.x.x-beta | hotfix/<major>.x.x-beta
-# El CI calcula minor/patch y crea el tag *-beta; el CD test es manual con ese tag.
+# El CI crea *-beta en ramas *.x.x-beta y *-final en main (desde la última *-beta).
+#
+# Reglas de versión (major elegida en la rama):
+#   release → minor+1, patch 0  (ej. último final 1.0.1 → beta 1.1.0)
+#   hotfix  → patch+1           (ej. último final 1.0.1 → beta 1.0.2)
 #
 # Uso (Git Bash o Linux):
 #   ./scripts/release-version.sh next release 1
 #   ./scripts/release-version.sh next hotfix 1
 #   ./scripts/release-version.sh branch release 1
 #   ./scripts/release-version.sh tag-beta-from-branch --push origin
-#   ./scripts/release-version.sh tag-final release 1.2.0 --push github
+#   ./scripts/release-version.sh tag-final-from-main --push origin
 
 set -euo pipefail
 
@@ -182,6 +186,83 @@ cmd_tag_beta_from_branch() {
   fi
 }
 
+# En main: toma la *-beta más nueva (semver) sin *-final y crea el final en HEAD.
+cmd_tag_final_from_main() {
+  local push_remote=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --push)
+        push_remote="${2:-$REMOTE}"
+        shift 2
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+
+  local remote="${push_remote:-origin}"
+  git fetch "$remote" --tags --quiet 2>/dev/null || true
+
+  local head_sha
+  head_sha="$(git rev-parse HEAD)"
+  local pending
+  pending="$(mktemp)"
+  trap 'rm -f "$pending"' RETURN
+
+  while IFS= read -r beta_tag; do
+    [[ -z "$beta_tag" ]] && continue
+    [[ "$beta_tag" =~ ^(release|hotfix)-([0-9]+\.[0-9]+\.[0-9]+)-beta$ ]] || continue
+    local kind="${BASH_REMATCH[1]}"
+    local ver="${BASH_REMATCH[2]}"
+    local final_tag="${kind}-${ver}-final"
+
+    if git rev-parse "$final_tag" >/dev/null 2>&1; then
+      continue
+    fi
+
+    local beta_sha
+    beta_sha="$(git rev-parse "$beta_tag^{commit}")"
+    if ! git merge-base --is-ancestor "$beta_sha" "$head_sha" 2>/dev/null; then
+      continue
+    fi
+
+    echo "${ver}|${kind}|${beta_tag}" >> "$pending"
+  done < <(git tag -l 'release-*-beta' 'hotfix-*-beta')
+
+  if [[ ! -s "$pending" ]]; then
+    echo "No hay tag *-beta pendiente de finalizar en el historial de main."
+    echo "tag="
+    return 0
+  fi
+
+  local best_ver best_kind best_beta best_line
+  best_ver="$(cut -d'|' -f1 "$pending" | sort -V | tail -1)"
+  best_line="$(grep "^${best_ver}|" "$pending" | tail -1)"
+  IFS='|' read -r best_ver best_kind best_beta <<< "$best_line"
+
+  local final_tag="${best_kind}-${best_ver}-final"
+  if git rev-parse "$final_tag" >/dev/null 2>&1; then
+    echo "Tag final ya existe: $final_tag"
+    echo "tag=$final_tag"
+    return 0
+  fi
+
+  if [[ -z "$(git config user.email 2>/dev/null)" ]]; then
+    git config user.email "github-actions[bot]@users.noreply.github.com"
+    git config user.name "github-actions[bot]"
+  fi
+
+  git tag -a "$final_tag" -m "${best_kind} ${best_ver} final (from ${best_beta})"
+  echo "Tag final creado: $final_tag (desde ${best_beta})"
+  echo "tag=$final_tag"
+
+  if [[ -n "$push_remote" ]]; then
+    git push "$remote" "$final_tag"
+    echo "Pusheado a $remote"
+  fi
+}
+
 cmd_tag() {
   local suffix="$1" # beta | final
   shift
@@ -230,6 +311,10 @@ main() {
     tag-beta-from-branch)
       shift
       cmd_tag_beta_from_branch "$@"
+      ;;
+    tag-final-from-main)
+      shift
+      cmd_tag_final_from_main "$@"
       ;;
     tag-final)
       [[ $# -ge 4 ]] || usage
