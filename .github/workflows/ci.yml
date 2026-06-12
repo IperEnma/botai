@@ -95,7 +95,7 @@ jobs:
             echo "NVD cache miss o vacía — descarga inicial (~15–30 min). Luego será rápido."
             OWASP_OPTS+=(-DnvdApiDelay=4000 -DnvdValidForHours=168)
           fi
-          mvn -B org.owasp:dependency-check-maven:12.1.0:check "${OWASP_OPTS[@]}"
+          mvn -B org.owasp:dependency-check-maven:12.2.2:check "${OWASP_OPTS[@]}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
