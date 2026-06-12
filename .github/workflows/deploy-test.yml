@@ -58,7 +58,7 @@ jobs:
           node-version: "20"
       - name: Vercel deploy (Preview)
         id: vercel
-        working-directory: frontend
+        # Root del repo: Vercel ya tiene Root Directory = frontend en el proyecto.
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -72,7 +72,6 @@ jobs:
           echo "Deployed: $DEPLOY_URL"
       - name: Alias test URL
         if: vars.STAGING_VERCEL_ALIAS != ''
-        working-directory: frontend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |

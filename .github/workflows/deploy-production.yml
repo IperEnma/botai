@@ -72,7 +72,7 @@ jobs:
         with:
           node-version: "20"
       - name: Vercel deploy (Production)
-        working-directory: frontend
+        # Root del repo: Vercel ya tiene Root Directory = frontend en el proyecto.
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
