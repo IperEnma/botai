@@ -106,20 +106,41 @@ jobs:
           retention-days: 14
 
   backend:
-    name: Backend tests
+    name: Backend package & SonarCloud
     needs: [gitleaks, semgrep, dependency-check]
     continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: maven
-      - name: mvn test
+      - name: mvn package (compile + test + JAR único)
         working-directory: backend
-        run: mvn test -B
+        run: mvn -B package
+      - name: SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Locate JAR
+        id: jar
+        working-directory: backend
+        run: |
+          JAR="$(ls target/*.jar | grep -v 'original' | head -1)"
+          echo "path=$JAR" >> "$GITHUB_OUTPUT"
+          echo "JAR: $JAR"
+      - name: Upload backend JAR for CD
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar-${{ github.sha }}
+          path: backend/${{ steps.jar.outputs.path }}
+          retention-days: 7
+          if-no-files-found: error
 
   frontend:
     name: Frontend analyze & test
@@ -139,32 +160,9 @@ jobs:
       - run: flutter test
         working-directory: frontend
 
-  sonarcloud:
-    name: SonarCloud
-    # No depender de backend/frontend/OWASP: si tests u OWASP fallan, Sonar igual debe subir métricas.
-    needs: [gitleaks, semgrep]
-    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: maven
-      - name: Compile backend for Sonar
-        working-directory: backend
-        run: mvn -B -DskipTests compile test-compile
-      - uses: SonarSource/sonarqube-scan-action@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
   ci:
     name: ci
-    needs: [gitleaks, semgrep, dependency-check, backend, frontend, sonarcloud]
+    needs: [gitleaks, semgrep, dependency-check, backend, frontend]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -177,37 +175,41 @@ jobs:
           ok() { case "$1" in success|skipped) return 0 ;; *) return 1 ;; esac; }
           ok "${{ needs.gitleaks.result }}" && ok "${{ needs.semgrep.result }}" && \
           ok "${{ needs.dependency-check.result }}" && ok "${{ needs.backend.result }}" && \
-          ok "${{ needs.frontend.result }}" && ok "${{ needs.sonarcloud.result }}" || {
-            echo "CI failed — desactivá fallos o arreglá jobs; sin CI_RELAXED no pasa."
+          ok "${{ needs.frontend.result }}" || {
+            echo "CI failed — sin tag ni artefactos de release."
             exit 1
           }
           echo "All checks passed"
 
   build-artifacts:
     name: Build artifacts (test)
-    needs: [ci]
+    needs: [ci, backend]
     if: >-
       needs.ci.result == 'success' &&
+      needs.backend.result == 'success' &&
       github.event_name == 'push' &&
       endsWith(github.ref_name, '.x.x-beta')
     runs-on: ubuntu-latest
     environment: staging
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Download backend JAR from CI
+        uses: actions/download-artifact@v4
         with:
-          distribution: temurin
-          java-version: "17"
-          cache: maven
+          name: backend-jar-${{ github.sha }}
+          path: staging-jar
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-      - name: Build backend JAR + frontend web
+      - name: Pack frontend + reuse backend JAR
         env:
           KONECTA_BASE_URL: ${{ vars.STAGING_KONECTA_BASE_URL }}
           GOOGLE_CLIENT_ID_WEB: ${{ secrets.STAGING_GOOGLE_CLIENT_ID_WEB }}
-        run: bash scripts/ci-build-test-artifacts.sh
+        run: |
+          JAR="$(find staging-jar -name '*.jar' | head -1)"
+          test -n "$JAR"
+          bash scripts/ci-build-test-artifacts.sh --backend-jar "$JAR"
       - name: Upload test deploy artifacts
         uses: actions/upload-artifact@v4
         with:
