@@ -68,6 +68,8 @@ public class AgendaIdempotencyFilter extends OncePerRequestFilter {
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             byte[] bodyBytes = cached.body().getBytes(StandardCharsets.UTF_8);
             response.setContentLength(bodyBytes.length);
+            // Replay JSON guardado por este mismo API (agenda_idempotency_keys), no input del request.
+            // nosemgrep: java.lang.security.audit.xss.no-direct-response-writer.no-direct-response-writer
             response.getOutputStream().write(bodyBytes);
             return;
         }
