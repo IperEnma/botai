@@ -106,7 +106,7 @@ jobs:
           retention-days: 14
 
   build-backend:
-    name: Backend build
+    name: Backend tests & package (JAR)
     needs: [gitleaks, semgrep, dependency-check]
     continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
