@@ -219,9 +219,7 @@ jobs:
           if [[ "$REF_NAME" != *".x.x-beta" ]]; then
             reasons+=("rama=$REF_NAME (solo ramas * .x.x-beta, ej. release/1.x.x-beta)")
           fi
-          if [ -z "$JAR_ID" ]; then
-            reasons+=("sin artifact backend-jar (build-backend falló o no subió JAR)")
-          fi
+          echo "CI gate: RELAXED=${RELAXED:-<unset>} event=$EVENT ref=$REF_NAME jar_artifact=${JAR_ID:+yes}"
 
           ok() { case "$1" in success|skipped) return 0 ;; *) return 1 ;; esac; }
           strict_ok=true
@@ -229,13 +227,17 @@ jobs:
           ok "${{ needs.dependency-check.result }}" && ok "${{ needs.build-backend.result }}" && \
           ok "${{ needs.sonarcloud.result }}" && ok "${{ needs.frontend.result }}" || strict_ok=false
 
-          if [ "$EVENT" = "push" ] && [[ "$REF_NAME" == *".x.x-beta" ]] && [ -n "$JAR_ID" ]; then
+          if [ "$EVENT" = "push" ] && [[ "$REF_NAME" == *".x.x-beta" ]]; then
             if [ "$RELAXED" = "true" ]; then
               run_pack=true
-            elif [ "$strict_ok" = true ]; then
+            elif [ -n "$JAR_ID" ] && [ "$strict_ok" = true ]; then
               run_pack=true
             else
-              reasons+=("CI_RELAXED apagado y hay jobs fallidos")
+              if [ -z "$JAR_ID" ]; then
+                reasons+=("sin backend-jar y CI_RELAXED apagado")
+              else
+                reasons+=("CI_RELAXED apagado y hay jobs fallidos")
+              fi
             fi
           fi
 
@@ -261,7 +263,7 @@ jobs:
 
   pack-test-deploy-artifacts:
     name: Staging pack
-    needs: [ci, build-backend]
+    needs: [ci]
     if: >-
       always() && !cancelled() &&
       needs.ci.outputs.run_staging_pack == 'true'
@@ -269,7 +271,14 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
       - name: Restore JAR (backend-jar)
+        id: restore_jar
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: backend-jar
@@ -283,9 +292,14 @@ jobs:
           KONECTA_BASE_URL: ${{ vars.STAGING_KONECTA_BASE_URL }}
           GOOGLE_CLIENT_ID_WEB: ${{ secrets.STAGING_GOOGLE_CLIENT_ID_WEB }}
         run: |
-          JAR="$(find staging-jar -name '*.jar' | head -1)"
-          test -n "$JAR"
-          bash scripts/ci-build-test-artifacts.sh --backend-jar "$JAR"
+          JAR="$(find staging-jar -name '*.jar' 2>/dev/null | head -1 || true)"
+          if [ -n "$JAR" ]; then
+            echo "Reutilizando backend-jar del CI"
+            bash scripts/ci-build-test-artifacts.sh --backend-jar "$JAR"
+          else
+            echo "Sin backend-jar — empaquetando backend con mvn package (CI_RELAXED o build-backend sin artifact)"
+            bash scripts/ci-build-test-artifacts.sh
+          fi
       - name: Upload botai-build
         uses: actions/upload-artifact@v4
         with:
