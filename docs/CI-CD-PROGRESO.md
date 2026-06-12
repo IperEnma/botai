@@ -116,6 +116,7 @@ Con `CI_RELAXED=true`:
 - **Recomendado:** secret de repo `NVD_API_KEY` (gratis en [NVD API Key](https://nvd.nist.gov/developers/request-an-api-key)) → menos fallos al descargar CVEs.
 - Si OWASP falla con `The database has been closed` / `MVStoreException`: caché NVD corrupta (suele pasar si se canceló un run a medias). En GitHub → Actions → Caches → borrar entradas `owasp-nvd-*` y re-ejecutar el workflow.
 - `cancel-in-progress: false` en CI para no cortar OWASP mientras escribe la BD H2.
+- Semgrep frontend: `p/secrets` (no `p/dart` — ruleset Dart retirado del registry); análisis Dart = job `flutter analyze`.
 - Pueden fallar jobs hasta corregir tests (`BookingDomainServiceTest`) y `flutter analyze` — no bloquea la infra ya montada.
 
 ### Paso 6 — CD test (staging)

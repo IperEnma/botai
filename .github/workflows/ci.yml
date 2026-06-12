@@ -42,9 +42,10 @@ jobs:
             --config p/java \
             --config p/owasp-top-ten \
             backend/
+      # p/dart ya no existe en el registry (404). Secrets + flutter analyze cubren frontend.
       - run: |
           semgrep scan --error \
-            --config p/dart \
+            --config p/secrets \
             frontend/lib/
 
   dependency-check:
