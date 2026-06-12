@@ -85,14 +85,16 @@ jobs:
           fi
           CACHE_HIT="${{ steps.owasp-nvd-cache.outputs.cache-hit }}"
           HAS_NVD=false
-          if [ -d "$DATA_DIR" ] && [ -n "$(find "$DATA_DIR" -name '*.h2.db' -o -name 'nvdcve-2.0-*.json' 2>/dev/null | head -1)" ]; then
+          # ODC usa H2 → odc.mv.db (no *.h2.db); sin esto siempre re-descargaba la NVD.
+          if [ -f "$DATA_DIR/odc.mv.db" ] || [ -n "$(find "$DATA_DIR" -name 'odc.mv.db' -print -quit 2>/dev/null)" ]; then
             HAS_NVD=true
           fi
+          echo "OWASP cache: cache-hit=${CACHE_HIT} has_odc_mv_db=${HAS_NVD}"
           if [ "$CACHE_HIT" = "true" ] && [ "$HAS_NVD" = "true" ]; then
             echo "NVD cache hit — reutilizando BD local (sin descargar CVEs)"
             OWASP_OPTS+=(-DautoUpdate=false -DnvdValidForHours=8760)
           else
-            echo "NVD cache miss o vacía — descarga inicial (~15–30 min). Luego será rápido."
+            echo "NVD cache miss o BD vacía — descarga NVD (~3–5 min con API key)."
             OWASP_OPTS+=(-DnvdApiDelay=4000 -DnvdValidForHours=168)
           fi
           mvn -B org.owasp:dependency-check-maven:12.2.2:check "${OWASP_OPTS[@]}"
