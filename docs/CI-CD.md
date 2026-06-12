@@ -928,7 +928,7 @@ Backend: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AGENDA_PUBLIC_BASE_URL`, `
 | Secret / Variable | Uso |
 |-------------------|-----|
 | `FLY_API_TOKEN` o `RENDER_DEPLOY_HOOK_STAGING` | Deploy API test |
-| `STAGING_API_BASE_URL` | Build Flutter |
+| `STAGING_KONECTA_BASE_URL` | Build Flutter (URL backend sin `/api`) |
 | `STAGING_GOOGLE_CLIENT_ID_WEB` | Build Flutter |
 | `STAGING_API_HEALTH_URL` | Smoke test |
 | `CLOUDFLARE_PAGES_PROJECT_STAGING` | Nombre proyecto Pages |

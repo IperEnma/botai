@@ -202,19 +202,9 @@ jobs:
           cache: true
       - name: Build backend JAR + frontend web
         env:
-          # Environment staging o repo: STAGING_* o nombres cortos (como en Vercel).
-          KONECTA_BASE_URL: ${{ vars.STAGING_KONECTA_BASE_URL || vars.STAGING_API_BASE_URL || vars.KONECTA_BASE_URL }}
-          GOOGLE_CLIENT_ID_WEB: ${{ secrets.STAGING_GOOGLE_CLIENT_ID_WEB || secrets.GOOGLE_CLIENT_ID_WEB }}
-        run: |
-          missing=()
-          [[ -z "${KONECTA_BASE_URL:-}" ]] && missing+=("STAGING_KONECTA_BASE_URL (variable)")
-          [[ -z "${GOOGLE_CLIENT_ID_WEB:-}" ]] && missing+=("STAGING_GOOGLE_CLIENT_ID_WEB (secret)")
-          if ((${#missing[@]})); then
-            echo "::error::Build artifacts requiere en GitHub → Environments → staging (o Variables/Secrets del repo): ${missing[*]}"
-            echo "KONECTA_BASE_URL ej: https://botai-backend-test.onrender.com (sin /api)"
-            exit 1
-          fi
-          bash scripts/ci-build-test-artifacts.sh
+          KONECTA_BASE_URL: ${{ vars.STAGING_KONECTA_BASE_URL }}
+          GOOGLE_CLIENT_ID_WEB: ${{ secrets.STAGING_GOOGLE_CLIENT_ID_WEB }}
+        run: bash scripts/ci-build-test-artifacts.sh
       - name: Upload test deploy artifacts
         uses: actions/upload-artifact@v4
         with:
