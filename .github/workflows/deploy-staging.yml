@@ -1,0 +1,82 @@
+name: Deploy staging (test)
+
+on:
+  push:
+    tags:
+      - "release-*-beta"
+      - "hotfix-*-beta"
+
+concurrency:
+  group: deploy-staging-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy-backend:
+    name: Deploy backend test (Render)
+    needs: [ci]
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Trigger Render deploy hook
+        run: |
+          curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_STAGING }}"
+
+  deploy-frontend:
+    name: Deploy frontend test (Vercel Preview)
+    needs: [ci]
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Vercel deploy (Preview)
+        id: vercel
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npm install -g vercel@latest
+          DEPLOY_URL=$(vercel deploy --yes --token "$VERCEL_TOKEN" \
+            --build-env "KONECTA_BASE_URL=${{ vars.STAGING_KONECTA_BASE_URL }}" \
+            --build-env "GOOGLE_CLIENT_ID_WEB=${{ secrets.STAGING_GOOGLE_CLIENT_ID_WEB }}")
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $DEPLOY_URL"
+      - name: Alias staging URL
+        if: vars.STAGING_VERCEL_ALIAS != ''
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          vercel alias set "${{ steps.vercel.outputs.url }}" "${{ vars.STAGING_VERCEL_ALIAS }}" \
+            --token "$VERCEL_TOKEN"
+
+  smoke:
+    name: Smoke test
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Wait for backend health (Render may be waking up)
+        env:
+          HEALTH_URL: ${{ vars.STAGING_API_HEALTH_URL }}
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            echo "Attempt $attempt: $HEALTH_URL"
+            if curl -fsS "$HEALTH_URL"; then
+              echo "Backend healthy"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "Backend health check failed"
+          exit 1
