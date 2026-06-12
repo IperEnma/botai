@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Garantiza idempotencia en POST /api/agenda/me/{tenant}/businesses/{biz}/bookings.
@@ -64,7 +65,10 @@ public class AgendaIdempotencyFilter extends OncePerRequestFilter {
             log.debug("AGENDA idempotency: hit key={}", key);
             response.setStatus(cached.statusCode());
             response.setContentType("application/json");
-            response.getWriter().write(cached.body());
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            byte[] bodyBytes = cached.body().getBytes(StandardCharsets.UTF_8);
+            response.setContentLength(bodyBytes.length);
+            response.getOutputStream().write(bodyBytes);
             return;
         }
 
