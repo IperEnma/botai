@@ -64,27 +64,36 @@ jobs:
         id: owasp-nvd-cache
         uses: actions/cache@v4
         with:
-          # La BD NVD es global; no atar la key al pom.xml (evita re-descargas).
-          path: ~/.m2/repository/org/owasp/dependency-check-data
-          key: owasp-nvd-${{ runner.os }}-v3
+          # Ruta fija (no la default con subcarpeta /12.0 que invalida restores).
+          path: ~/.owasp-nvd-cache
+          key: owasp-nvd-${{ runner.os }}-v4
           restore-keys: |
             owasp-nvd-${{ runner.os }}-
       - name: Run OWASP Dependency-Check
         working-directory: backend
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
+          DATA_DIR="${HOME}/.owasp-nvd-cache"
+          mkdir -p "$DATA_DIR"
           OWASP_OPTS=(
             -DfailBuildOnCVSS=7
             -DsuppressionFiles=dependency-check-suppressions.xml
             -DnvdMaxRetryCount=10
+            -DdataDirectory="${DATA_DIR}"
           )
-          if [ "${{ steps.owasp-nvd-cache.outputs.cache-hit }}" = "true" ]; then
-            echo "NVD cache hit — sin actualizar la base CVE"
-            OWASP_OPTS+=(-DautoUpdate=false)
+          if [ -n "${{ secrets.NVD_API_KEY }}" ]; then
+            OWASP_OPTS+=(-DnvdApiKey="${{ secrets.NVD_API_KEY }}")
+          fi
+          CACHE_HIT="${{ steps.owasp-nvd-cache.outputs.cache-hit }}"
+          HAS_NVD=false
+          if [ -d "$DATA_DIR" ] && [ -n "$(find "$DATA_DIR" -name '*.h2.db' -o -name 'nvdcve-2.0-*.json' 2>/dev/null | head -1)" ]; then
+            HAS_NVD=true
+          fi
+          if [ "$CACHE_HIT" = "true" ] && [ "$HAS_NVD" = "true" ]; then
+            echo "NVD cache hit — reutilizando BD local (sin descargar CVEs)"
+            OWASP_OPTS+=(-DautoUpdate=false -DnvdValidForHours=8760)
           else
-            echo "NVD cache miss — descarga inicial (lenta; se guardará en cache)"
-            OWASP_OPTS+=(-DnvdApiDelay=6000 -DnvdValidForHours=168)
+            echo "NVD cache miss o vacía — descarga inicial (~15–30 min). Luego será rápido."
+            OWASP_OPTS+=(-DnvdApiDelay=4000 -DnvdValidForHours=168)
           fi
           mvn -B org.owasp:dependency-check-maven:12.1.0:check "${OWASP_OPTS[@]}"
       - uses: actions/upload-artifact@v4
