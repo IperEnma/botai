@@ -226,14 +226,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      # Tag en commit con cambios en .github/workflows/ (p. ej. renombrar ci-test.yml).
-      workflows: write
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # PAT con scope workflow (GITHUB_TOKEN no puede pushear tags si el commit tocó .github/workflows/).
+          token: ${{ secrets.RELEASE_VERSION_TOKEN }}
       - name: Create beta tag from branch template
         id: tag
         env:
@@ -246,7 +246,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   beta-tag-visible:
-    name: ${{ format('CD test → {0}', needs.beta-tag.outputs.tag) }}
+    name: ${{ format('CD test -> {0}', needs.beta-tag.outputs.tag) }}
     needs: [beta-tag]
     if: needs.beta-tag.outputs.tag != ''
     runs-on: ubuntu-latest

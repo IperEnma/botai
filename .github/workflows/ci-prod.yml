@@ -133,13 +133,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      workflows: write
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_VERSION_TOKEN }}
       - name: Create final tag from latest beta
         id: tag
         env:
@@ -152,7 +152,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   final-tag-visible:
-    name: ${{ format('CD prod → {0}', needs.final-tag.outputs.tag) }}
+    name: ${{ format('CD prod -> {0}', needs.final-tag.outputs.tag) }}
     needs: [final-tag]
     if: needs.final-tag.outputs.tag != ''
     runs-on: ubuntu-latest
