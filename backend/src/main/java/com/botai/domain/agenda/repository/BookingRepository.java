@@ -27,11 +27,15 @@ public interface BookingRepository {
                                   LocalDateTime hasta);
 
     /**
-     * Reservas activas del mismo negocio y profesional cuyo intervalo se solapa.
-     * Se usa en {@code BookingDomainService.validarDisponibilidad}.
+     * Reservas activas (PENDING / CONFIRMED) del profesional cuyo intervalo
+     * {@code [fechaHoraInicio, fechaHoraFin)} se solapa con el slot pedido.
+     *
+     * <p><b>Scope tenant, no por sucursal.</b> Un staff puede pertenecer a varias
+     * sucursales pero su agenda es única dentro del tenant: la regla de
+     * no-solapamiento aplica sobre <em>todas</em> sus reservas, sin importar
+     * en qué sucursal estén tomadas.</p>
      */
-    List<Booking> findOverlappingForStaff(UUID businessId,
-                                          UUID staffMemberId,
+    List<Booking> findOverlappingForStaff(UUID staffMemberId,
                                           LocalDateTime desde,
                                           LocalDateTime hasta);
 
@@ -42,6 +46,17 @@ public interface BookingRepository {
     List<Booking> findAllByBusinessIdAndFecha(UUID businessId,
                                               LocalDateTime desde,
                                               LocalDateTime hasta);
+
+    /**
+     * Mismo rango y negocio que {@link #findAllByBusinessIdAndFecha}, pero
+     * acota al {@code staffMemberId} indicado. Usado por el listado del panel
+     * cuando el caller es STAFF (operator/viewer) para devolver solo sus
+     * propias reservas y nunca filtrar las de otros profesionales.
+     */
+    List<Booking> findAllByBusinessIdAndStaffMemberIdAndFecha(UUID businessId,
+                                                              UUID staffMemberId,
+                                                              LocalDateTime desde,
+                                                              LocalDateTime hasta);
 
     /**
      * Cuenta reservas CONFIRMED o COMPLETED de un usuario en un negocio

@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,15 +31,13 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * CRUD del catálogo global de categorías. Destinado a admins de plataforma.
- *
- * <p>Nota: Sprint 1 NO configura seguridad. La restricción {@code PLATFORM_ADMIN}
- * se añadirá cuando exista Spring Security común.</p>
+ * CRUD del catálogo global de categorías. Solo {@code PLATFORM_ADMIN}.
  */
 @RestController
 @RequestMapping("/api/agenda/platform/categories")
 @Tag(name = "Agenda Platform", description = "Catálogo global de categorías")
 @Validated
+@PreAuthorize("@authz.isPlatformAdmin()")
 public class PlatformCategoryController {
 
     private final ListPublicCategoriesUseCase listCategories;

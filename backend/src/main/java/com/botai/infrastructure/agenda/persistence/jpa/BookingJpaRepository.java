@@ -19,6 +19,9 @@ public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID>
     List<BookingEntity> findAllByBusinessIdAndFechaHoraInicioBetween(
             UUID businessId, LocalDateTime desde, LocalDateTime hasta);
 
+    List<BookingEntity> findAllByBusinessIdAndStaffMemberIdAndFechaHoraInicioBetween(
+            UUID businessId, UUID staffMemberId, LocalDateTime desde, LocalDateTime hasta);
+
     /**
      * Devuelve las reservas activas ({@code PENDING} o {@code CONFIRMED}) cuyo
      * intervalo se intersecta con el slot pedido.
@@ -41,17 +44,19 @@ public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID>
                                         @Param("desde") LocalDateTime desde,
                                         @Param("hasta") LocalDateTime hasta);
 
+    /**
+     * Agenda única del staff a nivel tenant: incluye reservas de cualquier
+     * sucursal a la que el profesional pertenezca.
+     */
     @Query("""
             select b from BookingEntity b
-            where b.businessId = :businessId
-              and b.staffMemberId = :staffMemberId
+            where b.staffMemberId = :staffMemberId
               and b.estado in (com.botai.domain.agenda.model.BookingEstado.PENDING,
                                com.botai.domain.agenda.model.BookingEstado.CONFIRMED)
               and b.fechaHoraInicio < :hasta
               and b.fechaHoraFin > :desde
             """)
-    List<BookingEntity> findOverlappingForStaff(@Param("businessId") UUID businessId,
-                                                @Param("staffMemberId") UUID staffMemberId,
+    List<BookingEntity> findOverlappingForStaff(@Param("staffMemberId") UUID staffMemberId,
                                                 @Param("desde") LocalDateTime desde,
                                                 @Param("hasta") LocalDateTime hasta);
 

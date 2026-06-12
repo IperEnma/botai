@@ -4,6 +4,9 @@ import 'agenda_json.dart';
 
 class StaffMember {
   final String id;
+  /// userId del User vinculado (null cuando es "STAFF sin cuenta").
+  /// Usado para identificar el staff propio del usuario logueado.
+  final String? userId;
   final String businessId;
   final String nombre;
   final String? rol;
@@ -23,6 +26,7 @@ class StaffMember {
 
   const StaffMember({
     required this.id,
+    this.userId,
     required this.businessId,
     required this.nombre,
     this.rol,
@@ -41,6 +45,7 @@ class StaffMember {
 
   factory StaffMember.fromJson(Map<String, dynamic> json) => StaffMember(
         id: AgendaJson.parseString(json['id']),
+        userId: AgendaJson.parseStringOrNull(json['userId']),
         businessId: AgendaJson.parseString(json['businessId']),
         nombre: AgendaJson.parseString(json['nombre']),
         rol: AgendaJson.parseStringOrNull(json['rol']),

@@ -7,7 +7,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,7 +25,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
 
     private static final String TENANT_ID = "test-tenant-notif-tmpl";
@@ -50,13 +48,13 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
         jdbc.update("DELETE FROM agenda_businesses WHERE tenant_id = ?", TENANT_ID);
         jdbc.update("DELETE FROM agenda_tenant_config WHERE tenant_id = ?", TENANT_ID);
 
-        jdbc.update("INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled) VALUES (?, TRUE)", TENANT_ID);
+        jdbc.update("INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled, public_search_enabled, loyalty_engine_enabled, auto_notifications, created_at, updated_at) VALUES (?, TRUE, TRUE, TRUE, TRUE, NOW(), NOW())", TENANT_ID);
 
         businessId = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo) VALUES (?, ?, 'Negocio Templates', TRUE)",
+                "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo, created_at, updated_at) VALUES (?, ?, 'Negocio Templates', TRUE, NOW(), NOW())",
                 businessId, TENANT_ID);
-        jdbc.update("INSERT INTO agenda_business_settings (business_id) VALUES (?)", businessId);
+        jdbc.update("INSERT INTO agenda_business_settings (business_id, hours_cancellation_limit, loyalty_min_attendances, loyalty_window_days, expiration_alert_days, expiration_alert_credits, auto_notify_enabled, require_booking_confirmation, created_at, updated_at) VALUES (?, 4, 3, 30, 7, 2, TRUE, TRUE, NOW(), NOW())", businessId);
         stubAgendaTenant(TENANT_ID);
     }
 
@@ -78,8 +76,8 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
     void listar_conPlantillasEnDB_devuelveLista() throws Exception {
         jdbc.update(
                 "INSERT INTO agenda_notification_templates " +
-                "(id, business_id, codigo, canal, titulo, cuerpo) " +
-                "VALUES (?, ?, 'EXPIRACION_PRONTO', 'IN_APP', 'Título', 'Cuerpo')",
+                "(id, business_id, codigo, canal, titulo, cuerpo, created_at, updated_at) " +
+                "VALUES (?, ?, 'EXPIRACION_PRONTO', 'IN_APP', 'Título', 'Cuerpo', NOW(), NOW())",
                 UUID.randomUUID(), businessId);
 
         mockMvc.perform(get(BASE_URL, businessId))
@@ -141,8 +139,8 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
         UUID templateId = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO agenda_notification_templates " +
-                "(id, business_id, codigo, canal, titulo, cuerpo) " +
-                "VALUES (?, ?, 'SALDO_BAJO', 'IN_APP', 'Título original', 'Cuerpo original')",
+                "(id, business_id, codigo, canal, titulo, cuerpo, created_at, updated_at) " +
+                "VALUES (?, ?, 'SALDO_BAJO', 'IN_APP', 'Título original', 'Cuerpo original', NOW(), NOW())",
                 templateId, businessId);
 
         String body = """
@@ -186,8 +184,8 @@ class NotificationTemplateControllerTest extends AbstractAgendaIntegrationTest {
         UUID templateId = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO agenda_notification_templates " +
-                "(id, business_id, codigo, canal, titulo, cuerpo) " +
-                "VALUES (?, ?, 'EXPIRACION_PRONTO', 'IN_APP', 'T', 'C')",
+                "(id, business_id, codigo, canal, titulo, cuerpo, created_at, updated_at) " +
+                "VALUES (?, ?, 'EXPIRACION_PRONTO', 'IN_APP', 'T', 'C', NOW(), NOW())",
                 templateId, businessId);
 
         mockMvc.perform(delete(BASE_URL + "/{id}", businessId, templateId))

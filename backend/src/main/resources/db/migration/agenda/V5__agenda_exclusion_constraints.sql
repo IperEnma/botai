@@ -15,7 +15,10 @@ BEGIN
     END IF;
 END $$;
 
--- Anti doble reserva por PROFESIONAL: un mismo staff no puede solaparse.
+-- Anti doble reserva por PROFESIONAL — agenda única por staff a nivel tenant.
+-- Sin business_id en el EXCLUDE: un staff multi-sucursal no puede tener dos
+-- reservas activas solapadas aunque vivan en sucursales distintas (regla de la
+-- spec: "la agenda de un profesional es única dentro del tenant").
 -- JpaBookingRepository espera este nombre para traducir la violación a BookingSlotTakenException.
 DO $$
 BEGIN
@@ -23,7 +26,6 @@ BEGIN
         ALTER TABLE agenda_bookings
             ADD CONSTRAINT excl_agenda_bookings_staff_slot
             EXCLUDE USING gist (
-                business_id     WITH =,
                 staff_member_id WITH =,
                 tsrange(fecha_hora_inicio, fecha_hora_fin, '[)') WITH &&
             ) WHERE (estado IN ('PENDING', 'CONFIRMED') AND staff_member_id IS NOT NULL);

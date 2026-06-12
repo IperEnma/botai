@@ -161,8 +161,8 @@ public class CreateBookingUseCase {
         CreditDomainService.CreditDebit debit =
                 creditService.descontarPorReserva(locked, plan, null, now);
 
-        // 7. Disponibilidad de slot.
-        bookingService.validarDisponibilidad(businessId, staffMemberId, fechaHoraInicio, fechaHoraFin);
+        // 7. Disponibilidad de slot (no-solapamiento global del staff a nivel tenant).
+        bookingService.validarDisponibilidad(staffMemberId, fechaHoraInicio, fechaHoraFin);
 
         // 8. Construir booking CONFIRMED y guardar.
         Booking confirmed = bookingService.construirConfirmada(

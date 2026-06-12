@@ -86,13 +86,13 @@ class _RoleCards extends StatelessWidget {
         MemberType.profesionalConCuenta,
         'Profesional con cuenta',
         'Puede iniciar sesión y gestionar su agenda.',
-        true,
+        false,
       ),
       (
         MemberType.recepcion,
         'Recepción con cuenta',
         'Puede gestionar cualquier turno del negocio.',
-        true,
+        false,
       ),
     ];
 

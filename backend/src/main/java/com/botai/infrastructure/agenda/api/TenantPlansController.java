@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -68,6 +69,7 @@ public class TenantPlansController {
 
     @PostMapping
     @Operation(summary = "Crea un plan para el negocio")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<PlanResponse> create(@PathVariable("businessId") UUID businessId,
                                                @Valid @RequestBody CreatePlanRequest request) {
         String tenantId = currentTenant.requireTenantId();
@@ -87,6 +89,7 @@ public class TenantPlansController {
 
     @PutMapping("/{planId}")
     @Operation(summary = "Actualiza un plan (PATCH: null no cambia el campo)")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public PlanResponse update(@PathVariable("businessId") UUID businessId,
                                @PathVariable("planId") UUID planId,
                                @Valid @RequestBody UpdatePlanRequest request) {
@@ -106,6 +109,7 @@ public class TenantPlansController {
 
     @DeleteMapping("/{planId}")
     @Operation(summary = "Baja lógica del plan (activo=false)")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<Void> delete(@PathVariable("businessId") UUID businessId,
                                        @PathVariable("planId") UUID planId) {
         String tenantId = currentTenant.requireTenantId();
@@ -115,6 +119,7 @@ public class TenantPlansController {
 
     @GetMapping
     @Operation(summary = "Lista planes del negocio")
+    @PreAuthorize("@authz.canViewBusiness(#businessId)")
     public List<PlanResponse> list(@PathVariable("businessId") UUID businessId,
                                    @Parameter(description = "Si true, solo planes con activo=true")
                                    @RequestParam(name = "onlyActive", defaultValue = "false") boolean onlyActive) {
@@ -126,6 +131,7 @@ public class TenantPlansController {
 
     @GetMapping("/{planId}")
     @Operation(summary = "Detalle de un plan del negocio")
+    @PreAuthorize("@authz.canViewBusiness(#businessId)")
     public PlanResponse detail(@PathVariable("businessId") UUID businessId,
                                @PathVariable("planId") UUID planId) {
         String tenantId = currentTenant.requireTenantId();

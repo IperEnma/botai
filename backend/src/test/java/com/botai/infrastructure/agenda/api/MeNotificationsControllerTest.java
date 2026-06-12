@@ -5,7 +5,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -17,7 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class MeNotificationsControllerTest extends AbstractAgendaIntegrationTest {
 
     private static final String USER_ID_HEADER = "X-User-Id";
@@ -35,6 +33,7 @@ class MeNotificationsControllerTest extends AbstractAgendaIntegrationTest {
         businessId = UUID.randomUUID();
 
         jdbc.update("DELETE FROM agenda_notifications WHERE user_id = ?", userId);
+        stubAllAuthChecks();
     }
 
     @Test
@@ -81,8 +80,8 @@ class MeNotificationsControllerTest extends AbstractAgendaIntegrationTest {
     void listar_devuelveCamposEsperados() throws Exception {
         UUID notifId = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO agenda_notifications (id, business_id, user_id, canal, titulo, cuerpo, estado) " +
-                "VALUES (?, ?, ?, 'IN_APP', 'Título test', 'Cuerpo test', 'PENDING')",
+                "INSERT INTO agenda_notifications (id, business_id, user_id, canal, titulo, cuerpo, estado, created_at, updated_at) " +
+                "VALUES (?, ?, ?, 'IN_APP', 'Título test', 'Cuerpo test', 'PENDING', NOW(), NOW())",
                 notifId, businessId, userId);
 
         mockMvc.perform(get(BASE_URL).header(USER_ID_HEADER, userId))
@@ -100,8 +99,8 @@ class MeNotificationsControllerTest extends AbstractAgendaIntegrationTest {
 
     private void insertNotificationForUser(UUID id, UUID targetUserId, String estado) {
         jdbc.update(
-                "INSERT INTO agenda_notifications (id, business_id, user_id, canal, titulo, cuerpo, estado) " +
-                "VALUES (?, ?, ?, 'IN_APP', 'Notif', 'Contenido', ?)",
+                "INSERT INTO agenda_notifications (id, business_id, user_id, canal, titulo, cuerpo, estado, created_at, updated_at) " +
+                "VALUES (?, ?, ?, 'IN_APP', 'Notif', 'Contenido', ?, NOW(), NOW())",
                 id, businessId, targetUserId, estado);
     }
 }

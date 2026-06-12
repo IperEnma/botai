@@ -5,7 +5,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -18,7 +17,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class MeBookingsControllerTest extends AbstractAgendaIntegrationTest {
 
     private static final String TENANT_ID = "test-tenant-bookings";
@@ -45,23 +43,24 @@ class MeBookingsControllerTest extends AbstractAgendaIntegrationTest {
         jdbc.update("DELETE FROM agenda_users WHERE tenant_id = ?", TENANT_ID);
         jdbc.update("DELETE FROM agenda_tenant_config WHERE tenant_id = ?", TENANT_ID);
 
-        jdbc.update("INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled) VALUES (?, TRUE)", TENANT_ID);
+        jdbc.update("INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled, public_search_enabled, loyalty_engine_enabled, auto_notifications, created_at, updated_at) VALUES (?, TRUE, TRUE, TRUE, TRUE, NOW(), NOW())", TENANT_ID);
 
         businessId = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo) VALUES (?, ?, 'Negocio Bookings', TRUE)",
+                "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo, created_at, updated_at) VALUES (?, ?, 'Negocio Bookings', TRUE, NOW(), NOW())",
                 businessId, TENANT_ID);
-        jdbc.update("INSERT INTO agenda_business_settings (business_id) VALUES (?)", businessId);
+        jdbc.update("INSERT INTO agenda_business_settings (business_id, hours_cancellation_limit, loyalty_min_attendances, loyalty_window_days, expiration_alert_days, expiration_alert_credits, auto_notify_enabled, require_booking_confirmation, created_at, updated_at) VALUES (?, 4, 3, 30, 7, 2, TRUE, TRUE, NOW(), NOW())", businessId);
 
         userId = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO agenda_users (id, tenant_id, nombre, tipo_usuario) VALUES (?, ?, 'Usuario Test', 'CLIENT')",
+                "INSERT INTO agenda_users (id, tenant_id, nombre, tipo_usuario, activo, created_at, updated_at) VALUES (?, ?, 'Usuario Test', 'CLIENT', TRUE, NOW(), NOW())",
                 userId, TENANT_ID);
+        stubAgendaTenant(TENANT_ID);
     }
 
     @Test
     void listarMisReservas_sinReservas_devuelveListaVacia() throws Exception {
-        mockMvc.perform(get("/api/agenda/me/tenants/{t}/businesses/{b}/bookings", TENANT_ID, businessId)
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/bookings", businessId)
                         .header(USER_ID_HEADER, userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
@@ -70,7 +69,7 @@ class MeBookingsControllerTest extends AbstractAgendaIntegrationTest {
     @Test
     void listarMisReservas_businessInexistente_devuelve404() throws Exception {
         UUID inexistente = UUID.randomUUID();
-        mockMvc.perform(get("/api/agenda/me/tenants/{t}/businesses/{b}/bookings", TENANT_ID, inexistente)
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/bookings", inexistente)
                         .header(USER_ID_HEADER, userId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("BUSINESS_NOT_FOUND"));
@@ -80,17 +79,17 @@ class MeBookingsControllerTest extends AbstractAgendaIntegrationTest {
     void listarMisReservas_conBookingsEnDB_devuelveLista() throws Exception {
         UUID serviceId = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO agenda_services (id, business_id, nombre, duracion_min, activo) VALUES (?, ?, 'Corte', 30, TRUE)",
+                "INSERT INTO agenda_services (id, business_id, nombre, duracion_min, activo, created_at, updated_at) VALUES (?, ?, 'Corte', 30, TRUE, NOW(), NOW())",
                 serviceId, businessId);
 
         UUID bookingId = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO agenda_bookings (id, business_id, service_id, user_id, " +
-                "fecha_hora_inicio, fecha_hora_fin, estado) " +
-                "VALUES (?, ?, ?, ?, '2027-01-10 10:00', '2027-01-10 10:30', 'CONFIRMED')",
+                "fecha_hora_inicio, fecha_hora_fin, estado, created_at, updated_at) " +
+                "VALUES (?, ?, ?, ?, '2027-01-10 10:00', '2027-01-10 10:30', 'CONFIRMED', NOW(), NOW())",
                 bookingId, businessId, serviceId, userId);
 
-        mockMvc.perform(get("/api/agenda/me/tenants/{t}/businesses/{b}/bookings", TENANT_ID, businessId)
+        mockMvc.perform(get("/api/agenda/me/businesses/{b}/bookings", businessId)
                         .header(USER_ID_HEADER, userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
@@ -101,8 +100,8 @@ class MeBookingsControllerTest extends AbstractAgendaIntegrationTest {
     @Test
     void cancelarReservaInexistente_devuelve404() throws Exception {
         UUID inexistente = UUID.randomUUID();
-        mockMvc.perform(delete("/api/agenda/me/tenants/{t}/businesses/{b}/bookings/{id}",
-                        TENANT_ID, businessId, inexistente)
+        mockMvc.perform(delete("/api/agenda/me/businesses/{b}/bookings/{id}",
+                        businessId, inexistente)
                         .header(USER_ID_HEADER, userId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("BOOKING_NOT_FOUND"));
@@ -112,18 +111,18 @@ class MeBookingsControllerTest extends AbstractAgendaIntegrationTest {
     void cancelarReservaCancelada_devuelve409() throws Exception {
         UUID serviceId = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO agenda_services (id, business_id, nombre, duracion_min, activo) VALUES (?, ?, 'Masaje', 60, TRUE)",
+                "INSERT INTO agenda_services (id, business_id, nombre, duracion_min, activo, created_at, updated_at) VALUES (?, ?, 'Masaje', 60, TRUE, NOW(), NOW())",
                 serviceId, businessId);
 
         UUID bookingId = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO agenda_bookings (id, business_id, service_id, user_id, " +
-                "fecha_hora_inicio, fecha_hora_fin, estado) " +
-                "VALUES (?, ?, ?, ?, '2027-06-10 14:00', '2027-06-10 15:00', 'CANCELLED')",
+                "fecha_hora_inicio, fecha_hora_fin, estado, created_at, updated_at) " +
+                "VALUES (?, ?, ?, ?, '2027-06-10 14:00', '2027-06-10 15:00', 'CANCELLED', NOW(), NOW())",
                 bookingId, businessId, serviceId, userId);
 
-        mockMvc.perform(delete("/api/agenda/me/tenants/{t}/businesses/{b}/bookings/{id}",
-                        TENANT_ID, businessId, bookingId)
+        mockMvc.perform(delete("/api/agenda/me/businesses/{b}/bookings/{id}",
+                        businessId, bookingId)
                         .header(USER_ID_HEADER, userId))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("BOOKING_NOT_CANCELLABLE"));

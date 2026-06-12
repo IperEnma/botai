@@ -5,7 +5,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,7 +19,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest {
 
     private static final String TENANT_ID = "test-tenant-settings";
@@ -38,11 +36,11 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
         jdbc.update("DELETE FROM agenda_businesses WHERE tenant_id = ?", TENANT_ID);
         jdbc.update("DELETE FROM agenda_tenant_config WHERE tenant_id = ?", TENANT_ID);
 
-        jdbc.update("INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled) VALUES (?, TRUE)", TENANT_ID);
+        jdbc.update("INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled, public_search_enabled, loyalty_engine_enabled, auto_notifications, created_at, updated_at) VALUES (?, TRUE, TRUE, TRUE, TRUE, NOW(), NOW())", TENANT_ID);
 
         businessId = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo) VALUES (?, ?, 'Negocio Settings', TRUE)",
+                "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo, created_at, updated_at) VALUES (?, ?, 'Negocio Settings', TRUE, NOW(), NOW())",
                 businessId, TENANT_ID);
         stubAgendaTenant(TENANT_ID);
     }
@@ -65,8 +63,8 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
         jdbc.update(
                 "INSERT INTO agenda_business_settings " +
                 "(business_id, hours_cancellation_limit, loyalty_min_attendances, loyalty_window_days, " +
-                " expiration_alert_days, expiration_alert_credits, auto_notify_enabled) " +
-                "VALUES (?, 8, 10, 90, 3, 1, FALSE)",
+                " expiration_alert_days, expiration_alert_credits, auto_notify_enabled, created_at, updated_at) " +
+                "VALUES (?, 8, 10, 90, 3, 1, FALSE, NOW(), NOW())",
                 businessId);
 
         mockMvc.perform(get("/api/agenda/me/businesses/{b}/settings", businessId))
@@ -81,7 +79,7 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
 
     @Test
     void actualizarSettings_devuelve200YPersiste() throws Exception {
-        jdbc.update("INSERT INTO agenda_business_settings (business_id) VALUES (?)", businessId);
+        jdbc.update("INSERT INTO agenda_business_settings (business_id, hours_cancellation_limit, loyalty_min_attendances, loyalty_window_days, expiration_alert_days, expiration_alert_credits, auto_notify_enabled, require_booking_confirmation, created_at, updated_at) VALUES (?, 4, 3, 30, 7, 2, TRUE, TRUE, NOW(), NOW())", businessId);
 
         String body = """
                 {
@@ -90,7 +88,8 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
                   "loyaltyWindowDays": 60,
                   "expirationAlertDays": 14,
                   "expirationAlertCredits": 3,
-                  "autoNotifyEnabled": false
+                  "autoNotifyEnabled": false,
+                  "requireBookingConfirmation": true
                 }
                 """;
 
@@ -119,10 +118,11 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
                 {
                   "hoursCancellationLimit": 2,
                   "loyaltyMinAttendances": 3,
-                  "loyaltyWindowDays": 30,
+                  "loyaltyWindowDays": 60,
                   "expirationAlertDays": 7,
                   "expirationAlertCredits": 2,
-                  "autoNotifyEnabled": true
+                  "autoNotifyEnabled": true,
+                  "requireBookingConfirmation": false
                 }
                 """;
 

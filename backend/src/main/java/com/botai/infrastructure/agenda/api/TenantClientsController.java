@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,6 +30,7 @@ import java.util.UUID;
 @RequestMapping("/api/agenda/me/businesses/{businessId}/clients")
 @Tag(name = "Agenda Me · Clients", description = "Clientes del negocio (panel tenant autenticado)")
 @Validated
+@PreAuthorize("@authz.canManageClientsCrm(#businessId)")
 public class TenantClientsController {
 
     private final BusinessRepository businessRepository;

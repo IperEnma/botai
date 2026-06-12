@@ -4,10 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
+import '../../../providers/agenda/me_profile_provider.dart';
 import '../../../providers/agenda/selected_agenda_business_provider.dart';
-import '../../../providers/agenda/tenant_admin_resolved_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
-import '../../../services/agenda_api_exception.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../navigation/agenda_tenant_nav.dart';
 import 'tenant_home_screen.dart';
@@ -26,33 +25,25 @@ class AgendaPanelScreen extends ConsumerWidget {
       return const Scaffold(body: AgendaLoadingView());
     }
 
-    final async = ref.watch(tenantAdminResolvedProvider);
+    final async = ref.watch(meProfileProvider);
 
     return async.when(
       loading: () => const Scaffold(
         backgroundColor: Color(0xFFFBFAF7),
         body: AgendaLoadingView(),
       ),
-      error: (e, _) {
-        if (e is TenantAdminResolveException &&
-            e.code == 'NOT_AUTHENTICATED') {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/login');
-          });
-          return const Scaffold(body: AgendaLoadingView());
-        }
-        final is401 = e is AgendaApiException && e.status == 401;
-        if (is401) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/agenda/register');
-          });
-          return const Scaffold(
-            backgroundColor: Color(0xFFFBFAF7),
-            body: AgendaLoadingView(),
-          );
-        }
-        final notFound = e is AgendaApiException && e.isNotFound;
-        if (notFound) {
+      error: (e, _) => Scaffold(
+        backgroundColor: const Color(0xFFFBFAF7),
+        body: AgendaErrorView(
+          message: e.toString(),
+          onRetry: () => ref.invalidate(meProfileProvider),
+        ),
+      ),
+      data: (profile) {
+        // Sin tenant resuelto: usuario autenticado en Google pero todavía sin
+        // cuenta Agenda (caso owner nuevo). Pre-llenar registro con sus datos
+        // de Google y mandarlo al alta de negocio.
+        if (profile.tenantId == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (!context.mounted) return;
             final authUser = ref.read(authStateProvider).user;
@@ -73,16 +64,8 @@ class AgendaPanelScreen extends ConsumerWidget {
             body: AgendaLoadingView(),
           );
         }
-        return Scaffold(
-          backgroundColor: const Color(0xFFFBFAF7),
-          body: AgendaErrorView(
-            message: e.toString(),
-            onRetry: () => ref.invalidate(tenantAdminResolvedProvider),
-          ),
-        );
-      },
-      data: (ctx) {
-        final bizState = ref.watch(businessesProvider(ctx.tenantId));
+        final tenantId = profile.tenantId!;
+        final bizState = ref.watch(businessesProvider(tenantId));
 
         if (bizState.isLoading) {
           return const Scaffold(
@@ -97,7 +80,7 @@ class AgendaPanelScreen extends ConsumerWidget {
             body: AgendaErrorView(
               message: bizState.error!,
               onRetry: () =>
-                  ref.read(businessesProvider(ctx.tenantId).notifier).load(),
+                  ref.read(businessesProvider(tenantId).notifier).load(),
             ),
           );
         }
@@ -114,6 +97,18 @@ class AgendaPanelScreen extends ConsumerWidget {
 
         var selectedId = ref.watch(selectedAgendaBusinessIdProvider);
         final ids = bizState.items.map((b) => b.id).toSet();
+        // STAFF: forzar la sucursal seleccionada a una donde tenga rol.
+        if (profile.isStaffOnly) {
+          final allowed = profile.staffBusinessIds.intersection(ids);
+          if (allowed.isNotEmpty &&
+              (selectedId == null || !allowed.contains(selectedId))) {
+            selectedId = allowed.first;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref.read(selectedAgendaBusinessIdProvider.notifier).state =
+                  selectedId;
+            });
+          }
+        }
         if (selectedId == null || !ids.contains(selectedId)) {
           selectedId = bizState.items.first.id;
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -122,10 +117,26 @@ class AgendaPanelScreen extends ConsumerWidget {
           });
         }
 
+        // STAFF puro: el "Inicio" del panel no tiene sentido — saltarlo a la
+        // sección Agenda directamente.
+        final currentSection = GoRouterState.of(context)
+                .uri
+                .queryParameters['section'] ??
+            '';
+        if (profile.isStaffOnly && currentSection != 'agenda') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) context.go('/agenda/panel?section=agenda');
+          });
+          return const Scaffold(
+            backgroundColor: Color(0xFFFBFAF7),
+            body: AgendaLoadingView(),
+          );
+        }
+
         return TenantNavScope(
           useMeRoutes: true,
           child: TenantHomeScreen(
-            tenantId: ctx.tenantId,
+            tenantId: tenantId,
             businessId: selectedId,
           ),
         );

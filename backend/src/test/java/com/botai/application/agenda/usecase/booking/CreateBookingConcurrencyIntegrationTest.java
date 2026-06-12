@@ -68,7 +68,7 @@ class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationT
         jdbc.update("DELETE FROM agenda_users WHERE tenant_id = ?", TENANT_ID);
         jdbc.update("DELETE FROM agenda_tenant_config WHERE tenant_id = ?", TENANT_ID);
 
-        jdbc.update("INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled) VALUES (?, TRUE)", TENANT_ID);
+        jdbc.update("INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled, public_search_enabled, loyalty_engine_enabled, auto_notifications, created_at, updated_at) VALUES (?, TRUE, TRUE, TRUE, TRUE, NOW(), NOW())", TENANT_ID);
 
         userId = UUID.randomUUID();
         businessId = UUID.randomUUID();
@@ -77,27 +77,27 @@ class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationT
         subscriptionId = UUID.randomUUID();
 
         jdbc.update(
-                "INSERT INTO agenda_users (id, tenant_id, nombre, tipo_usuario) VALUES (?, ?, ?, 'CLIENT')",
+                "INSERT INTO agenda_users (id, tenant_id, nombre, tipo_usuario, activo, created_at, updated_at) VALUES (?, ?, ?, 'CLIENT', TRUE, NOW(), NOW())",
                 userId, TENANT_ID, "User Concurrencia"
         );
         jdbc.update(
-                "INSERT INTO agenda_businesses (id, tenant_id, nombre) VALUES (?, ?, ?)",
+                "INSERT INTO agenda_businesses (id, tenant_id, nombre, activo, created_at, updated_at) VALUES (?, ?, ?, TRUE, NOW(), NOW())",
                 businessId, TENANT_ID, "Negocio Concurrencia"
         );
         jdbc.update(
-                "INSERT INTO agenda_services (id, business_id, nombre, duracion_min) VALUES (?, ?, ?, ?)",
+                "INSERT INTO agenda_services (id, business_id, nombre, duracion_min, activo, created_at, updated_at) VALUES (?, ?, ?, ?, TRUE, NOW(), NOW())",
                 serviceId, businessId, "Servicio 30min", 30
         );
         jdbc.update(
-                "INSERT INTO agenda_plans (id, business_id, nombre_plan, tipo, total_creditos, validez_dias, precio, activo) " +
-                        "VALUES (?, ?, ?, 'POR_CREDITOS', 10, 30, 1000, TRUE)",
+                "INSERT INTO agenda_plans (id, business_id, nombre_plan, tipo, total_creditos, validez_dias, precio, activo, created_at, updated_at) " +
+                        "VALUES (?, ?, ?, 'POR_CREDITOS', 10, 30, 1000, TRUE, NOW(), NOW())",
                 planId, businessId, "Plan 10 créditos"
         );
         LocalDateTime now = LocalDateTime.now();
         jdbc.update(
                 "INSERT INTO agenda_user_subscriptions " +
-                        "(id, user_id, plan_id, business_id, saldo_actual, fecha_inicio, fecha_expiracion, estado) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')",
+                        "(id, user_id, plan_id, business_id, saldo_actual, fecha_inicio, fecha_expiracion, estado, created_at, updated_at) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', NOW(), NOW())",
                 subscriptionId, userId, planId, businessId, 1,
                 now.minusDays(1), now.plusDays(30)
         );
@@ -261,7 +261,7 @@ class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationT
         UUID subscriptionId2 = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now();
 
-        jdbc.update("INSERT INTO agenda_users (id, tenant_id, nombre, tipo_usuario) VALUES (?, ?, ?, 'CLIENT')",
+        jdbc.update("INSERT INTO agenda_users (id, tenant_id, nombre, tipo_usuario, activo, created_at, updated_at) VALUES (?, ?, ?, 'CLIENT', TRUE, NOW(), NOW())",
                 userId2, TENANT_ID, "User2 Concurrencia");
         jdbc.update("INSERT INTO agenda_plans (id, business_id, nombre_plan, tipo, total_creditos, validez_dias, precio, activo) " +
                         "VALUES (?, ?, ?, 'POR_CREDITOS', 10, 30, 1000, TRUE)",

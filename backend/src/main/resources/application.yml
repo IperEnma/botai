@@ -115,6 +115,19 @@ idempotency:
 notifications:
   scheduled-cron: "0 0 9 * * *"
 
+# -----------------------------------------------------------------------------
+# Mail (invitaciones de equipo y bienvenida a admins)
+# provider: log = solo loguea (dev/CI). resend = envía vía Resend REST API.
+# -----------------------------------------------------------------------------
+mail:
+  provider: ${MAIL_PROVIDER:log}
+  from: ${MAIL_FROM:onboarding@resend.dev}
+  from-name: ${MAIL_FROM_NAME:Botai Agenda}
+  login-path: ${MAIL_LOGIN_PATH:/login}
+  resend:
+    api-url: ${RESEND_API_URL:https://api.resend.com/emails}
+    api-key: ${RESEND_API_KEY:}
+
 schedulers:
   enabled: ${APP_SCHEDULERS_ENABLED:true}
 

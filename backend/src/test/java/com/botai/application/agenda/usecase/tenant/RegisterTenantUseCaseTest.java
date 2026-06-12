@@ -2,6 +2,7 @@ package com.botai.application.agenda.usecase.tenant;
 
 import com.botai.application.agenda.dto.RegisterTenantRequest;
 import com.botai.application.agenda.dto.RegisterTenantResponse;
+import com.botai.application.agenda.usecase.rbac.AgendaRoleBootstrapService;
 import com.botai.domain.agenda.exception.DuplicateTenantEmailException;
 import com.botai.domain.agenda.exception.DuplicateTenantNumeroException;
 import com.botai.domain.agenda.model.Business;
@@ -45,6 +46,7 @@ class RegisterTenantUseCaseTest {
     private CategoryRepository categoryRepo;
     private BusinessCategoryRepository businessCategoryRepo;
     private BotWorkspaceRegistry botWorkspaceRegistry;
+    private AgendaRoleBootstrapService roleBootstrap;
 
     private RegisterTenantUseCase useCase;
 
@@ -58,6 +60,7 @@ class RegisterTenantUseCaseTest {
         categoryRepo = mock(CategoryRepository.class);
         businessCategoryRepo = mock(BusinessCategoryRepository.class);
         botWorkspaceRegistry = mock(BotWorkspaceRegistry.class);
+        roleBootstrap = mock(AgendaRoleBootstrapService.class);
 
         useCase = new RegisterTenantUseCase(
                 tenantAccountRepo,
@@ -67,7 +70,8 @@ class RegisterTenantUseCaseTest {
                 businessSettingsRepo,
                 categoryRepo,
                 businessCategoryRepo,
-                botWorkspaceRegistry
+                botWorkspaceRegistry,
+                roleBootstrap
         );
 
         when(tenantAccountRepo.existsByEmail(anyString())).thenReturn(false);

@@ -15,6 +15,15 @@ public interface UserRepository {
 
     Optional<User> findByTenantIdAndEmail(String tenantId, String email);
 
+    /**
+     * Resuelve un usuario por email global (sin tenant).
+     *
+     * <p>Usado por {@code AgendaPrincipalLoader} para autenticar miembros
+     * invitados — el JWT no matchea {@code TenantAccount} pero sí existe un
+     * {@code User} cuyo email coincide y vive dentro de un tenant.</p>
+     */
+    Optional<User> findByEmail(String email);
+
     /** Cliente activo cuyo teléfono coincide tras normalización canónica. */
     Optional<User> findClientByTenantIdAndTelefono(String tenantId, String telefonoNormalized);
 

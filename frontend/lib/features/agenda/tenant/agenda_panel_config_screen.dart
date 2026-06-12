@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../providers/agenda/me_profile_provider.dart';
 import '../../../providers/agenda/selected_agenda_business_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../../configuracion/configuracion_page.dart';
@@ -14,6 +15,13 @@ class AgendaPanelConfigScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // STAFF puro no gestiona configuración del negocio — redirige a su agenda.
+    if (readMeProfileOrEmpty(ref).isStaffOnly) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.go('/agenda/panel?section=agenda');
+      });
+      return const Scaffold(body: AgendaLoadingView());
+    }
     final businessId = ref.watch(selectedAgendaBusinessIdProvider);
     if (businessId == null || businessId.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

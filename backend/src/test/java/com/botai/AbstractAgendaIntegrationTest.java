@@ -1,50 +1,40 @@
 package com.botai;
 
 import com.botai.ChatbotEngineApplication;
+import com.botai.application.agenda.security.AgendaAuthorizationService;
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 /**
  * Base de los tests de integración del módulo AGENDA.
  *
- * <p>Levanta un PostgreSQL 16 en Testcontainers y redirige la datasource de
- * Spring Boot a ese contenedor. Flyway corre las migraciones bajo
- * {@code classpath:db/migration/agenda/} automáticamente al arrancar el contexto
- * gracias a {@code AgendaFlywayConfig}.</p>
+ * <p>Usa el patrón Singleton Container: el contenedor PostgreSQL se inicia
+ * UNA VEZ por JVM (en el bloque static) y nunca se detiene entre clases.
+ * Esto garantiza que {@code @DynamicPropertySource} siempre registre la misma
+ * URL y que el Spring context cache funcione correctamente sin timeouts de
+ * HikariCP al rotar puertos.</p>
  *
- * <p><b>Por qué {@code ddl-auto=update}:</b> Hibernate crea/actualiza bot y agenda desde entidades;
- * Flyway solo aplica semilla y complementos SQL (EXCLUDE, idempotencia).</p>
- *
- * <p><b>Opt-in para ejecutarse:</b> estos tests solo corren si la variable de
- * entorno {@code AGENDA_IT=true}. Sin eso quedan <em>skipped</em>. Motivo: no
- * todos los entornos tienen Docker instalado (ni CI ni máquinas de dev con PATH
- * raro) y no queremos hacer fallar el build. Para correrlos localmente:
- * <pre>
- *   # Windows PowerShell
- *   $env:AGENDA_IT="true"; mvn test
- *   # bash
- *   AGENDA_IT=true mvn test
- * </pre></p>
+ * <p><b>Opt-in para ejecutarse:</b> requiere variable de entorno
+ * {@code AGENDA_IT=true} y Docker disponible en el PATH.</p>
  */
 @SpringBootTest(
         classes = ChatbotEngineApplication.class,
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
 @ActiveProfiles("test")
-@Testcontainers(disabledWithoutDocker = true)
 @EnabledIfEnvironmentVariable(
         named = "AGENDA_IT",
         matches = "true",
@@ -55,20 +45,48 @@ public abstract class AbstractAgendaIntegrationTest {
     @MockBean
     protected AgendaCurrentTenantService agendaCurrentTenantService;
 
-    /** Resuelve el tenant en rutas {@code /api/agenda/me/**} durante tests de integración. */
+    @MockBean
+    protected AgendaAuthorizationService authz;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private ChatModel chatModel;
+
+    /** Resuelve el tenant y todos los checks de autorización para tests de integración. */
     protected void stubAgendaTenant(String tenantId) {
         when(agendaCurrentTenantService.requireTenantId()).thenReturn(tenantId);
         when(agendaCurrentTenantService.findTenantId()).thenReturn(Optional.of(tenantId));
+        stubAllAuthChecks();
     }
 
-    @Container
+    /** Stubea todos los checks de {@code @PreAuthorize} con valores permisivos. */
+    protected void stubAllAuthChecks() {
+        when(authz.isTenantAdmin()).thenReturn(true);
+        when(authz.isOwner()).thenReturn(true);
+        when(authz.isPlatformAdmin()).thenReturn(false);
+        when(authz.isAuthenticatedInTenant()).thenReturn(true);
+        when(authz.canManageTenant()).thenReturn(true);
+        when(authz.canManageBusiness(any())).thenReturn(true);
+        when(authz.canViewBusiness(any())).thenReturn(true);
+        when(authz.canManageAgenda(any())).thenReturn(true);
+        when(authz.canViewAgenda(any())).thenReturn(true);
+        when(authz.canManageClientsCrm(any())).thenReturn(true);
+        when(authz.canManageBookingFor(any(), any())).thenReturn(true);
+        when(authz.isCurrentUser(any())).thenReturn(true);
+        when(authz.canInviteRole(any())).thenReturn(true);
+        when(authz.tenantOwnsBusiness(any())).thenReturn(true);
+    }
+
     @SuppressWarnings("resource")
     protected static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>(DockerImageName.parse("pgvector/pgvector:pg16"))
                     .withDatabaseName("agenda_test")
                     .withUsername("test")
-                    .withPassword("test")
-                    .withReuse(true);
+                    .withPassword("test");
+
+    static {
+        POSTGRES.start();
+    }
 
     @DynamicPropertySource
     static void registerDatasource(DynamicPropertyRegistry registry) {

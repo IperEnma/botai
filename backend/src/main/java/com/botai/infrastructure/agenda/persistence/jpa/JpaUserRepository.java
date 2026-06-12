@@ -44,6 +44,12 @@ public class JpaUserRepository implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByEmail(String email) {
+        if (email == null || email.isBlank()) return Optional.empty();
+        return jpa.findFirstByEmailOrderByCreatedAtAsc(email).map(UserMapper::toDomain);
+    }
+
+    @Override
     public Optional<User> findClientByTenantIdAndTelefono(String tenantId, String telefonoNormalized) {
         if (tenantId == null || tenantId.isBlank() || telefonoNormalized == null || telefonoNormalized.isBlank()) {
             return Optional.empty();

@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,6 +49,7 @@ public class TenantBusinessPhotosController {
 
     @GetMapping
     @Operation(summary = "Lista las fotos del negocio (máx 10)")
+    @PreAuthorize("@authz.canViewBusiness(#businessId)")
     public List<BusinessPhotoResponse> list(@PathVariable UUID businessId) {
         String tenantId = currentTenant.requireTenantId();
         return photosUseCase.list(tenantId, businessId).stream()
@@ -57,6 +59,7 @@ public class TenantBusinessPhotosController {
 
     @PostMapping
     @Operation(summary = "Agrega una foto al negocio (máx 10)")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<BusinessPhotoResponse> add(@PathVariable UUID businessId,
                                                      @Valid @RequestBody AddBusinessPhotoRequest request) {
         String tenantId = currentTenant.requireTenantId();
@@ -70,6 +73,7 @@ public class TenantBusinessPhotosController {
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Sube una foto de trabajo y la agrega a la galería (máx 10)")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<BusinessPhotoResponse> upload(
             @PathVariable UUID businessId,
             @RequestParam("file") MultipartFile file) throws IOException {
@@ -92,6 +96,7 @@ public class TenantBusinessPhotosController {
 
     @DeleteMapping("/{photoId}")
     @Operation(summary = "Elimina una foto del negocio")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<Void> delete(@PathVariable UUID businessId,
                                        @PathVariable UUID photoId) {
         String tenantId = currentTenant.requireTenantId();

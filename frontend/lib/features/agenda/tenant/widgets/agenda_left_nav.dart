@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../providers/agenda/me_profile_provider.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../register/konecta_tokens.dart';
 
@@ -37,6 +38,9 @@ class AgendaLeftNav extends ConsumerWidget {
     final loc = GoRouterState.of(context).matchedLocation;
     final section =
         GoRouterState.of(context).uri.queryParameters['section'] ?? '';
+    // STAFF puro: solo ve la sección "Agenda" — el resto se gatea backend con
+    // 403/404 y mostrarlo solo serviría para frustrar al usuario.
+    final staffOnly = readMeProfileOrEmpty(ref).isStaffOnly;
 
     final selectedInicio = (loc == '/agenda/panel' || loc.startsWith('/agenda/panel')) &&
         !loc.contains('/section/') &&
@@ -51,6 +55,7 @@ class AgendaLeftNav extends ConsumerWidget {
     final selectedEquipo = loc.contains('/section/staff');
     final selectedClientes = loc.contains('/section/clientes');
     final selectedConfig = loc.contains('/config');
+    final selectedMisHorarios = loc == '/agenda/panel/mis-horarios';
 
     return Container(
       width: kAgendaNavWidth,
@@ -73,70 +78,79 @@ class AgendaLeftNav extends ConsumerWidget {
           const SizedBox(height: 28),
           // Nav items
           AgendaNavItem(
-            icon: Icons.home_outlined,
-            label: 'Inicio',
-            selected: selectedInicio,
-            onTap: () => _go(context, '/agenda/panel'),
-          ),
-          AgendaNavItem(
-            icon: Icons.smart_toy_outlined,
-            label: 'Mis bots',
-            selected: selectedBots,
-            onTap: () => _go(context, '/bots'),
-          ),
-          AgendaNavItem(
             icon: Icons.calendar_today_outlined,
             label: 'Agenda',
-            selected: selectedAgenda,
+            selected: selectedAgenda || (staffOnly && selectedInicio),
             onTap: () => _go(context, '/agenda/panel?section=agenda'),
           ),
-          AgendaNavItem(
-            icon: Icons.people_outline,
-            label: 'Clientes',
-            selected: selectedClientes,
-            onTap: () => _go(context, '/agenda/panel/section/clientes'),
-          ),
-          AgendaNavItem(
-            icon: Icons.schedule_outlined,
-            label: 'Horarios',
-            selected: selectedHorarios,
-            onTap: () => _go(context, '/agenda/panel/section/hours'),
-          ),
-          AgendaNavItem(
-            icon: Icons.palette_outlined,
-            label: 'Estilos',
-            selected: selectedEstilos,
-            onTap: () => _go(context, '/agenda/panel/section/styles'),
-          ),
-          AgendaNavItem(
-            icon: Icons.room_service_outlined,
-            label: 'Servicios',
-            selected: selectedServicios,
-            onTap: () => _go(context, '/agenda/panel/section/services'),
-          ),
-          AgendaNavItem(
-            icon: Icons.people_outline,
-            label: 'Equipo',
-            selected: selectedEquipo,
-            onTap: () => _go(context, '/agenda/panel/section/staff'),
-          ),
-          AgendaNavItem(
-            icon: Icons.settings_outlined,
-            label: 'Configuración',
-            selected: selectedConfig,
-            onTap: () => _go(context, '/agenda/panel/config'),
-          ),
-          const SizedBox(height: 8),
-          const AgendaNavItem(
-            icon: Icons.card_membership_outlined,
-            label: 'Planes',
-            badge: 'PRONTO',
-          ),
-          const AgendaNavItem(
-            icon: Icons.loyalty_outlined,
-            label: 'Fidelizaciones',
-            badge: 'PRONTO',
-          ),
+          if (staffOnly)
+            AgendaNavItem(
+              icon: Icons.schedule_outlined,
+              label: 'Mis horarios',
+              selected: selectedMisHorarios,
+              onTap: () => _go(context, '/agenda/panel/mis-horarios'),
+            ),
+          if (!staffOnly) ...[
+            AgendaNavItem(
+              icon: Icons.home_outlined,
+              label: 'Inicio',
+              selected: selectedInicio,
+              onTap: () => _go(context, '/agenda/panel'),
+            ),
+            AgendaNavItem(
+              icon: Icons.smart_toy_outlined,
+              label: 'Mis bots',
+              selected: selectedBots,
+              onTap: () => _go(context, '/bots'),
+            ),
+            AgendaNavItem(
+              icon: Icons.people_outline,
+              label: 'Clientes',
+              selected: selectedClientes,
+              onTap: () => _go(context, '/agenda/panel/section/clientes'),
+            ),
+            AgendaNavItem(
+              icon: Icons.schedule_outlined,
+              label: 'Horarios',
+              selected: selectedHorarios,
+              onTap: () => _go(context, '/agenda/panel/section/hours'),
+            ),
+            AgendaNavItem(
+              icon: Icons.palette_outlined,
+              label: 'Estilos',
+              selected: selectedEstilos,
+              onTap: () => _go(context, '/agenda/panel/section/styles'),
+            ),
+            AgendaNavItem(
+              icon: Icons.room_service_outlined,
+              label: 'Servicios',
+              selected: selectedServicios,
+              onTap: () => _go(context, '/agenda/panel/section/services'),
+            ),
+            AgendaNavItem(
+              icon: Icons.people_outline,
+              label: 'Equipo',
+              selected: selectedEquipo,
+              onTap: () => _go(context, '/agenda/panel/section/staff'),
+            ),
+            AgendaNavItem(
+              icon: Icons.settings_outlined,
+              label: 'Configuración',
+              selected: selectedConfig,
+              onTap: () => _go(context, '/agenda/panel/config'),
+            ),
+            const SizedBox(height: 8),
+            const AgendaNavItem(
+              icon: Icons.card_membership_outlined,
+              label: 'Planes',
+              badge: 'PRONTO',
+            ),
+            const AgendaNavItem(
+              icon: Icons.loyalty_outlined,
+              label: 'Fidelizaciones',
+              badge: 'PRONTO',
+            ),
+          ],
           const Spacer(),
           // User profile card
           Container(

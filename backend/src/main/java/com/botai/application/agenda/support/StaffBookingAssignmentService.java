@@ -33,7 +33,7 @@ public class StaffBookingAssignmentService {
                                      LocalDateTime fin) {
         if (requestedStaffId != null) {
             assertEligible(businessId, service.getId(), requestedStaffId);
-            bookingService.validarDisponibilidad(businessId, requestedStaffId, inicio, fin);
+            bookingService.validarDisponibilidad(requestedStaffId, inicio, fin);
             return requestedStaffId;
         }
         if (service.getSchedulingMode() != ServiceSchedulingMode.BY_STAFF) {
@@ -42,7 +42,7 @@ public class StaffBookingAssignmentService {
         List<UUID> eligible = staffLookup.eligibleStaffForService(businessId, service.getId());
         for (UUID staffId : eligible) {
             try {
-                bookingService.validarDisponibilidad(businessId, staffId, inicio, fin);
+                bookingService.validarDisponibilidad(staffId, inicio, fin);
                 return staffId;
             } catch (BookingSlotTakenException ignored) {
                 // Probar con el siguiente profesional libre.

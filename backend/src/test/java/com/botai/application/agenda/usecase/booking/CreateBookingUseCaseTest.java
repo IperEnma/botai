@@ -326,8 +326,12 @@ class CreateBookingUseCaseTest {
 
     @Test
     void tiraSlotTakenSiHayOverlap_yNoGuardaNada() {
+        // No-solapamiento por staff a nivel tenant: si el profesional ya
+        // tiene una reserva activa que se solapa con el slot pedido (incluso
+        // en otra sucursal), la reserva debe rechazarse y nada debe persistir.
         UUID businessId = UUID.randomUUID();
         UUID serviceId = UUID.randomUUID();
+        UUID staffMemberId = UUID.randomUUID();
         UUID subId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID planId = UUID.randomUUID();
@@ -337,6 +341,13 @@ class CreateBookingUseCaseTest {
                 .thenReturn(Optional.of(business(businessId, "t")));
         when(serviceRepository.findById(serviceId))
                 .thenReturn(Optional.of(service(serviceId, businessId, 30)));
+        when(staffMemberRepository.findById(staffMemberId))
+                .thenReturn(Optional.of(com.botai.domain.agenda.model.StaffMember.builder()
+                        .id(staffMemberId)
+                        .businessId(businessId)
+                        .nombre("Profe")
+                        .status("ACTIVO")
+                        .build()));
         when(subscriptionRepository.findByIdForUpdate(subId))
                 .thenReturn(Optional.of(subscription(subId, userId, businessId, planId, 5,
                         SubscriptionEstado.ACTIVE, now.plusDays(10))));
@@ -346,13 +357,13 @@ class CreateBookingUseCaseTest {
         Booking colision = new Booking(
                 UUID.randomUUID(), businessId, serviceId,
                 UUID.randomUUID(), UUID.randomUUID(),
-                null, inicio, inicio.plusMinutes(30),
+                staffMemberId, inicio, inicio.plusMinutes(30),
                 BookingEstado.CONFIRMED, null, null, null, null, null);
-        when(bookingRepository.findOverlapping(eq(businessId), eq(serviceId), any(), any()))
+        when(bookingRepository.findOverlappingForStaff(eq(staffMemberId), any(), any()))
                 .thenReturn(List.of(colision));
 
         assertThrows(BookingSlotTakenException.class, () -> useCase.execute(
-                "t", businessId, userId, serviceId, subId, null, inicio, null));
+                "t", businessId, userId, serviceId, subId, staffMemberId, inicio, null));
 
         // Nada se persiste si el slot está ocupado — el crédito se calcula en memoria
         // antes de la validación del slot, pero nunca debe guardarse si falla.

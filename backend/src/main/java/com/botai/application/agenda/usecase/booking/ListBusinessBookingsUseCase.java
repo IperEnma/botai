@@ -31,8 +31,25 @@ public class ListBusinessBookingsUseCase {
                                  UUID businessId,
                                  LocalDateTime desde,
                                  LocalDateTime hasta) {
+        return execute(tenantId, businessId, desde, hasta, null);
+    }
+
+    /**
+     * Mismo listado pero acotado a un {@code staffMemberId} cuando no es null.
+     * El caller (controller) decide si filtrar — el use case solo aplica el
+     * predicado adicional sobre el repo.
+     */
+    public List<Booking> execute(String tenantId,
+                                 UUID businessId,
+                                 LocalDateTime desde,
+                                 LocalDateTime hasta,
+                                 UUID staffMemberIdFilter) {
         businessRepository.findByIdAndTenantId(businessId, tenantId)
                 .orElseThrow(() -> new BusinessNotFoundException(businessId));
+        if (staffMemberIdFilter != null) {
+            return bookingRepository.findAllByBusinessIdAndStaffMemberIdAndFecha(
+                    businessId, staffMemberIdFilter, desde, hasta);
+        }
         return bookingRepository.findAllByBusinessIdAndFecha(businessId, desde, hasta);
     }
 }

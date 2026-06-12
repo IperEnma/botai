@@ -51,11 +51,9 @@ public final class AgendaPhoneNormalizer {
 
     public static boolean isValid(String raw) {
         String n = normalize(raw);
-        if (n.length() < 10) {
-            return false;
-        }
         String cc = defaultCountryCode();
-        return n.startsWith(cc) ? n.length() >= cc.length() + 7 : n.length() >= 10;
+        int min = cc.length() + 6;
+        return n.length() >= min;
     }
 
     /**
@@ -102,7 +100,7 @@ public final class AgendaPhoneNormalizer {
     }
 
     private static String toCanonical(String digits, String countryCode) {
-        if (digits.startsWith(countryCode) && digits.length() >= countryCode.length() + 7) {
+        if (digits.startsWith(countryCode) && digits.length() >= countryCode.length() + 6) {
             return digits;
         }
         if (looksLikeInternational(digits, countryCode)) {

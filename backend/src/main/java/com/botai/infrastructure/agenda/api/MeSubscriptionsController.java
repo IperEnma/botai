@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -60,6 +61,7 @@ public class MeSubscriptionsController {
 
     @PostMapping("/businesses/{businessId}/subscriptions")
     @Operation(summary = "Comprar una suscripción contra un plan del negocio")
+    @PreAuthorize("@authz.isCurrentUser(#userId)")
     public ResponseEntity<SubscriptionResponse> purchase(
             @PathVariable("businessId") UUID businessId,
             @RequestHeader(USER_ID_HEADER) UUID userId,
@@ -73,6 +75,7 @@ public class MeSubscriptionsController {
 
     @GetMapping("/subscriptions")
     @Operation(summary = "Lista mis suscripciones")
+    @PreAuthorize("@authz.isCurrentUser(#userId)")
     public List<SubscriptionResponse> mySubscriptions(
             @RequestHeader(USER_ID_HEADER) UUID userId,
             @Parameter(description = "Si true, solo las con estado=ACTIVE")
@@ -84,6 +87,7 @@ public class MeSubscriptionsController {
 
     @GetMapping("/subscriptions/{subscriptionId}/wallet")
     @Operation(summary = "Detalle de mi billetera: saldo + historial de movimientos")
+    @PreAuthorize("@authz.isCurrentUser(#userId)")
     public WalletResponse wallet(
             @RequestHeader(USER_ID_HEADER) UUID userId,
             @PathVariable("subscriptionId") UUID subscriptionId) {

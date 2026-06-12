@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/agenda/staff_member.dart';
+import '../../../models/agenda/tenant_invitation.dart';
 import '../../../services/agenda_api_exception.dart';
 import '../agenda_api_provider.dart';
 
@@ -77,6 +78,22 @@ class BusinessStaffNotifier extends StateNotifier<BusinessStaffState> {
         isSaving: false,
       );
       return member;
+    } on AgendaApiException catch (e) {
+      state = state.copyWith(isSaving: false, error: e.message);
+      return null;
+    }
+  }
+
+  /// Invita a un nuevo miembro al tenant con un rol RBAC. Refresca la lista
+  /// de staff después del alta para reflejar el nuevo [StaffMember] si el rol
+  /// es STAFF_*.
+  Future<TenantInvitationResponse?> inviteMember(CreateTenantInvitationRequest req) async {
+    state = state.copyWith(isSaving: true, error: null);
+    try {
+      final api = _ref.read(agendaApiServiceProvider);
+      final inv = await api.tenantInviteUser(req);
+      await load(); // refresca la tabla del Equipo
+      return inv;
     } on AgendaApiException catch (e) {
       state = state.copyWith(isSaving: false, error: e.message);
       return null;

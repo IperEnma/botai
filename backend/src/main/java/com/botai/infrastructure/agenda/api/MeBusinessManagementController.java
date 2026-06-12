@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -76,6 +77,7 @@ public class MeBusinessManagementController {
 
     @GetMapping
     @Operation(summary = "Lista negocios del tenant autenticado")
+    @PreAuthorize("@authz.isAuthenticatedInTenant()")
     public List<BusinessResponse> list() {
         String tenantId = currentTenant.requireTenantId();
         return listBusinesses.listAll(tenantId).stream()
@@ -86,6 +88,7 @@ public class MeBusinessManagementController {
 
     @GetMapping("/{businessId}")
     @Operation(summary = "Detalle de un negocio del tenant autenticado")
+    @PreAuthorize("@authz.canViewBusiness(#businessId)")
     public BusinessResponse detail(@PathVariable("businessId") UUID businessId) {
         String tenantId = currentTenant.requireTenantId();
         var business = listBusinesses.findOne(tenantId, businessId);
@@ -95,6 +98,7 @@ public class MeBusinessManagementController {
 
     @PostMapping
     @Operation(summary = "Registra un negocio en el tenant autenticado")
+    @PreAuthorize("@authz.isTenantAdmin()")
     public ResponseEntity<BusinessResponse> create(@Valid @RequestBody CreateBusinessRequest request) {
         String tenantId = currentTenant.requireTenantId();
         var created = registerBusiness.execute(
@@ -111,6 +115,7 @@ public class MeBusinessManagementController {
 
     @PutMapping("/{businessId}")
     @Operation(summary = "Actualiza un negocio del tenant autenticado")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public BusinessResponse update(@PathVariable("businessId") UUID businessId,
                                    @Valid @RequestBody UpdateBusinessRequest request) {
         String tenantId = currentTenant.requireTenantId();
@@ -139,6 +144,7 @@ public class MeBusinessManagementController {
 
     @PutMapping("/{businessId}/categories")
     @Operation(summary = "Reemplaza las categorías del negocio del tenant autenticado")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<Void> replaceCategories(@PathVariable("businessId") UUID businessId,
                                                   @Valid @RequestBody AssociateCategoriesRequest request) {
         String tenantId = currentTenant.requireTenantId();
@@ -148,6 +154,7 @@ public class MeBusinessManagementController {
 
     @GetMapping("/{businessId}/settings")
     @Operation(summary = "Obtener configuración del negocio (cancelación, loyalty, alertas)")
+    @PreAuthorize("@authz.canViewBusiness(#businessId)")
     public ResponseEntity<BusinessSettingsResponse> getSettings(@PathVariable("businessId") UUID businessId) {
         String tenantId = currentTenant.requireTenantId();
         listBusinesses.findOne(tenantId, businessId);
@@ -158,6 +165,7 @@ public class MeBusinessManagementController {
 
     @PutMapping("/{businessId}/settings")
     @Operation(summary = "Actualizar configuración del negocio")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<BusinessSettingsResponse> updateSettings(
             @PathVariable("businessId") UUID businessId,
             @Valid @RequestBody BusinessSettingsRequest request) {

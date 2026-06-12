@@ -79,11 +79,10 @@ public class JpaBookingRepository implements BookingRepository {
     }
 
     @Override
-    public List<Booking> findOverlappingForStaff(UUID businessId,
-                                                  UUID staffMemberId,
+    public List<Booking> findOverlappingForStaff(UUID staffMemberId,
                                                   LocalDateTime desde,
                                                   LocalDateTime hasta) {
-        return jpa.findOverlappingForStaff(businessId, staffMemberId, desde, hasta).stream()
+        return jpa.findOverlappingForStaff(staffMemberId, desde, hasta).stream()
                 .map(BookingMapper::toDomain)
                 .toList();
     }
@@ -107,6 +106,17 @@ public class JpaBookingRepository implements BookingRepository {
                                                      LocalDateTime desde,
                                                      LocalDateTime hasta) {
         return jpa.findAllByBusinessIdAndFechaHoraInicioBetween(businessId, desde, hasta).stream()
+                .map(BookingMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Booking> findAllByBusinessIdAndStaffMemberIdAndFecha(UUID businessId,
+                                                                    UUID staffMemberId,
+                                                                    LocalDateTime desde,
+                                                                    LocalDateTime hasta) {
+        return jpa.findAllByBusinessIdAndStaffMemberIdAndFechaHoraInicioBetween(
+                        businessId, staffMemberId, desde, hasta).stream()
                 .map(BookingMapper::toDomain)
                 .toList();
     }

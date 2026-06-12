@@ -39,39 +39,47 @@ class BookingDomainServiceTest {
 
     @Test
     void validarDisponibilidadOkCuandoNoHayOverlap() {
-        UUID businessId = UUID.randomUUID();
-        UUID serviceId = UUID.randomUUID();
+        UUID staffMemberId = UUID.randomUUID();
         LocalDateTime desde = LocalDateTime.of(2026, 4, 20, 10, 0);
         LocalDateTime hasta = desde.plusMinutes(30);
 
-        when(bookingRepository.findOverlapping(eq(businessId), eq(serviceId), any(), any()))
+        when(bookingRepository.findOverlappingForStaff(eq(staffMemberId), any(), any()))
                 .thenReturn(List.of());
 
         // No debe tirar:
-        service.validarDisponibilidad(businessId, serviceId, desde, hasta);
+        service.validarDisponibilidad(staffMemberId, desde, hasta);
 
-        verify(bookingRepository).findOverlapping(businessId, serviceId, desde, hasta);
+        verify(bookingRepository).findOverlappingForStaff(staffMemberId, desde, hasta);
     }
 
     @Test
     void validarDisponibilidadTiraCuandoHayOverlap() {
-        UUID businessId = UUID.randomUUID();
-        UUID serviceId = UUID.randomUUID();
+        UUID staffMemberId = UUID.randomUUID();
         LocalDateTime desde = LocalDateTime.of(2026, 4, 20, 10, 0);
         LocalDateTime hasta = desde.plusMinutes(30);
 
         Booking existente = new Booking(
-                UUID.randomUUID(), businessId, serviceId,
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), UUID.randomUUID(),
-                null, desde.minusMinutes(10), hasta.minusMinutes(10),
+                staffMemberId, desde.minusMinutes(10), hasta.minusMinutes(10),
                 BookingEstado.CONFIRMED, null,
                 null, null, null, null);
 
-        when(bookingRepository.findOverlapping(any(), any(), any(), any()))
+        when(bookingRepository.findOverlappingForStaff(any(), any(), any()))
                 .thenReturn(List.of(existente));
 
         assertThrows(BookingSlotTakenException.class,
-                () -> service.validarDisponibilidad(businessId, serviceId, desde, hasta));
+                () -> service.validarDisponibilidad(staffMemberId, desde, hasta));
+    }
+
+    @Test
+    void validarDisponibilidadSinStaff_noConsultaRepo() {
+        // Reservas sin profesional asignado (servicios no-BY_STAFF) no entran
+        // en la regla de no-solapamiento global.
+        service.validarDisponibilidad(null,
+                LocalDateTime.of(2026, 4, 20, 10, 0),
+                LocalDateTime.of(2026, 4, 20, 10, 30));
+        org.mockito.Mockito.verifyNoInteractions(bookingRepository);
     }
 
     // ── construirConfirmada ─────────────────────────────────────────────────

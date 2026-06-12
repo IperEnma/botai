@@ -46,7 +46,7 @@ class BusinessRegistrationIntegrationTest extends AbstractAgendaIntegrationTest 
         jdbc.update("DELETE FROM agenda_businesses WHERE tenant_id = ?", TENANT_ID);
         jdbc.update("DELETE FROM agenda_tenant_config WHERE tenant_id = ?", TENANT_ID);
         jdbc.update(
-                "INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled) VALUES (?, TRUE)",
+                "INSERT INTO agenda_tenant_config (tenant_id, agenda_enabled, public_search_enabled, loyalty_engine_enabled, auto_notifications, created_at, updated_at) VALUES (?, TRUE, TRUE, TRUE, TRUE, NOW(), NOW())",
                 TENANT_ID
         );
         stubAgendaTenant(TENANT_ID);

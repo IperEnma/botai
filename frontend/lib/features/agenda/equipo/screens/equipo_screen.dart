@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../providers/agenda/me_profile_provider.dart';
 import '../../register/konecta_tokens.dart';
 import '../models/member.dart';
 import '../providers/equipo_provider.dart';
@@ -73,6 +74,7 @@ class EquipoScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             EquipoPageHeader(
+              canManageStaff: readMeProfileOrEmpty(ref).isTenantAdministrative,
               onAddMember: () async {
                 await showAddMemberPanel(context, key);
                 if (context.mounted) {
