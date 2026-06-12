@@ -186,27 +186,13 @@ cmd_tag_beta_from_branch() {
   fi
 }
 
-# En main: toma la *-beta más nueva (semver) sin *-final y crea el final en HEAD.
-cmd_tag_final_from_main() {
-  local push_remote=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --push)
-        push_remote="${2:-$REMOTE}"
-        shift 2
-        ;;
-      *)
-        shift
-        ;;
-    esac
-  done
-
-  local remote="${push_remote:-origin}"
+# Imprime la línea ver|kind|beta_tag del *-beta pendiente en main, o nada.
+find_pending_beta_line() {
+  local remote="${1:-$REMOTE}"
   git fetch "$remote" --tags --quiet 2>/dev/null || true
 
-  local head_sha
+  local head_sha pending
   head_sha="$(git rev-parse HEAD)"
-  local pending
   pending="$(mktemp)"
   trap 'rm -f "$pending"' RETURN
 
@@ -231,14 +217,55 @@ cmd_tag_final_from_main() {
   done < <(git tag -l 'release-*-beta' 'hotfix-*-beta')
 
   if [[ ! -s "$pending" ]]; then
+    return 0
+  fi
+
+  local best_ver best_line
+  best_ver="$(cut -d'|' -f1 "$pending" | sort -V | tail -1)"
+  grep "^${best_ver}|" "$pending" | tail -1
+}
+
+cmd_resolve_pending_beta() {
+  local line
+  line="$(find_pending_beta_line "$REMOTE")"
+  if [[ -z "$line" ]]; then
+    echo "pending=false"
+    return 0
+  fi
+  local ver kind beta_tag
+  IFS='|' read -r ver kind beta_tag <<< "$line"
+  echo "pending=true"
+  echo "beta_tag=$beta_tag"
+  echo "beta_sha=$(git rev-parse "$beta_tag^{commit}")"
+  echo "version=$ver"
+  echo "kind=$kind"
+}
+
+# En main: toma la *-beta más nueva (semver) sin *-final y crea el final en HEAD.
+cmd_tag_final_from_main() {
+  local push_remote=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --push)
+        push_remote="${2:-$REMOTE}"
+        shift 2
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+
+  local remote="${push_remote:-origin}"
+  local best_line best_ver best_kind best_beta
+  best_line="$(find_pending_beta_line "$remote")"
+
+  if [[ -z "$best_line" ]]; then
     echo "No hay tag *-beta pendiente de finalizar en el historial de main."
     echo "tag="
     return 0
   fi
 
-  local best_ver best_kind best_beta best_line
-  best_ver="$(cut -d'|' -f1 "$pending" | sort -V | tail -1)"
-  best_line="$(grep "^${best_ver}|" "$pending" | tail -1)"
   IFS='|' read -r best_ver best_kind best_beta <<< "$best_line"
 
   local final_tag="${best_kind}-${best_ver}-final"
@@ -315,6 +342,9 @@ main() {
     tag-final-from-main)
       shift
       cmd_tag_final_from_main "$@"
+      ;;
+    resolve-pending-beta)
+      cmd_resolve_pending_beta
       ;;
     tag-final)
       [[ $# -ge 4 ]] || usage

@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, develop]
   push:
-    branches: [main, develop, "release/**", "hotfix/**"]
+    branches: [develop, "release/**", "hotfix/**"]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -259,49 +259,4 @@ jobs:
             echo "# \`${TAG}\`"
             echo ""
             echo "**Actions → Deploy test → Run workflow** y pegá ese tag."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  final-tag:
-    name: Versionado (final)
-    needs: [ci]
-    if: >-
-      needs.ci.result == 'success' &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      tag: ${{ steps.tag.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Create final tag from latest beta
-        id: tag
-        env:
-          RELEASE_VERSION_REMOTE: origin
-        run: |
-          git fetch origin --tags
-          OUT=$(bash scripts/release-version.sh tag-final-from-main --push origin)
-          echo "$OUT"
-          TAG=$(echo "$OUT" | grep '^tag=' | tail -1 | cut -d= -f2)
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-
-  final-tag-visible:
-    name: ${{ format('Deploy prod → {0}', needs.final-tag.outputs.tag) }}
-    needs: [final-tag]
-    if: needs.final-tag.outputs.tag != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Tag visible en el grafo y en Annotations
-        run: |
-          TAG="${{ needs.final-tag.outputs.tag }}"
-          echo "::notice title=Deploy production::Tag ${TAG} — Actions → Deploy production → Run workflow"
-          {
-            echo "## Deploy production"
-            echo ""
-            echo "# \`${TAG}\`"
-            echo ""
-            echo "**Actions → Deploy production → Run workflow** y pegá ese tag."
           } >> "$GITHUB_STEP_SUMMARY"

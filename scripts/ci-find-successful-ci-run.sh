@@ -3,8 +3,9 @@
 set -euo pipefail
 
 SHA="${1:-}"
+WORKFLOW_FILE="${WORKFLOW_FILE:-ci.yml}"
 if [[ -z "$SHA" ]]; then
-  echo "Uso: $0 <commit-sha>" >&2
+  echo "Uso: WORKFLOW_FILE=ci.yml $0 <commit-sha>" >&2
   exit 1
 fi
 
@@ -18,7 +19,7 @@ RUN_ID="$(
   curl -fsS \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
-    "https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/ci.yml/runs?head_sha=${SHA}&status=completed&per_page=20" \
+    "https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW_FILE}/runs?head_sha=${SHA}&status=completed&per_page=20" \
     | python3 -c "
 import json, sys
 runs = json.load(sys.stdin).get('workflow_runs', [])
