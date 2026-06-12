@@ -87,6 +87,7 @@ Archivos en el repo:
 Secrets / variables (repo o Sonar):
 
 - [x] `SONAR_TOKEN` (repo)
+- [ ] `RELEASE_VERSION_TOKEN` (repo) — PAT `repo` + `workflow` para pushear tags beta/final
 - [x] SonarCloud: proyecto **privado** (plan Free, hasta 50k LOC privadas)
 - [x] Variables `SONAR_ORGANIZATION` / `SONAR_PROJECT_KEY` (ajustar si difieren de `sonar-project.properties`)
 
@@ -122,7 +123,7 @@ Con `CI_RELAXED=true`:
 - `cancel-in-progress: false` en CI para no cortar OWASP mientras escribe la BD H2.
 - Semgrep frontend: `p/secrets` (no `p/dart` — ruleset Dart retirado del registry); análisis Dart = job `flutter analyze`.
 - Pueden fallar jobs hasta corregir tests (`BookingDomainServiceTest`) y `flutter analyze` — no bloquea la infra ya montada.
-- Push de tag rechazado (`workflows` permission): jobs `Versionado` necesitan `workflows: write` en `GITHUB_TOKEN` (ya en `ci-test.yml` / `ci-prod.yml`). Repo → Settings → Actions → **Read and write permissions**.
+- Push de tag rechazado (`workflows` permission): crear secret repo **`RELEASE_VERSION_TOKEN`** — PAT classic con scopes `repo` + `workflow`. Los jobs `Versionado` usan ese token en `checkout` (no `workflows:` en YAML; no es válido).
 
 ### Paso 6 — CD test (staging)
 
