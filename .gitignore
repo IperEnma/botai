@@ -26,6 +26,7 @@ backend/src/main/resources/application-local.yml
 # AI Coding assistants assets
 .claude/skills
 .claude/agents
+.claude/worktrees/
 .cursor/skills
 .codex/skills
 .gemini/skills
