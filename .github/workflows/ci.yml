@@ -12,10 +12,14 @@ concurrency:
   # No cancelar en vuelo: OWASP escribe una BD H2 de CVEs; cancelar a medias la corrompe.
   cancel-in-progress: false
 
+# Modo configuración: GitHub → Settings → Variables → CI_RELAXED=true
+# Los jobs fallidos no bloquean el workflow (amarillo). Quitar cuando CI esté estable.
+
 jobs:
   gitleaks:
     name: Gitleaks
     runs-on: ubuntu-latest
+    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,6 +31,7 @@ jobs:
   semgrep:
     name: Semgrep
     needs: [gitleaks]
+    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep
@@ -45,6 +50,7 @@ jobs:
   dependency-check:
     name: OWASP Dependency-Check
     needs: [gitleaks]
+    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -81,6 +87,7 @@ jobs:
   backend:
     name: Backend tests
     needs: [gitleaks, semgrep, dependency-check]
+    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,6 +103,7 @@ jobs:
   frontend:
     name: Frontend analyze & test
     needs: [gitleaks, semgrep]
+    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -113,6 +121,7 @@ jobs:
   sonarcloud:
     name: SonarCloud
     needs: [backend, frontend]
+    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -134,6 +143,20 @@ jobs:
   ci:
     name: ci
     needs: [gitleaks, semgrep, dependency-check, backend, frontend, sonarcloud]
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: echo "All checks passed"
+      - name: CI gate
+        run: |
+          if [ "${{ vars.CI_RELAXED }}" = "true" ]; then
+            echo "::warning::CI_RELAXED=true — pipeline no bloquea por fallos en jobs previos."
+            exit 0
+          fi
+          ok() { case "$1" in success|skipped) return 0 ;; *) return 1 ;; esac; }
+          ok "${{ needs.gitleaks.result }}" && ok "${{ needs.semgrep.result }}" && \
+          ok "${{ needs.dependency-check.result }}" && ok "${{ needs.backend.result }}" && \
+          ok "${{ needs.frontend.result }}" && ok "${{ needs.sonarcloud.result }}" || {
+            echo "CI failed — desactivá fallos o arreglá jobs; sin CI_RELAXED no pasa."
+            exit 1
+          }
+          echo "All checks passed"

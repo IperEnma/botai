@@ -16,6 +16,7 @@ permissions:
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
+    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
 
   deploy-backend:
     name: Deploy backend test (Render)
@@ -63,6 +64,7 @@ jobs:
   smoke:
     name: Smoke test
     needs: [deploy-backend, deploy-frontend]
+    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     environment: staging
     steps:

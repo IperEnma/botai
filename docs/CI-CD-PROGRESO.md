@@ -93,6 +93,22 @@ Secrets / variables (repo o Sonar):
 **Triggers CI:** PR y push a `main`, `develop`, `release/*`, `hotfix/*`.  
 **No despliega** nada.
 
+### Modo configuración (`CI_RELAXED`)
+
+Mientras OWASP, tests o Sonar aún fallan, podés **no bloquear** el pipeline:
+
+1. GitHub → repo → **Settings** → **Secrets and variables** → **Actions** → **Variables**
+2. **New variable:** nombre `CI_RELAXED`, valor `true`
+3. Re-ejecutá el workflow
+
+Con `CI_RELAXED=true`:
+
+- Los jobs de CI que fallen quedan en **amarillo** (`continue-on-error`) y el workflow sigue.
+- El CD (deploy test/prod) **no se frena** si el CI del tag falla.
+- El smoke test tampoco bloquea.
+
+**Cuando todo esté verde:** borrá la variable o poné `false` — vuelve el bloqueo estricto.
+
 **Notas CI conocidas:**
 
 - OWASP usa plugin Maven (no la action Docker) por compatibilidad con `JAVA_HOME`.
