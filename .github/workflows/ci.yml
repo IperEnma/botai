@@ -5,7 +5,6 @@ on:
     branches: [main, develop]
   push:
     branches: [main, develop, "release/**", "hotfix/**"]
-  workflow_call:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -161,3 +160,42 @@ jobs:
             exit 1
           }
           echo "All checks passed"
+
+  beta-tag:
+    name: Beta tag (versión)
+    needs: [ci]
+    if: >-
+      needs.ci.result == 'success' &&
+      github.event_name == 'push' &&
+      endsWith(github.ref_name, '.x.x-beta')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create beta tag from branch template
+        id: tag
+        env:
+          RELEASE_VERSION_REMOTE: origin
+        run: |
+          git fetch origin --tags
+          OUT=$(./scripts/release-version.sh tag-beta-from-branch --push origin)
+          echo "$OUT"
+          TAG=$(echo "$OUT" | grep '^tag=' | tail -1 | cut -d= -f2)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Deploy test (manual)
+        run: |
+          echo "::notice title=Tag beta::${{ steps.tag.outputs.tag }} — Actions → Deploy test → Run workflow"
+      - name: Summary
+        run: |
+          {
+            echo "## Tag beta"
+            echo ""
+            echo "**\`${{ steps.tag.outputs.tag }}\`**"
+            echo ""
+            echo "Desplegar a test: **Actions → Deploy test → Run workflow** con ese tag."
+          } >> "$GITHUB_STEP_SUMMARY"

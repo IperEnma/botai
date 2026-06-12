@@ -123,13 +123,16 @@ Con `CI_RELAXED=true`:
 
 Archivo: `.github/workflows/deploy-test.yml`
 
-**Trigger:** tags `release-*-beta`, `hotfix-*-beta`
+**Trigger:** manual — **Actions → Deploy test → Run workflow** (input: tag beta del CI).
 
 **Flujo:**
 
 ```
-tag *-beta  →  CI (workflow_call)  →  Render hook  →  Vercel Preview  →  smoke /actuator/health
+rama release/1.x.x-beta  →  CI + job Beta tag  →  tag release-1.3.0-beta (en Summary)
+Deploy test (manual)     →  Render hook  →  Vercel Preview  →  smoke
 ```
+
+El CD **no** vuelve a correr CI; usás el tag que el CI creó y mostró.
 
 **Environment GitHub:** `staging`
 
@@ -147,13 +150,12 @@ tag *-beta  →  CI (workflow_call)  →  Render hook  →  Vercel Preview  → 
 **Probar deploy test:**
 
 ```bash
-git checkout main
-git pull github main
-git tag release-0.1.0-beta
-git push github release-0.1.0-beta
+./scripts/release-version.sh branch release 1   # crea release/1.x.x-beta desde develop
+# ... commits ...
+git push github release/1.x.x-beta
+# CI → job "Beta tag" → Summary con release-1.x.x-beta
+# Actions → Deploy test → Run workflow → pegar ese tag
 ```
-
-GitHub → Actions → **Deploy test (beta tag)**.
 
 ---
 
@@ -165,7 +167,7 @@ GitHub → Actions → **Deploy test (beta tag)**.
 | Deploy test | `.github/workflows/deploy-test.yml` | Activo |
 | Deploy prod | `.github/workflows/deploy-production.yml` | **En repo, sin configurar secrets ni Oracle** |
 
-`ci.yml` expone `workflow_call` para que staging/prod reutilicen el mismo CI antes de desplegar.
+CI y CD están separados: CI crea el tag en ramas `*.x.x-beta`; CD es manual con ese tag.
 
 ---
 
@@ -217,47 +219,34 @@ git push github main
 
 ---
 
-## Versionado (major humano, minor/patch por script)
+## Versionado (major humano, minor/patch en CI)
 
 | Quién | Qué define |
 |-------|------------|
-| **Personas** | Solo **major** en ramas: `release/1`, `hotfix/1`, `release/2`, … |
-| **Script** | Minor y patch leyendo últimos tags **`*-final`** en esa major |
+| **Personas** | Solo **major** — rama plantilla `release/1.x.x-beta` o `hotfix/1.x.x-beta` |
+| **CI (job Beta tag)** | Minor y patch → crea `release-1.3.0-beta` (lee tags `*-final` de esa major) |
+| **Personas** | Disparan **Deploy test** manual con el tag del Summary |
 
-Script: [`scripts/release-version.sh`](../scripts/release-version.sh) (Git Bash / Linux).
+Script local: [`scripts/release-version.sh`](../scripts/release-version.sh) (crear rama; tag manual solo si hace falta).
 
-| Acción | Comando | Resultado ejemplo |
-|--------|---------|-------------------|
-| Siguiente release línea 1 | `./scripts/release-version.sh next release 1` | `1.3.0` (minor+1, patch 0) |
-| Siguiente hotfix línea 1 | `./scripts/release-version.sh next hotfix 1` | `1.2.5` (patch+1 sobre último final) |
-| Rama release | `./scripts/release-version.sh branch release 1` | `release/1` desde `develop` |
-| Rama hotfix | `./scripts/release-version.sh branch hotfix 1` | `hotfix/1` desde `main` |
-| Tag test | `./scripts/release-version.sh tag-beta release 1.3.0 --push github` | `release-1.3.0-beta` → deploy test |
-| Tag prod | `./scripts/release-version.sh tag-final release 1.3.0 --push github` | `release-1.3.0-final` → deploy prod |
+| Acción | Comando | Resultado |
+|--------|---------|-----------|
+| Rama release test | `./scripts/release-version.sh branch release 1` | `release/1.x.x-beta` desde `develop` |
+| Rama hotfix test | `./scripts/release-version.sh branch hotfix 1` | `hotfix/1.x.x-beta` desde `main` |
+| Push rama | `git push github release/1.x.x-beta` | CI + tag beta en Summary |
+| Deploy test | Actions → **Deploy test** → Run workflow | Input = tag del CI |
+| Tag prod | `./scripts/release-version.sh tag-final release 1.3.0 --push github` | Luego **Deploy production** manual |
 
 **Ciclo release (línea 1):**
 
 ```bash
 ./scripts/release-version.sh branch release 1
-# ... commits en release/1 ...
-VER=$(./scripts/release-version.sh next release 1)
-./scripts/release-version.sh tag-beta release "$VER" --push github
-# QA en test
-git checkout main && git merge release/1 && git push github main
-./scripts/release-version.sh tag-final release "$VER" --push github
-# → aprobar environment production en GitHub
-```
-
-**Ciclo hotfix (línea 1):**
-
-```bash
-./scripts/release-version.sh branch hotfix 1
-# ... fix ...
-VER=$(./scripts/release-version.sh next hotfix 1)
-./scripts/release-version.sh tag-beta hotfix "$VER" --push github
-# QA
-git checkout main && git merge hotfix/1 && git push github main
-./scripts/release-version.sh tag-final hotfix "$VER" --push github
+# ... commits ...
+git push github release/1.x.x-beta
+# CI → tag en Summary → Deploy test (manual) → QA
+git checkout main && git merge release/1.x.x-beta && git push github main
+./scripts/release-version.sh tag-final release 1.3.0 --push github
+# Actions → Deploy production (manual) → aprobar environment production
 ```
 
 ---
@@ -265,10 +254,11 @@ git checkout main && git merge hotfix/1 && git push github main
 ## Reglas de negocio (recordatorio)
 
 ```
-PR / push ramas           →  solo CI
-tag *-beta                →  deploy TEST  (Render test + Vercel Preview)
-merge a main              →  no despliega prod solo
-tag *-final en main       →  deploy PROD  (Oracle + Vercel prod + aprobación)
+PR / push ramas normales     →  solo CI
+push release/N.x.x-beta      →  CI + tag beta (Summary)
+Deploy test (manual + tag)   →  test (Render + Vercel)
+merge a main                 →  no despliega solo
+tag *-final + Deploy prod    →  prod manual (Oracle + Vercel + aprobación)
 ```
 
 | Capa | Test | Prod (futuro) |

@@ -4,15 +4,15 @@
 # Tags test:  release-1.2.0-beta | hotfix-1.2.1-beta
 # Tags prod:  release-1.2.0-final | hotfix-1.2.1-final
 #
-# Ramas: release/<major> desde develop | hotfix/<major> desde main
+# Ramas plantilla: release/<major>.x.x-beta | hotfix/<major>.x.x-beta
+# El CI calcula minor/patch y crea el tag *-beta; el CD test es manual con ese tag.
 #
 # Uso (Git Bash o Linux):
 #   ./scripts/release-version.sh next release 1
 #   ./scripts/release-version.sh next hotfix 1
 #   ./scripts/release-version.sh branch release 1
-#   ./scripts/release-version.sh tag-beta release 1.2.0
-#   ./scripts/release-version.sh tag-final hotfix 1.2.1
-#   ./scripts/release-version.sh tag-beta release 1.2.0 --push github
+#   ./scripts/release-version.sh tag-beta-from-branch --push origin
+#   ./scripts/release-version.sh tag-final release 1.2.0 --push github
 
 set -euo pipefail
 
@@ -102,20 +102,83 @@ cmd_next() {
   fi
 }
 
+parse_template_beta_branch() {
+  local branch="$1"
+  if [[ "$branch" =~ ^(release|hotfix)/([0-9]+)\.x\.x-beta$ ]]; then
+    echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]}"
+    return 0
+  fi
+  echo "ERROR: rama debe ser release/<major>.x.x-beta o hotfix/<major>.x.x-beta (ej. release/1.x.x-beta)" >&2
+  return 1
+}
+
 cmd_branch() {
   require_kind "$1"
   require_major "$2"
-  local branch="$1/$2"
+  local branch="$1/${2}.x.x-beta"
   if [[ "$1" == "release" ]]; then
     git checkout develop
     git pull "$REMOTE" develop
     git checkout -B "$branch"
-    echo "Rama $branch creada desde develop. Commiteá, luego: $0 tag-beta release <versión>"
+    echo "Rama $branch creada desde develop."
+    echo "Push → CI crea el tag beta. Luego: Actions → Deploy test → Run workflow (con ese tag)."
   else
     git checkout main
     git pull "$REMOTE" main
     git checkout -B "$branch"
-    echo "Rama $branch creada desde main. Commiteá el fix, luego: $0 tag-beta hotfix <versión>"
+    echo "Rama $branch creada desde main."
+    echo "Push → CI crea el tag beta. Luego: Actions → Deploy test → Run workflow (con ese tag)."
+  fi
+}
+
+cmd_tag_beta_from_branch() {
+  local branch="${GITHUB_REF_NAME:-}"
+  local push_remote=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --push)
+        push_remote="${2:-$REMOTE}"
+        shift 2
+        ;;
+      *)
+        branch="$1"
+        shift
+        ;;
+    esac
+  done
+
+  local kind major
+  read -r kind major < <(parse_template_beta_branch "$branch")
+  local version tag
+  version="$(cmd_next "$kind" "$major")"
+  tag="${kind}-${version}-beta"
+
+  local current_sha
+  current_sha="$(git rev-parse HEAD)"
+  if git rev-parse "$tag" >/dev/null 2>&1; then
+    local existing_sha
+    existing_sha="$(git rev-parse "$tag^{commit}")"
+    if [[ "$existing_sha" == "$current_sha" ]]; then
+      echo "Tag ya existe en este commit: $tag"
+      echo "tag=$tag"
+      return 0
+    fi
+    echo "ERROR: $tag ya existe en otro commit ($existing_sha). Borrá el tag o usá otra versión." >&2
+    exit 1
+  fi
+
+  if [[ -z "$(git config user.email 2>/dev/null)" ]]; then
+    git config user.email "github-actions[bot]@users.noreply.github.com"
+    git config user.name "github-actions[bot]"
+  fi
+
+  git tag -a "$tag" -m "${kind} ${version} beta (${branch})"
+  echo "Tag creado: $tag"
+  echo "tag=$tag"
+
+  if [[ -n "$push_remote" ]]; then
+    git push "$push_remote" "$tag"
+    echo "Pusheado a $push_remote"
   fi
 }
 
@@ -163,6 +226,10 @@ main() {
     tag-beta)
       [[ $# -ge 4 ]] || usage
       cmd_tag beta "$2" "$3" "${@:4}"
+      ;;
+    tag-beta-from-branch)
+      shift
+      cmd_tag_beta_from_branch "$@"
       ;;
     tag-final)
       [[ $# -ge 4 ]] || usage
