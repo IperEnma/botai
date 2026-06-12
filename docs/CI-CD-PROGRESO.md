@@ -122,6 +122,7 @@ Con `CI_RELAXED=true`:
 - `cancel-in-progress: false` en CI para no cortar OWASP mientras escribe la BD H2.
 - Semgrep frontend: `p/secrets` (no `p/dart` — ruleset Dart retirado del registry); análisis Dart = job `flutter analyze`.
 - Pueden fallar jobs hasta corregir tests (`BookingDomainServiceTest`) y `flutter analyze` — no bloquea la infra ya montada.
+- Push de tag rechazado (`workflows` permission): jobs `Versionado` necesitan `workflows: write` en `GITHUB_TOKEN` (ya en `ci-test.yml` / `ci-prod.yml`). Repo → Settings → Actions → **Read and write permissions**.
 
 ### Paso 6 — CD test (staging)
 
