@@ -1,0 +1,9 @@
+title = "botai gitleaks"
+
+[allowlist]
+  paths = [
+    '''\.env\.example$''',
+    '''\.env\.render\.example$''',
+    '''\.env\.prod\.example$''',
+    '''\.env\.vercel\.example$''',
+  ]
