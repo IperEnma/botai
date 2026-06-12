@@ -225,8 +225,8 @@ git push github main
 | Quién | Qué define |
 |-------|------------|
 | **Personas** | Solo **major** — rama plantilla `release/1.x.x-beta` o `hotfix/1.x.x-beta` |
-| **CI (job Beta tag)** | Minor y patch → crea `release-1.3.0-beta` (lee tags `*-final` de esa major) |
-| **CI en `main`** | Job **Versionado (final)** — crea `*-final` desde la última `*-beta` del merge |
+| **CI (Versionado beta)** | Minor y patch → crea `release-1.3.0-beta`; el tag se ve en el **grafo** como `Deploy test → release-…-beta` |
+| **CI en `main`** | **Versionado (final)** → grafo muestra `Deploy prod → release-…-final` |
 | **Personas** | **Deploy test** / **Deploy production** manual con el tag del Summary |
 
 **Reglas de número** (major en la rama `release/1.x.x-beta` o `hotfix/1.x.x-beta`):

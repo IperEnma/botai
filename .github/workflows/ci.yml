@@ -197,17 +197,23 @@ jobs:
           echo "$OUT"
           TAG=$(echo "$OUT" | grep '^tag=' | tail -1 | cut -d= -f2)
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-      - name: Deploy test (manual)
+
+  beta-tag-visible:
+    name: ${{ format('Deploy test → {0}', needs.beta-tag.outputs.tag) }}
+    needs: [beta-tag]
+    if: needs.beta-tag.outputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tag visible en el grafo y en Annotations
         run: |
-          echo "::notice title=Tag beta::${{ steps.tag.outputs.tag }} — Actions → Deploy test → Run workflow"
-      - name: Summary
-        run: |
+          TAG="${{ needs.beta-tag.outputs.tag }}"
+          echo "::notice title=Deploy test::Tag ${TAG} — Actions → Deploy test → Run workflow"
           {
-            echo "## Tag beta"
+            echo "## Deploy test"
             echo ""
-            echo "**\`${{ steps.tag.outputs.tag }}\`**"
+            echo "# \`${TAG}\`"
             echo ""
-            echo "Desplegar a test: **Actions → Deploy test → Run workflow** con ese tag."
+            echo "**Actions → Deploy test → Run workflow** y pegá ese tag."
           } >> "$GITHUB_STEP_SUMMARY"
 
   final-tag:
@@ -236,17 +242,21 @@ jobs:
           echo "$OUT"
           TAG=$(echo "$OUT" | grep '^tag=' | tail -1 | cut -d= -f2)
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-      - name: Deploy production (manual)
-        if: steps.tag.outputs.tag != ''
+
+  final-tag-visible:
+    name: ${{ format('Deploy prod → {0}', needs.final-tag.outputs.tag) }}
+    needs: [final-tag]
+    if: needs.final-tag.outputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tag visible en el grafo y en Annotations
         run: |
-          echo "::notice title=Tag final::${{ steps.tag.outputs.tag }} — Actions → Deploy production → Run workflow"
-      - name: Summary
-        if: steps.tag.outputs.tag != ''
-        run: |
+          TAG="${{ needs.final-tag.outputs.tag }}"
+          echo "::notice title=Deploy production::Tag ${TAG} — Actions → Deploy production → Run workflow"
           {
-            echo "## Tag final"
+            echo "## Deploy production"
             echo ""
-            echo "**\`${{ steps.tag.outputs.tag }}\`** (desde la última *-beta en main)"
+            echo "# \`${TAG}\`"
             echo ""
-            echo "Desplegar a prod: **Actions → Deploy production → Run workflow** con ese tag."
+            echo "**Actions → Deploy production → Run workflow** y pegá ese tag."
           } >> "$GITHUB_STEP_SUMMARY"
