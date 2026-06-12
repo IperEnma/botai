@@ -12,6 +12,10 @@ concurrency:
   group: deploy-test-${{ inputs.tag }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   validate-tag:
     name: Validate tag
@@ -34,44 +38,98 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "OK: $TAG -> $SHA"
 
+  fetch-artifacts:
+    name: Fetch CI artifacts
+    needs: [validate-tag]
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ needs.validate-tag.outputs.sha }}
+      ci_run_id: ${{ steps.ci-run.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find successful CI run for commit
+        id: ci-run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID=$(bash scripts/ci-find-successful-ci-run.sh "${{ needs.validate-tag.outputs.sha }}")
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "CI run: $RUN_ID"
+      - name: Download botai-build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: botai-build-${{ needs.validate-tag.outputs.sha }}
+          run-id: ${{ steps.ci-run.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifact
+      - name: Verify artifact manifest
+        run: |
+          cat artifact/manifest.json
+          test -f artifact/backend/app.jar
+          test -f artifact/vercel-output/config.json
+          echo "Artifact OK para ${{ needs.validate-tag.outputs.sha }}"
+
   deploy-backend:
     name: Deploy backend test (Render)
-    needs: [validate-tag]
+    needs: [fetch-artifacts]
     runs-on: ubuntu-latest
     environment: staging
     steps:
+      - name: Download CI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: botai-build-${{ needs.fetch-artifacts.outputs.sha }}
+          run-id: ${{ needs.fetch-artifacts.outputs.ci_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifact
+      - name: Verify backend JAR (build probado en CI)
+        run: |
+          ls -lh artifact/backend/app.jar
+          echo "::notice::Render aún reconstruye desde git (hook). JAR del CI validado; GHCR en fase siguiente."
       - name: Trigger Render deploy hook
         run: |
           curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_STAGING }}"
 
   deploy-frontend:
-    name: Deploy frontend test (Vercel Preview)
-    needs: [validate-tag]
+    name: Deploy frontend test (Vercel prebuilt)
+    needs: [validate-tag, fetch-artifacts]
     runs-on: ubuntu-latest
     environment: staging
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
+          sparse-checkout: |
+            frontend
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Vercel deploy (Preview)
+      - name: Download CI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: botai-build-${{ needs.fetch-artifacts.outputs.sha }}
+          run-id: ${{ needs.fetch-artifacts.outputs.ci_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifact
+      - name: Vercel deploy (prebuilt from CI)
         id: vercel
-        # Root del repo: Vercel ya tiene Root Directory = frontend en el proyecto.
+        working-directory: frontend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           npm install -g vercel@latest
-          DEPLOY_URL=$(vercel deploy --yes --token "$VERCEL_TOKEN" \
-            --build-env "KONECTA_BASE_URL=${{ vars.STAGING_KONECTA_BASE_URL }}" \
-            --build-env "GOOGLE_CLIENT_ID_WEB=${{ secrets.STAGING_GOOGLE_CLIENT_ID_WEB }}")
+          vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+          rm -rf .vercel/output
+          mkdir -p .vercel/output
+          cp -r "$GITHUB_WORKSPACE/artifact/vercel-output/." .vercel/output/
+          DEPLOY_URL=$(vercel deploy --prebuilt --yes --token "$VERCEL_TOKEN")
           echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
-          echo "Deployed: $DEPLOY_URL"
+          echo "Deployed (prebuilt): $DEPLOY_URL"
       - name: Alias test URL
         if: vars.STAGING_VERCEL_ALIAS != ''
+        working-directory: frontend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |

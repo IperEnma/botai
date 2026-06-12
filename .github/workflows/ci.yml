@@ -171,11 +171,45 @@ jobs:
           }
           echo "All checks passed"
 
-  beta-tag:
-    name: Versionado (beta)
+  build-artifacts:
+    name: Build artifacts (test)
     needs: [ci]
     if: >-
       needs.ci.result == 'success' &&
+      github.event_name == 'push' &&
+      endsWith(github.ref_name, '.x.x-beta')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build backend JAR + frontend web
+        env:
+          KONECTA_BASE_URL: ${{ vars.STAGING_KONECTA_BASE_URL }}
+          GOOGLE_CLIENT_ID_WEB: ${{ secrets.STAGING_GOOGLE_CLIENT_ID_WEB }}
+        run: bash scripts/ci-build-test-artifacts.sh
+      - name: Upload test deploy artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: botai-build-${{ github.sha }}
+          path: dist/botai-build/
+          retention-days: 90
+          if-no-files-found: error
+
+  beta-tag:
+    name: Versionado (beta)
+    needs: [ci, build-artifacts]
+    if: >-
+      needs.ci.result == 'success' &&
+      needs.build-artifacts.result == 'success' &&
       github.event_name == 'push' &&
       endsWith(github.ref_name, '.x.x-beta')
     runs-on: ubuntu-latest

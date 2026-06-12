@@ -129,11 +129,13 @@ Archivo: `.github/workflows/deploy-test.yml`
 **Flujo:**
 
 ```
-rama release/1.x.x-beta  →  CI + job Beta tag  →  tag release-1.3.0-beta (en Summary)
-Deploy test (manual)     →  Render hook  →  Vercel Preview  →  smoke
+rama release/1.x.x-beta  →  CI + Build artifacts + Versionado (beta)
+Deploy test (manual)     →  baja artifacts del commit del tag → Vercel --prebuilt + Render hook
 ```
 
-El CD **no** vuelve a correr CI; usás el tag que el CI creó y mostró.
+**Build once:** `botai-build-<sha>` (JAR + frontend prebuilt). El CD test **no recompila** el front; usa el artifact del CI.
+
+Render test aún **rebuild** vía hook (fase 2: GHCR). El JAR del artifact se valida antes del hook.
 
 **Environment GitHub:** `staging`
 
