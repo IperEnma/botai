@@ -147,8 +147,10 @@ Render test aún **rebuild** vía hook (fase 2: GHCR). El JAR del artifact se va
 | Secret | `VERCEL_TOKEN` | Token cuenta Vercel |
 | Secret | `VERCEL_ORG_ID` | User ID (cuenta personal) |
 | Secret | `VERCEL_PROJECT_ID` | `prj_...` proyecto `botai` |
-| Secret | `STAGING_GOOGLE_CLIENT_ID_WEB` | Build Flutter |
-| Variable | `STAGING_KONECTA_BASE_URL` | `https://botai-backend-test.onrender.com` |
+| Secret | `STAGING_GOOGLE_CLIENT_ID_WEB` | Build Flutter en CI **y** deploy test |
+| Variable | `STAGING_KONECTA_BASE_URL` | `https://botai-backend-test.onrender.com` (sin `/api`) |
+
+**Importante:** las vars de Vercel **no** llegan al job `Build artifacts (test)` en CI. Hay que cargarlas también en GitHub (environment `staging` o repo). Sin eso: `KONECTA_BASE_URL y GOOGLE_CLIENT_ID_WEB requeridos`.
 | Variable | `STAGING_API_HEALTH_URL` | `.../actuator/health` |
 | Variable | `STAGING_VERCEL_ALIAS` | `botai-test.vercel.app` |
 
