@@ -3,7 +3,7 @@
 Estado práctico de la configuración CI/CD de Botai.  
 La **propuesta completa** sigue en [`CI-CD.md`](./CI-CD.md). Este documento dice **qué ya está hecho**, **qué falta** y **cómo retomar**.
 
-**Última actualización:** junio 2026 — implementación detenida después del **Paso 6** (deploy test). **Producción pendiente** a propósito.
+**Última actualización:** junio 2026 — prueba CI en `release/1.x.x-beta` (chore). Paso 6 deploy test activo; prod pendiente.
 
 ---
 
