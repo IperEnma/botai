@@ -244,7 +244,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   beta-tag-visible:
-    name: ${{ format('Deploy test → {0}', needs.beta-tag.outputs.tag) }}
+    name: ${{ format('CD test → {0}', needs.beta-tag.outputs.tag) }}
     needs: [beta-tag]
     if: needs.beta-tag.outputs.tag != ''
     runs-on: ubuntu-latest
@@ -252,11 +252,11 @@ jobs:
       - name: Tag visible en el grafo y en Annotations
         run: |
           TAG="${{ needs.beta-tag.outputs.tag }}"
-          echo "::notice title=Deploy test::Tag ${TAG} — Actions → Deploy test → Run workflow"
+          echo "::notice title=CD test::Tag ${TAG} — Actions → CD test → Run workflow"
           {
-            echo "## Deploy test"
+            echo "## CD test"
             echo ""
             echo "# \`${TAG}\`"
             echo ""
-            echo "**Actions → Deploy test → Run workflow** y pegá ese tag."
+            echo "**Actions → CD test → Run workflow** y pegá ese tag."
           } >> "$GITHUB_STEP_SUMMARY"

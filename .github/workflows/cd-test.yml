@@ -1,15 +1,15 @@
-name: Deploy test
+name: CD test
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag beta del CI (ej. release-1.3.0-beta)"
+        description: "Tag beta del CI test (ej. release-1.3.0-beta)"
         required: true
         type: string
 
 concurrency:
-  group: deploy-test-${{ inputs.tag }}
+  group: cd-test-${{ inputs.tag }}
   cancel-in-progress: true
 
 permissions:
