@@ -1,4 +1,4 @@
-name: Deploy test (beta tag)
+name: Deploy test
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
       actions: read
       pull-requests: read
       security-events: write
-    continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
+    secrets: inherit
 
   deploy-backend:
     name: Deploy backend test (Render)
