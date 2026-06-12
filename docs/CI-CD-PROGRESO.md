@@ -112,9 +112,10 @@ Con `CI_RELAXED=true`:
 **Notas CI conocidas:**
 
 - OWASP usa plugin Maven (no la action Docker) por compatibilidad con `JAVA_HOME`.
-- Primera corrida OWASP lenta (~15–30 min). Siguientes más rápidas con caché de la BD NVD.
-- **Recomendado:** secret de repo `NVD_API_KEY` (gratis en [NVD API Key](https://nvd.nist.gov/developers/request-an-api-key)) → menos fallos al descargar CVEs.
-- Si OWASP falla con `The database has been closed` / `MVStoreException`: caché NVD corrupta (suele pasar si se canceló un run a medias). En GitHub → Actions → Caches → borrar entradas `owasp-nvd-*` y re-ejecutar el workflow.
+- Primera corrida OWASP lenta (~15–30 min); **siguientes** usan caché GitHub (`owasp-nvd-*-v3`) y `-DautoUpdate=false` (no re-descarga NVD).
+- La key de caché **no** depende del `pom.xml` (la BD CVE es la misma para todo el repo).
+- **Recomendado:** secret `NVD_API_KEY` solo para el cache miss ([NVD API Key](https://nvd.nist.gov/developers/request-an-api-key)).
+- Si OWASP falla con `The database has been closed` / `MVStoreException`: caché corrupta. Actions → Caches → borrar `owasp-nvd-*` y re-ejecutar (una descarga lenta).
 - `cancel-in-progress: false` en CI para no cortar OWASP mientras escribe la BD H2.
 - Semgrep frontend: `p/secrets` (no `p/dart` — ruleset Dart retirado del registry); análisis Dart = job `flutter analyze`.
 - Pueden fallar jobs hasta corregir tests (`BookingDomainServiceTest`) y `flutter analyze` — no bloquea la infra ya montada.

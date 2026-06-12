@@ -61,22 +61,32 @@ jobs:
           java-version: "17"
           cache: maven
       - name: Cache OWASP NVD database
+        id: owasp-nvd-cache
         uses: actions/cache@v4
         with:
+          # La BD NVD es global; no atar la key al pom.xml (evita re-descargas).
           path: ~/.m2/repository/org/owasp/dependency-check-data
-          key: owasp-nvd-${{ runner.os }}-v2-${{ hashFiles('backend/pom.xml') }}
+          key: owasp-nvd-${{ runner.os }}-v3
           restore-keys: |
-            owasp-nvd-${{ runner.os }}-v2-
+            owasp-nvd-${{ runner.os }}-
       - name: Run OWASP Dependency-Check
         working-directory: backend
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          mvn -B org.owasp:dependency-check-maven:12.1.0:check \
-            -DfailBuildOnCVSS=7 \
-            -DsuppressionFiles=dependency-check-suppressions.xml \
-            -DnvdMaxRetryCount=10 \
-            -DnvdApiDelay=6000
+          OWASP_OPTS=(
+            -DfailBuildOnCVSS=7
+            -DsuppressionFiles=dependency-check-suppressions.xml
+            -DnvdMaxRetryCount=10
+          )
+          if [ "${{ steps.owasp-nvd-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "NVD cache hit — sin actualizar la base CVE"
+            OWASP_OPTS+=(-DautoUpdate=false)
+          else
+            echo "NVD cache miss — descarga inicial (lenta; se guardará en cache)"
+            OWASP_OPTS+=(-DnvdApiDelay=6000 -DnvdValidForHours=168)
+          fi
+          mvn -B org.owasp:dependency-check-maven:12.1.0:check "${OWASP_OPTS[@]}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
