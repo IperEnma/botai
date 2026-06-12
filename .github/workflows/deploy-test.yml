@@ -1,4 +1,4 @@
-name: Deploy staging (test)
+name: Deploy test (beta tag)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - "hotfix-*-beta"
 
 concurrency:
-  group: deploy-staging-${{ github.ref_name }}
+  group: deploy-test-${{ github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -52,7 +52,7 @@ jobs:
             --build-env "GOOGLE_CLIENT_ID_WEB=${{ secrets.STAGING_GOOGLE_CLIENT_ID_WEB }}")
           echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           echo "Deployed: $DEPLOY_URL"
-      - name: Alias staging URL
+      - name: Alias test URL
         if: vars.STAGING_VERCEL_ALIAS != ''
         working-directory: frontend
         env:

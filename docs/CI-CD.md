@@ -120,7 +120,7 @@ No necesitás Azure, Jenkins ni un VPS solo para CI. GitHub **es** el motor del 
 | **Cuándo** | Cada PR / push a ramas | Solo tags `release-*` / `hotfix-*` |
 | **Si falla** | No merge, no deploy | No se publica imagen / no se toca prod |
 
-El deploy **también** corre en GitHub Actions, pero en workflows distintos (`deploy-staging.yml`, `deploy-production.yml`) y **solo después** de que el CI del mismo commit haya pasado.
+El deploy **también** corre en GitHub Actions, pero en workflows distintos (`deploy-test.yml`, `deploy-production.yml`) y **solo después** de que el CI del mismo commit haya pasado.
 
 ---
 
@@ -241,7 +241,7 @@ Estas reglas son **obligatorias** en la implementación. El deploy nunca debe av
 
 1. **Gitleaks, Semgrep y OWASP** corren **antes** que tests y Sonar (fallan rápido).
 2. **Tests y Sonar** corren solo si los tres controles de seguridad pasan (`needs`).
-3. **Deploy staging/prod** corre solo si el job CI completo pasó en **el mismo commit** que el tag.
+3. **Deploy test/prod** corre solo si el job CI completo pasó en **el mismo commit** que el tag.
 4. Cualquier job fallido **detiene** el workflow; los jobs siguientes no se ejecutan.
 
 ### 5.2 Cancelar runs y deploys en curso
@@ -257,7 +257,7 @@ Estas reglas son **obligatorias** en la implementación. El deploy nunca debe av
 Grupo de concurrencia sugerido:
 
 - CI: `ci-${{ github.workflow }}-${{ github.ref }}`
-- Deploy staging: `deploy-staging-${{ github.ref_name }}`
+- Deploy test: `deploy-test-${{ github.ref_name }}`
 - Deploy prod: `deploy-prod-${{ github.ref_name }}`
 
 ### 5.3 CI y CD: un solo gate
@@ -527,7 +527,7 @@ Secuencia:
 6. Smoke test `/actuator/health`.
 7. Si smoke falla → workflow rojo; **no** promover a prod.
 
-`concurrency: group: deploy-staging-${{ github.ref_name }}, cancel-in-progress: true`
+`concurrency: group: deploy-test-${{ github.ref_name }}, cancel-in-progress: true`
 
 Environment: **`staging`**.
 
@@ -576,7 +576,7 @@ Cuando se apruebe esta propuesta, crear en el repo (aún **no existen**):
 | Archivo | Función |
 |---------|---------|
 | `.github/workflows/ci.yml` | Gitleaks → Semgrep → OWASP → tests → Sonar; job agregador `ci` |
-| `.github/workflows/deploy-staging.yml` | Tags `*-beta`; `needs` CI; concurrency cancel |
+| `.github/workflows/deploy-test.yml` | Tags `*-beta`; `needs` CI; concurrency cancel |
 | `.github/workflows/deploy-production.yml` | Tags finales; gate CI + aprobación manual |
 | `.gitleaks.toml` | Allowlist (solo `.example`) |
 | `.semgrepignore` | Excluir build/target |
@@ -729,7 +729,7 @@ mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
 ### 3.4 Política de bloqueo
 
 - [ ] Ningún job de seguridad con `continue-on-error: true`
-- [ ] Deploy staging/prod con `needs: [ci]` o verificación de checks en el commit del tag
+- [ ] Deploy test/prod con `needs: [ci]` o verificación de checks en el commit del tag
 - [ ] `concurrency: cancel-in-progress: true` en CI y CD
 - [ ] Branch protection exige check **`ci`** antes de merge a `main`
 

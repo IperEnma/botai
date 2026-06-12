@@ -121,7 +121,7 @@ Con `CI_RELAXED=true`:
 
 ### Paso 6 — CD test (staging)
 
-Archivo: `.github/workflows/deploy-staging.yml`
+Archivo: `.github/workflows/deploy-test.yml`
 
 **Trigger:** tags `release-*-beta`, `hotfix-*-beta`
 
@@ -153,7 +153,7 @@ git tag release-0.1.0-beta
 git push github release-0.1.0-beta
 ```
 
-GitHub → Actions → **Deploy staging (test)**.
+GitHub → Actions → **Deploy test (beta tag)**.
 
 ---
 
@@ -162,7 +162,7 @@ GitHub → Actions → **Deploy staging (test)**.
 | Workflow | Archivo | Estado |
 |----------|---------|--------|
 | CI | `.github/workflows/ci.yml` | Activo |
-| Deploy test | `.github/workflows/deploy-staging.yml` | Activo |
+| Deploy test | `.github/workflows/deploy-test.yml` | Activo |
 | Deploy prod | `.github/workflows/deploy-production.yml` | **En repo, sin configurar secrets ni Oracle** |
 
 `ci.yml` expone `workflow_call` para que staging/prod reutilicen el mismo CI antes de desplegar.
