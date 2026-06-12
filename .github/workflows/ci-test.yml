@@ -141,7 +141,8 @@ jobs:
 
   sonarcloud:
     name: SonarCloud
-    needs: [backend, frontend]
+    # No depender de backend/frontend/OWASP: si tests u OWASP fallan, Sonar igual debe subir métricas.
+    needs: [gitleaks, semgrep]
     continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     steps:
