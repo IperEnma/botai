@@ -1,0 +1,113 @@
+name: Deploy production
+
+on:
+  push:
+    tags:
+      - "release-*-final"
+      - "hotfix-*-final"
+
+concurrency:
+  group: deploy-prod-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  reject-non-final:
+    name: Reject non-final tags
+    if: endsWith(github.ref_name, '-beta') || !endsWith(github.ref_name, '-final')
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "Production deploy only accepts tags ending in -final (e.g. release-1.2.0-final)."
+          echo "Got: ${{ github.ref_name }}"
+          exit 1
+
+  verify-tag:
+    name: Verify tag on main
+    if: endsWith(github.ref_name, '-final')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Tag commit must be on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "Production tags must point to a commit on main."
+            exit 1
+          fi
+          echo "OK: ${{ github.ref_name }} -> ${GITHUB_SHA} on main"
+
+  ci:
+    if: endsWith(github.ref_name, '-final')
+    needs: [verify-tag]
+    uses: ./.github/workflows/ci.yml
+
+  deploy-backend:
+    name: Deploy backend prod (Oracle)
+    if: endsWith(github.ref_name, '-final')
+    needs: [ci]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.PROD_DEPLOY_PATH }}"
+            git fetch origin --tags
+            git checkout "${{ github.sha }}"
+            docker compose -f docker-compose.prod.yml --env-file backend/.env.prod build --pull backend
+            docker compose -f docker-compose.prod.yml --env-file backend/.env.prod up -d
+
+  deploy-frontend:
+    name: Deploy frontend prod (Vercel)
+    if: endsWith(github.ref_name, '-final')
+    needs: [ci]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Vercel deploy (Production)
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npm install -g vercel@latest
+          vercel deploy --prod --yes --token "$VERCEL_TOKEN" \
+            --build-env "KONECTA_BASE_URL=${{ vars.PROD_KONECTA_BASE_URL }}" \
+            --build-env "GOOGLE_CLIENT_ID_WEB=${{ secrets.PROD_GOOGLE_CLIENT_ID_WEB }}"
+
+  smoke:
+    name: Smoke test
+    if: endsWith(github.ref_name, '-final')
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Backend health
+        env:
+          HEALTH_URL: ${{ vars.PROD_API_HEALTH_URL }}
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            echo "Attempt $attempt: $HEALTH_URL"
+            if curl -fsS "$HEALTH_URL"; then
+              echo "Production backend healthy"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "Production health check failed"
+          exit 1

@@ -12,7 +12,7 @@ La **propuesta completa** sigue en [`CI-CD.md`](./CI-CD.md). Este documento dice
 | Ambiente | Deploy | Estado |
 |----------|--------|--------|
 | **Test** | Tag `release-*-beta` / `hotfix-*-beta` → GitHub Actions | Configurado (Paso 6) |
-| **Prod** | Tag `release-*` / `hotfix-*` sin `-beta` en `main` + aprobación | **No configurado aún** |
+| **Prod** | Tag `release-*-final` / `hotfix-*-final` en `main` + aprobación | **Workflow listo; infra Oracle pendiente** |
 
 ---
 
@@ -175,18 +175,17 @@ GitHub → Actions → **Deploy staging (test)**.
 
 **Workflow ya creado:** `.github/workflows/deploy-production.yml`
 
-- Tags `release-*` / `hotfix-*` **sin** `-beta`
+- Tags **`release-*-final`** / **`hotfix-*-final`** únicamente
 - Verifica que el commit del tag esté en `main`
 - CI → **aprobación manual** → SSH Oracle (`git checkout` SHA + `docker compose up`) → `vercel deploy --prod` → smoke
 
-**Tag prod (cuando esté listo):**
+**Tag prod (cuando Oracle esté listo):**
 
 ```bash
 git checkout main
-git merge release/0.1.0   # tras QA en test
+git merge release/1
 git push github main
-git tag release-0.1.0
-git push github release-0.1.0
+./scripts/release-version.sh tag-final release 1.3.0 --push github
 # → Aprobar deployment en GitHub environment production
 ```
 
@@ -201,13 +200,58 @@ git push github release-0.1.0
 
 ---
 
+## Versionado (major humano, minor/patch por script)
+
+| Quién | Qué define |
+|-------|------------|
+| **Personas** | Solo **major** en ramas: `release/1`, `hotfix/1`, `release/2`, … |
+| **Script** | Minor y patch leyendo últimos tags **`*-final`** en esa major |
+
+Script: [`scripts/release-version.sh`](../scripts/release-version.sh) (Git Bash / Linux).
+
+| Acción | Comando | Resultado ejemplo |
+|--------|---------|-------------------|
+| Siguiente release línea 1 | `./scripts/release-version.sh next release 1` | `1.3.0` (minor+1, patch 0) |
+| Siguiente hotfix línea 1 | `./scripts/release-version.sh next hotfix 1` | `1.2.5` (patch+1 sobre último final) |
+| Rama release | `./scripts/release-version.sh branch release 1` | `release/1` desde `develop` |
+| Rama hotfix | `./scripts/release-version.sh branch hotfix 1` | `hotfix/1` desde `main` |
+| Tag test | `./scripts/release-version.sh tag-beta release 1.3.0 --push github` | `release-1.3.0-beta` → deploy test |
+| Tag prod | `./scripts/release-version.sh tag-final release 1.3.0 --push github` | `release-1.3.0-final` → deploy prod |
+
+**Ciclo release (línea 1):**
+
+```bash
+./scripts/release-version.sh branch release 1
+# ... commits en release/1 ...
+VER=$(./scripts/release-version.sh next release 1)
+./scripts/release-version.sh tag-beta release "$VER" --push github
+# QA en test
+git checkout main && git merge release/1 && git push github main
+./scripts/release-version.sh tag-final release "$VER" --push github
+# → aprobar environment production en GitHub
+```
+
+**Ciclo hotfix (línea 1):**
+
+```bash
+./scripts/release-version.sh branch hotfix 1
+# ... fix ...
+VER=$(./scripts/release-version.sh next hotfix 1)
+./scripts/release-version.sh tag-beta hotfix "$VER" --push github
+# QA
+git checkout main && git merge hotfix/1 && git push github main
+./scripts/release-version.sh tag-final hotfix "$VER" --push github
+```
+
+---
+
 ## Reglas de negocio (recordatorio)
 
 ```
-PR / push ramas     →  solo CI
-tag *-beta          →  deploy TEST  (Render test + Vercel Preview)
-merge a main        →  no despliega prod solo
-tag final en main   →  deploy PROD  (Oracle + Vercel prod + aprobación)
+PR / push ramas           →  solo CI
+tag *-beta                →  deploy TEST  (Render test + Vercel Preview)
+merge a main              →  no despliega prod solo
+tag *-final en main       →  deploy PROD  (Oracle + Vercel prod + aprobación)
 ```
 
 | Capa | Test | Prod (futuro) |
@@ -233,7 +277,7 @@ Suele ser: `main` local atrás de Azure, o cambios sin commit. Ver `git fetch or
 
 1. Leer este doc y la sección correspondiente en [`CI-CD.md`](./CI-CD.md).
 2. Si solo trabajás test: tags `*-beta` y environment `staging`.
-3. Cuando vayas a prod: completar **Paso 7** (Oracle + secrets `production`) antes del primer tag sin `-beta`.
+3. Cuando vayas a prod: completar **Paso 7** (Oracle + secrets `production`) antes del primer tag `*-final`.
 4. Referencias de deploy: [`deploy/RENDER.md`](../deploy/RENDER.md), [`deploy/VERCEL.md`](../deploy/VERCEL.md), [`deploy/ORACLE.md`](../deploy/ORACLE.md).
 
 ---
