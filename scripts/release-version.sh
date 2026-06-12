@@ -125,13 +125,13 @@ cmd_branch() {
     git pull "$REMOTE" develop
     git checkout -B "$branch"
     echo "Rama $branch creada desde develop."
-    echo "Push → CI crea el tag beta. Luego: Actions → Deploy test → Run workflow (con ese tag)."
+    echo "Push → CI test crea el tag beta. Luego: Actions → CD test → Run workflow (con ese tag)."
   else
     git checkout main
     git pull "$REMOTE" main
     git checkout -B "$branch"
     echo "Rama $branch creada desde main."
-    echo "Push → CI crea el tag beta. Luego: Actions → Deploy test → Run workflow (con ese tag)."
+    echo "Push → CI test crea el tag beta. Luego: Actions → CD test → Run workflow (con ese tag)."
   fi
 }
 

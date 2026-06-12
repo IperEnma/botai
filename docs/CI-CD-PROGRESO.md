@@ -125,18 +125,18 @@ Con `CI_RELAXED=true`:
 
 ### Paso 6 — CD test (staging)
 
-Archivo: `.github/workflows/deploy-test.yml`
+Archivo: `.github/workflows/cd-test.yml`
 
-**Trigger:** manual — **Actions → Deploy test → Run workflow** (input: tag beta del CI).
+**Trigger:** manual — **Actions → CD test → Run workflow** (input: tag beta del CI).
 
 **Flujo:**
 
 ```
 rama release/1.x.x-beta  →  CI test: verify + CREAR artifact + tag beta
-Deploy test (manual)     →  tag beta → bajar artifact → deploy (sin compilar)
+CD test (manual)     →  tag beta → bajar artifact → deploy (sin compilar)
 
 merge a main             →  CI prod: OBTENER artifact CI test + front prod + tag final
-Deploy prod (manual)   →  tag final → bajar botai-build-prod-<sha> → deploy
+CD prod (manual)   →  tag final → bajar botai-build-prod-<sha> → deploy
 ```
 
 **Build once:** `botai-build-<sha>` (JAR + frontend prebuilt). El CD test **no recompila** el front; usa el artifact del CI.
@@ -165,7 +165,7 @@ Las vars de Vercel **no** llegan al job `Build artifacts (test)`; hay que cargar
 # ... commits ...
 git push github release/1.x.x-beta
 # CI → job "Beta tag" → Summary con release-1.x.x-beta
-# Actions → Deploy test → Run workflow → pegar ese tag
+# Actions → CD test → Run workflow → pegar ese tag
 ```
 
 ---
@@ -176,8 +176,8 @@ git push github release/1.x.x-beta
 |----------|---------|--------|
 | CI test | `.github/workflows/ci-test.yml` | Verify + **crear** artifact + tag beta |
 | CI prod | `.github/workflows/ci-prod.yml` | Push `main`: **obtener** artifact + front prod + tag final |
-| Deploy test | `.github/workflows/deploy-test.yml` | Manual, artifact staging |
-| Deploy prod | `.github/workflows/deploy-production.yml` | Manual, artifact prod (`botai-build-prod-<sha>`) |
+| CD test | `.github/workflows/cd-test.yml` | Manual, artifact staging |
+| CD prod | `.github/workflows/cd-prod.yml` | Manual, artifact prod (`botai-build-prod-<sha>`) |
 
 CI test y CI prod están separados del CD (deploy manual por tag).
 
@@ -204,7 +204,7 @@ CI test y CI prod están separados del CD (deploy manual por tag).
 | Secret | `PROD_GOOGLE_CLIENT_ID_WEB` |
 | Variable | `PROD_KONECTA_BASE_URL`, `PROD_API_HEALTH_URL` |
 
-**Workflow ya creado:** `.github/workflows/deploy-production.yml`
+**Workflow ya creado:** `.github/workflows/cd-prod.yml`
 
 - Tags **`release-*-final`** / **`hotfix-*-final`** únicamente
 - Verifica que el commit del tag esté en `main`
@@ -236,9 +236,9 @@ git push github main
 | Quién | Qué define |
 |-------|------------|
 | **Personas** | Solo **major** — rama plantilla `release/1.x.x-beta` o `hotfix/1.x.x-beta` |
-| **CI (Versionado beta)** | Minor y patch → crea `release-1.3.0-beta`; el tag se ve en el **grafo** como `Deploy test → release-…-beta` |
-| **CI en `main`** | **Versionado (final)** → grafo muestra `Deploy prod → release-…-final` |
-| **Personas** | **Deploy test** / **Deploy production** manual con el tag del Summary |
+| **CI (Versionado beta)** | Minor y patch → crea `release-1.3.0-beta`; el tag se ve en el **grafo** como `CD test → release-…-beta` |
+| **CI en `main`** | **Versionado (final)** → grafo muestra `CD prod → release-…-final` |
+| **Personas** | **CD test** / **CD prod** manual con el tag del Summary |
 
 **Reglas de número** (major en la rama `release/1.x.x-beta` o `hotfix/1.x.x-beta`):
 
@@ -254,9 +254,9 @@ Script local: [`scripts/release-version.sh`](../scripts/release-version.sh) (cre
 | Rama release test | `./scripts/release-version.sh branch release 1` | `release/1.x.x-beta` desde `develop` |
 | Rama hotfix test | `./scripts/release-version.sh branch hotfix 1` | `hotfix/1.x.x-beta` desde `main` |
 | Push rama | `git push github release/1.x.x-beta` | CI + tag beta en Summary |
-| Deploy test | Actions → **Deploy test** → Run workflow | Input = tag del CI |
+| CD test | Actions → **CD test** → Run workflow | Input = tag del CI |
 | Merge a `main` | `git merge release/1.x.x-beta && git push github main` | CI → **Versionado (final)** en Summary |
-| Deploy prod | Actions → **Deploy production** | Input = tag `*-final` del Summary |
+| CD prod | Actions → **CD prod** | Input = tag `*-final` del Summary |
 
 **Ciclo release (línea 1):**
 
@@ -264,10 +264,10 @@ Script local: [`scripts/release-version.sh`](../scripts/release-version.sh) (cre
 ./scripts/release-version.sh branch release 1
 # ... commits ...
 git push github release/1.x.x-beta
-# CI → Versionado (beta) → Deploy test (manual) → QA
+# CI → Versionado (beta) → CD test (manual) → QA
 git checkout main && git merge release/1.x.x-beta && git push github main
 # CI → Versionado (final) crea release-1.1.0-final (misma versión que la beta)
-# Actions → Deploy production (manual) → aprobar environment production
+# Actions → CD prod (manual) → aprobar environment production
 ```
 
 **Ciclo hotfix (línea 1):**
@@ -277,7 +277,7 @@ git checkout main && git merge release/1.x.x-beta && git push github main
 # ... fix en hotfix/1.x.x-beta ...
 git push github hotfix/1.x.x-beta
 # beta hotfix-1.0.2-beta (patch+1 sobre último final)
-# Deploy test → QA → merge main → final automático
+# CD test → QA → merge main → final automático
 ```
 
 ---
@@ -287,9 +287,9 @@ git push github hotfix/1.x.x-beta
 ```
 PR / push ramas normales     →  solo CI
 push release/N.x.x-beta      →  CI + Versionado (beta)
-Deploy test (manual + tag)   →  test (Render + Vercel)
+CD test (manual + tag)   →  test (Render + Vercel)
 merge / push main            →  CI + Versionado (final) desde última *-beta
-Deploy production (manual)   →  prod (Oracle + Vercel + aprobación)
+CD prod (manual)   →  prod (Oracle + Vercel + aprobación)
 ```
 
 | Capa | Test | Prod (futuro) |

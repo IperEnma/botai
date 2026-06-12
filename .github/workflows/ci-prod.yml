@@ -151,7 +151,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   final-tag-visible:
-    name: ${{ format('Deploy prod → {0}', needs.final-tag.outputs.tag) }}
+    name: ${{ format('CD prod → {0}', needs.final-tag.outputs.tag) }}
     needs: [final-tag]
     if: needs.final-tag.outputs.tag != ''
     runs-on: ubuntu-latest
@@ -159,13 +159,13 @@ jobs:
       - name: Tag visible en el grafo y en Annotations
         run: |
           TAG="${{ needs.final-tag.outputs.tag }}"
-          echo "::notice title=Deploy production::Tag ${TAG} — Actions → Deploy production → Run workflow"
+          echo "::notice title=CD prod::Tag ${TAG} — Actions → CD prod → Run workflow"
           {
-            echo "## Deploy production"
+            echo "## CD prod"
             echo ""
             echo "# \`${TAG}\`"
             echo ""
             echo "Artifact: \`botai-build-prod-${{ github.sha }}\`"
             echo ""
-            echo "**Actions → Deploy production → Run workflow** y pegá ese tag."
+            echo "**Actions → CD prod → Run workflow** y pegá ese tag."
           } >> "$GITHUB_STEP_SUMMARY"

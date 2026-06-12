@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Imprime el run id de CI exitoso para un commit (uso en Deploy test).
+# Imprime el run id de CI exitoso para un commit (uso en CD test / CD prod).
 set -euo pipefail
 
 SHA="${1:-}"

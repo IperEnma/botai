@@ -1,15 +1,15 @@
-name: Deploy production
+name: CD prod
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag final (ej. release-1.3.0-final)"
+        description: "Tag final del CI prod (ej. release-1.3.0-final)"
         required: true
         type: string
 
 concurrency:
-  group: deploy-prod-${{ inputs.tag }}
+  group: cd-prod-${{ inputs.tag }}
   cancel-in-progress: true
 
 permissions:
