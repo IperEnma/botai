@@ -226,6 +226,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Tag en commit con cambios en .github/workflows/ (p. ej. renombrar ci-test.yml).
+      workflows: write
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:

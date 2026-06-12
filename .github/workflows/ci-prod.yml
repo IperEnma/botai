@@ -133,6 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      workflows: write
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:
