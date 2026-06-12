@@ -1,11 +1,11 @@
-name: CI Promote
+name: CI prod
 
 on:
   push:
     branches: [main]
 
 concurrency:
-  group: ci-promote-${{ github.ref }}
+  group: ci-prod-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -45,7 +45,7 @@ jobs:
           echo "Pendiente: $beta_tag @ $beta_sha → final en HEAD ${{ github.sha }}"
 
   fetch-release-artifact:
-    name: Fetch release CI artifact
+    name: Fetch CI test artifact
     needs: [resolve]
     if: needs.resolve.outputs.pending == 'true'
     runs-on: ubuntu-latest
@@ -53,15 +53,15 @@ jobs:
       ci_run_id: ${{ steps.ci-run.outputs.run_id }}
     steps:
       - uses: actions/checkout@v4
-      - name: Find successful CI (release) run for beta SHA
+      - name: Find successful CI test run for beta SHA
         id: ci-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WORKFLOW_FILE: ci.yml
+          WORKFLOW_FILE: ci-test.yml
         run: |
           RUN_ID=$(bash scripts/ci-find-successful-ci-run.sh "${{ needs.resolve.outputs.beta_sha }}")
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "CI release run: $RUN_ID for ${{ needs.resolve.outputs.beta_sha }}"
+          echo "CI test run: $RUN_ID for ${{ needs.resolve.outputs.beta_sha }}"
       - name: Download staging artifact
         uses: actions/download-artifact@v4
         with:

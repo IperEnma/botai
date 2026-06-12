@@ -44,7 +44,7 @@ jobs:
           echo "OK: $TAG -> $SHA on main"
 
   fetch-artifacts:
-    name: Fetch CI Promote artifact
+    name: Fetch CI prod artifact
     needs: [validate-tag]
     runs-on: ubuntu-latest
     outputs:
@@ -52,15 +52,15 @@ jobs:
       promote_run_id: ${{ steps.promote-run.outputs.run_id }}
     steps:
       - uses: actions/checkout@v4
-      - name: Find successful CI Promote run for commit
+      - name: Find successful CI prod run for commit
         id: promote-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WORKFLOW_FILE: ci-promote.yml
+          WORKFLOW_FILE: ci-prod.yml
         run: |
           RUN_ID=$(bash scripts/ci-find-successful-ci-run.sh "${{ needs.validate-tag.outputs.sha }}")
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "CI Promote run: $RUN_ID"
+          echo "CI prod run: $RUN_ID"
       - name: Download prod artifact
         uses: actions/download-artifact@v4
         with:
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Download CI Promote artifact
+      - name: Download CI prod artifact
         uses: actions/download-artifact@v4
         with:
           name: botai-build-prod-${{ needs.fetch-artifacts.outputs.sha }}
@@ -120,14 +120,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Download CI Promote artifact
+      - name: Download CI prod artifact
         uses: actions/download-artifact@v4
         with:
           name: botai-build-prod-${{ needs.fetch-artifacts.outputs.sha }}
           run-id: ${{ needs.fetch-artifacts.outputs.promote_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: artifact
-      - name: Vercel deploy (prebuilt from CI Promote)
+      - name: Vercel deploy (prebuilt from CI prod)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

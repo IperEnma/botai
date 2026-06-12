@@ -3,9 +3,9 @@
 set -euo pipefail
 
 SHA="${1:-}"
-WORKFLOW_FILE="${WORKFLOW_FILE:-ci.yml}"
+WORKFLOW_FILE="${WORKFLOW_FILE:-ci-test.yml}"
 if [[ -z "$SHA" ]]; then
-  echo "Uso: WORKFLOW_FILE=ci.yml $0 <commit-sha>" >&2
+  echo "Uso: WORKFLOW_FILE=ci-test.yml $0 <commit-sha>" >&2
   exit 1
 fi
 

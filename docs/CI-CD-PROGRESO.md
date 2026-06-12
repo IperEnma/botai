@@ -78,7 +78,7 @@ Archivos en el repo:
 
 | Archivo | Función |
 |---------|---------|
-| `.github/workflows/ci.yml` | Gitleaks → Semgrep → OWASP → tests → SonarCloud; job agregador **`ci`** |
+| `.github/workflows/ci-test.yml` | Gitleaks → Semgrep → OWASP → tests → SonarCloud; job agregador **`ci`** |
 | `.gitleaks.toml` | Allowlist solo `*.example` |
 | `.semgrepignore` | Excluye `target/`, `build/`, `.dart_tool/` |
 | `backend/dependency-check-suppressions.xml` | Supresiones OWASP |
@@ -91,7 +91,7 @@ Secrets / variables (repo o Sonar):
 - [x] Variables `SONAR_ORGANIZATION` / `SONAR_PROJECT_KEY` (ajustar si difieren de `sonar-project.properties`)
 
 **Triggers CI (verify + build):** PR a `main`/`develop`; push a `develop`, `release/*`, `hotfix/*`.  
-**CI Promote** (`.github/workflows/ci-promote.yml`): solo push a `main` — obtiene artifact del CI release, build front prod, tag `*-final`.  
+**CI prod** (`.github/workflows/ci-prod.yml`): solo push a `main` — obtiene artifact del CI test, build front prod, tag `*-final`.  
 **No despliega** nada (CD sigue manual).
 
 ### Modo configuración (`CI_RELAXED`)
@@ -132,10 +132,10 @@ Archivo: `.github/workflows/deploy-test.yml`
 **Flujo:**
 
 ```
-rama release/1.x.x-beta  →  CI: verify + CREAR artifact + tag beta
+rama release/1.x.x-beta  →  CI test: verify + CREAR artifact + tag beta
 Deploy test (manual)     →  tag beta → bajar artifact → deploy (sin compilar)
 
-merge a main             →  CI Promote: OBTENER artifact release + front prod + tag final
+merge a main             →  CI prod: OBTENER artifact CI test + front prod + tag final
 Deploy prod (manual)   →  tag final → bajar botai-build-prod-<sha> → deploy
 ```
 
@@ -174,12 +174,12 @@ git push github release/1.x.x-beta
 
 | Workflow | Archivo | Estado |
 |----------|---------|--------|
-| CI (release) | `.github/workflows/ci.yml` | Verify + **crear** artifact + tag beta |
-| CI Promote | `.github/workflows/ci-promote.yml` | Push `main`: **obtener** artifact + front prod + tag final |
+| CI test | `.github/workflows/ci-test.yml` | Verify + **crear** artifact + tag beta |
+| CI prod | `.github/workflows/ci-prod.yml` | Push `main`: **obtener** artifact + front prod + tag final |
 | Deploy test | `.github/workflows/deploy-test.yml` | Manual, artifact staging |
 | Deploy prod | `.github/workflows/deploy-production.yml` | Manual, artifact prod (`botai-build-prod-<sha>`) |
 
-CI release y CI promote están separados del CD (deploy manual por tag).
+CI test y CI prod están separados del CD (deploy manual por tag).
 
 ---
 
