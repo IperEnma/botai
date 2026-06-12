@@ -47,10 +47,11 @@ jobs:
       ci_run_id: ${{ steps.ci-run.outputs.run_id }}
     steps:
       - uses: actions/checkout@v4
-      - name: Find successful CI run for commit
+      - name: Find successful CI test run for commit
         id: ci-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_FILE: ci-test.yml
         run: |
           RUN_ID=$(bash scripts/ci-find-successful-ci-run.sh "${{ needs.validate-tag.outputs.sha }}")
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
