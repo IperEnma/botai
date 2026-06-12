@@ -1,6 +1,26 @@
 #!/usr/bin/env bash
-# Build único para CD test: backend JAR + frontend web (mismo commit que pasó CI).
+# Empaqueta artefactos CD test: JAR (reutilizado del job backend) + frontend web.
 set -euo pipefail
+
+BACKEND_JAR=""
+
+usage() {
+  echo "Uso: $0 [--backend-jar PATH]" >&2
+  echo "  --backend-jar  JAR ya construido en CI (evita segundo mvn package)." >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --backend-jar)
+      [[ $# -ge 2 ]] || usage
+      BACKEND_JAR="$2"
+      shift 2
+      ;;
+    -h|--help) usage ;;
+    *) echo "Opción desconocida: $1" >&2; usage ;;
+  esac
+done
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -9,10 +29,16 @@ DIST="$REPO_ROOT/dist/botai-build"
 rm -rf "$DIST"
 mkdir -p "$DIST/backend" "$DIST/vercel-output"
 
-echo ">> Backend: mvn package (tests ya corrieron en CI)"
-mvn -B -DskipTests package -f backend/pom.xml
-JAR="$(ls backend/target/*.jar | grep -v 'original' | head -1)"
-cp "$JAR" "$DIST/backend/app.jar"
+if [[ -n "$BACKEND_JAR" ]]; then
+  [[ -f "$BACKEND_JAR" ]] || { echo "ERROR: JAR no encontrado: $BACKEND_JAR" >&2; exit 1; }
+  echo ">> Backend: reutilizando JAR de CI ($BACKEND_JAR)"
+  cp "$BACKEND_JAR" "$DIST/backend/app.jar"
+else
+  echo ">> Backend: mvn package (fallback local; en CI usar --backend-jar)" >&2
+  mvn -B package -f backend/pom.xml
+  JAR="$(ls backend/target/*.jar | grep -v 'original' | head -1)"
+  cp "$JAR" "$DIST/backend/app.jar"
+fi
 
 if [[ -z "${KONECTA_BASE_URL:-}" || -z "${GOOGLE_CLIENT_ID_WEB:-}" ]]; then
   echo "ERROR: Faltan en GitHub → Environments → staging:" >&2
