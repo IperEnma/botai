@@ -12,6 +12,10 @@ concurrency:
   group: deploy-prod-${{ inputs.tag }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   validate-tag:
     name: Validate tag on main
@@ -39,12 +43,55 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "OK: $TAG -> $SHA on main"
 
+  fetch-artifacts:
+    name: Fetch CI Promote artifact
+    needs: [validate-tag]
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ needs.validate-tag.outputs.sha }}
+      promote_run_id: ${{ steps.promote-run.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find successful CI Promote run for commit
+        id: promote-run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_FILE: ci-promote.yml
+        run: |
+          RUN_ID=$(bash scripts/ci-find-successful-ci-run.sh "${{ needs.validate-tag.outputs.sha }}")
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "CI Promote run: $RUN_ID"
+      - name: Download prod artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: botai-build-prod-${{ needs.validate-tag.outputs.sha }}
+          run-id: ${{ steps.promote-run.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifact
+      - name: Verify prod artifact manifest
+        run: |
+          cat artifact/manifest.json
+          test -f artifact/backend/app.jar
+          test -f artifact/vercel-output/config.json
+          echo "Artifact prod OK para ${{ needs.validate-tag.outputs.sha }}"
+
   deploy-backend:
     name: Deploy backend prod (Oracle)
-    needs: [validate-tag]
+    needs: [fetch-artifacts]
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - name: Download CI Promote artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: botai-build-prod-${{ needs.fetch-artifacts.outputs.sha }}
+          run-id: ${{ needs.fetch-artifacts.outputs.promote_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifact
+      - name: Verify backend JAR (promovido desde release CI)
+        run: |
+          ls -lh artifact/backend/app.jar
+          echo "::notice::Deploy backend vía git+compose en VM; JAR del promote validado. GHCR en fase siguiente."
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -55,33 +102,45 @@ jobs:
             set -euo pipefail
             cd "${{ secrets.PROD_DEPLOY_PATH }}"
             git fetch origin --tags
-            git checkout "${{ needs.validate-tag.outputs.sha }}"
+            git checkout "${{ needs.fetch-artifacts.outputs.sha }}"
             docker compose -f docker-compose.prod.yml --env-file backend/.env.prod build --pull backend
             docker compose -f docker-compose.prod.yml --env-file backend/.env.prod up -d
 
   deploy-frontend:
-    name: Deploy frontend prod (Vercel)
-    needs: [validate-tag]
+    name: Deploy frontend prod (Vercel prebuilt)
+    needs: [validate-tag, fetch-artifacts]
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
+          sparse-checkout: |
+            frontend
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Vercel deploy (Production)
-        # Root del repo: Vercel ya tiene Root Directory = frontend en el proyecto.
+      - name: Download CI Promote artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: botai-build-prod-${{ needs.fetch-artifacts.outputs.sha }}
+          run-id: ${{ needs.fetch-artifacts.outputs.promote_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifact
+      - name: Vercel deploy (prebuilt from CI Promote)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        working-directory: frontend
         run: |
           npm install -g vercel@latest
-          vercel deploy --prod --yes --token "$VERCEL_TOKEN" \
-            --build-env "KONECTA_BASE_URL=${{ vars.PROD_KONECTA_BASE_URL }}" \
-            --build-env "GOOGLE_CLIENT_ID_WEB=${{ secrets.PROD_GOOGLE_CLIENT_ID_WEB }}"
+          vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+          rm -rf .vercel/output
+          mkdir -p .vercel/output
+          cp -r "$GITHUB_WORKSPACE/artifact/vercel-output/." .vercel/output/
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN")
+          echo "Deployed (prebuilt prod): $DEPLOY_URL"
 
   smoke:
     name: Smoke test

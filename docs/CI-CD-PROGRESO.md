@@ -90,8 +90,9 @@ Secrets / variables (repo o Sonar):
 - [x] SonarCloud: proyecto **privado** (plan Free, hasta 50k LOC privadas)
 - [x] Variables `SONAR_ORGANIZATION` / `SONAR_PROJECT_KEY` (ajustar si difieren de `sonar-project.properties`)
 
-**Triggers CI:** PR y push a `main`, `develop`, `release/*`, `hotfix/*`.  
-**No despliega** nada.
+**Triggers CI (verify + build):** PR a `main`/`develop`; push a `develop`, `release/*`, `hotfix/*`.  
+**CI Promote** (`.github/workflows/ci-promote.yml`): solo push a `main` — obtiene artifact del CI release, build front prod, tag `*-final`.  
+**No despliega** nada (CD sigue manual).
 
 ### Modo configuración (`CI_RELAXED`)
 
@@ -131,8 +132,11 @@ Archivo: `.github/workflows/deploy-test.yml`
 **Flujo:**
 
 ```
-rama release/1.x.x-beta  →  CI + Build artifacts + Versionado (beta)
-Deploy test (manual)     →  baja artifacts del commit del tag → Vercel --prebuilt + Render hook
+rama release/1.x.x-beta  →  CI: verify + CREAR artifact + tag beta
+Deploy test (manual)     →  tag beta → bajar artifact → deploy (sin compilar)
+
+merge a main             →  CI Promote: OBTENER artifact release + front prod + tag final
+Deploy prod (manual)   →  tag final → bajar botai-build-prod-<sha> → deploy
 ```
 
 **Build once:** `botai-build-<sha>` (JAR + frontend prebuilt). El CD test **no recompila** el front; usa el artifact del CI.
@@ -170,11 +174,12 @@ git push github release/1.x.x-beta
 
 | Workflow | Archivo | Estado |
 |----------|---------|--------|
-| CI | `.github/workflows/ci.yml` | Activo |
-| Deploy test | `.github/workflows/deploy-test.yml` | Activo |
-| Deploy prod | `.github/workflows/deploy-production.yml` | **En repo, sin configurar secrets ni Oracle** |
+| CI (release) | `.github/workflows/ci.yml` | Verify + **crear** artifact + tag beta |
+| CI Promote | `.github/workflows/ci-promote.yml` | Push `main`: **obtener** artifact + front prod + tag final |
+| Deploy test | `.github/workflows/deploy-test.yml` | Manual, artifact staging |
+| Deploy prod | `.github/workflows/deploy-production.yml` | Manual, artifact prod (`botai-build-prod-<sha>`) |
 
-CI y CD están separados: CI crea el tag en ramas `*.x.x-beta`; CD es manual con ese tag.
+CI release y CI promote están separados del CD (deploy manual por tag).
 
 ---
 
