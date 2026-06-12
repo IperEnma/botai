@@ -25,23 +25,20 @@ public class BookingDomainService {
     }
 
     /**
-     * Verifica (RF06) que el slot pedido no se solape con otra reserva activa
-     * del mismo negocio y servicio. Si hay solapamiento → excepción.
+     * Regla de no-solapamiento global por profesional: la agenda de un
+     * {@code StaffMember} es <strong>única dentro del tenant</strong>. Aunque
+     * pertenezca a varias sucursales, no puede tener dos reservas activas
+     * solapadas, independientemente del business en que se hayan tomado.
      *
-     * <p><b>Nota:</b> esta verificación es best-effort sin bloqueo: dos
-     * requests podrían pasar el check y luego ambos insertar. En Slice 1
-     * aceptamos ese race window porque el flujo real pasa por
-     * {@code CreateBookingUseCase}, que ya corre dentro de una tx con lock
-     * sobre la suscripción — si hay concurrencia la ganadora inserta y la
-     * perdedora va a fallar por índice único o por lock timeout en Sprints
-     * siguientes (cuando introduzcamos bloqueo por recurso/slot).</p>
+     * <p>La verificación de aplicación es best-effort (race window posible);
+     * el {@code EXCLUDE GiST} en {@code excl_agenda_bookings_staff_slot} (V5)
+     * cierra ese hueco a nivel base.</p>
      */
-    public void validarDisponibilidad(UUID businessId,
-                                      UUID staffMemberId,
+    public void validarDisponibilidad(UUID staffMemberId,
                                       LocalDateTime desde,
                                       LocalDateTime hasta) {
         if (staffMemberId == null) return;
-        List<Booking> overlap = bookingRepository.findOverlappingForStaff(businessId, staffMemberId, desde, hasta);
+        List<Booking> overlap = bookingRepository.findOverlappingForStaff(staffMemberId, desde, hasta);
         if (!overlap.isEmpty()) {
             throw new BookingSlotTakenException();
         }

@@ -65,7 +65,7 @@ public class ManageStaffUseCase {
         verifyBusiness(tenantId, businessId);
         StaffMember existing = staffMemberRepository.findById(staffId)
                 .orElseThrow(() -> new StaffMemberNotFoundException(staffId));
-        if (!existing.getBusinessId().equals(businessId)) {
+        if (!existing.belongsTo(businessId)) {
             throw new StaffMemberNotFoundException(staffId);
         }
         String customScheduleJson = req.customSchedule() != null
@@ -73,7 +73,8 @@ public class ManageStaffUseCase {
                 : null;
         StaffMember updated = StaffMember.builder()
                 .id(existing.getId())
-                .businessId(existing.getBusinessId())
+                .userId(existing.getUserId())
+                .businessIds(existing.getBusinessIds())
                 .nombre(req.nombre())
                 .rol(req.rol())
                 .avatarUrl(req.avatarUrl())
@@ -82,6 +83,45 @@ public class ManageStaffUseCase {
                 .bio(req.bio())
                 .color(req.color())
                 .status(req.status())
+                .customSchedule(customScheduleJson)
+                .serviceIds(existing.getServiceIds())
+                .deletedAt(existing.getDeletedAt())
+                .createdAt(existing.getCreatedAt())
+                .updatedAt(existing.getUpdatedAt())
+                .build();
+        return staffMemberRepository.save(updated);
+    }
+
+    /**
+     * Actualiza solo el horario semanal ({@code customSchedule}). Pensado para
+     * que el propio STAFF edite su horario sin tocar el resto de sus datos.
+     * El schedule se clampa dentro del horario del negocio (igual que el PUT
+     * completo).
+     */
+    @Transactional
+    public StaffMember updateSchedule(String tenantId, UUID businessId, UUID staffId,
+                                       JsonNode schedule) {
+        verifyBusiness(tenantId, businessId);
+        StaffMember existing = staffMemberRepository.findById(staffId)
+                .orElseThrow(() -> new StaffMemberNotFoundException(staffId));
+        if (!existing.belongsTo(businessId)) {
+            throw new StaffMemberNotFoundException(staffId);
+        }
+        String customScheduleJson = schedule != null
+                ? sanitizeSchedule(businessId, schedule)
+                : null;
+        StaffMember updated = StaffMember.builder()
+                .id(existing.getId())
+                .userId(existing.getUserId())
+                .businessIds(existing.getBusinessIds())
+                .nombre(existing.getNombre())
+                .rol(existing.getRol())
+                .avatarUrl(existing.getAvatarUrl())
+                .telefono(existing.getTelefono())
+                .email(existing.getEmail())
+                .bio(existing.getBio())
+                .color(existing.getColor())
+                .status(existing.getStatus())
                 .customSchedule(customScheduleJson)
                 .serviceIds(existing.getServiceIds())
                 .deletedAt(existing.getDeletedAt())

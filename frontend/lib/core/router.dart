@@ -24,6 +24,7 @@ import '../features/agenda/tenant/agenda_panel_screen.dart';
 import '../features/agenda/tenant/agenda_panel_section_screen.dart';
 import '../features/agenda/tenant/agenda_panel_config_screen.dart';
 import '../features/agenda/tenant/agenda_legacy_business_redirect.dart';
+import '../features/agenda/tenant/mis_horarios_screen.dart';
 // Sprint FE-3 — Me
 import '../features/agenda/me/my_subscriptions_screen.dart';
 import '../features/agenda/me/wallet_screen.dart';
@@ -178,6 +179,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                 child: AgendaPanelSectionScreen(section: section),
               );
             },
+          ),
+          GoRoute(
+            path: '/agenda/panel/mis-horarios',
+            pageBuilder: (context, state) => _shellPage(
+              key: const ValueKey('/agenda/panel/mis-horarios'),
+              child: const MisHorariosScreen(),
+            ),
           ),
           GoRoute(
             path: '/agenda/businesses/:businessId',

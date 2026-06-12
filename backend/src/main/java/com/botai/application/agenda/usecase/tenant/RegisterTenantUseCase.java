@@ -4,6 +4,7 @@ import com.botai.application.agenda.dto.RegisterTenantRequest;
 import com.botai.application.agenda.dto.RegisterTenantResponse;
 import com.botai.application.agenda.support.AgendaPublicSlug;
 import com.botai.application.agenda.support.CompanySlugSupport;
+import com.botai.application.agenda.usecase.rbac.AgendaRoleBootstrapService;
 import com.botai.domain.agenda.exception.DuplicateTenantEmailException;
 import com.botai.domain.agenda.exception.DuplicateTenantNumeroException;
 import com.botai.domain.agenda.model.Business;
@@ -61,6 +62,7 @@ public class RegisterTenantUseCase {
     private final CategoryRepository categoryRepository;
     private final BusinessCategoryRepository businessCategoryRepository;
     private final BotWorkspaceRegistry botWorkspaceRegistry;
+    private final AgendaRoleBootstrapService roleBootstrap;
 
     public RegisterTenantUseCase(TenantAccountRepository tenantAccountRepository,
                                  UserRepository userRepository,
@@ -69,7 +71,8 @@ public class RegisterTenantUseCase {
                                  BusinessSettingsRepository businessSettingsRepository,
                                  CategoryRepository categoryRepository,
                                  BusinessCategoryRepository businessCategoryRepository,
-                                 BotWorkspaceRegistry botWorkspaceRegistry) {
+                                 BotWorkspaceRegistry botWorkspaceRegistry,
+                                 AgendaRoleBootstrapService roleBootstrap) {
         this.tenantAccountRepository = tenantAccountRepository;
         this.userRepository = userRepository;
         this.tenantConfigRepository = tenantConfigRepository;
@@ -78,6 +81,7 @@ public class RegisterTenantUseCase {
         this.categoryRepository = categoryRepository;
         this.businessCategoryRepository = businessCategoryRepository;
         this.botWorkspaceRegistry = botWorkspaceRegistry;
+        this.roleBootstrap = roleBootstrap;
     }
 
     @Transactional
@@ -165,6 +169,8 @@ public class RegisterTenantUseCase {
                 null
         );
         userRepository.save(adminUser);
+
+        roleBootstrap.grantOwnerOnRegistration(userId, tenantId);
 
         TenantConfig config = new TenantConfig(tenantId, true, true, true, true);
         tenantConfigRepository.save(config);

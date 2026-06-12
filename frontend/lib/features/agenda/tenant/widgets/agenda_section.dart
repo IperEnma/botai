@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../models/agenda/staff_member.dart';
 import '../../../../providers/agenda/agenda_api_provider.dart';
+import '../../../../providers/agenda/me_profile_provider.dart';
 import '../../../../providers/agenda/tenant/agenda_bookings_provider.dart';
 import '../../../../providers/agenda/tenant/agenda_month_provider.dart';
 import '../../../../providers/agenda/tenant/agenda_week_provider.dart';
@@ -111,7 +112,7 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
     });
   }
 
-  Future<void> _openNewTurno({DateTime? start, String? proId}) async {
+  Future<void> _openNewTurno({DateTime? start, String? proId, String? lockedProId}) async {
     final businessId = widget.businessId;
     if (businessId == null) return;
     await showNewTurnoPanel(
@@ -119,7 +120,8 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
       tenantId: widget.tenantId,
       businessId: businessId,
       initialDate: start,
-      initialProId: proId,
+      // STAFF: el wizard arranca con su propio staffMember preseleccionado.
+      initialProId: lockedProId ?? proId,
     );
     if (!mounted) return;
     _refreshCurrentView(businessId);
@@ -190,6 +192,21 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
     final ws = _weekStart(_focusDate);
     final isMobile = MediaQuery.sizeOf(context).width < 700;
 
+    // STAFF puro: el calendario muestra solo SU agenda. Encontramos el
+    // StaffMember de este business cuyo userId matchea el usuario logueado y
+    // lo fijamos como filtro — anula el `_selectedProId` manual.
+    final me = readMeProfileOrEmpty(ref);
+    StaffMember? ownStaff;
+    if (me.isStaffOnly && me.userId != null) {
+      for (final s in staffState.members) {
+        if (s.userId == me.userId) {
+          ownStaff = s;
+          break;
+        }
+      }
+    }
+    final effectiveProId = ownStaff?.id ?? _selectedProId;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -198,13 +215,15 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(child: _StaffPill(activeStaff: activeStaff)),
+              Expanded(
+                child: _StaffPill(activeStaff: activeStaff, ownStaff: ownStaff),
+              ),
               const SizedBox(width: 8),
               _SmallIconBtn(icon: Icons.link, onTap: _copyPublicLink),
               const SizedBox(width: 6),
               _SmallIconBtn(
                 icon: Icons.add_rounded,
-                onTap: () => _openNewTurno(),
+                onTap: () => _openNewTurno(lockedProId: ownStaff?.id),
                 primary: true,
               ),
             ],
@@ -238,7 +257,7 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _StaffPill(activeStaff: activeStaff),
+                    _StaffPill(activeStaff: activeStaff, ownStaff: ownStaff),
                     const SizedBox(height: 22),
                     _DateNavRow(
                       mode: _mode,
@@ -299,7 +318,7 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
                 date: _focusDate,
                 businessId: businessId,
                 tenantId: widget.tenantId,
-                selectedProId: _selectedProId,
+                selectedProId: effectiveProId,
                 onDayTap: (d) => setState(() {
                   _focusDate = d;
                   _mode = _AgendaViewMode.day;
@@ -317,7 +336,7 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
                 date: _focusDate,
                 businessId: businessId,
                 tenantId: widget.tenantId,
-                visibleProId: _selectedProId,
+                visibleProId: effectiveProId,
                 onSlotTap: (start, proId) =>
                     _openNewTurno(start: start, proId: proId),
                 onTurnoTap: (b) => _openTurnoDetail(businessId, b),
@@ -332,14 +351,18 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
 // ── Staff pill ─────────────────────────────────────────────────────────────────
 
 class _StaffPill extends StatelessWidget {
-  const _StaffPill({required this.activeStaff});
+  const _StaffPill({required this.activeStaff, this.ownStaff});
 
   final List<StaffMember> activeStaff;
+  /// Si está seteado, la pill muestra "Mi agenda · {nombre}" en lugar del
+  /// resumen de todas las agendas (modo STAFF).
+  final StaffMember? ownStaff;
 
   Color _colorFor(int idx) => KTokens.proPalette[idx % KTokens.proPalette.length];
 
   @override
   Widget build(BuildContext context) {
+    final isOwn = ownStaff != null;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
@@ -350,31 +373,45 @@ class _StaffPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 22,
-            height: 16,
-            child: Stack(
-              children: List.generate(
-                activeStaff.length.clamp(0, 3),
-                (i) => Positioned(
-                  left: i * 6.0,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _colorFor(i),
-                      border: Border.all(color: Colors.white, width: 1),
+          if (isOwn) ...[
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: KTokens.accent,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ] else ...[
+            SizedBox(
+              width: 22,
+              height: 16,
+              child: Stack(
+                children: List.generate(
+                  activeStaff.length.clamp(0, 3),
+                  (i) => Positioned(
+                    left: i * 6.0,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _colorFor(i),
+                        border: Border.all(color: Colors.white, width: 1),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 6),
+            const SizedBox(width: 6),
+          ],
           Flexible(
             child: Text(
-              'Todas las agendas · ${activeStaff.length} activa${activeStaff.length != 1 ? 's' : ''}',
+              isOwn
+                  ? 'Mi agenda · ${ownStaff!.nombre}'
+                  : 'Todas las agendas · ${activeStaff.length} activa${activeStaff.length != 1 ? 's' : ''}',
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,

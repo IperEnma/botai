@@ -26,7 +26,8 @@ class StaffMemberTest {
                 .build();
 
         assertEquals(id, sm.getId());
-        assertEquals(businessId, sm.getBusinessId());
+        assertTrue(sm.belongsTo(businessId));
+        assertEquals(1, sm.getBusinessIds().size());
         assertEquals("Ana Garcia", sm.getNombre());
         assertEquals("Recepcionista", sm.getRol());
         assertEquals("https://img.url/foto.jpg", sm.getAvatarUrl());

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +23,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/agenda/me/businesses/{businessId}")
 @Tag(name = "Agenda Tenant", description = "Administración de negocios por tenant")
+@PreAuthorize("@authz.canManageBusiness(#businessId)")
 public class BusinessBannerController {
 
     private final AgendaMediaStoragePort mediaStorage;

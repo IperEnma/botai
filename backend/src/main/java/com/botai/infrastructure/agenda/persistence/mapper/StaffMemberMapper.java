@@ -15,7 +15,8 @@ public final class StaffMemberMapper {
         if (e == null) return null;
         return StaffMember.builder()
                 .id(e.getId())
-                .businessId(e.getBusinessId())
+                .userId(e.getUserId())
+                .businessIds(e.getBusinessIds() != null ? e.getBusinessIds() : new LinkedHashSet<>())
                 .nombre(e.getNombre())
                 .rol(e.getRol())
                 .avatarUrl(e.getAvatarUrl())
@@ -36,7 +37,7 @@ public final class StaffMemberMapper {
         if (s == null) return null;
         StaffMemberEntity e = new StaffMemberEntity();
         e.setId(s.getId());
-        e.setBusinessId(s.getBusinessId());
+        e.setUserId(s.getUserId());
         e.setNombre(s.getNombre());
         e.setRol(s.getRol());
         e.setAvatarUrl(s.getAvatarUrl());
@@ -49,6 +50,7 @@ public final class StaffMemberMapper {
         e.setCustomSchedule(s.getCustomSchedule());
         e.setDeletedAt(s.getDeletedAt());
         e.setServiceIds(s.getServiceIds() != null ? new LinkedHashSet<>(s.getServiceIds()) : new LinkedHashSet<>());
+        e.setBusinessIds(s.getBusinessIds() != null ? new LinkedHashSet<>(s.getBusinessIds()) : new LinkedHashSet<>());
         // createdAt / updatedAt los maneja @EntityListeners de BaseAuditableEntity.
         return e;
     }

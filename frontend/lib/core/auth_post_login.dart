@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/agenda/agenda_api_provider.dart';
-import '../providers/agenda/tenant_admin_resolved_provider.dart';
+import '../providers/agenda/me_profile_provider.dart';
 import '../providers/auth_provider.dart';
 import 'router.dart';
 import 'router_refresh.dart';
@@ -15,7 +15,7 @@ void navigateAfterAuthenticatedSession(WidgetRef ref) {
   }
 
   ref.read(agendaApiServiceProvider).setAccessToken(user.accessToken);
-  ref.invalidate(tenantAdminResolvedProvider);
+  ref.invalidate(meProfileProvider);
   ref.read(routerRefreshListenableProvider).refresh();
 
   final router = ref.read(routerProvider);

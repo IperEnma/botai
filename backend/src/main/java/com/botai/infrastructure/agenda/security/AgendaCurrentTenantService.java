@@ -1,13 +1,12 @@
 package com.botai.infrastructure.agenda.security;
 
+import com.botai.application.agenda.security.AgendaUserPrincipal;
 import com.botai.domain.agenda.exception.AgendaTenantNotResolvedException;
 import com.botai.domain.agenda.exception.BusinessNotFoundException;
 import com.botai.domain.agenda.model.Business;
 import com.botai.domain.agenda.repository.BusinessRepository;
-import com.botai.domain.agenda.repository.TenantAccountRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,13 +21,13 @@ import java.util.UUID;
 @Service
 public class AgendaCurrentTenantService {
 
-    private final TenantAccountRepository tenantAccountRepository;
     private final BusinessRepository businessRepository;
+    private final AgendaUserContext userContext;
 
-    public AgendaCurrentTenantService(TenantAccountRepository tenantAccountRepository,
-                                      BusinessRepository businessRepository) {
-        this.tenantAccountRepository = tenantAccountRepository;
+    public AgendaCurrentTenantService(BusinessRepository businessRepository,
+                                      AgendaUserContext userContext) {
         this.businessRepository = businessRepository;
+        this.userContext = userContext;
     }
 
     public String requireTenantId() {
@@ -36,19 +35,18 @@ public class AgendaCurrentTenantService {
                 .orElseThrow(AgendaTenantNotResolvedException::new);
     }
 
+    /**
+     * Resuelve el tenant del JWT delegando en {@link AgendaUserContext}, que ya
+     * cubre ambos caminos: dueño (TenantAccount.email / google_linked_email) y
+     * miembro invitado (users.email → tenant del usuario).
+     */
     public Optional<String> findTenantId() {
-        var jwt = AgendaAuthContext.currentJwt();
-        if (jwt == null) {
+        AgendaUserPrincipal principal = userContext.principal();
+        String tenantId = principal.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
             return Optional.empty();
         }
-        String raw = jwt.getClaimAsString("email");
-        if (raw == null || raw.isBlank()) {
-            return Optional.empty();
-        }
-        String email = raw.strip().toLowerCase(Locale.ROOT);
-        return tenantAccountRepository.findByEmail(email)
-                .or(() -> tenantAccountRepository.findByGoogleLinkedEmail(email))
-                .map(a -> a.getTenantId());
+        return Optional.of(tenantId);
     }
 
     /**

@@ -3,6 +3,7 @@ package com.botai.infrastructure.agenda.api;
 import com.botai.application.agenda.dto.CreateStaffMemberRequest;
 import com.botai.application.agenda.dto.StaffMemberResponse;
 import com.botai.application.agenda.dto.UpdateStaffMemberRequest;
+import com.botai.application.agenda.dto.UpdateStaffScheduleRequest;
 import com.botai.application.agenda.dto.UpdateStaffServicesRequest;
 import com.botai.application.agenda.mapper.StaffMemberDtoMapper;
 import com.botai.application.agenda.usecase.staff.ManageStaffUseCase;
@@ -16,8 +17,10 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -60,6 +63,7 @@ public class TenantStaffController {
 
     @GetMapping
     @Operation(summary = "Listar todos los miembros del equipo (incluye inactivos)")
+    @PreAuthorize("@authz.canViewBusiness(#businessId)")
     public List<StaffMemberResponse> list(@PathVariable UUID businessId) {
         String tenantId = currentTenant.requireTenantId();
         listBusinesses.findOne(tenantId, businessId);
@@ -70,6 +74,7 @@ public class TenantStaffController {
 
     @PostMapping
     @Operation(summary = "Agregar un miembro al equipo")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<StaffMemberResponse> create(@PathVariable UUID businessId,
                                                        @Valid @RequestBody CreateStaffMemberRequest request) {
         String tenantId = currentTenant.requireTenantId();
@@ -80,6 +85,7 @@ public class TenantStaffController {
 
     @PutMapping("/{staffId}")
     @Operation(summary = "Actualizar datos de un miembro del equipo")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public StaffMemberResponse update(@PathVariable UUID businessId,
                                        @PathVariable UUID staffId,
                                        @Valid @RequestBody UpdateStaffMemberRequest request) {
@@ -89,8 +95,21 @@ public class TenantStaffController {
         return StaffMemberDtoMapper.toResponse(updated);
     }
 
+    @PatchMapping("/{staffId}/schedule")
+    @Operation(summary = "Actualizar el horario semanal propio (auto-gestión del STAFF)")
+    @PreAuthorize("@authz.canManageOwnStaffSchedule(#businessId, #staffId)")
+    public StaffMemberResponse updateSchedule(@PathVariable UUID businessId,
+                                              @PathVariable UUID staffId,
+                                              @Valid @RequestBody UpdateStaffScheduleRequest request) {
+        String tenantId = currentTenant.requireTenantId();
+        listBusinesses.findOne(tenantId, businessId);
+        var updated = manageStaff.updateSchedule(tenantId, businessId, staffId, request.customSchedule());
+        return StaffMemberDtoMapper.toResponse(updated);
+    }
+
     @PutMapping("/{staffId}/services")
     @Operation(summary = "Actualizar los servicios asignados a un miembro del equipo")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public StaffMemberResponse updateServices(@PathVariable UUID businessId,
                                               @PathVariable UUID staffId,
                                               @RequestBody UpdateStaffServicesRequest request) {
@@ -102,6 +121,7 @@ public class TenantStaffController {
 
     @DeleteMapping("/{staffId}")
     @Operation(summary = "Desactivar (soft-delete) un miembro del equipo")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<Void> deactivate(@PathVariable UUID businessId,
                                             @PathVariable UUID staffId) {
         String tenantId = currentTenant.requireTenantId();
@@ -112,6 +132,7 @@ public class TenantStaffController {
 
     @PostMapping(value = "/{staffId}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Sube la imagen de avatar de un miembro del equipo")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<Map<String, String>> uploadAvatar(
             @PathVariable UUID businessId,
             @PathVariable UUID staffId,

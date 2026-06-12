@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -52,6 +53,7 @@ public class MeBookingsController {
 
     @GetMapping("/businesses/{businessId}/bookings")
     @Operation(summary = "Listar mis reservas en un negocio (filtro opcional por estado)")
+    @PreAuthorize("@authz.isCurrentUser(#userId)")
     public ResponseEntity<List<BookingResponse>> list(
             @PathVariable("businessId") UUID businessId,
             @RequestHeader(USER_ID_HEADER) UUID userId,
@@ -66,6 +68,7 @@ public class MeBookingsController {
 
     @DeleteMapping("/businesses/{businessId}/bookings/{bookingId}")
     @Operation(summary = "Cancelar una reserva propia (dentro de la ventana de cancelación)")
+    @PreAuthorize("@authz.isCurrentUser(#userId)")
     public ResponseEntity<Void> cancel(
             @PathVariable("businessId") UUID businessId,
             @PathVariable("bookingId") UUID bookingId,
@@ -77,6 +80,7 @@ public class MeBookingsController {
 
     @PostMapping("/businesses/{businessId}/bookings")
     @Operation(summary = "Crear una reserva confirmada contra un servicio del negocio")
+    @PreAuthorize("@authz.isCurrentUser(#userId)")
     public ResponseEntity<BookingResponse> create(
             @PathVariable("businessId") UUID businessId,
             @RequestHeader(USER_ID_HEADER) UUID userId,

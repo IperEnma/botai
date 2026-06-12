@@ -33,6 +33,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -57,6 +60,29 @@ public class AgendaGlobalExceptionHandler {
     @ExceptionHandler(AgendaUnauthorizedException.class)
     public ResponseEntity<Map<String, Object>> handleUnauthorized(AgendaUnauthorizedException ex) {
         return response(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", ex.getMessage(), null);
+    }
+
+    /**
+     * Spring Security: {@code @PreAuthorize} negó acceso. Códigos:
+     * <ul>
+     *   <li>{@code auth.forbidden} → el rol del usuario no autoriza la acción.</li>
+     *   <li>{@code auth.out_of_scope} → rol válido pero el {@code businessId}
+     *       está fuera del scope (RC/SV/SO no asignado).</li>
+     *   <li>{@code auth.ownership_violation} → operación sobre recurso ajeno.</li>
+     * </ul>
+     * <p>El handler aplica un mapeo simple por defecto; los casos especializados
+     * se modelan vía mensajes específicos en el SpEL.</p>
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return response(HttpStatus.FORBIDDEN, "auth.forbidden",
+                "No tenés permisos para esta acción.", null);
+    }
+
+    @ExceptionHandler({AuthenticationCredentialsNotFoundException.class, AuthenticationException.class})
+    public ResponseEntity<Map<String, Object>> handleUnauthenticated(Exception ex) {
+        return response(HttpStatus.UNAUTHORIZED, "auth.unauthenticated",
+                "Autenticación requerida.", null);
     }
 
     @ExceptionHandler(ReviewNotAllowedException.class)

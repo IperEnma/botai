@@ -8,6 +8,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
@@ -17,7 +18,12 @@ import java.util.Set;
 import java.util.UUID;
 
 @Entity(name = "AgendaStaffMemberEntity")
-@Table(name = "agenda_staff_members")
+@Table(
+        name = "agenda_staff_members",
+        indexes = {
+                @Index(name = "idx_agenda_staff_members_user", columnList = "user_id")
+        }
+)
 public class StaffMemberEntity extends BaseAuditableEntity {
 
     @Id
@@ -25,8 +31,12 @@ public class StaffMemberEntity extends BaseAuditableEntity {
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @Column(name = "business_id", nullable = false)
-    private UUID businessId;
+    /**
+     * FK opcional a {@code agenda_users.id}. {@code null} indica un perfil
+     * "STAFF sin cuenta" (sin acceso al panel).
+     */
+    @Column(name = "user_id")
+    private UUID userId;
 
     @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
@@ -66,11 +76,21 @@ public class StaffMemberEntity extends BaseAuditableEntity {
     @Column(name = "service_id")
     private Set<UUID> serviceIds = new LinkedHashSet<>();
 
+    /**
+     * Sucursales a las que pertenece el profesional. Multi-sucursal: la agenda
+     * sigue siendo única dentro del tenant, pero cada reserva se asocia a una
+     * sucursal específica del set.
+     */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "agenda_staff_business", joinColumns = @JoinColumn(name = "staff_member_id"))
+    @Column(name = "business_id", nullable = false)
+    private Set<UUID> businessIds = new LinkedHashSet<>();
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
-    public UUID getBusinessId() { return businessId; }
-    public void setBusinessId(UUID businessId) { this.businessId = businessId; }
+    public UUID getUserId() { return userId; }
+    public void setUserId(UUID userId) { this.userId = userId; }
 
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
@@ -107,4 +127,7 @@ public class StaffMemberEntity extends BaseAuditableEntity {
 
     public Set<UUID> getServiceIds() { return serviceIds; }
     public void setServiceIds(Set<UUID> serviceIds) { this.serviceIds = serviceIds; }
+
+    public Set<UUID> getBusinessIds() { return businessIds; }
+    public void setBusinessIds(Set<UUID> businessIds) { this.businessIds = businessIds; }
 }

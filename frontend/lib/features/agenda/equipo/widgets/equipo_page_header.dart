@@ -9,10 +9,16 @@ class EquipoPageHeader extends StatelessWidget {
     super.key,
     required this.onAddMember,
     required this.onImport,
+    this.canManageStaff = true,
   });
 
   final VoidCallback onAddMember;
   final VoidCallback onImport;
+
+  /// Gate RBAC: si `false`, ocultamos los botones de mutación (gestión de
+  /// staff es OWNER/TENANT_ADMIN). El componente sigue mostrando el título y
+  /// la descripción para usuarios de solo lectura (RECEPTION/STAFF_VIEWER).
+  final bool canManageStaff;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +34,11 @@ class EquipoPageHeader extends StatelessWidget {
         ],
       ],
     );
+
+    if (!canManageStaff) {
+      // Vista de solo lectura: sin botones, solo el título.
+      return textBlock;
+    }
 
     final buttons = Row(
       mainAxisSize: MainAxisSize.min,

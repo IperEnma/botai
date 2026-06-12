@@ -6,6 +6,7 @@ import com.botai.domain.agenda.repository.NotificationRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +31,7 @@ public class MeNotificationsController {
 
     @GetMapping
     @Operation(summary = "Listar mis notificaciones (filtro opcional por estado)")
+    @PreAuthorize("@authz.isCurrentUser(#userId)")
     public ResponseEntity<List<NotificationResponse>> list(
             @RequestHeader(USER_ID_HEADER) UUID userId,
             @RequestParam(value = "estado", required = false) NotificationEstado estado) {

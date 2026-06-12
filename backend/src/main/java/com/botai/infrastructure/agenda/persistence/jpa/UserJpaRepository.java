@@ -14,6 +14,17 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, UUID> {
 
     Optional<UserEntity> findByTenantIdAndEmail(String tenantId, String email);
 
+    /**
+     * Resuelve un usuario por email global (sin scope de tenant). Útil para el
+     * {@code AgendaPrincipalLoader} cuando el JWT no matchea ningún
+     * {@code TenantAccount} pero sí un User invitado.
+     *
+     * <p>Si por desconfiguración hay dos Users con el mismo email en distintos
+     * tenants, {@link #findFirstByEmailOrderByCreatedAtAsc} devuelve el más
+     * antiguo — la validación de invitación previene esto en alta normal.</p>
+     */
+    Optional<UserEntity> findFirstByEmailOrderByCreatedAtAsc(String email);
+
     @Query("SELECT u FROM UserEntity u WHERE u.tenantId = :tenantId AND u.tipoUsuario = 'CLIENT' " +
            "AND (:q = '' OR LOWER(u.nombre) LIKE LOWER(CONCAT('%', :q, '%')) OR u.telefono LIKE CONCAT('%', :q, '%')) " +
            "ORDER BY u.nombre ASC")

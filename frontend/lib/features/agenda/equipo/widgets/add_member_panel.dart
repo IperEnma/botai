@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../models/agenda/agenda_service.dart';
+import '../../../../models/agenda/tenant_invitation.dart';
 import '../../../../providers/agenda/tenant/business_staff_provider.dart';
 import '../../../../providers/agenda/tenant/services_provider.dart';
 import '../../../../widgets/agenda_phone_field.dart';
@@ -59,6 +60,7 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
   bool _isCreating = false;
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   MemberType _selectedType = MemberType.profesionalSoloPerfil;
   Color _selectedColor = KTokens.proPalette[0];
   final Set<String> _selectedServices = {};
@@ -67,8 +69,13 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
   void dispose() {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
+    _emailCtrl.dispose();
     super.dispose();
   }
+
+  bool get _typeRequiresAccount =>
+      _selectedType == MemberType.profesionalConCuenta ||
+      _selectedType == MemberType.recepcion;
 
   void _next() {
     if (_step < 2) {
@@ -93,6 +100,26 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
   Future<void> _create() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
+
+    // Para "con cuenta" / "recepción" exigimos email.
+    final email = _emailCtrl.text.trim();
+    if (_typeRequiresAccount) {
+      if (email.isEmpty || !email.contains('@')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'El email es obligatorio para "Con cuenta" y "Recepción".',
+              style: GoogleFonts.inter(fontSize: 13, color: Colors.white),
+            ),
+            backgroundColor: KTokens.excClosed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(KTokens.rSm)),
+          ),
+        );
+        return;
+      }
+    }
 
     final phone = _phoneCtrl.text.trim();
     if (phone.isNotEmpty) {
@@ -139,21 +166,44 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
 
     final colorHex =
         '#${(_selectedColor.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
-    final created = await notifier.addMember(
-      name,
-      rol,
-      null,
-      telefono: phone.isEmpty ? null : phone,
-      color: colorHex,
-    );
+
+    // Ruteo por tipo:
+    // - solo perfil → POST /staff (sin User, sin rol RBAC)
+    // - con cuenta / recepción → POST /tenant/invitations (crea User + rol RBAC)
+    bool ok;
+    String? createdId;
+    if (_typeRequiresAccount) {
+      final inviteRole = _selectedType == MemberType.recepcion
+          ? 'RECEPTION'
+          : 'STAFF_OPERATOR';
+      final inv = await notifier.inviteMember(CreateTenantInvitationRequest(
+        nombre: name,
+        email: email,
+        telefono: phone.isEmpty ? null : phone,
+        role: inviteRole,
+        businessIds: [widget.equipoKey.businessId],
+      ));
+      ok = inv != null;
+      createdId = inv?.staffMemberId;
+    } else {
+      final created = await notifier.addMember(
+        name,
+        rol,
+        null,
+        telefono: phone.isEmpty ? null : phone,
+        color: colorHex,
+      );
+      ok = created != null;
+      createdId = created?.id;
+    }
 
     if (!mounted) return;
 
-    if (created != null) {
-      if (_selectedServices.isNotEmpty) {
+    if (ok) {
+      if (_selectedServices.isNotEmpty && createdId != null) {
         try {
           await notifier.updateMemberServices(
-              created.id, _selectedServices.toList());
+              createdId, _selectedServices.toList());
         } catch (_) {}
       }
       if (!mounted) return;
@@ -161,7 +211,9 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Miembro creado correctamente.',
+            _typeRequiresAccount
+                ? 'Invitación creada. El miembro ya puede ingresar con Google usando $email.'
+                : 'Miembro creado correctamente.',
             style: GoogleFonts.inter(fontSize: 13, color: Colors.white),
           ),
           backgroundColor: KTokens.accent,
@@ -267,10 +319,12 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
                       step: _step,
                       nameCtrl: _nameCtrl,
                       phoneCtrl: _phoneCtrl,
+                      emailCtrl: _emailCtrl,
                       selectedType: _selectedType,
                       selectedColor: _selectedColor,
                       selectedServices: _selectedServices,
                       services: services,
+                      emailRequired: _typeRequiresAccount,
                       onTypeChanged: (t) => setState(() => _selectedType = t),
                       onColorChanged: (c) => setState(() => _selectedColor = c),
                       onServiceToggled: (id) => setState(() {
@@ -352,10 +406,12 @@ class _StepContent extends StatelessWidget {
     required this.step,
     required this.nameCtrl,
     required this.phoneCtrl,
+    required this.emailCtrl,
     required this.selectedType,
     required this.selectedColor,
     required this.selectedServices,
     required this.services,
+    required this.emailRequired,
     required this.onTypeChanged,
     required this.onColorChanged,
     required this.onServiceToggled,
@@ -364,10 +420,12 @@ class _StepContent extends StatelessWidget {
   final int step;
   final TextEditingController nameCtrl;
   final TextEditingController phoneCtrl;
+  final TextEditingController emailCtrl;
   final MemberType selectedType;
   final Color selectedColor;
   final Set<String> selectedServices;
   final List<AgendaService> services;
+  final bool emailRequired;
   final ValueChanged<MemberType> onTypeChanged;
   final ValueChanged<Color> onColorChanged;
   final ValueChanged<String> onServiceToggled;
@@ -375,7 +433,12 @@ class _StepContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (step) {
-      0 => _Step1(nameCtrl: nameCtrl, phoneCtrl: phoneCtrl),
+      0 => _Step1(
+          nameCtrl: nameCtrl,
+          phoneCtrl: phoneCtrl,
+          emailCtrl: emailCtrl,
+          emailRequired: emailRequired,
+        ),
       1 => _Step2(selected: selectedType, onChanged: onTypeChanged),
       _ => _Step3(
           selectedColor: selectedColor,
@@ -388,11 +451,22 @@ class _StepContent extends StatelessWidget {
   }
 }
 
-// Step 1: Name + phone
+// Step 1: Name + phone + email
 class _Step1 extends StatelessWidget {
-  const _Step1({required this.nameCtrl, required this.phoneCtrl});
+  const _Step1({
+    required this.nameCtrl,
+    required this.phoneCtrl,
+    required this.emailCtrl,
+    required this.emailRequired,
+  });
   final TextEditingController nameCtrl;
   final TextEditingController phoneCtrl;
+  final TextEditingController emailCtrl;
+
+  /// Pista de UX: el email es obligatorio solo cuando el tipo elegido requiere
+  /// cuenta (Profesional con cuenta / Recepción). Como el tipo se elige en
+  /// step 2, mostramos el campo siempre y le cambiamos el label / hint.
+  final bool emailRequired;
 
   @override
   Widget build(BuildContext context) {
@@ -411,15 +485,28 @@ class _Step1 extends StatelessWidget {
             letterSpacing: 1.2,
           ),
         ),
+        const SizedBox(height: 24),
+        _LineInput(
+          controller: emailCtrl,
+          hint: emailRequired
+              ? 'EMAIL · OBLIGATORIO PARA CON CUENTA / RECEPCIÓN'
+              : 'EMAIL (OPCIONAL · SOLO SI VA A INICIAR SESIÓN)',
+          keyboardType: TextInputType.emailAddress,
+        ),
       ],
     );
   }
 }
 
 class _LineInput extends StatelessWidget {
-  const _LineInput({required this.controller, required this.hint});
+  const _LineInput({
+    required this.controller,
+    required this.hint,
+    this.keyboardType,
+  });
   final TextEditingController controller;
   final String hint;
+  final TextInputType? keyboardType;
 
   @override
   Widget build(BuildContext context) {
@@ -437,6 +524,7 @@ class _LineInput extends StatelessWidget {
         const SizedBox(height: 4),
         TextField(
           controller: controller,
+          keyboardType: keyboardType,
           style: GoogleFonts.inter(
             fontSize: 20,
             fontWeight: FontWeight.w500,
@@ -481,13 +569,13 @@ class _Step2 extends StatelessWidget {
         MemberType.profesionalConCuenta,
         'Profesional con cuenta',
         'Puede iniciar sesión y gestionar su agenda.',
-        true,
+        false,
       ),
       (
         MemberType.recepcion,
         'Recepción con cuenta',
         'Puede gestionar cualquier turno del negocio.',
-        true,
+        false,
       ),
     ];
 

@@ -22,6 +22,7 @@ import '../models/agenda/business_settings.dart';
 import '../models/agenda/business_summary.dart';
 import '../models/agenda/category.dart' as agenda;
 import '../models/agenda/loyalty_suggestion.dart';
+import '../models/agenda/me_profile.dart';
 import '../models/agenda/notification_template.dart';
 import '../models/agenda/plan.dart';
 import '../models/agenda/public_client.dart';
@@ -32,6 +33,7 @@ import '../models/agenda/tenant_admin_context.dart';
 import '../models/agenda/staff_member.dart';
 import '../models/agenda/subscription.dart';
 import '../models/agenda/tenant_features.dart';
+import '../models/agenda/tenant_invitation.dart';
 import '../models/agenda/wallet.dart';
 import 'agenda_api_exception.dart';
 
@@ -286,6 +288,39 @@ class AgendaApiService {
           body: jsonEncode(body),
         ));
     return _decode(r, (b) => RegisterTenantResponse.fromJson(b as Map<String, dynamic>));
+  }
+
+  /// `POST /me/tenant/invitations` — invita a un usuario al tenant con un rol.
+  ///
+  /// Crea (o reusa) el User, asigna el rol pedido y, para roles STAFF_*,
+  /// crea además el StaffMember linkeado en las sucursales indicadas.
+  Future<TenantInvitationResponse> tenantInviteUser(
+      CreateTenantInvitationRequest request) async {
+    final r = await _send(() => _client.post(
+          _uri('/me/tenant/invitations'),
+          headers: _headers(),
+          body: jsonEncode(request.toJson()),
+        ));
+    return _decode(
+      r,
+      (b) => TenantInvitationResponse.fromJson(b as Map<String, dynamic>),
+    );
+  }
+
+  /// `GET /me/profile` — identidad RBAC efectiva (userId, tenant, roles, flags).
+  ///
+  /// Side-effect del backend: bootstrap del OWNER si el tenant no lo tiene aún.
+  /// El frontend invoca este endpoint al cargar la app y lo cachea para gatear
+  /// la UI sin re-consultas innecesarias.
+  Future<AgendaMeProfile> fetchMeProfile() async {
+    final r = await _send(() => _client.get(
+          _uri('/me/profile'),
+          headers: _headers(),
+        ));
+    return _decode(
+      r,
+      (b) => AgendaMeProfile.fromJson(b as Map<String, dynamic>),
+    );
   }
 
   /// `GET /me/tenant-admin` — tenant del administrador según email de cuenta.
@@ -1616,6 +1651,25 @@ class AgendaApiService {
             'status': status,
             if (customSchedule != null) 'customSchedule': customSchedule,
           }),
+        ));
+    return _decode(r, (body) {
+      final data = Map<String, dynamic>.from(body as Map<String, dynamic>);
+      data.putIfAbsent('businessId', () => businessId);
+      return StaffMember.fromJson(data);
+    });
+  }
+
+  /// `PATCH /me/businesses/{businessId}/staff/{staffId}/schedule` — auto-update
+  /// del horario propio del STAFF (o del owner editando a un miembro).
+  Future<StaffMember> updateStaffSchedule({
+    required String businessId,
+    required String staffId,
+    Map<String, dynamic>? customSchedule,
+  }) async {
+    final r = await _send(() => _client.patch(
+          _uri('/me/businesses/$businessId/staff/$staffId/schedule'),
+          headers: _headers(),
+          body: jsonEncode({'customSchedule': customSchedule}),
         ));
     return _decode(r, (body) {
       final data = Map<String, dynamic>.from(body as Map<String, dynamic>);

@@ -8,6 +8,7 @@ import com.botai.application.agenda.usecase.feature.UpdateTenantFeaturesUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +40,7 @@ public class TenantFeaturesController {
 
     @GetMapping
     @Operation(summary = "Obtiene los flags del tenant")
+    @PreAuthorize("@authz.isTenantAdmin()")
     public TenantFeaturesResponse get() {
         String tenantId = currentTenant.requireTenantId();
         return TenantConfigDtoMapper.toResponse(getFeatures.execute(tenantId));
@@ -46,6 +48,7 @@ public class TenantFeaturesController {
 
     @PutMapping
     @Operation(summary = "Actualiza (patch) los flags del tenant")
+    @PreAuthorize("@authz.isOwner()")
     public TenantFeaturesResponse update(@Valid @RequestBody UpdateTenantFeaturesRequest request) {
         String tenantId = currentTenant.requireTenantId();
         var updated = updateFeatures.execute(

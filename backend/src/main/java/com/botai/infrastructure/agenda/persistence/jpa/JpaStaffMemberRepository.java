@@ -26,6 +26,13 @@ public class JpaStaffMemberRepository implements StaffMemberRepository {
     }
 
     @Override
+    public Optional<StaffMember> findByUserIdAndBusinessId(UUID userId, UUID businessId) {
+        if (userId == null || businessId == null) return Optional.empty();
+        return jpaRepository.findByUserIdAndBusinessId(userId, businessId)
+                .map(StaffMemberMapper::toDomain);
+    }
+
+    @Override
     public List<StaffMember> findByBusinessId(UUID businessId) {
         return jpaRepository.findByBusinessId(businessId)
                 .stream()
@@ -35,7 +42,7 @@ public class JpaStaffMemberRepository implements StaffMemberRepository {
 
     @Override
     public List<StaffMember> findActiveByBusinessId(UUID businessId) {
-        return jpaRepository.findByBusinessIdAndActivoTrueAndDeletedAtIsNull(businessId)
+        return jpaRepository.findActiveByBusinessId(businessId)
                 .stream()
                 .map(StaffMemberMapper::toDomain)
                 .toList();
@@ -44,9 +51,11 @@ public class JpaStaffMemberRepository implements StaffMemberRepository {
     @Override
     public StaffMember save(StaffMember staffMember) {
         if (staffMember.getId() != null) {
-            // For updates: load existing entity to preserve serviceIds managed separately
+            // Para updates: cargar entidad existente y preservar las colecciones
+            // (serviceIds + businessIds) gestionadas por endpoints específicos.
             return jpaRepository.findById(staffMember.getId())
                     .map(existing -> {
+                        existing.setUserId(staffMember.getUserId());
                         existing.setNombre(staffMember.getNombre());
                         existing.setRol(staffMember.getRol());
                         existing.setAvatarUrl(staffMember.getAvatarUrl());
@@ -59,6 +68,12 @@ public class JpaStaffMemberRepository implements StaffMemberRepository {
                         existing.setActivo(staffMember.isActivo()); // mantener en sync con status
                         existing.setCustomSchedule(staffMember.getCustomSchedule());
                         existing.setDeletedAt(staffMember.getDeletedAt());
+                        // Si el dominio trae businessIds no vacío, reemplaza; si vacío,
+                        // preserva (caso típico: update parcial de datos).
+                        if (staffMember.getBusinessIds() != null && !staffMember.getBusinessIds().isEmpty()) {
+                            existing.getBusinessIds().clear();
+                            existing.getBusinessIds().addAll(staffMember.getBusinessIds());
+                        }
                         return StaffMemberMapper.toDomain(jpaRepository.save(existing));
                     })
                     .orElseGet(() -> {

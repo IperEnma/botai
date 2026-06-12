@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +28,7 @@ import java.util.UUID;
 @RequestMapping("/api/agenda/me/businesses/{businessId}/notification-templates")
 @Tag(name = "Agenda Notifications · Templates", description = "Plantillas de notificación editables por el negocio")
 @Validated
+@PreAuthorize("@authz.canManageBusiness(#businessId)")
 public class NotificationTemplateController {
 
     private final NotificationTemplateRepository templateRepository;

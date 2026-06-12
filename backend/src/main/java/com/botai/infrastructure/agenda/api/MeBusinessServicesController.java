@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -64,6 +65,7 @@ public class MeBusinessServicesController {
 
     @GetMapping
     @Operation(summary = "Listar servicios del negocio del tenant autenticado")
+    @PreAuthorize("@authz.canViewBusiness(#businessId)")
     public ResponseEntity<List<ServiceResponse>> list(
             @PathVariable UUID businessId,
             @RequestParam(value = "soloActivos", required = false, defaultValue = "false") boolean soloActivos) {
@@ -79,6 +81,7 @@ public class MeBusinessServicesController {
 
     @PostMapping
     @Operation(summary = "Crear un servicio para el negocio del tenant autenticado")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<ServiceResponse> create(
             @PathVariable UUID businessId,
             @Valid @RequestBody CreateServiceRequest request) {
@@ -97,6 +100,7 @@ public class MeBusinessServicesController {
 
     @PutMapping("/{serviceId}")
     @Operation(summary = "Actualizar un servicio del negocio del tenant autenticado")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<ServiceResponse> update(
             @PathVariable UUID businessId,
             @PathVariable UUID serviceId,
@@ -115,6 +119,7 @@ public class MeBusinessServicesController {
 
     @DeleteMapping("/{serviceId}")
     @Operation(summary = "Eliminar (soft-delete) un servicio del negocio del tenant autenticado")
+    @PreAuthorize("@authz.canManageBusiness(#businessId)")
     public ResponseEntity<Void> delete(
             @PathVariable UUID businessId,
             @PathVariable UUID serviceId) {

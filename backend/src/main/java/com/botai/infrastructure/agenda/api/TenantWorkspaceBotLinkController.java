@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,6 +36,7 @@ public class TenantWorkspaceBotLinkController {
     @PutMapping("/{botId}/linked-businesses")
     @Operation(summary = "Define qué negocios de Agenda atiende este bot (reemplazo completo)",
             description = "Lista vacía desvincula todos los negocios de ese bot. Un negocio no puede quedar ligado a dos bots.")
+    @PreAuthorize("@authz.isOwner()")
     public ResponseEntity<Void> replaceLinkedBusinesses(
             @PathVariable long botId,
             @Valid @RequestBody LinkBotToAgendaBusinessesRequest request) {

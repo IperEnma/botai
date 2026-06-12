@@ -3,6 +3,7 @@ package com.botai.infrastructure.agenda.api;
 import com.botai.application.agenda.dto.LinkTenantGoogleEmailRequest;
 import com.botai.application.agenda.dto.LinkTenantIdentifierRequest;
 import com.botai.application.agenda.dto.TenantAdminContextResponse;
+import com.botai.application.agenda.usecase.rbac.AgendaRoleBootstrapService;
 import com.botai.application.agenda.usecase.tenant.LinkTenantIdentifierUseCase;
 import com.botai.application.agenda.usecase.tenant.LinkTenantGoogleEmailUseCase;
 import com.botai.domain.agenda.repository.TenantAccountRepository;
@@ -37,13 +38,16 @@ public class MeTenantAdminController {
     private final TenantAccountRepository tenantAccountRepository;
     private final LinkTenantGoogleEmailUseCase linkTenantGoogleEmailUseCase;
     private final LinkTenantIdentifierUseCase linkTenantIdentifierUseCase;
+    private final AgendaRoleBootstrapService roleBootstrap;
 
     public MeTenantAdminController(TenantAccountRepository tenantAccountRepository,
                                    LinkTenantGoogleEmailUseCase linkTenantGoogleEmailUseCase,
-                                   LinkTenantIdentifierUseCase linkTenantIdentifierUseCase) {
+                                   LinkTenantIdentifierUseCase linkTenantIdentifierUseCase,
+                                   AgendaRoleBootstrapService roleBootstrap) {
         this.tenantAccountRepository = tenantAccountRepository;
         this.linkTenantGoogleEmailUseCase = linkTenantGoogleEmailUseCase;
         this.linkTenantIdentifierUseCase = linkTenantIdentifierUseCase;
+        this.roleBootstrap = roleBootstrap;
     }
 
     @GetMapping("/tenant-admin")
@@ -57,7 +61,12 @@ public class MeTenantAdminController {
         String normalized = email.strip().toLowerCase(Locale.ROOT);
         return tenantAccountRepository.findByEmail(normalized)
                 .or(() -> tenantAccountRepository.findByGoogleLinkedEmail(normalized))
-                .map(account -> ResponseEntity.ok(new TenantAdminContextResponse(account.getTenantId())))
+                .map(account -> {
+                    // Auto-curado para tenants pre-RBAC: si aún no hay OWNER,
+                    // se asigna al User cuyo email matchea el JWT.
+                    roleBootstrap.ensureOwnerByJwtEmail(normalized, account.getTenantId());
+                    return ResponseEntity.ok(new TenantAdminContextResponse(account.getTenantId()));
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
