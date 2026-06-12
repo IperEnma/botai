@@ -15,7 +15,9 @@ JAR="$(ls backend/target/*.jar | grep -v 'original' | head -1)"
 cp "$JAR" "$DIST/backend/app.jar"
 
 if [[ -z "${KONECTA_BASE_URL:-}" || -z "${GOOGLE_CLIENT_ID_WEB:-}" ]]; then
-  echo "ERROR: KONECTA_BASE_URL y GOOGLE_CLIENT_ID_WEB requeridos (environment staging)" >&2
+  echo "ERROR: Faltan en GitHub → Environments → staging:" >&2
+  [[ -z "${KONECTA_BASE_URL:-}" ]] && echo "  - Variable STAGING_KONECTA_BASE_URL (ej. https://botai-backend-test.onrender.com)" >&2
+  [[ -z "${GOOGLE_CLIENT_ID_WEB:-}" ]] && echo "  - Secret STAGING_GOOGLE_CLIENT_ID_WEB" >&2
   exit 1
 fi
 
