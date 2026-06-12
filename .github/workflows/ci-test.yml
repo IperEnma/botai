@@ -198,32 +198,73 @@ jobs:
     needs: [gitleaks, semgrep, dependency-check, build-backend, sonarcloud, frontend]
     if: always()
     runs-on: ubuntu-latest
+    outputs:
+      run_staging_pack: ${{ steps.gate.outputs.run_staging_pack }}
+      run_beta_tag: ${{ steps.gate.outputs.run_beta_tag }}
     steps:
       - name: CI gate
+        id: gate
+        env:
+          RELAXED: ${{ vars.CI_RELAXED }}
+          JAR_ID: ${{ needs.build-backend.outputs.jar_artifact_id }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
         run: |
-          if [ "${{ vars.CI_RELAXED }}" = "true" ]; then
-            echo "::warning::CI_RELAXED=true — pipeline no bloquea por fallos en jobs previos."
-            exit 0
+          run_pack=false
+          reasons=()
+
+          if [ "$EVENT" != "push" ]; then
+            reasons+=("evento=$EVENT (Staging pack solo en push, no en PR)")
           fi
+          if [[ "$REF_NAME" != *".x.x-beta" ]]; then
+            reasons+=("rama=$REF_NAME (solo ramas * .x.x-beta, ej. release/1.x.x-beta)")
+          fi
+          if [ -z "$JAR_ID" ]; then
+            reasons+=("sin artifact backend-jar (build-backend falló o no subió JAR)")
+          fi
+
           ok() { case "$1" in success|skipped) return 0 ;; *) return 1 ;; esac; }
+          strict_ok=true
           ok "${{ needs.gitleaks.result }}" && ok "${{ needs.semgrep.result }}" && \
           ok "${{ needs.dependency-check.result }}" && ok "${{ needs.build-backend.result }}" && \
-          ok "${{ needs.sonarcloud.result }}" && ok "${{ needs.frontend.result }}" || {
-            echo "CI failed — sin tag ni artefactos de release."
-            exit 1
-          }
-          echo "All checks passed"
+          ok "${{ needs.sonarcloud.result }}" && ok "${{ needs.frontend.result }}" || strict_ok=false
+
+          if [ "$EVENT" = "push" ] && [[ "$REF_NAME" == *".x.x-beta" ]] && [ -n "$JAR_ID" ]; then
+            if [ "$RELAXED" = "true" ]; then
+              run_pack=true
+            elif [ "$strict_ok" = true ]; then
+              run_pack=true
+            else
+              reasons+=("CI_RELAXED apagado y hay jobs fallidos")
+            fi
+          fi
+
+          echo "run_staging_pack=$run_pack" >> "$GITHUB_OUTPUT"
+          echo "run_beta_tag=$run_pack" >> "$GITHUB_OUTPUT"
+
+          if [ "$run_pack" = true ]; then
+            echo "::notice title=Staging pack::Se ejecutará (CI_RELAXED=${RELAXED:-false})"
+          else
+            echo "::warning title=Staging pack omitido::${reasons[*]}"
+          fi
+
+          if [ "$RELAXED" = "true" ]; then
+            echo "::warning::CI_RELAXED=true — check ci no bloquea por fallos en jobs previos."
+            exit 0
+          fi
+          if [ "$strict_ok" = true ]; then
+            echo "All checks passed"
+            exit 0
+          fi
+          echo "CI failed — sin tag ni artefactos de release."
+          exit 1
 
   pack-test-deploy-artifacts:
     name: Staging pack
     needs: [ci, build-backend]
     if: >-
       always() && !cancelled() &&
-      github.event_name == 'push' &&
-      endsWith(github.ref_name, '.x.x-beta') &&
-      needs.build-backend.result == 'success' &&
-      needs.build-backend.outputs.jar_artifact_id != '' &&
-      (vars.CI_RELAXED == 'true' || needs.ci.result == 'success')
+      needs.ci.outputs.run_staging_pack == 'true'
     runs-on: ubuntu-latest
     environment: staging
     steps:
@@ -258,10 +299,8 @@ jobs:
     needs: [ci, pack-test-deploy-artifacts]
     if: >-
       always() && !cancelled() &&
-      github.event_name == 'push' &&
-      endsWith(github.ref_name, '.x.x-beta') &&
-      needs.pack-test-deploy-artifacts.result == 'success' &&
-      (vars.CI_RELAXED == 'true' || needs.ci.result == 'success')
+      needs.ci.outputs.run_beta_tag == 'true' &&
+      needs.pack-test-deploy-artifacts.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
