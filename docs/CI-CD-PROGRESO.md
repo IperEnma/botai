@@ -112,7 +112,9 @@ Con `CI_RELAXED=true`:
 **Notas CI conocidas:**
 
 - OWASP usa plugin Maven (no la action Docker) por compatibilidad con `JAVA_HOME`.
-- Primera corrida OWASP lenta (~15–30 min); **siguientes** usan caché `~/.owasp-nvd-cache` (`owasp-nvd-*-v4`) + `-DautoUpdate=false`.
+- Primera corrida OWASP: descarga NVD ~3–5 min (con `NVD_API_KEY`); análisis ~30 s. **Siguientes** usan caché `~/.owasp-nvd-cache` (`owasp-nvd-*-v4`) + `-DautoUpdate=false` (~1 min total).
+- Si OWASP falla con *"dependencies were identified with vulnerabilities"* (CVSS ≥ 7): es el umbral `-DfailBuildOnCVSS=7`, no la BD NVD. Con `CI_RELAXED=true` el pipeline sigue (tag + artifacts).
+- Plugin ODC **12.2.2** (fix URLs Mozilla largas en BD H2).
 - Secret **`NVD_API_KEY`** obligatorio para la 1ª descarga rápida ([NVD API Key](https://nvd.nist.gov/developers/request-an-api-key)) — va como `-DnvdApiKey`, no solo env var.
 - Si siempre descarga: Actions → Caches → borrar `owasp-nvd-*` viejos, dejar correr un run completo (no cancelar).
 - Si OWASP falla con `The database has been closed` / `MVStoreException`: caché corrupta. Actions → Caches → borrar `owasp-nvd-*` y re-ejecutar (una descarga lenta).
