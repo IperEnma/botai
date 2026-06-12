@@ -7,8 +7,8 @@ on:
     branches: [develop, "release/**", "hotfix/**"]
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  # No cancelar en vuelo: OWASP escribe una BD H2 de CVEs; cancelar a medias la corrompe.
+  # Un run a la vez: OWASP comparte caché H2 en ~/.m2; runs paralelos (develop + release) la corrompen.
+  group: ci-${{ github.workflow }}
   cancel-in-progress: false
 
 # Modo configuración: GitHub → Settings → Variables → CI_RELAXED=true
@@ -64,15 +64,16 @@ jobs:
         id: owasp-nvd-cache
         uses: actions/cache@v4
         with:
-          # Ruta fija (no la default con subcarpeta /12.0 que invalida restores).
-          path: ~/.owasp-nvd-cache
-          key: owasp-nvd-${{ runner.os }}-v4
+          # Maven plugin 12.x guarda odc.mv.db aquí (no en ~/.owasp-nvd-cache).
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: owasp-nvd-12.2.2-${{ runner.os }}
           restore-keys: |
+            owasp-nvd-12.2.2-${{ runner.os }}
             owasp-nvd-${{ runner.os }}-
       - name: Run OWASP Dependency-Check
         working-directory: backend
         run: |
-          DATA_DIR="${HOME}/.owasp-nvd-cache"
+          DATA_DIR="${HOME}/.m2/repository/org/owasp/dependency-check-data"
           mkdir -p "$DATA_DIR"
           OWASP_OPTS=(
             -DfailBuildOnCVSS=7
@@ -85,16 +86,15 @@ jobs:
           fi
           CACHE_HIT="${{ steps.owasp-nvd-cache.outputs.cache-hit }}"
           HAS_NVD=false
-          # ODC usa H2 → odc.mv.db (no *.h2.db); sin esto siempre re-descargaba la NVD.
-          if [ -f "$DATA_DIR/odc.mv.db" ] || [ -n "$(find "$DATA_DIR" -name 'odc.mv.db' -print -quit 2>/dev/null)" ]; then
+          if [ -n "$(find "$DATA_DIR" -name 'odc.mv.db' -print -quit 2>/dev/null)" ]; then
             HAS_NVD=true
           fi
-          echo "OWASP cache: cache-hit=${CACHE_HIT} has_odc_mv_db=${HAS_NVD}"
-          if [ "$CACHE_HIT" = "true" ] && [ "$HAS_NVD" = "true" ]; then
-            echo "NVD cache hit — reutilizando BD local (sin descargar CVEs)"
+          echo "OWASP cache: cache-hit=${CACHE_HIT} has_odc_mv_db=${HAS_NVD} dir=${DATA_DIR}"
+          if [ "$CACHE_HIT" = "true" ] || [ "$HAS_NVD" = "true" ]; then
+            echo "NVD en caché — scan sin descarga completa (-DautoUpdate=false)"
             OWASP_OPTS+=(-DautoUpdate=false -DnvdValidForHours=8760)
           else
-            echo "NVD cache miss o BD vacía — descarga NVD (~3–5 min con API key)."
+            echo "NVD cache miss — descarga inicial (~3–5 min con NVD_API_KEY)."
             OWASP_OPTS+=(-DnvdApiDelay=4000 -DnvdValidForHours=168)
           fi
           mvn -B org.owasp:dependency-check-maven:12.2.2:check "${OWASP_OPTS[@]}"
