@@ -108,6 +108,11 @@ jobs:
   build-backend:
     name: Backend test + package
     needs: [gitleaks, semgrep, dependency-check]
+    if: >-
+      always() && !cancelled() &&
+      (vars.CI_RELAXED == 'true' ||
+       (needs.gitleaks.result == 'success' && needs.semgrep.result == 'success' &&
+        needs.dependency-check.result == 'success'))
     continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     outputs:
@@ -151,7 +156,9 @@ jobs:
   sonarcloud:
     name: SonarCloud
     needs: [build-backend]
-    if: needs.build-backend.outputs.jar_artifact_id != ''
+    if: >-
+      always() && !cancelled() && needs.build-backend.result == 'success' &&
+      needs.build-backend.outputs.jar_artifact_id != ''
     continue-on-error: ${{ vars.CI_RELAXED == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -211,10 +218,12 @@ jobs:
     name: Staging pack
     needs: [ci, build-backend]
     if: >-
-      needs.ci.result == 'success' &&
-      needs.build-backend.outputs.jar_artifact_id != '' &&
+      always() && !cancelled() &&
       github.event_name == 'push' &&
-      endsWith(github.ref_name, '.x.x-beta')
+      endsWith(github.ref_name, '.x.x-beta') &&
+      needs.build-backend.result == 'success' &&
+      needs.build-backend.outputs.jar_artifact_id != '' &&
+      (vars.CI_RELAXED == 'true' || needs.ci.result == 'success')
     runs-on: ubuntu-latest
     environment: staging
     steps:
@@ -248,10 +257,11 @@ jobs:
     name: Beta tag
     needs: [ci, pack-test-deploy-artifacts]
     if: >-
-      needs.ci.result == 'success' &&
-      needs.pack-test-deploy-artifacts.result == 'success' &&
+      always() && !cancelled() &&
       github.event_name == 'push' &&
-      endsWith(github.ref_name, '.x.x-beta')
+      endsWith(github.ref_name, '.x.x-beta') &&
+      needs.pack-test-deploy-artifacts.result == 'success' &&
+      (vars.CI_RELAXED == 'true' || needs.ci.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
