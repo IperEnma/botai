@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../../providers/agenda/agenda_user_provider.dart';
-import '../../../providers/agenda/tenant_admin_resolved_provider.dart';
+import '../../../providers/agenda/me_profile_provider.dart';
 import '../../../providers/agenda/tenant/businesses_provider.dart';
 import '../../../widgets/agenda/agenda_state_views.dart';
 import '../navigation/agenda_tenant_nav.dart';
@@ -48,36 +48,39 @@ class BusinessSectionScreen extends ConsumerWidget {
       return const Scaffold(body: AgendaLoadingView());
     }
 
-    final async = ref.watch(tenantAdminResolvedProvider);
+    final async = ref.watch(meProfileProvider);
 
     return async.when(
       loading: () => const Scaffold(
         backgroundColor: Color(0xFFFBFAF7),
         body: AgendaLoadingView(),
       ),
-      error: (e, _) {
-        if (e is TenantAdminResolveException && e.code == 'NOT_AUTHENTICATED') {
+      error: (e, _) => Scaffold(
+        backgroundColor: const Color(0xFFFBFAF7),
+        body: AgendaErrorView(
+          message: e.toString(),
+          onRetry: () => ref.invalidate(meProfileProvider),
+        ),
+      ),
+      data: (profile) {
+        // Sin tenant: el usuario aún no terminó onboarding (caso owner nuevo).
+        // El panel principal arma el flow de business-register; acá nos
+        // limitamos a devolverlo al panel para que lo maneje.
+        if (profile.tenantId == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/login');
+            if (context.mounted) context.go('/agenda/panel');
           });
           return const Scaffold(body: AgendaLoadingView());
         }
-        return Scaffold(
-          backgroundColor: const Color(0xFFFBFAF7),
-          body: AgendaErrorView(
-            message: e.toString(),
-            onRetry: () => ref.invalidate(tenantAdminResolvedProvider),
+        return TenantNavScope(
+          useMeRoutes: true,
+          child: _SectionView(
+            tenantId:   profile.tenantId!,
+            businessId: businessId,
+            section:    section,
           ),
         );
       },
-      data: (ctx) => TenantNavScope(
-        useMeRoutes: true,
-        child: _SectionView(
-          tenantId:   ctx.tenantId,
-          businessId: businessId,
-          section:    section,
-        ),
-      ),
     );
   }
 }

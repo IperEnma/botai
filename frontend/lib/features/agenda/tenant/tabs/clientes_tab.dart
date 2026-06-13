@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/agenda_phone.dart';
+import '../../../../widgets/agenda_phone_field.dart';
 import '../../register/konecta_tokens.dart';
+import '../../shared/k_button.dart';
 import 'clientes/cliente.dart';
 import 'clientes/clientes_controller.dart';
 import 'clientes/ficha/ficha_panel.dart';
@@ -107,6 +110,13 @@ class _DirectoryColumn extends ConsumerWidget {
   final String businessId;
   final ValueChanged<Cliente>? onOpenFicha;
 
+  Future<void> _showNewClienteDialog(BuildContext context, WidgetRef ref) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _NuevoClienteDialog(businessId: businessId),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.watch(clientesProvider(businessId).notifier);
@@ -136,9 +146,17 @@ class _DirectoryColumn extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                'Clientes',
-                style: KTokens.tDisplay,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: Text('Clientes', style: KTokens.tDisplay)),
+                  KButton.primary(
+                    label: 'Nuevo cliente',
+                    icon: Icons.add_rounded,
+                    compact: true,
+                    onPressed: () => _showNewClienteDialog(context, ref),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
 
@@ -160,6 +178,154 @@ class _DirectoryColumn extends ConsumerWidget {
                   businessId: businessId,
                   onOpen: (c) => onOpenFicha?.call(c),
                 ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── New cliente dialog ──────────────────────────────────────────────────────
+
+class _NuevoClienteDialog extends ConsumerStatefulWidget {
+  const _NuevoClienteDialog({required this.businessId});
+
+  final String businessId;
+
+  @override
+  ConsumerState<_NuevoClienteDialog> createState() => _NuevoClienteDialogState();
+}
+
+class _NuevoClienteDialogState extends ConsumerState<_NuevoClienteDialog> {
+  final _nombreCtrl = TextEditingController();
+  final _telefonoCtrl = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nombreCtrl.dispose();
+    _telefonoCtrl.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _inputDec(String hint) => InputDecoration(
+        hintText: hint,
+        hintStyle:
+            GoogleFonts.inter(fontSize: 13, color: KTokens.inkPlaceholder),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(KTokens.rMd),
+          borderSide: BorderSide(color: KTokens.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(KTokens.rMd),
+          borderSide: BorderSide(color: KTokens.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(KTokens.rMd),
+          borderSide: const BorderSide(color: KTokens.accent, width: 1.5),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      );
+
+  Future<void> _save() async {
+    final nombre = _nombreCtrl.text.trim();
+    final telefono = normalizeAgendaPhoneDigits(_telefonoCtrl.text);
+    if (nombre.isEmpty || !isValidAgendaPhone(telefono)) {
+      setState(() => _error = 'Nombre y teléfono (mín. 7 dígitos) son obligatorios.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final notifier = ref.read(clientesProvider(widget.businessId).notifier);
+    final result = await notifier.create(
+      nombre: nombre,
+      telefono: telefono,
+    );
+    if (!mounted) return;
+    if (result != null) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Cliente creado: ${result.nombre}',
+            style: GoogleFonts.inter(fontSize: 13)),
+        behavior: SnackBarBehavior.floating,
+      ));
+    } else {
+      setState(() {
+        _saving = false;
+        _error = ref.read(clientesProvider(widget.businessId)).error ??
+            'No se pudo crear el cliente.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Misma estructura que el `_NewClienteForm` del wizard de Agenda, pero
+    // con fondo `KTokens.bg` (#FBFAF7) — el mismo cream/off-white de las
+    // pantallas del panel — en lugar del `accentSoft` del wizard embebido.
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: KTokens.bg,
+            borderRadius: BorderRadius.circular(KTokens.rMd),
+            border: Border.all(color: KTokens.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'NUEVO CLIENTE',
+                style: KTokens.tEyebrow
+                    .copyWith(fontSize: 10, letterSpacing: 1.4),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _nombreCtrl,
+                style: GoogleFonts.inter(fontSize: 14, color: KTokens.ink),
+                decoration: _inputDec('Nombre completo'),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 10),
+              AgendaPhoneField(controller: _telefonoCtrl, required: true),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _error!,
+                  style: GoogleFonts.inter(
+                      fontSize: 12, color: KTokens.excClosed),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  KButton.secondary(
+                    label: 'Cancelar',
+                    onPressed: _saving
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                  ),
+                  const SizedBox(width: 8),
+                  KButton.primary(
+                    label: 'Guardar',
+                    loading: _saving,
+                    onPressed: _saving ? null : _save,
+                  ),
+                ],
+              ),
             ],
           ),
         ),

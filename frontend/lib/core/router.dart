@@ -23,6 +23,7 @@ import '../features/agenda/home/agenda_home_shell.dart';
 import '../features/agenda/tenant/agenda_panel_screen.dart';
 import '../features/agenda/tenant/agenda_panel_section_screen.dart';
 import '../features/agenda/tenant/agenda_panel_config_screen.dart';
+import '../features/admin/platform/platform_admin_screen.dart';
 import '../features/agenda/tenant/agenda_legacy_business_redirect.dart';
 import '../features/agenda/tenant/mis_horarios_screen.dart';
 // Sprint FE-3 — Me
@@ -149,6 +150,27 @@ final routerProvider = Provider<GoRouter>((ref) {
           child: child,
         ),
         routes: [
+          GoRoute(
+            path: '/admin/platform',
+            pageBuilder: (context, state) => _shellPage(
+              key: const ValueKey('/admin/platform'),
+              child: const PlatformAdminScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/platform/tenants',
+            pageBuilder: (context, state) => _shellPage(
+              key: const ValueKey('/admin/platform/tenants'),
+              child: const PlatformAdminScreen(section: 'tenants'),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/platform/categorias',
+            pageBuilder: (context, state) => _shellPage(
+              key: const ValueKey('/admin/platform/categorias'),
+              child: const PlatformAdminScreen(section: 'categorias'),
+            ),
+          ),
           GoRoute(
             path: '/agenda/panel',
             pageBuilder: (context, state) {

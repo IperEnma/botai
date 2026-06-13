@@ -77,7 +77,10 @@ public class AgendaAuthorizationService {
      * Quién puede invitar a qué rol:
      * <ul>
      *   <li>{@code TENANT_ADMIN}: solo {@code OWNER} (no creamos otros admins).</li>
-     *   <li>{@code RECEPTION}, {@code STAFF_VIEWER}, {@code STAFF_OPERATOR}: {@code OWNER} o {@code TENANT_ADMIN}.</li>
+     *   <li>{@code RECEPTION}: {@code OWNER} o {@code TENANT_ADMIN}
+     *       (RC no se autoreplica para evitar privilege escalation).</li>
+     *   <li>{@code STAFF_VIEWER}, {@code STAFF_OPERATOR}: {@code OWNER}, {@code TENANT_ADMIN}
+     *       o {@code RECEPTION} — RC gestiona el equipo de sus sucursales.</li>
      *   <li>Otros valores: rechazados.</li>
      * </ul>
      */
@@ -90,9 +93,12 @@ public class AgendaAuthorizationService {
             return false;
         }
         AgendaUserPrincipal pr = p();
+        boolean isReception = pr.getRoles().stream()
+                .anyMatch(r -> r.getRole() == Role.RECEPTION);
         return switch (role) {
             case TENANT_ADMIN -> pr.isOwner();
-            case RECEPTION, STAFF_VIEWER, STAFF_OPERATOR -> pr.isAdministrative();
+            case RECEPTION -> pr.isAdministrative();
+            case STAFF_VIEWER, STAFF_OPERATOR -> pr.isAdministrative() || isReception;
             // OWNER / PLATFORM_ADMIN / CLIENT no se invitan por este flujo.
             default -> false;
         };
@@ -132,6 +138,22 @@ public class AgendaAuthorizationService {
     public boolean canManageBusinessOwnerOnly(UUID businessId) {
         AgendaUserPrincipal pr = p();
         return pr.isOwner() && tenantOwnsBusiness(businessId);
+    }
+
+    /**
+     * Gestionar las "operaciones" del negocio: servicios, equipo, horarios del
+     * negocio y avatares del staff. A diferencia de {@link #canManageBusiness},
+     * acá entra también <strong>RECEPCIÓN</strong> sobre las sucursales asignadas.
+     *
+     * <p>Quedan fuera (reservadas a OW/TA): branding, fotos del negocio,
+     * settings (cancelación, no-show, etc.), planes, fidelización, features
+     * del tenant, gestión de bot y gestión de administradores.</p>
+     */
+    public boolean canManageBusinessOperations(UUID businessId) {
+        AgendaUserPrincipal pr = p();
+        if (!tenantOwnsBusiness(businessId)) return false;
+        if (pr.isAdministrative()) return true;
+        return pr.hasBusinessRole(Role.RECEPTION, businessId);
     }
 
     /**
@@ -185,12 +207,21 @@ public class AgendaAuthorizationService {
 
     /**
      * Editar el {@code customSchedule} (horario semanal recurrente) de un
-     * staff member. Pasan OW/TA (gestionan todo el equipo) y, además, el
-     * propio dueño del staff member (STAFF auto-gestiona su horario).
+     * staff member. Pasan:
+     * <ul>
+     *   <li>OW/TA: gestionan todo el equipo, cualquier staff.</li>
+     *   <li>RC ⓑ: gestiona el equipo de su sucursal — cualquier staff de ese business.</li>
+     *   <li>STAFF_OPERATOR sobre su propio staffMember.</li>
+     * </ul>
+     * <p>STAFF_VIEWER queda fuera por diseño: solo lectura, no puede mutar su
+     * horario.</p>
      */
     public boolean canManageOwnStaffSchedule(UUID businessId, UUID staffId) {
+        AgendaUserPrincipal pr = p();
         if (!tenantOwnsBusiness(businessId)) return false;
-        if (p().isAdministrative()) return true;
+        if (pr.isAdministrative()) return true;
+        if (pr.hasBusinessRole(Role.RECEPTION, businessId)) return true;
+        if (!pr.hasBusinessRole(Role.STAFF_OPERATOR, businessId)) return false;
         return currentUserStaffMemberId(businessId)
                 .map(staffId::equals)
                 .orElse(false);

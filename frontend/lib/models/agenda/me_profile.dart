@@ -77,6 +77,72 @@ class AgendaMeProfile {
         r.role == AgendaRole.staffViewer);
   }
 
+  /// True si el usuario es STAFF_VIEWER puro: sin operator, sin admin, sin
+  /// recepción. Solo lectura — no puede crear/modificar reservas ni editar
+  /// su horario. La UI esconde botones de mutación y disables editores.
+  bool get isStaffViewerOnly {
+    if (isTenantAdministrative) return false;
+    final hasReception = roles.any((r) => r.role == AgendaRole.reception);
+    if (hasReception) return false;
+    final hasOperator = roles.any((r) => r.role == AgendaRole.staffOperator);
+    if (hasOperator) return false;
+    return roles.any((r) => r.role == AgendaRole.staffViewer);
+  }
+
+  /// True si el usuario tiene poder de mutación sobre la agenda (admin, OR
+  /// recepción, OR STAFF_OPERATOR). Útil para gatear botones de crear /
+  /// modificar / cancelar reservas en la UI. STAFF_VIEWER queda fuera.
+  bool get canMutateOwnAgenda {
+    if (isTenantAdministrative) return true;
+    return roles.any((r) =>
+        r.role == AgendaRole.reception ||
+        r.role == AgendaRole.staffOperator);
+  }
+
+  /// True si el usuario tiene rol RECEPTION sin rol administrativo. Recepción
+  /// pura: ve y opera la agenda completa del negocio (cualquier profesional)
+  /// y gestiona clientes, pero no toca configuración / servicios / equipo /
+  /// administradores ni gestiona el bot.
+  bool get isReceptionOnly {
+    if (isTenantAdministrative) return false;
+    return roles.any((r) => r.role == AgendaRole.reception);
+  }
+
+  /// Conjunto de sucursales sobre las que el usuario tiene rol RECEPTION.
+  /// Útil para limitar el selector de sucursal del panel a las asignadas.
+  Set<String> get receptionBusinessIds {
+    final result = <String>{};
+    for (final r in roles) {
+      if (r.role == AgendaRole.reception && r.businessId != null) {
+        result.add(r.businessId!);
+      }
+    }
+    return result;
+  }
+
+  /// True si el usuario tiene scope reducido a sucursales asignadas (STAFF o
+  /// RECEPTION, sin rol administrativo). El panel fuerza la sucursal
+  /// seleccionada a una de las permitidas y el sidebar muestra solo lo que
+  /// puede operar.
+  bool get hasBusinessScopedAccess => isStaffOnly || isReceptionOnly;
+
+  /// Conjunto de sucursales con scope STAFF (operator/viewer) o RECEPTION —
+  /// el panel restringe la sucursal seleccionada a este set para non-admins.
+  Set<String> get scopedBusinessIds => {
+        ...staffBusinessIds,
+        ...receptionBusinessIds,
+      };
+
+  /// True si el usuario puede gestionar las "operaciones" del negocio
+  /// indicado: servicios, equipo y horarios. Espeja
+  /// `AgendaAuthorizationService.canManageBusinessOperations` (OW/TA cualquier
+  /// negocio del tenant; RC sobre las sucursales asignadas).
+  bool canManageBusinessOperations(String businessId) {
+    if (isTenantAdministrative) return true;
+    return roles.any((r) =>
+        r.role == AgendaRole.reception && r.businessId == businessId);
+  }
+
   /// Conjunto de sucursales sobre las que el usuario tiene un rol STAFF
   /// (operator o viewer). Útil para filtrar el selector de sucursal.
   Set<String> get staffBusinessIds {
