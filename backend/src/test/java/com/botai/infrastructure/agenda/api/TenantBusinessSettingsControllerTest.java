@@ -63,8 +63,8 @@ class TenantBusinessSettingsControllerTest extends AbstractAgendaIntegrationTest
         jdbc.update(
                 "INSERT INTO agenda_business_settings " +
                 "(business_id, hours_cancellation_limit, loyalty_min_attendances, loyalty_window_days, " +
-                " expiration_alert_days, expiration_alert_credits, auto_notify_enabled, created_at, updated_at) " +
-                "VALUES (?, 8, 10, 90, 3, 1, FALSE, NOW(), NOW())",
+                " expiration_alert_days, expiration_alert_credits, auto_notify_enabled, require_booking_confirmation, created_at, updated_at) " +
+                "VALUES (?, 8, 10, 90, 3, 1, FALSE, TRUE, NOW(), NOW())",
                 businessId);
 
         mockMvc.perform(get("/api/agenda/me/businesses/{b}/settings", businessId))
