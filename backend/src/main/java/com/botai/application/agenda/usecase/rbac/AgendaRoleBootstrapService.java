@@ -7,6 +7,7 @@ import com.botai.domain.agenda.repository.AgendaUserRoleRepository;
 import com.botai.domain.agenda.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,11 +34,16 @@ public class AgendaRoleBootstrapService {
 
     private final AgendaUserRoleRepository roleRepository;
     private final UserRepository userRepository;
+    private final String platformAdminEmail;
 
     public AgendaRoleBootstrapService(AgendaUserRoleRepository roleRepository,
-                                       UserRepository userRepository) {
+                                       UserRepository userRepository,
+                                       @Value("${platform.admin-email:}") String platformAdminEmail) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
+        this.platformAdminEmail = platformAdminEmail == null
+                ? ""
+                : platformAdminEmail.strip().toLowerCase(Locale.ROOT);
     }
 
     @Transactional
@@ -75,6 +81,42 @@ public class AgendaRoleBootstrapService {
         UUID userId = user.get().getId();
         roleRepository.save(AgendaUserRole.tenantWide(userId, tenantId, Role.OWNER));
         log.info("RBAC: OWNER bootstrap tenantId={} userId={} (tenant pre-RBAC)", tenantId, userId);
+        return Optional.of(userId);
+    }
+
+    /**
+     * Auto-grant del rol PLATFORM_ADMIN al email configurado en
+     * {@code platform.admin-email}. Idempotente: si el usuario ya tiene PA
+     * (o si el email del JWT no matchea el configurado), no hace nada.
+     *
+     * <p>Se invoca desde {@code MeProfileController.profile()} para que el
+     * dueño de la app obtenga PA en cuanto loguea con Google — sin necesidad
+     * de SQL ni endpoints previos.</p>
+     */
+    @Transactional
+    public Optional<UUID> ensurePlatformAdminByEmail(String jwtEmail) {
+        if (platformAdminEmail.isEmpty()) {
+            return Optional.empty();
+        }
+        if (jwtEmail == null || jwtEmail.isBlank()) {
+            return Optional.empty();
+        }
+        String normalized = jwtEmail.strip().toLowerCase(Locale.ROOT);
+        if (!platformAdminEmail.equals(normalized)) {
+            return Optional.empty();
+        }
+        Optional<User> user = userRepository.findByEmail(normalized);
+        if (user.isEmpty()) {
+            log.debug("RBAC: bootstrap PLATFORM_ADMIN omitido — no existe User con email={}",
+                    normalized);
+            return Optional.empty();
+        }
+        UUID userId = user.get().getId();
+        if (roleRepository.isPlatformAdmin(userId)) {
+            return Optional.of(userId);
+        }
+        roleRepository.save(AgendaUserRole.platform(userId));
+        log.info("RBAC: PLATFORM_ADMIN bootstrap userId={} email={}", userId, normalized);
         return Optional.of(userId);
     }
 }

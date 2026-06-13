@@ -75,10 +75,18 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
 
   bool get _typeRequiresAccount =>
       _selectedType == MemberType.profesionalConCuenta ||
+      _selectedType == MemberType.profesionalSoloLectura ||
       _selectedType == MemberType.recepcion;
 
+  /// Recepción no ofrece servicios ni necesita color en el calendario:
+  /// salta el paso "¿Qué hace?" (color + servicios).
+  bool get _typeOffersServices => _selectedType != MemberType.recepcion;
+
+  int get _totalSteps => _typeOffersServices ? 3 : 2;
+
   void _next() {
-    if (_step < 2) {
+    final lastStep = _totalSteps - 1;
+    if (_step < lastStep) {
       setState(() => _step++);
     } else {
       _create();
@@ -154,6 +162,7 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
       MemberType.recepcion => 'Recepcionista',
       MemberType.profesionalSoloPerfil => 'Profesional',
       MemberType.profesionalConCuenta => 'Profesional',
+      MemberType.profesionalSoloLectura => 'Profesional',
     };
 
     setState(() => _isCreating = true);
@@ -173,9 +182,11 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
     bool ok;
     String? createdId;
     if (_typeRequiresAccount) {
-      final inviteRole = _selectedType == MemberType.recepcion
-          ? 'RECEPTION'
-          : 'STAFF_OPERATOR';
+      final inviteRole = switch (_selectedType) {
+        MemberType.recepcion => 'RECEPTION',
+        MemberType.profesionalSoloLectura => 'STAFF_VIEWER',
+        _ => 'STAFF_OPERATOR',
+      };
       final inv = await notifier.inviteMember(CreateTenantInvitationRequest(
         nombre: name,
         email: email,
@@ -281,10 +292,10 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _ProgressBar(step: _step),
+                    _ProgressBar(step: _step, total: _totalSteps),
                     const SizedBox(height: 8),
                     Text(
-                      'PASO 0${_step + 1} DE 03',
+                      'PASO 0${_step + 1} DE 0$_totalSteps',
                       style: GoogleFonts.jetBrainsMono(
                         fontSize: 10,
                         color: KTokens.inkSoft,
@@ -341,6 +352,7 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
             ),
             _Footer(
               step: _step,
+              totalSteps: _totalSteps,
               isCreating: _isCreating,
               onBack: _back,
               onNext: _next,
@@ -375,19 +387,20 @@ class _AddMemberPanelState extends ConsumerState<AddMemberPanel> {
 // ─── Progress bar ─────────────────────────────────────────────────────────────
 
 class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.step});
+  const _ProgressBar({required this.step, required this.total});
   final int step;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: List.generate(3, (i) {
+      children: List.generate(total, (i) {
         final isDone = i < step;
         final isCurrent = i == step;
         return Expanded(
           child: Container(
             height: 3,
-            margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
+            margin: EdgeInsets.only(right: i < total - 1 ? 6 : 0),
             decoration: BoxDecoration(
               color: (isDone || isCurrent) ? KTokens.accent : KTokens.border,
               borderRadius: BorderRadius.circular(KTokens.rPill),
@@ -569,6 +582,12 @@ class _Step2 extends StatelessWidget {
         MemberType.profesionalConCuenta,
         'Profesional con cuenta',
         'Puede iniciar sesión y gestionar su agenda.',
+        false,
+      ),
+      (
+        MemberType.profesionalSoloLectura,
+        'Profesional solo lectura',
+        'Inicia sesión pero solo consulta su agenda y horarios.',
         false,
       ),
       (
@@ -795,6 +814,7 @@ class _Step3 extends StatelessWidget {
 class _Footer extends StatelessWidget {
   const _Footer({
     required this.step,
+    required this.totalSteps,
     required this.isCreating,
     required this.onBack,
     required this.onNext,
@@ -802,6 +822,7 @@ class _Footer extends StatelessWidget {
   });
 
   final int step;
+  final int totalSteps;
   final bool isCreating;
   final VoidCallback onBack;
   final VoidCallback onNext;
@@ -849,7 +870,7 @@ class _Footer extends StatelessWidget {
               textStyle: GoogleFonts.inter(
                   fontSize: 14, fontWeight: FontWeight.w500),
             ),
-            child: isCreating && step == 2
+            child: isCreating && step == totalSteps - 1
                 ? const SizedBox(
                     width: 16,
                     height: 16,
@@ -859,7 +880,9 @@ class _Footer extends StatelessWidget {
                           AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : Text(step < 2 ? 'Continuar →' : 'Crear miembro →'),
+                : Text(step < totalSteps - 1
+                    ? 'Continuar →'
+                    : 'Crear miembro →'),
           ),
         ],
       ),

@@ -81,7 +81,7 @@ public class MeBusinessServicesController {
 
     @PostMapping
     @Operation(summary = "Crear un servicio para el negocio del tenant autenticado")
-    @PreAuthorize("@authz.canManageBusiness(#businessId)")
+    @PreAuthorize("@authz.canManageBusinessOperations(#businessId)")
     public ResponseEntity<ServiceResponse> create(
             @PathVariable UUID businessId,
             @Valid @RequestBody CreateServiceRequest request) {
@@ -100,7 +100,7 @@ public class MeBusinessServicesController {
 
     @PutMapping("/{serviceId}")
     @Operation(summary = "Actualizar un servicio del negocio del tenant autenticado")
-    @PreAuthorize("@authz.canManageBusiness(#businessId)")
+    @PreAuthorize("@authz.canManageBusinessOperations(#businessId)")
     public ResponseEntity<ServiceResponse> update(
             @PathVariable UUID businessId,
             @PathVariable UUID serviceId,
@@ -119,7 +119,7 @@ public class MeBusinessServicesController {
 
     @DeleteMapping("/{serviceId}")
     @Operation(summary = "Eliminar (soft-delete) un servicio del negocio del tenant autenticado")
-    @PreAuthorize("@authz.canManageBusiness(#businessId)")
+    @PreAuthorize("@authz.canManageBusinessOperations(#businessId)")
     public ResponseEntity<Void> delete(
             @PathVariable UUID businessId,
             @PathVariable UUID serviceId) {

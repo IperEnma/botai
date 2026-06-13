@@ -253,6 +253,7 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
     _hydrateIfNeeded(own, bizHours);
 
     final ownStaff = own;
+    final readOnly = readMeProfileOrEmpty(ref).isStaffViewerOnly;
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -271,46 +272,51 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Definí tu horario semanal recurrente. Los rangos se ajustan '
-                'dentro del horario de la sucursal.',
+                readOnly
+                    ? 'Solo lectura: tu horario semanal recurrente.'
+                    : 'Definí tu horario semanal recurrente. Los rangos se '
+                        'ajustan dentro del horario de la sucursal.',
                 style: GoogleFonts.inter(fontSize: 13, color: KTokens.inkMuted),
               ),
               const SizedBox(height: 20),
-              _customToggleCard(ownStaff.nombre, bizHours),
+              _customToggleCard(ownStaff.nombre, bizHours, readOnly: readOnly),
               if (_customEnabled) ...[
                 const SizedBox(height: 16),
-                _daysCard(bizHours),
+                _daysCard(bizHours, readOnly: readOnly),
               ],
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: _saving ? null : () => _save(businessId, ownStaff.id),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: KTokens.ink,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(KTokens.rSm),
+              if (!readOnly) ...[
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed:
+                          _saving ? null : () => _save(businessId, ownStaff.id),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: KTokens.ink,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(KTokens.rSm),
+                        ),
                       ),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text('Guardar cambios',
+                              style: GoogleFonts.inter(
+                                  fontSize: 14, fontWeight: FontWeight.w500)),
                     ),
-                    child: _saving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Text('Guardar cambios',
-                            style: GoogleFonts.inter(
-                                fontSize: 14, fontWeight: FontWeight.w500)),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -318,7 +324,8 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
     );
   }
 
-  Widget _customToggleCard(String memberName, List<BusinessHours> bizHours) {
+  Widget _customToggleCard(String memberName, List<BusinessHours> bizHours,
+      {bool readOnly = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -343,14 +350,16 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
               ),
               Switch(
                 value: _customEnabled,
-                onChanged: (v) {
-                  setState(() {
-                    _customEnabled = v;
-                    if (v && (_draft == null || _draft!.isEmpty)) {
-                      _draft = _readSchedule(null, bizHours);
-                    }
-                  });
-                },
+                onChanged: readOnly
+                    ? null
+                    : (v) {
+                        setState(() {
+                          _customEnabled = v;
+                          if (v && (_draft == null || _draft!.isEmpty)) {
+                            _draft = _readSchedule(null, bizHours);
+                          }
+                        });
+                      },
                 activeThumbColor: KTokens.accent,
                 activeTrackColor: KTokens.accentSoft,
               ),
@@ -370,7 +379,7 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
     );
   }
 
-  Widget _daysCard(List<BusinessHours> bizHours) {
+  Widget _daysCard(List<BusinessHours> bizHours, {bool readOnly = false}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -380,7 +389,7 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
       child: Column(
         children: [
           for (var i = 0; i < _dayKeys.length; i++) ...[
-            _dayRow(i, bizHours),
+            _dayRow(i, bizHours, readOnly: readOnly),
             if (i < _dayKeys.length - 1)
               Divider(height: 1, color: KTokens.border),
           ],
@@ -389,7 +398,8 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
     );
   }
 
-  Widget _dayRow(int index, List<BusinessHours> bizHours) {
+  Widget _dayRow(int index, List<BusinessHours> bizHours,
+      {bool readOnly = false}) {
     final key = _dayKeys[index];
     final label = _dayLabels[index];
     final day = _draft![key]!;
@@ -418,7 +428,7 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
           ),
           Switch(
             value: day.open && canOpen,
-            onChanged: !canOpen
+            onChanged: !canOpen || readOnly
                 ? null
                 : (v) => setState(() {
                       _draft![key] = day.copyWith(open: v);
@@ -442,13 +452,15 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
                       )
                     : Row(
                         children: [
-                          _timeChip(day.from, () => _pickTime(key, true)),
+                          _timeChip(day.from,
+                              readOnly ? null : () => _pickTime(key, true)),
                           const SizedBox(width: 6),
                           Text('—',
                               style:
                                   GoogleFonts.inter(color: KTokens.inkSoft)),
                           const SizedBox(width: 6),
-                          _timeChip(day.to, () => _pickTime(key, false)),
+                          _timeChip(day.to,
+                              readOnly ? null : () => _pickTime(key, false)),
                         ],
                       ),
           ),
@@ -457,7 +469,7 @@ class _MisHorariosScreenState extends ConsumerState<MisHorariosScreen> {
     );
   }
 
-  Widget _timeChip(String value, VoidCallback onTap) {
+  Widget _timeChip(String value, VoidCallback? onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
