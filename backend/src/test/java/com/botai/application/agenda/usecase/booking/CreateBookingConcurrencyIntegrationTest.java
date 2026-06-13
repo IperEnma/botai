@@ -267,8 +267,8 @@ class CreateBookingConcurrencyIntegrationTest extends AbstractAgendaIntegrationT
                         "VALUES (?, ?, ?, 'POR_CREDITOS', 10, 30, 1000, TRUE, NOW(), NOW())",
                 planId2, businessId, "Plan user2");
         jdbc.update("INSERT INTO agenda_user_subscriptions " +
-                        "(id, user_id, plan_id, business_id, saldo_actual, fecha_inicio, fecha_expiracion, estado) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')",
+                        "(id, user_id, plan_id, business_id, saldo_actual, fecha_inicio, fecha_expiracion, estado, created_at, updated_at) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', NOW(), NOW())",
                 subscriptionId2, userId2, planId2, businessId, 5,
                 now.minusDays(1), now.plusDays(30));
 
