@@ -19,6 +19,8 @@ import java.util.UUID;
 public class JpaBookingRepository implements BookingRepository {
 
     private static final String SLOT_CONSTRAINT = "excl_agenda_bookings_staff_slot";
+    private static final String SLOT_CONSTRAINT_LEGACY = "excl_agenda_bookings_slot";
+    private static final String BOOKINGS_TABLE = "agenda_bookings";
 
     private final BookingJpaRepository jpa;
 
@@ -129,11 +131,27 @@ public class JpaBookingRepository implements BookingRepository {
     private boolean isSlotExclusionViolation(Throwable ex) {
         Throwable cause = ex;
         while (cause != null) {
-            if (cause.getMessage() != null && cause.getMessage().contains(SLOT_CONSTRAINT)) {
-                return true;
+            String message = cause.getMessage();
+            if (message != null) {
+                if (message.contains(SLOT_CONSTRAINT) || message.contains(SLOT_CONSTRAINT_LEGACY)) {
+                    return true;
+                }
+                if (isExclusionConstraintDeadlock(message)) {
+                    return true;
+                }
             }
             cause = cause.getCause();
         }
         return false;
+    }
+
+    /**
+     * Concurrent inserts for the same slot can deadlock while PostgreSQL evaluates
+     * the EXCLUDE constraint — semantically equivalent to "slot already taken".
+     */
+    private static boolean isExclusionConstraintDeadlock(String message) {
+        return message.contains("deadlock detected")
+                && message.contains(BOOKINGS_TABLE)
+                && message.contains("exclusion constraint");
     }
 }
