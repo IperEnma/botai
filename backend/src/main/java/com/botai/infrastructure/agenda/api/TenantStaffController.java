@@ -74,7 +74,7 @@ public class TenantStaffController {
 
     @PostMapping
     @Operation(summary = "Agregar un miembro al equipo")
-    @PreAuthorize("@authz.canManageBusiness(#businessId)")
+    @PreAuthorize("@authz.canManageBusinessOperations(#businessId)")
     public ResponseEntity<StaffMemberResponse> create(@PathVariable UUID businessId,
                                                        @Valid @RequestBody CreateStaffMemberRequest request) {
         String tenantId = currentTenant.requireTenantId();
@@ -85,7 +85,7 @@ public class TenantStaffController {
 
     @PutMapping("/{staffId}")
     @Operation(summary = "Actualizar datos de un miembro del equipo")
-    @PreAuthorize("@authz.canManageBusiness(#businessId)")
+    @PreAuthorize("@authz.canManageBusinessOperations(#businessId)")
     public StaffMemberResponse update(@PathVariable UUID businessId,
                                        @PathVariable UUID staffId,
                                        @Valid @RequestBody UpdateStaffMemberRequest request) {
@@ -109,7 +109,7 @@ public class TenantStaffController {
 
     @PutMapping("/{staffId}/services")
     @Operation(summary = "Actualizar los servicios asignados a un miembro del equipo")
-    @PreAuthorize("@authz.canManageBusiness(#businessId)")
+    @PreAuthorize("@authz.canManageBusinessOperations(#businessId)")
     public StaffMemberResponse updateServices(@PathVariable UUID businessId,
                                               @PathVariable UUID staffId,
                                               @RequestBody UpdateStaffServicesRequest request) {
@@ -121,7 +121,7 @@ public class TenantStaffController {
 
     @DeleteMapping("/{staffId}")
     @Operation(summary = "Desactivar (soft-delete) un miembro del equipo")
-    @PreAuthorize("@authz.canManageBusiness(#businessId)")
+    @PreAuthorize("@authz.canManageBusinessOperations(#businessId)")
     public ResponseEntity<Void> deactivate(@PathVariable UUID businessId,
                                             @PathVariable UUID staffId) {
         String tenantId = currentTenant.requireTenantId();
@@ -132,7 +132,7 @@ public class TenantStaffController {
 
     @PostMapping(value = "/{staffId}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Sube la imagen de avatar de un miembro del equipo")
-    @PreAuthorize("@authz.canManageBusiness(#businessId)")
+    @PreAuthorize("@authz.canManageBusinessOperations(#businessId)")
     public ResponseEntity<Map<String, String>> uploadAvatar(
             @PathVariable UUID businessId,
             @PathVariable UUID staffId,

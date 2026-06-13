@@ -15,8 +15,10 @@ class AgendaPanelConfigScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // STAFF puro no gestiona configuración del negocio — redirige a su agenda.
-    if (readMeProfileOrEmpty(ref).isStaffOnly) {
+    // STAFF / RECEPCIÓN no gestionan configuración del negocio — redirigen a
+    // su agenda. Solo OW/TA llegan acá.
+    final me = readMeProfileOrEmpty(ref);
+    if (me.isStaffOnly || me.isReceptionOnly) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) context.go('/agenda/panel?section=agenda');
       });

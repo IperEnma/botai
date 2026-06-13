@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 
-enum MemberType { profesionalConCuenta, profesionalSoloPerfil, recepcion }
+enum MemberType {
+  profesionalConCuenta,
+  profesionalSoloPerfil,
+  profesionalSoloLectura,
+  recepcion,
+}
 
 enum MemberStatus { activo, pausado }
 
@@ -127,6 +132,7 @@ class Member {
   String get typeLabel => switch (type) {
         MemberType.profesionalConCuenta => 'PROFESIONAL · CON CUENTA',
         MemberType.profesionalSoloPerfil => 'PROFESIONAL · SOLO PERFIL',
+        MemberType.profesionalSoloLectura => 'PROFESIONAL · SOLO LECTURA',
         MemberType.recepcion => 'RECEPCIÓN · CON CUENTA',
       };
 

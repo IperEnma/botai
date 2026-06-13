@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../models/agenda/booking.dart';
 import '../../../../providers/agenda/agenda_api_provider.dart';
+import '../../../../providers/agenda/me_profile_provider.dart';
 import '../../../../providers/agenda/tenant/agenda_bookings_provider.dart';
 import '../../../../providers/agenda/tenant/agenda_month_provider.dart';
 import '../../../../providers/agenda/tenant/agenda_week_provider.dart';
@@ -165,7 +166,10 @@ class _TurnoDetailSheetState extends ConsumerState<_TurnoDetailSheet> {
               style: GoogleFonts.inter(fontSize: 13, color: KTokens.inkMuted),
             ),
           ],
-          if (isPending) ...[
+          // STAFF (operator/viewer) no confirma turnos — solo OW/TA/RC.
+          // El backend ya devuelve 403 por `canManageAgenda`, pero ocultamos
+          // el botón para no mostrar acciones que no funcionan.
+          if (isPending && !readMeProfileOrEmpty(ref).isStaffOnly) ...[
             const SizedBox(height: 24),
             FilledButton(
               onPressed: _confirming ? null : _confirm,

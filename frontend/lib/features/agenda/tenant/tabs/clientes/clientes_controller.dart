@@ -90,6 +90,35 @@ class ClientesNotifier extends StateNotifier<ClientesState> {
   void setFilter(ClientesFilter f) => state = state.copyWith(filter: f);
   void select(String id) => state = state.copyWith(selectedId: id);
 
+  /// Crea un cliente vía `POST /me/businesses/{businessId}/clients` y lo
+  /// agrega al estado local sin re-fetchear toda la lista.
+  Future<Cliente?> create({
+    required String nombre,
+    required String telefono,
+    String? email,
+  }) async {
+    try {
+      final api = ref.read(agendaApiServiceProvider);
+      final created = await api.tenantCreateClient(
+        businessId: businessId,
+        nombre: nombre,
+        telefono: telefono,
+        email: email,
+      );
+      final cliente = _fromPublic(created);
+      if (!mounted) return cliente;
+      state = state.copyWith(
+        all: [cliente, ...state.all],
+        selectedId: cliente.id,
+        error: null,
+      );
+      return cliente;
+    } catch (e) {
+      if (mounted) state = state.copyWith(error: e.toString());
+      return null;
+    }
+  }
+
   // ── Computed ────────────────────────────────────────────────────────────────
 
   double get _vipThreshold => _vipSpendThreshold(state.all);

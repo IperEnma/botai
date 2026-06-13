@@ -47,17 +47,29 @@ public class MeProfileController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MeProfileResponse> profile(@AuthenticationPrincipal Jwt jwt) {
         AgendaUserPrincipal principal = userContext.principal();
-        // Auto-bootstrap: si el tenant existía antes de RBAC y aún no tiene OWNER,
-        // el primer hit a /me/profile lo asigna al usuario del JWT (si su email
-        // matchea el TenantAccount).
+        final String jwtEmail = jwt != null ? jwt.getClaimAsString("email") : null;
+
+        // Auto-bootstrap PLATFORM_ADMIN: si el email del JWT matchea el
+        // configurado en `platform.admin-email` y el usuario aún no tiene PA,
+        // se le asigna acá. Idempotente y cero-ceremonia.
+        boolean platformBootstrapped = roleBootstrap
+                .ensurePlatformAdminByEmail(jwtEmail).isPresent()
+                && !principal.isPlatformAdmin();
+
+        // Auto-bootstrap OWNER: si el tenant existía antes de RBAC y aún no
+        // tiene OWNER, el primer hit a /me/profile lo asigna al usuario del
+        // JWT (si su email matchea el TenantAccount).
         final String currentTenantId = principal.getTenantId();
         boolean lacksAdminRole = currentTenantId != null
                 && principal.getRoles().stream().noneMatch(r ->
                         r.getRole().isTenantAdministrative()
                                 && currentTenantId.equals(r.getTenantId()));
+        boolean ownerBootstrapped = false;
         if (lacksAdminRole) {
-            String email = jwt != null ? jwt.getClaimAsString("email") : null;
-            roleBootstrap.ensureOwnerByJwtEmail(email, currentTenantId);
+            roleBootstrap.ensureOwnerByJwtEmail(jwtEmail, currentTenantId);
+            ownerBootstrapped = true;
+        }
+        if (platformBootstrapped || ownerBootstrapped) {
             // Invalidar la cache del request: bootstrap acaba de mutar las
             // asignaciones de rol del usuario actual.
             principal = userContext.reload();

@@ -128,6 +128,15 @@ mail:
     api-url: ${RESEND_API_URL:https://api.resend.com/emails}
     api-key: ${RESEND_API_KEY:}
 
+# -----------------------------------------------------------------------------
+# Plataforma: bootstrap del PLATFORM_ADMIN
+# Email del dueño de la app. Al primer login con Google se le asigna el rol
+# PLATFORM_ADMIN. Vacío = sin auto-bootstrap (asignar vía SQL o, una vez que
+# exista, vía `/api/agenda/platform/admins/grant`).
+# -----------------------------------------------------------------------------
+platform:
+  admin-email: ${PLATFORM_ADMIN_EMAIL:}
+
 schedulers:
   enabled: ${APP_SCHEDULERS_ENABLED:true}
 

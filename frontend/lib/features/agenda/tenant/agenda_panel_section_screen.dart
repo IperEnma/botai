@@ -15,9 +15,21 @@ class AgendaPanelSectionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final me = readMeProfileOrEmpty(ref);
     // STAFF puro: solo puede ver la sección "Agenda". Cualquier otra sección
     // (Equipo, Servicios, Configuración, etc.) la redirige a su calendario.
-    if (readMeProfileOrEmpty(ref).isStaffOnly) {
+    if (me.isStaffOnly) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.go('/agenda/panel?section=agenda');
+      });
+      return const Scaffold(body: AgendaLoadingView());
+    }
+    // RECEPCIÓN: opera agenda, clientes, servicios, equipo y horarios de la
+    // sucursal. Cualquier otra sección (estilos, planes, etc.) la redirige.
+    const receptionAllowedSections = {
+      'clientes', 'services', 'staff', 'hours'
+    };
+    if (me.isReceptionOnly && !receptionAllowedSections.contains(section)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) context.go('/agenda/panel?section=agenda');
       });

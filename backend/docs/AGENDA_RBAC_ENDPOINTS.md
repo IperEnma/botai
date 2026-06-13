@@ -90,11 +90,11 @@ Sin autenticación o autenticados solo por sesión OTP del cliente final.
 
 | Método | Endpoint | Auth | PA | OW | TA | RC | SV | SO | CL | Restr. | Notas |
 |--------|----------|------|----|----|----|----|----|----|----|--------|-------|
-| GET | `/api/agenda/me/profile` | 🔑 |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | T | **Identidad RBAC del usuario:** `{userId, email, tenantId, roles[], platformAdmin, owner, tenantAdmin}`. Frontend lo consume al cargar para gatear UI. Side-effect: bootstrap del OWNER si el tenant no lo tiene aún. |
+| GET | `/api/agenda/me/profile` | 🔑 |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | T | **Identidad RBAC del usuario:** `{userId, email, tenantId, roles[], platformAdmin, owner, tenantAdmin}`. Frontend lo consume al cargar para gatear UI. Side-effects: (1) bootstrap del OWNER si el tenant no lo tiene aún; (2) bootstrap de PLATFORM_ADMIN si el email del JWT matchea `platform.admin-email` (env `PLATFORM_ADMIN_EMAIL`). Ambos son idempotentes. |
 | GET | `/api/agenda/me/tenant-admin` | 🔑 |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | T | Resolver tenantId del usuario (legacy: usar `/me/profile`). Endpoint bootstrap; cualquier usuario con cuenta lo consume. |
 | POST | `/api/agenda/me/tenant-admin/link` | 🔑 |  | ✓ | ✓ |  |  |  |  | — | Vincular Google email a TenantAccount existente (registrado por WhatsApp). Solo administradores. |
 | POST | `/api/agenda/me/tenant-admin/identifiers` | 🔑 |  | ✓ | ✓ |  |  |  |  | — | Agregar segundo identificador (email/teléfono) a la cuenta. Solo administradores. |
-| POST | `/api/agenda/me/tenant/invitations` | 🔑 |  | ✓ | ✓ |  |  |  |  | T | Crear miembro del tenant con rol RBAC (`STAFF_OPERATOR`/`STAFF_VIEWER`/`RECEPTION`/`TENANT_ADMIN`). Crea `User` + role; para STAFF_* también crea `StaffMember`. Solo OWNER puede invitar TENANT_ADMIN. **Side-effect:** envía mail al invitado (`StaffInvitationEmailService` → `AgendaMailer`): STAFF_*/RECEPTION reciben "te agregaron al equipo de {sucursales}"; TENANT_ADMIN recibe mail de bienvenida. Provider configurado por `mail.provider` (`log` default, `resend` en prod). El fallo del mailer es best-effort y no rompe la invitación. |
+| POST | `/api/agenda/me/tenant/invitations` | 🔑 |  | ✓ | ✓ | ⓑ |  |  |  | T | Crear miembro del tenant con rol RBAC. Quién puede invitar a qué (gate `canInviteRole`): TENANT_ADMIN → solo OWNER; RECEPTION → OW/TA (no se autoreplica); STAFF_OPERATOR/STAFF_VIEWER → OW/TA/RC (RC gestiona el equipo de sus sucursales). Crea `User` + role; para STAFF_* también crea `StaffMember`. **Side-effect:** envía mail al invitado (`StaffInvitationEmailService` → `AgendaMailer`): STAFF_*/RECEPTION reciben "te agregaron al equipo de {sucursales}"; TENANT_ADMIN recibe mail de bienvenida. Provider configurado por `mail.provider` (`log` default, `resend` en prod). El fallo del mailer es best-effort y no rompe la invitación. |
 | PATCH | `/api/agenda/me/tenant/users/{userId}/roles` | 🔑 |  | ✓ |  |  |  |  |  | T | Reasignar por completo los roles de un usuario en este tenant. OWNER only. No puede tocar OWNER. |
 | DELETE | `/api/agenda/me/tenant/users/{userId}` | 🔑 |  | ✓ |  |  |  |  |  | T | Revocar todo acceso al tenant: borra roles, desvincula `StaffMember`. OWNER only. |
 | GET | `/api/agenda/me/public-link` | 🔑 |  | ✓ | ✓ |  |  |  |  | T | Link público del tenant (configuración). |
@@ -139,28 +139,28 @@ Estos endpoints son herencia del modelo previo. **Acción RBAC**: derivar `userI
 | POST | `/api/agenda/me/businesses/{businessId}/photos/upload` | 🔑 | ✓ | ✓ |  |  |  | T+B | Solo administradores. |
 | DELETE | `/api/agenda/me/businesses/{businessId}/photos/{photoId}` | 🔑 | ✓ | ✓ |  |  |  | T+B | Solo administradores. |
 | GET | `/api/agenda/me/businesses/{businessId}/hours` | 🔑 | ✓ | ✓ | ✓ⓑ | ✓ⓑ | ✓ⓑ | T+B | Necesario para todos los roles operativos. |
-| PUT | `/api/agenda/me/businesses/{businessId}/hours` | 🔑 | ✓ | ✓ |  |  |  | T+B | Configuración. |
+| PUT | `/api/agenda/me/businesses/{businessId}/hours` | 🔑 | ✓ | ✓ | ✓ⓑ |  |  | T+B | Horario semanal del negocio. Gate: `canManageBusinessOperations`. |
 
 ### 3.2 Servicios
 
 | Método | Endpoint | Auth | OW | TA | RC | SV | SO | Restr. | Notas |
 |--------|----------|------|----|----|----|----|----|--------|-------|
 | GET | `/api/agenda/me/businesses/{businessId}/services` | 🔑 | ✓ | ✓ | ✓ⓑ | ✓ⓑ | ✓ⓑ | T+B | Todos los roles necesitan ver servicios. |
-| POST | `/api/agenda/me/businesses/{businessId}/services` | 🔑 | ✓ | ✓ |  |  |  | T+B | RC explícitamente no por spec. |
-| PUT | `/api/agenda/me/businesses/{businessId}/services/{serviceId}` | 🔑 | ✓ | ✓ |  |  |  | T+B | Idem. |
-| DELETE | `/api/agenda/me/businesses/{businessId}/services/{serviceId}` | 🔑 | ✓ | ✓ |  |  |  | T+B | Idem. |
+| POST | `/api/agenda/me/businesses/{businessId}/services` | 🔑 | ✓ | ✓ | ✓ⓑ |  |  | T+B | Alta de servicio. Gate: `canManageBusinessOperations`. |
+| PUT | `/api/agenda/me/businesses/{businessId}/services/{serviceId}` | 🔑 | ✓ | ✓ | ✓ⓑ |  |  | T+B | Edita servicio. Gate: `canManageBusinessOperations`. |
+| DELETE | `/api/agenda/me/businesses/{businessId}/services/{serviceId}` | 🔑 | ✓ | ✓ | ✓ⓑ |  |  | T+B | Soft-delete. Gate: `canManageBusinessOperations`. |
 
 ### 3.3 Equipo (Staff)
 
 | Método | Endpoint | Auth | OW | TA | RC | SV | SO | Restr. | Notas |
 |--------|----------|------|----|----|----|----|----|--------|-------|
 | GET | `/api/agenda/me/businesses/{businessId}/staff` | 🔑 | ✓ | ✓ | ✓ⓑ | ✓ⓑ | ✓ⓑ | T+B | Listado del equipo. RC necesita para asignar reservas. SV/SO para ver compañeros. |
-| POST | `/api/agenda/me/businesses/{businessId}/staff` | 🔑 | ✓ | ✓ |  |  |  | T+B | RC explícitamente no. |
-| PUT | `/api/agenda/me/businesses/{businessId}/staff/{staffId}` | 🔑 | ✓ | ✓ |  |  |  | T+B | Datos del miembro. |
-| PUT | `/api/agenda/me/businesses/{businessId}/staff/{staffId}/services` | 🔑 | ✓ | ✓ |  |  |  | T+B | Asignación de servicios. |
-| DELETE | `/api/agenda/me/businesses/{businessId}/staff/{staffId}` | 🔑 | ✓ | ✓ |  |  |  | T+B | Soft-delete. |
-| POST | `/api/agenda/me/businesses/{businessId}/staff/{staffId}/avatar` | 🔑 | ✓ | ✓ |  |  |  | T+B | Foto. Nota: futuro endpoint de "SO sube su propio avatar" puede caer en `/me/profile`. |
-| PATCH | `/api/agenda/me/businesses/{businessId}/staff/{staffId}/schedule` | 🔑 | ✓ | ✓ |  |  | ⓞ | T+B | Edita solo el `customSchedule` (horario semanal recurrente). OW/TA → cualquier staff. SO → solo su propio `staffMember` (gate `canManageOwnStaffSchedule`). El backend clampa cada día dentro del horario del negocio. |
+| POST | `/api/agenda/me/businesses/{businessId}/staff` | 🔑 | ✓ | ✓ | ✓ⓑ |  |  | T+B | Alta de profesional. RC gestiona el equipo de su sucursal. Gate: `canManageBusinessOperations`. |
+| PUT | `/api/agenda/me/businesses/{businessId}/staff/{staffId}` | 🔑 | ✓ | ✓ | ✓ⓑ |  |  | T+B | Datos del miembro. Gate: `canManageBusinessOperations`. |
+| PUT | `/api/agenda/me/businesses/{businessId}/staff/{staffId}/services` | 🔑 | ✓ | ✓ | ✓ⓑ |  |  | T+B | Asignación de servicios. Gate: `canManageBusinessOperations`. |
+| DELETE | `/api/agenda/me/businesses/{businessId}/staff/{staffId}` | 🔑 | ✓ | ✓ | ✓ⓑ |  |  | T+B | Soft-delete. Gate: `canManageBusinessOperations`. |
+| POST | `/api/agenda/me/businesses/{businessId}/staff/{staffId}/avatar` | 🔑 | ✓ | ✓ | ✓ⓑ |  |  | T+B | Foto. Gate: `canManageBusinessOperations`. Nota: futuro endpoint de "SO sube su propio avatar" puede caer en `/me/profile`. |
+| PATCH | `/api/agenda/me/businesses/{businessId}/staff/{staffId}/schedule` | 🔑 | ✓ | ✓ | ✓ⓑ |  | ⓞ | T+B | Edita solo el `customSchedule` (horario semanal recurrente). OW/TA → cualquier staff. RC ⓑ → cualquier staff de su sucursal. SO → solo su propio `staffMember` (gate `canManageOwnStaffSchedule`). El backend clampa cada día dentro del horario del negocio. |
 
 ### 3.4 Clientes (CRM del tenant)
 

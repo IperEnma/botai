@@ -59,7 +59,7 @@ public class TenantBusinessHoursController {
 
     @PutMapping
     @Operation(summary = "Reemplaza los horarios de atención del negocio")
-    @PreAuthorize("@authz.canManageBusiness(#businessId)")
+    @PreAuthorize("@authz.canManageBusinessOperations(#businessId)")
     public ResponseEntity<List<BusinessHoursResponse>> saveHours(
             @PathVariable UUID businessId,
             @Valid @RequestBody SaveBusinessHoursRequest request) {

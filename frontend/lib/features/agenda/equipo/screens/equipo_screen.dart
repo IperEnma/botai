@@ -74,7 +74,11 @@ class EquipoScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             EquipoPageHeader(
-              canManageStaff: readMeProfileOrEmpty(ref).isTenantAdministrative,
+              // OW/TA gestionan todo el equipo del tenant. RC gestiona el
+              // equipo de su sucursal (espejo de `canManageBusinessOperations`
+              // en el backend).
+              canManageStaff: readMeProfileOrEmpty(ref)
+                  .canManageBusinessOperations(key.businessId),
               onAddMember: () async {
                 await showAddMemberPanel(context, key);
                 if (context.mounted) {

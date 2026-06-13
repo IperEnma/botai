@@ -206,6 +206,9 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
       }
     }
     final effectiveProId = ownStaff?.id ?? _selectedProId;
+    // Para STAFF_VIEWER ocultamos los botones de mutación: backend devuelve
+    // 403, pero la UX sería frustrante si mostramos algo que no funciona.
+    final canCreateBookings = me.canMutateOwnAgenda;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,12 +223,14 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
               ),
               const SizedBox(width: 8),
               _SmallIconBtn(icon: Icons.link, onTap: _copyPublicLink),
-              const SizedBox(width: 6),
-              _SmallIconBtn(
-                icon: Icons.add_rounded,
-                onTap: () => _openNewTurno(lockedProId: ownStaff?.id),
-                primary: true,
-              ),
+              if (canCreateBookings) ...[
+                const SizedBox(width: 6),
+                _SmallIconBtn(
+                  icon: Icons.add_rounded,
+                  onTap: () => _openNewTurno(lockedProId: ownStaff?.id),
+                  primary: true,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 10),
@@ -282,13 +287,15 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
                         compact: true,
                         onPressed: _copyPublicLink,
                       ),
-                      const SizedBox(width: 8),
-                      KButton.primary(
-                        label: 'Nueva agenda',
-                        icon: Icons.add_rounded,
-                        compact: true,
-                        onPressed: () => _openNewTurno(),
-                      ),
+                      if (canCreateBookings) ...[
+                        const SizedBox(width: 8),
+                        KButton.primary(
+                          label: 'Nueva agenda',
+                          icon: Icons.add_rounded,
+                          compact: true,
+                          onPressed: () => _openNewTurno(lockedProId: ownStaff?.id),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 22),
@@ -328,8 +335,11 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
                 weekStart: ws,
                 businessId: businessId,
                 tenantId: widget.tenantId,
-                onSlotTap: (start, proId) =>
-                    _openNewTurno(start: start, proId: proId),
+                onSlotTap: (start, proId) {
+                  if (!canCreateBookings) return; // VIEWER: read-only.
+                  _openNewTurno(
+                      start: start, proId: proId, lockedProId: ownStaff?.id);
+                },
                 onTurnoTap: (b) => _openTurnoDetail(businessId, b),
               ),
             _AgendaViewMode.day => DayView(
@@ -337,8 +347,11 @@ class _AgendaSectionState extends ConsumerState<AgendaSection> {
                 businessId: businessId,
                 tenantId: widget.tenantId,
                 visibleProId: effectiveProId,
-                onSlotTap: (start, proId) =>
-                    _openNewTurno(start: start, proId: proId),
+                onSlotTap: (start, proId) {
+                  if (!canCreateBookings) return; // VIEWER: read-only.
+                  _openNewTurno(
+                      start: start, proId: proId, lockedProId: ownStaff?.id);
+                },
                 onTurnoTap: (b) => _openTurnoDetail(businessId, b),
               ),
           },

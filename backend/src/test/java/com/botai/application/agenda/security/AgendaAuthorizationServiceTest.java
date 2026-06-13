@@ -126,6 +126,48 @@ class AgendaAuthorizationServiceTest {
     }
 
     @Test
+    void reception_puedeCrearBookingParaCualquierStaff() {
+        var auth = authzWith(principalWith(Role.RECEPTION, BUSINESS_ID));
+        // No matchea su propio staffMember (RC no es staff). Pasa igual porque
+        // canManageBookingFor permite a RC sobre cualquier profesional.
+        assertTrue(auth.canManageBookingFor(BUSINESS_ID, UUID.randomUUID()),
+                "RECEPTION debe poder asignar reservas a cualquier staff");
+    }
+
+    @Test
+    void reception_gestionaOperaciones_servicios_equipo_horarios_pero_no_settings() {
+        var auth = authzWith(principalWith(Role.RECEPTION, BUSINESS_ID));
+        // Operaciones del día a día sobre su sucursal: SÍ.
+        assertTrue(auth.canManageBusinessOperations(BUSINESS_ID),
+                "RC opera servicios/equipo/horarios de su sucursal");
+        assertTrue(auth.canManageOwnStaffSchedule(BUSINESS_ID, UUID.randomUUID()),
+                "RC edita el horario de cualquier staff de su sucursal");
+        // Pero NO settings, branding, fotos, planes, features, bot, admins.
+        assertFalse(auth.canManageBusiness(BUSINESS_ID),
+                "RC no toca settings / branding / fotos / planes");
+        assertFalse(auth.canManageBusinessOwnerOnly(BUSINESS_ID));
+        assertFalse(auth.canManageTenant());
+        // Invitaciones: solo STAFF_* — no se autoreplica ni crea admins.
+        assertTrue(auth.canInviteRole("STAFF_OPERATOR"),
+                "RC suma profesionales a su equipo");
+        assertTrue(auth.canInviteRole("STAFF_VIEWER"));
+        assertFalse(auth.canInviteRole("RECEPTION"),
+                "RC no se autoreplica");
+        assertFalse(auth.canInviteRole("TENANT_ADMIN"));
+    }
+
+    @Test
+    void reception_noPuede_operarEnSucursalNoAsignada_operaciones() {
+        var auth = authzWith(principalWith(Role.RECEPTION, BUSINESS_ID));
+        UUID otherBizSameTenant = UUID.randomUUID();
+        when(businessRepository.findByIdAndTenantId(eq(otherBizSameTenant), eq(TENANT_ID)))
+                .thenReturn(Optional.of(mock(Business.class)));
+        assertFalse(auth.canManageBusinessOperations(otherBizSameTenant),
+                "RC no opera sucursales donde no tiene rol asignado");
+        assertFalse(auth.canManageOwnStaffSchedule(otherBizSameTenant, UUID.randomUUID()));
+    }
+
+    @Test
     void reception_noPuede_operarEnSucursalNoAsignada() {
         var auth = authzWith(principalWith(Role.RECEPTION, BUSINESS_ID));
         // Otro business pero del mismo tenant
@@ -185,6 +227,17 @@ class AgendaAuthorizationServiceTest {
         assertTrue(auth.canManageOwnStaffSchedule(BUSINESS_ID, ownStaffId));
         assertFalse(auth.canManageOwnStaffSchedule(BUSINESS_ID, UUID.randomUUID()),
                 "STAFF no debe poder editar el horario de otro staff");
+    }
+
+    @Test
+    void staffViewer_noPuedeEditarSuHorario() {
+        UUID ownStaffId = UUID.randomUUID();
+        when(staffMemberRepository.findByUserIdAndBusinessId(USER_ID, BUSINESS_ID))
+                .thenReturn(Optional.of(staffMemberWithId(ownStaffId)));
+
+        var auth = authzWith(principalWith(Role.STAFF_VIEWER, BUSINESS_ID));
+        assertFalse(auth.canManageOwnStaffSchedule(BUSINESS_ID, ownStaffId),
+                "STAFF_VIEWER es solo lectura — no edita su horario");
     }
 
     @Test

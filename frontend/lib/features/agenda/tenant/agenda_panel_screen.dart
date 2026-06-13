@@ -40,6 +40,18 @@ class AgendaPanelScreen extends ConsumerWidget {
         ),
       ),
       data: (profile) {
+        // PLATFORM_ADMIN: priorizamos el panel de plataforma. Si además es
+        // owner de algún tenant, el sidebar de Plataforma tiene "Ver mi
+        // tenant" para volver acá.
+        if (profile.platformAdmin) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) context.go('/admin/platform');
+          });
+          return const Scaffold(
+            backgroundColor: Color(0xFFFBFAF7),
+            body: AgendaLoadingView(),
+          );
+        }
         // Sin tenant resuelto: usuario autenticado en Google pero todavía sin
         // cuenta Agenda (caso owner nuevo). Pre-llenar registro con sus datos
         // de Google y mandarlo al alta de negocio.
@@ -97,9 +109,11 @@ class AgendaPanelScreen extends ConsumerWidget {
 
         var selectedId = ref.watch(selectedAgendaBusinessIdProvider);
         final ids = bizState.items.map((b) => b.id).toSet();
-        // STAFF: forzar la sucursal seleccionada a una donde tenga rol.
-        if (profile.isStaffOnly) {
-          final allowed = profile.staffBusinessIds.intersection(ids);
+        // STAFF y RECEPCIÓN: forzar la sucursal seleccionada a una de las
+        // asignadas. Si está vacío, cae al fallback genérico (primera del
+        // tenant) — el backend igual rechaza con 403/404 si no toca.
+        if (profile.hasBusinessScopedAccess) {
+          final allowed = profile.scopedBusinessIds.intersection(ids);
           if (allowed.isNotEmpty &&
               (selectedId == null || !allowed.contains(selectedId))) {
             selectedId = allowed.first;
@@ -117,13 +131,14 @@ class AgendaPanelScreen extends ConsumerWidget {
           });
         }
 
-        // STAFF puro: el "Inicio" del panel no tiene sentido — saltarlo a la
-        // sección Agenda directamente.
+        // STAFF y RECEPCIÓN: el "Inicio" del panel no tiene sentido — saltan
+        // directo a la sección Agenda. El sidebar de cada rol limita el
+        // resto de la navegación.
         final currentSection = GoRouterState.of(context)
                 .uri
                 .queryParameters['section'] ??
             '';
-        if (profile.isStaffOnly && currentSection != 'agenda') {
+        if (profile.hasBusinessScopedAccess && currentSection != 'agenda') {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) context.go('/agenda/panel?section=agenda');
           });

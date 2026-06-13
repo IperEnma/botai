@@ -40,7 +40,11 @@ class AgendaLeftNav extends ConsumerWidget {
         GoRouterState.of(context).uri.queryParameters['section'] ?? '';
     // STAFF puro: solo ve la sección "Agenda" — el resto se gatea backend con
     // 403/404 y mostrarlo solo serviría para frustrar al usuario.
-    final staffOnly = readMeProfileOrEmpty(ref).isStaffOnly;
+    final me = readMeProfileOrEmpty(ref);
+    final staffOnly = me.isStaffOnly;
+    // RECEPCIÓN: ve Agenda + Clientes. Sin configuración del negocio, sin
+    // servicios, sin equipo, sin administradores, sin bot.
+    final receptionOnly = me.isReceptionOnly;
 
     final selectedInicio = (loc == '/agenda/panel' || loc.startsWith('/agenda/panel')) &&
         !loc.contains('/section/') &&
@@ -80,7 +84,8 @@ class AgendaLeftNav extends ConsumerWidget {
           AgendaNavItem(
             icon: Icons.calendar_today_outlined,
             label: 'Agenda',
-            selected: selectedAgenda || (staffOnly && selectedInicio),
+            selected: selectedAgenda ||
+                ((staffOnly || receptionOnly) && selectedInicio),
             onTap: () => _go(context, '/agenda/panel?section=agenda'),
           ),
           if (staffOnly)
@@ -90,7 +95,33 @@ class AgendaLeftNav extends ConsumerWidget {
               selected: selectedMisHorarios,
               onTap: () => _go(context, '/agenda/panel/mis-horarios'),
             ),
-          if (!staffOnly) ...[
+          if (receptionOnly) ...[
+            AgendaNavItem(
+              icon: Icons.people_outline,
+              label: 'Clientes',
+              selected: selectedClientes,
+              onTap: () => _go(context, '/agenda/panel/section/clientes'),
+            ),
+            AgendaNavItem(
+              icon: Icons.room_service_outlined,
+              label: 'Servicios',
+              selected: selectedServicios,
+              onTap: () => _go(context, '/agenda/panel/section/services'),
+            ),
+            AgendaNavItem(
+              icon: Icons.people_outline,
+              label: 'Equipo',
+              selected: selectedEquipo,
+              onTap: () => _go(context, '/agenda/panel/section/staff'),
+            ),
+            AgendaNavItem(
+              icon: Icons.schedule_outlined,
+              label: 'Horarios',
+              selected: selectedHorarios,
+              onTap: () => _go(context, '/agenda/panel/section/hours'),
+            ),
+          ],
+          if (!staffOnly && !receptionOnly) ...[
             AgendaNavItem(
               icon: Icons.home_outlined,
               label: 'Inicio',
