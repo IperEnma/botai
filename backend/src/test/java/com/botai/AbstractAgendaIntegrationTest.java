@@ -2,9 +2,12 @@ package com.botai;
 
 import com.botai.ChatbotEngineApplication;
 import com.botai.application.agenda.security.AgendaAuthorizationService;
+import com.botai.domain.agenda.exception.BusinessNotFoundException;
+import com.botai.domain.agenda.repository.BusinessRepository;
 import com.botai.infrastructure.agenda.security.AgendaCurrentTenantService;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
@@ -14,6 +17,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -48,6 +52,9 @@ public abstract class AbstractAgendaIntegrationTest {
     @MockBean
     protected AgendaAuthorizationService authz;
 
+    @Autowired
+    protected BusinessRepository businessRepository;
+
     @MockBean
     @SuppressWarnings("unused")
     private ChatModel chatModel;
@@ -56,6 +63,12 @@ public abstract class AbstractAgendaIntegrationTest {
     protected void stubAgendaTenant(String tenantId) {
         when(agendaCurrentTenantService.requireTenantId()).thenReturn(tenantId);
         when(agendaCurrentTenantService.findTenantId()).thenReturn(Optional.of(tenantId));
+        when(agendaCurrentTenantService.requireBusinessOwnedByCurrentTenant(any(UUID.class)))
+                .thenAnswer(invocation -> {
+                    UUID businessId = invocation.getArgument(0);
+                    return businessRepository.findByIdAndTenantId(businessId, tenantId)
+                            .orElseThrow(() -> new BusinessNotFoundException(businessId));
+                });
         stubAllAuthChecks();
     }
 
