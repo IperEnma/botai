@@ -80,6 +80,7 @@ public abstract class AbstractAgendaIntegrationTest {
         when(authz.isAuthenticatedInTenant()).thenReturn(true);
         when(authz.canManageTenant()).thenReturn(true);
         when(authz.canManageBusiness(any())).thenReturn(true);
+        when(authz.canManageBusinessOperations(any())).thenReturn(true);
         when(authz.canViewBusiness(any())).thenReturn(true);
         when(authz.canManageAgenda(any())).thenReturn(true);
         when(authz.canViewAgenda(any())).thenReturn(true);
